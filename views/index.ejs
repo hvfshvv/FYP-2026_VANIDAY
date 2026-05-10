@@ -1,0 +1,276 @@
+<%- include('partials/header') %>
+
+<!-- ═══════ HERO — left-aligned split (variance 8) ═══════ -->
+<section class="hero-section">
+  <div class="container">
+    <div class="hero-grid">
+
+      <!-- Text column -->
+      <div class="anim-up">
+        <p class="hero-eyebrow">Singapore's beauty platform</p>
+        <h1 class="hero-title">
+          Beauty &amp; wellness,<br/>
+          <span style="color:var(--accent);">booked in seconds.</span>
+        </h1>
+        <p class="hero-sub">
+          Discover top salons, spas, and wellness studios. Scan a QR code at the shop, choose your service, pay securely — no app required.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="/marketplace" class="btn btn-primary btn-pill btn-lg">
+            <i class="bi bi-grid me-1"></i>Browse services
+          </a>
+          <% if (!user) { %>
+          <a href="/auth/register" class="btn btn-outline-secondary btn-pill btn-lg">
+            <i class="bi bi-shop me-1"></i>List your business
+          </a>
+          <% } %>
+        </div>
+        <div class="hero-trust">
+          <span><i class="bi bi-check-circle-fill"></i>No app needed</span>
+          <span><i class="bi bi-check-circle-fill"></i>Instant booking</span>
+          <span><i class="bi bi-check-circle-fill"></i>Secure payments</span>
+        </div>
+      </div>
+
+      <!-- Image collage column -->
+      <div class="hero-visual anim-up anim-up-2 d-none d-lg-block">
+        <div class="hero-img-grid">
+          <img src="https://picsum.photos/seed/vaniday-salon/500/460" alt="Beauty salon interior" loading="eager" />
+          <img src="https://picsum.photos/seed/vaniday-nails/420/218" alt="Nail treatment" loading="eager" />
+          <img src="https://picsum.photos/seed/vaniday-spa/420/218"   alt="Spa treatment"  loading="lazy"  />
+        </div>
+        <div class="hero-pill">
+          <div>
+            <p class="hero-pill-num">1,000+</p>
+            <p class="hero-pill-text">Merchants<br/>on Vaniday</p>
+          </div>
+          <div class="icon-circle" style="background:var(--accent-light);color:var(--accent);">
+            <i class="bi bi-shop" style="font-size:1.25rem;"></i>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ CATEGORIES ═══════ -->
+<section class="section" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <p class="section-label">Browse by type</p>
+        <h2 class="section-title">What are you looking for?</h2>
+        <p class="section-sub">Hundreds of services across Singapore — from a quick trim to a full spa day.</p>
+      </div>
+    </div>
+    <div class="cat-grid">
+      <% [
+        { icon:'bi-scissors',    label:'Hair',       desc:'Cuts · Colour · Styling'   },
+        { icon:'bi-brush',       label:'Nails',      desc:'Manicure · Pedicure · Gel' },
+        { icon:'bi-stars',       label:'Facial',     desc:'Glow · Skin care'          },
+        { icon:'bi-hand-index',  label:'Massage',    desc:'Body · Deep tissue'        },
+        { icon:'bi-heart-pulse', label:'Wellness',   desc:'Yoga · Pilates'            },
+        { icon:'bi-activity',    label:'Body',       desc:'Waxing · Toning'           },
+        { icon:'bi-eye',         label:'Aesthetics', desc:'Lashes · Brows'            },
+        { icon:'bi-flower2',     label:'Spa',        desc:'Luxury packages'           },
+      ].forEach(c => { %>
+      <a href="/marketplace" class="cat-card" aria-label="Browse <%= c.label %> services">
+        <div class="cat-icon"><i class="bi <%= c.icon %>"></i></div>
+        <p><%= c.label %></p>
+        <p><%= c.desc %></p>
+      </a>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ FEATURED MERCHANTS ═══════ -->
+<% if (featured.length > 0) { %>
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <p class="section-label">Handpicked</p>
+        <h2 class="section-title">Featured merchants</h2>
+        <p class="section-sub">Top-rated salons and studios on Vaniday.</p>
+      </div>
+      <a href="/marketplace" class="btn btn-outline-secondary btn-sm btn-pill d-none d-md-inline-flex">View all</a>
+    </div>
+    <div class="row g-4">
+      <% featured.forEach(listing => { %>
+      <div class="col-md-6 col-lg-4">
+        <a href="/marketplace" class="merchant-card">
+          <% if (listing.image_path) { %>
+          <img src="<%= listing.image_path %>" class="card-img" alt="<%= listing.merchant_name %>" loading="lazy" />
+          <% } else { %>
+          <div class="card-no-img"><i class="bi bi-shop"></i></div>
+          <% } %>
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+              <h6 class="card-title mb-0"><%= listing.merchant_name %></h6>
+              <span class="featured-badge ms-2"><i class="bi bi-star-fill" style="font-size:.55rem;"></i>Featured</span>
+            </div>
+            <p class="card-meta mb-2"><%= listing.description || 'Top-rated beauty salon' %></p>
+            <% if (listing.promo_title) { %>
+            <span class="badge mb-2" style="background:var(--accent-light);color:var(--accent);">
+              <i class="bi bi-tag me-1"></i><%= listing.discount_pct %>% off
+            </span>
+            <% } %>
+            <p class="card-meta mb-0"><i class="bi bi-geo-alt me-1"></i><%= listing.address || 'Singapore' %></p>
+          </div>
+        </a>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<!-- ═══════ HOT DEALS ═══════ -->
+<% if (promotions.length > 0) { %>
+<section class="section" style="background:var(--surface);border-top:1px solid var(--border);">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <p class="section-label">Limited time</p>
+        <h2 class="section-title">Current deals</h2>
+        <p class="section-sub">Grab these promotions from our top merchants before they expire.</p>
+      </div>
+      <a href="/marketplace" class="btn btn-outline-secondary btn-sm btn-pill d-none d-md-inline-flex">See all</a>
+    </div>
+    <div class="row g-3">
+      <% promotions.forEach(promo => { %>
+      <div class="col-md-6 col-lg-4">
+        <div class="promo-card h-100">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="flex-grow-1 me-3">
+              <p class="promo-title mb-0"><%= promo.title %></p>
+              <p class="promo-merchant mb-1"><i class="bi bi-shop me-1"></i><%= promo.merchant_name %></p>
+            </div>
+            <div class="promo-discount flex-shrink-0"><%= promo.discount_pct %>%<br/><span style="font-size:.7rem;font-weight:700;">off</span></div>
+          </div>
+          <p class="small text-muted mb-2"><%= promo.description || '' %></p>
+          <p class="promo-date mt-2"><i class="bi bi-calendar3 me-1"></i>Until <%= promo.end_date.toISOString().slice(0,10) %></p>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<!-- ═══════ QR FEATURE — dark section ═══════ -->
+<section class="section" style="background:var(--ink);">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6 anim-up">
+        <p class="section-label" style="color:rgba(255,255,255,.45);">Key feature</p>
+        <h2 class="section-title" style="color:#fff;letter-spacing:-.03em;">QR-based cashless booking</h2>
+        <p style="color:rgba(255,255,255,.55);margin-bottom:2rem;max-width:46ch;line-height:1.65;font-size:1rem;">
+          Walk in, scan the merchant's QR code, pick a service, and pay — all in under 60 seconds. No app, no hardware.
+        </p>
+        <div class="d-flex flex-column gap-3 mb-4">
+          <% [
+            ['bi-phone',         'Scan',  "Point your camera at the merchant's QR code"],
+            ['bi-calendar-check','Book',  'Choose a service, date and time instantly'],
+            ['bi-credit-card',   'Pay',   'Secure Stripe payment — confirmed in seconds'],
+          ].forEach(([icon,title,desc]) => { %>
+          <div class="d-flex align-items-center gap-3">
+            <div class="icon-circle flex-shrink-0" style="background:rgba(225,29,72,.15);color:var(--accent);">
+              <i class="bi <%= icon %>" style="font-size:1.1rem;"></i>
+            </div>
+            <div>
+              <p style="font-weight:700;color:#fff;margin-bottom:.1rem;font-size:.9375rem;"><%= title %></p>
+              <p style="color:rgba(255,255,255,.5);font-size:.875rem;margin-bottom:0;"><%= desc %></p>
+            </div>
+          </div>
+          <% }) %>
+        </div>
+        <% if (!user) { %>
+        <a href="/auth/register" class="btn btn-primary btn-pill">
+          <i class="bi bi-shop me-2"></i>List your business free
+        </a>
+        <% } %>
+      </div>
+
+      <div class="col-lg-5 offset-lg-1 d-none d-lg-block anim-up anim-up-2">
+        <div class="p-4 rounded-2xl" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);">
+          <div class="text-center mb-3">
+            <div style="background:#fff;border-radius:var(--r-lg);padding:1.5rem;display:inline-block;">
+              <i class="bi bi-qr-code" style="font-size:4.5rem;color:var(--ink);"></i>
+            </div>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <div class="p-2 rounded-xl" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);">
+                <p style="font-weight:700;font-size:.875rem;color:#fff;margin-bottom:.1rem;"><i class="bi bi-scissors me-1"></i>Haircut</p>
+                <p style="color:rgba(255,255,255,.45);font-size:.75rem;font-family:var(--font-mono);margin-bottom:0;">45 min · S$38</p>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 rounded-xl" style="background:rgba(225,29,72,.2);border:1px solid rgba(225,29,72,.5);">
+                <p style="font-weight:700;font-size:.875rem;color:#fff;margin-bottom:.1rem;"><i class="bi bi-brush me-1"></i>Manicure</p>
+                <p style="color:rgba(255,255,255,.6);font-size:.75rem;font-family:var(--font-mono);margin-bottom:0;">50 min · S$45</p>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="p-2 rounded-xl text-center" style="background:var(--accent);">
+                <p style="font-weight:700;font-size:.875rem;color:#fff;margin-bottom:0;"><i class="bi bi-check-circle me-1"></i>Booking confirmed</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ HOW IT WORKS — 2×2 grid (no 3-col equal cards) ═══════ -->
+<section class="section" style="border-top:1px solid var(--border);">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <p class="section-label">Simple process</p>
+        <h2 class="section-title">How Vaniday works</h2>
+        <p class="section-sub">From discovery to checkout — the whole flow takes under five minutes.</p>
+      </div>
+    </div>
+    <div class="how-grid">
+      <% [
+        ['Discover services',  'Browse hundreds of beauty and wellness merchants across Singapore. Filter by category, location, or price.'],
+        ['Scan or book ahead', 'Walk into any participating salon and scan their QR code — or book in advance through the marketplace.'],
+        ['Choose your slot',   'Select a service, pick a date and time that suits you, and fill in your contact details.'],
+        ['Pay and show up',    'Complete secure payment via Stripe. Receive a confirmation and show up for your treatment.'],
+      ].forEach(([title, desc], i) => { %>
+      <div class="how-card anim-up anim-up-<%= i+1 %>">
+        <div class="how-step"><%= i+1 %></div>
+        <h5><%= title %></h5>
+        <p><%= desc %></p>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ MERCHANT CTA ═══════ -->
+<% if (!user || user.role !== 'merchant') { %>
+<section class="section" style="background:var(--surface);border-top:1px solid var(--border);">
+  <div class="container">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-7">
+        <p class="section-label">For businesses</p>
+        <h2 class="section-title mb-2">Run a beauty or wellness business?</h2>
+        <p class="section-sub">Join Vaniday as a merchant — generate your QR code, manage services, create promotions, and get featured in the marketplace. Free to get started.</p>
+      </div>
+      <div class="col-lg-5 text-lg-end">
+        <a href="/auth/register" class="btn btn-primary btn-lg btn-pill">
+          List your business free <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,46 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<div style="min-height:80vh;display:flex;align-items:center;padding:3rem 1rem;background:var(--canvas);">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5 text-center">
+        <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:2.5rem;">
+          <div class="mb-4">
+            <div class="icon-circle-lg mx-auto" style="background:var(--success-bg);">
+              <i class="bi bi-check-lg" style="font-size:2.2rem;color:var(--success);"></i>
+            </div>
+          </div>
+          <h3 style="font-weight:800;letter-spacing:-.025em;color:var(--success);margin-bottom:.5rem;">Booking Confirmed!</h3>
+          <p style="color:var(--muted);margin-bottom:1.5rem;">Your payment was successful. See you at the salon!</p>
+
+          <% if (booking) { %>
+          <div class="text-start p-3 rounded-xl mb-4" style="background:var(--surface);border:1.5px solid var(--border);">
+            <div class="summary-row"><span class="lbl">Merchant</span><span class="val"><%= booking.merchant_name %></span></div>
+            <div class="summary-row"><span class="lbl">Service</span><span class="val"><%= booking.service_name %></span></div>
+            <div class="summary-row"><span class="lbl">Date</span><span class="val"><%= new Date(booking.booking_date).toLocaleDateString('en-SG',{weekday:'short',day:'numeric',month:'long',year:'numeric'}) %></span></div>
+            <div class="summary-row"><span class="lbl">Time</span><span class="val"><%= String(booking.booking_time).slice(0,5) %></span></div>
+            <div class="summary-row">
+              <span class="lbl">Booking ID</span>
+              <span class="val" style="font-family:var(--font-mono);">#<%= booking.booking_id %></span>
+            </div>
+          </div>
+          <% } %>
+
+          <div class="p-3 rounded-xl mb-4" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.15);">
+            <p class="small mb-0" style="color:var(--accent);">
+              <i class="bi bi-qr-code me-1"></i>
+              When you arrive, scan the merchant's QR code again to confirm your arrival.
+            </p>
+          </div>
+
+          <a href="/" class="btn btn-primary btn-pill w-100 py-2">
+            <i class="bi bi-house me-2"></i>Back to Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

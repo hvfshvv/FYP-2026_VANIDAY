@@ -1,0 +1,46 @@
+const db = require('../config/db');
+
+async function getFeaturedListings() {
+  const [rows] = await db.query(
+    `SELECT fl.*, m.merchant_name, m.address, p.title AS promo_title, p.discount_pct
+     FROM FEATURED_LISTING fl
+     JOIN MERCHANT m ON fl.merchant_id = m.merchant_id
+     LEFT JOIN PROMOTION p ON fl.promo_id = p.promo_id
+     WHERE fl.is_visible = 1
+     ORDER BY fl.created_at DESC`
+  );
+  return rows;
+}
+
+async function getMerchantListing(merchantId) {
+  const [rows] = await db.query(
+    'SELECT fl.*, p.title AS promo_title FROM FEATURED_LISTING fl LEFT JOIN PROMOTION p ON fl.promo_id = p.promo_id WHERE fl.merchant_id = ?',
+    [merchantId]
+  );
+  return rows[0] || null;
+}
+
+async function upsertFeaturedListing({ merchantId, promoId, title, description, imagePath }) {
+  const existing = await getMerchantListing(merchantId);
+  if (existing) {
+    await db.query(
+      'UPDATE FEATURED_LISTING SET promo_id=?, title=?, description=?, image_path=? WHERE merchant_id=?',
+      [promoId || null, title, description, imagePath || existing.image_path, merchantId]
+    );
+    return existing.listing_id;
+  }
+  const [result] = await db.query(
+    'INSERT INTO FEATURED_LISTING (merchant_id, promo_id, title, description, image_path) VALUES (?,?,?,?,?)',
+    [merchantId, promoId || null, title, description, imagePath || null]
+  );
+  return result.insertId;
+}
+
+async function toggleListingVisibility(merchantId) {
+  await db.query(
+    'UPDATE FEATURED_LISTING SET is_visible = NOT is_visible WHERE merchant_id = ?',
+    [merchantId]
+  );
+}
+
+module.exports = { getFeaturedListings, getMerchantListing, upsertFeaturedListing, toggleListingVisibility };

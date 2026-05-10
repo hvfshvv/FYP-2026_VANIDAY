@@ -1,0 +1,337 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<div class="container py-4" style="max-width:900px;">
+
+  <!-- Merchant Banner -->
+  <div class="mb-4" style="background:var(--ink);border-radius:var(--r-xl);padding:1.5rem 2rem;">
+    <div class="d-flex align-items-center gap-3">
+      <div class="icon-circle flex-shrink-0" style="background:rgba(255,255,255,.1);">
+        <i class="bi bi-shop" style="font-size:1.4rem;color:#fff;"></i>
+      </div>
+      <div>
+        <h4 style="font-weight:800;color:#fff;margin-bottom:.1rem;letter-spacing:-.025em;"><%= qr.merchant_name %></h4>
+        <p style="color:rgba(255,255,255,.55);font-size:.875rem;margin-bottom:.4rem;"><i class="bi bi-geo-alt me-1"></i><%= qr.address || 'Singapore' %></p>
+        <span class="badge" style="background:rgba(225,29,72,.2);color:var(--accent);border:1px solid rgba(225,29,72,.3);font-size:.75rem;">
+          <i class="bi bi-qr-code me-1"></i>QR Scan Booking
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <% if (error) { %>
+  <div class="rounded-xl p-3 mb-4" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+    <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+  </div>
+  <% } %>
+
+  <div class="row g-4">
+
+    <!-- LEFT: Booking Wizard -->
+    <div class="col-lg-7">
+
+      <!-- Step Indicator -->
+      <div class="step-indicator mb-4">
+        <div class="step-item">
+          <div class="step-bubble active" id="bubble-1">1</div>
+          <div class="step-label active" id="label-1">Service</div>
+        </div>
+        <div class="step-line" id="line-1"></div>
+        <div class="step-item">
+          <div class="step-bubble" id="bubble-2">2</div>
+          <div class="step-label" id="label-2">Date &amp; Time</div>
+        </div>
+        <div class="step-line" id="line-2"></div>
+        <div class="step-item">
+          <div class="step-bubble" id="bubble-3">3</div>
+          <div class="step-label" id="label-3">Your Details</div>
+        </div>
+      </div>
+
+      <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+        <div class="card-body p-4">
+          <form action="/book/<%= qr.qr_token %>/confirm" method="POST" id="bookingForm">
+            <input type="hidden" name="service_id"   id="hidden_service_id" />
+            <input type="hidden" name="booking_time" id="hidden_booking_time" />
+
+            <!-- STEP 1 -->
+            <div class="step-panel active" id="step-1">
+              <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">Choose a Service</h5>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">Tap to select what you'd like to book today.</p>
+
+              <% services.forEach(s => { %>
+              <div class="service-card"
+                data-service-id="<%= s.service_id %>"
+                data-service-name="<%= s.service_name %>"
+                data-price="<%= s.price %>"
+                data-duration="<%= s.duration_mins %>"
+                onclick="selectService(this)">
+                <div>
+                  <p style="font-weight:700;margin-bottom:.1rem;color:var(--ink);"><%= s.service_name %></p>
+                  <small style="color:var(--muted);"><i class="bi bi-clock me-1"></i><%= s.duration_mins %> min</small>
+                  <% if (s.description) { %>
+                  <br/><small style="color:var(--muted);"><%= s.description %></small>
+                  <% } %>
+                </div>
+                <div class="text-end">
+                  <div class="price">S$<%= Number(s.price).toFixed(2) %></div>
+                  <i class="bi bi-check-circle-fill check-icon" style="display:none;color:var(--accent);"></i>
+                </div>
+              </div>
+              <% }) %>
+
+              <div id="step1-error" style="display:none;color:var(--danger);font-size:.8125rem;margin-top:.75rem;">
+                <i class="bi bi-exclamation-circle me-1"></i>Please select a service to continue.
+              </div>
+              <button type="button" class="btn btn-primary btn-pill w-100 mt-4" style="font-weight:700;" onclick="nextStep(1)">
+                Continue <i class="bi bi-arrow-right ms-1"></i>
+              </button>
+            </div>
+
+            <!-- STEP 2 -->
+            <div class="step-panel" id="step-2">
+              <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">Pick a Date &amp; Time</h5>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">Choose when you'd like your appointment.</p>
+
+              <div class="mb-4">
+                <label class="form-label" style="font-weight:600;font-size:.875rem;">Date</label>
+                <input type="date" name="booking_date" id="booking_date" class="form-control rounded-xl"
+                  min="<%= new Date().toISOString().slice(0,10) %>" required onchange="updateSummary()" />
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" style="font-weight:600;font-size:.875rem;">Available Times</label>
+                <div class="time-grid">
+                  <% ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','13:00',
+                      '13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'].forEach(t => { %>
+                  <div class="time-btn" onclick="selectTime(this,'<%= t %>')"><%= t %></div>
+                  <% }) %>
+                </div>
+                <div id="step2-error" style="display:none;color:var(--danger);font-size:.8125rem;margin-top:.75rem;">
+                  <i class="bi bi-exclamation-circle me-1"></i>Please pick both a date and a time.
+                </div>
+              </div>
+
+              <div class="d-flex gap-2 mt-4">
+                <button type="button" class="btn btn-outline-secondary btn-pill w-50" style="font-weight:600;" onclick="prevStep(2)">
+                  <i class="bi bi-arrow-left me-1"></i>Back
+                </button>
+                <button type="button" class="btn btn-primary btn-pill w-50" style="font-weight:700;" onclick="nextStep(2)">
+                  Continue <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- STEP 3 -->
+            <div class="step-panel" id="step-3">
+              <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">Your Details</h5>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">
+                <% if (user) { %>
+                <i class="bi bi-person-check-fill me-1" style="color:var(--success);"></i>
+                Logged in as <strong><%= user.full_name %></strong> — details pre-filled for you.
+                <% } else { %>
+                No account needed — just your contact info.
+                <% } %>
+              </p>
+
+              <div class="mb-3">
+                <label class="form-label" style="font-weight:600;font-size:.875rem;">Full Name</label>
+                <input type="text" name="full_name" class="form-control rounded-xl"
+                  placeholder="e.g. Sarah Lim"
+                  value="<%= user ? user.full_name : '' %>" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" style="font-weight:600;font-size:.875rem;">Phone Number</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-telephone me-1"></i>+65</span>
+                  <input type="text" name="phone" class="form-control" placeholder="9XXXXXXX"
+                    value="<%= user && user.phone ? user.phone.replace('+65','').trim() : '' %>" required />
+                </div>
+              </div>
+              <div class="mb-4">
+                <label class="form-label" style="font-weight:600;font-size:.875rem;">
+                  Email <span style="color:var(--muted);font-weight:400;font-size:.8125rem;">(confirmation sent here)</span>
+                </label>
+                <input type="email" name="email" class="form-control rounded-xl"
+                  placeholder="you@example.com"
+                  value="<%= user ? user.email : '' %>" required />
+              </div>
+
+              <!-- Booking summary before submit -->
+              <div class="p-3 rounded-xl mb-4" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.15);">
+                <p style="font-weight:700;font-size:.8125rem;color:var(--accent);margin-bottom:.75rem;">
+                  <i class="bi bi-calendar-check me-1"></i>Booking Summary
+                </p>
+                <div class="summary-row"><span class="lbl">Service</span><span class="val" id="confirm-service" style="font-weight:700;">—</span></div>
+                <div class="summary-row"><span class="lbl">Date</span><span class="val" id="confirm-date">—</span></div>
+                <div class="summary-row"><span class="lbl">Time</span><span class="val" id="confirm-time">—</span></div>
+                <div class="summary-row total">
+                  <span style="font-weight:700;">Total</span>
+                  <span style="font-weight:700;color:var(--accent);font-family:var(--font-mono);" id="confirm-price">—</span>
+                </div>
+              </div>
+
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-pill w-50" style="font-weight:600;" onclick="prevStep(3)">
+                  <i class="bi bi-arrow-left me-1"></i>Back
+                </button>
+                <button type="submit" class="btn btn-primary btn-pill w-50" style="font-weight:700;">
+                  <i class="bi bi-lock me-1"></i>Confirm &amp; Pay
+                </button>
+              </div>
+            </div>
+
+          </form>
+        </div>
+      </div>
+      <p class="text-center small mt-3" style="color:var(--muted);">
+        <i class="bi bi-shield-check me-1" style="color:var(--success);"></i>
+        Secure cashless payment via Stripe — no app or hardware needed
+      </p>
+    </div>
+
+    <!-- RIGHT: Live Summary Panel -->
+    <div class="col-lg-5 d-none d-lg-block">
+      <div style="position:sticky;top:80px;">
+        <div class="summary-panel">
+          <p style="font-weight:700;color:var(--accent);margin-bottom:1rem;">
+            <i class="bi bi-receipt me-2"></i>Booking Summary
+          </p>
+          <div class="summary-row">
+            <span class="lbl">Merchant</span>
+            <span class="val"><%= qr.merchant_name %></span>
+          </div>
+          <div class="summary-row">
+            <span class="lbl">Service</span>
+            <span class="val" id="sum-service" style="color:var(--muted);font-style:italic;">Not selected</span>
+          </div>
+          <div class="summary-row">
+            <span class="lbl">Duration</span>
+            <span class="val" id="sum-duration" style="color:var(--muted);">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="lbl">Date</span>
+            <span class="val" id="sum-date" style="color:var(--muted);font-style:italic;">Not selected</span>
+          </div>
+          <div class="summary-row">
+            <span class="lbl">Time</span>
+            <span class="val" id="sum-time" style="color:var(--muted);">—</span>
+          </div>
+          <div class="summary-row total">
+            <span style="font-weight:700;">Total</span>
+            <span style="font-weight:700;font-size:1.1rem;color:var(--accent);font-family:var(--font-mono);" id="sum-price">—</span>
+          </div>
+        </div>
+
+        <div class="card border-0 p-3 mt-3" style="box-shadow:var(--shadow-sm);border-radius:var(--r-lg);">
+          <p style="font-weight:700;font-size:.875rem;color:var(--ink);margin-bottom:.5rem;">
+            <i class="bi bi-info-circle me-1" style="color:var(--accent);"></i>Good to know
+          </p>
+          <ul style="font-size:.8125rem;color:var(--muted);margin-bottom:0;padding-left:1.25rem;">
+            <li>Payment is processed securely via Stripe</li>
+            <li>You'll receive an email confirmation after paying</li>
+            <li>Flexible cancellation up to 4 hours before your booking</li>
+            <li>Scan the QR when you arrive to confirm</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let selectedService = null;
+let selectedTime    = null;
+
+function selectService(el) {
+  document.querySelectorAll('.service-card').forEach(c => {
+    c.classList.remove('selected');
+    c.querySelector('.check-icon').style.display = 'none';
+  });
+  el.classList.add('selected');
+  el.querySelector('.check-icon').style.display = 'inline';
+  selectedService = {
+    id:       el.dataset.serviceId,
+    name:     el.dataset.serviceName,
+    price:    parseFloat(el.dataset.price),
+    duration: el.dataset.duration,
+  };
+  document.getElementById('hidden_service_id').value = selectedService.id;
+  updateSummary();
+}
+
+function selectTime(el, time) {
+  document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedTime = time;
+  document.getElementById('hidden_booking_time').value = time;
+  updateSummary();
+}
+
+function updateSummary() {
+  if (selectedService) {
+    document.getElementById('sum-service').textContent   = selectedService.name;
+    document.getElementById('sum-service').style.cssText = 'font-weight:600;font-style:normal;';
+    document.getElementById('sum-duration').textContent  = selectedService.duration + ' min';
+    document.getElementById('sum-price').textContent     = 'S$' + selectedService.price.toFixed(2);
+    document.getElementById('confirm-service').textContent = selectedService.name;
+    document.getElementById('confirm-price').textContent   = 'S$' + selectedService.price.toFixed(2);
+  }
+  const dateEl = document.getElementById('booking_date');
+  if (dateEl && dateEl.value) {
+    const d = new Date(dateEl.value + 'T00:00:00');
+    const fmt = d.toLocaleDateString('en-SG', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+    document.getElementById('sum-date').textContent     = fmt;
+    document.getElementById('sum-date').style.cssText   = 'font-weight:600;font-style:normal;';
+    document.getElementById('confirm-date').textContent = fmt;
+  }
+  if (selectedTime) {
+    document.getElementById('sum-time').textContent     = selectedTime;
+    document.getElementById('sum-time').style.cssText   = 'font-weight:600;';
+    document.getElementById('confirm-time').textContent = selectedTime;
+  }
+}
+
+function setStep(n) {
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('step-' + n).classList.add('active');
+  for (let i = 1; i <= 3; i++) {
+    const bubble = document.getElementById('bubble-' + i);
+    const label  = document.getElementById('label-' + i);
+    bubble.classList.remove('active','done');
+    label.classList.remove('active','done');
+    if (i < n) {
+      bubble.classList.add('done');
+      label.classList.add('done');
+      bubble.innerHTML = '<i class="bi bi-check-lg"></i>';
+    } else if (i === n) {
+      bubble.classList.add('active');
+      label.classList.add('active');
+      bubble.textContent = i;
+    } else {
+      bubble.textContent = i;
+    }
+  }
+  for (let i = 1; i <= 2; i++) {
+    document.getElementById('line-' + i).classList.toggle('done', i < n);
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function nextStep(current) {
+  if (current === 1) {
+    if (!selectedService) { document.getElementById('step1-error').style.display = 'block'; return; }
+    document.getElementById('step1-error').style.display = 'none';
+  }
+  if (current === 2) {
+    const date = document.getElementById('booking_date').value;
+    if (!date || !selectedTime) { document.getElementById('step2-error').style.display = 'block'; return; }
+    document.getElementById('step2-error').style.display = 'none';
+  }
+  setStep(current + 1);
+}
+function prevStep(current) { setStep(current - 1); }
+</script>
+
+<%- include('../partials/footer') %>

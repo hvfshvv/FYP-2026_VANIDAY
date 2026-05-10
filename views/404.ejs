@@ -1,0 +1,24 @@
+<%- include('partials/header') %>
+
+<div style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:3rem 1rem;background:var(--canvas);">
+  <div style="max-width:480px;width:100%;text-align:center;">
+    <div class="icon-circle-lg mx-auto mb-4">
+      <i class="bi bi-emoji-dizzy" style="font-size:2.5rem;color:var(--accent);"></i>
+    </div>
+    <p style="font-family:var(--font-mono);font-size:5rem;font-weight:700;color:var(--accent);line-height:1;margin-bottom:.5rem;">404</p>
+    <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.75rem;">Page not found</h2>
+    <p style="color:var(--muted);margin-bottom:2rem;max-width:36ch;margin-left:auto;margin-right:auto;line-height:1.65;">
+      Looks like this page went for a spa day and never came back. Let's get you somewhere relaxing.
+    </p>
+    <div class="d-flex gap-2 justify-content-center flex-wrap">
+      <a href="/" class="btn btn-primary btn-pill px-4">
+        <i class="bi bi-house me-2"></i>Back to Home
+      </a>
+      <a href="/marketplace" class="btn btn-outline-secondary btn-pill px-4">
+        <i class="bi bi-grid me-2"></i>Browse Services
+      </a>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

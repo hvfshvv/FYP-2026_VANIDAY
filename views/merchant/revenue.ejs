@@ -1,0 +1,181 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<div class="container py-5">
+  <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
+    <i class="bi bi-arrow-left me-1"></i>Dashboard
+  </a>
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <div class="icon-circle flex-shrink-0" style="background:var(--accent-light);width:40px;height:40px;">
+      <i class="bi bi-graph-up" style="color:var(--accent);"></i>
+    </div>
+    <div>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;">Revenue Report</h2>
+      <p style="color:var(--muted);margin-bottom:0;font-size:.875rem;">Powered by Vaniday's 20% commission model.</p>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-5">
+    <div class="col-6 col-md-3">
+      <div class="stat-card text-center">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Total Revenue</p>
+        <p class="stat-value" style="color:var(--accent);">S$<%= Number(summary.total_revenue || 0).toFixed(2) %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Gross from customers</p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card text-center">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Your Earnings</p>
+        <p class="stat-value" style="color:var(--success);">S$<%= Number(summary.total_merchant_share || 0).toFixed(2) %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">After 20% commission</p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card text-center">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Vaniday Commission</p>
+        <p class="stat-value" style="color:var(--muted);">S$<%= Number(summary.total_vaniday_share || 0).toFixed(2) %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Platform fee (20%)</p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card text-center">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Avg. Order Value</p>
+        <p class="stat-value" style="color:var(--ink);">S$<%= Number(summary.avg_order_value || 0).toFixed(2) %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Per booking</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Revenue Split -->
+  <div class="card border-0 p-4 mb-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <h6 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">Revenue Split Breakdown</h6>
+    <div class="row align-items-center g-3">
+      <div class="col-md-6">
+        <div class="d-flex justify-content-between small mb-1">
+          <span style="font-weight:600;color:var(--success);">Your Share (80%)</span>
+          <span style="font-weight:700;font-family:var(--font-mono);">S$<%= Number(summary.total_merchant_share || 0).toFixed(2) %></span>
+        </div>
+        <div class="progress mb-3" style="height:10px;border-radius:8px;background:var(--neutral-bg);">
+          <div class="progress-bar" style="width:80%;background:var(--success);border-radius:8px;"></div>
+        </div>
+        <div class="d-flex justify-content-between small mb-1">
+          <span style="color:var(--muted);font-weight:600;">Vaniday Commission (20%)</span>
+          <span style="font-weight:700;color:var(--muted);font-family:var(--font-mono);">S$<%= Number(summary.total_vaniday_share || 0).toFixed(2) %></span>
+        </div>
+        <div class="progress" style="height:10px;border-radius:8px;background:var(--neutral-bg);">
+          <div class="progress-bar" style="width:20%;background:var(--muted);border-radius:8px;"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="p-3 rounded-xl" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.12);">
+          <p style="font-size:.8125rem;color:var(--accent);margin-bottom:.4rem;"><i class="bi bi-info-circle me-1"></i><strong>How it works</strong></p>
+          <p style="font-size:.8125rem;color:var(--muted);margin-bottom:0;">For every booking paid through Vaniday, the platform retains a 20% commission fee. You receive the remaining 80% as your net earnings — consistent with the industry-standard Vaniday commission model.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monthly Breakdown -->
+  <% if (monthly.length > 0) { %>
+  <div class="card border-0 p-4 mb-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <h6 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">
+      <i class="bi bi-calendar3 me-2" style="color:var(--accent);"></i>Monthly Revenue (Last 6 Months)
+    </h6>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0" style="font-size:.875rem;">
+        <thead style="background:var(--accent-light);">
+          <tr>
+            <th>Month</th>
+            <th>Bookings</th>
+            <th>Gross Revenue</th>
+            <th>Vaniday (20%)</th>
+            <th>Your Net Earnings</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% monthly.forEach(m => { %>
+          <tr>
+            <td style="font-weight:600;"><%= m.month %></td>
+            <td><%= m.bookings %></td>
+            <td style="font-family:var(--font-mono);">S$<%= Number(m.revenue || 0).toFixed(2) %></td>
+            <td style="color:var(--muted);font-family:var(--font-mono);">S$<%= Number((m.revenue || 0) * 0.2).toFixed(2) %></td>
+            <td style="font-weight:700;color:var(--success);font-family:var(--font-mono);">S$<%= Number(m.net_earnings || 0).toFixed(2) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- Transaction History -->
+  <h5 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">Transaction History</h5>
+  <% if (transactions.length === 0) { %>
+  <div class="card border-0 text-center py-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="icon-circle-lg mx-auto mb-3">
+      <i class="bi bi-receipt" style="font-size:2rem;color:var(--accent);"></i>
+    </div>
+    <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No transactions yet</h6>
+    <p style="color:var(--muted);font-size:.875rem;">Complete bookings will appear here.</p>
+  </div>
+  <% } else { %>
+  <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+        <thead style="background:var(--accent-light);">
+          <tr>
+            <th>Order ID</th>
+            <th>Customer</th>
+            <th>Service</th>
+            <th>Date</th>
+            <th>Source</th>
+            <th>Gross</th>
+            <th>Vaniday (20%)</th>
+            <th>Your Share</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% transactions.forEach(t => { %>
+          <tr>
+            <td style="color:var(--muted);font-weight:600;font-family:var(--font-mono);">#<%= t.booking_id %></td>
+            <td>
+              <p style="font-weight:600;margin-bottom:0;"><%= t.customer_name %></p>
+              <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= t.customer_email %></p>
+            </td>
+            <td>
+              <p style="margin-bottom:0;"><%= t.service_name %></p>
+              <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= t.duration_mins %> min</p>
+            </td>
+            <td>
+              <%= new Date(t.booking_date).toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'}) %>
+              <br/><span style="color:var(--muted);"><%= String(t.booking_time).slice(0,5) %></span>
+            </td>
+            <td>
+              <% if (t.source === 'qr_scan') { %>
+              <span class="badge" style="background:var(--accent-light);color:var(--accent);">
+                <i class="bi bi-qr-code me-1"></i>QR
+              </span>
+              <% } else { %>
+              <span class="badge bg-secondary"><%= t.source %></span>
+              <% } %>
+            </td>
+            <td style="font-family:var(--font-mono);font-weight:600;"><%= t.amount ? 'S$' + Number(t.amount).toFixed(2) : '—' %></td>
+            <td style="color:var(--muted);font-family:var(--font-mono);"><%= t.vaniday_share ? 'S$' + Number(t.vaniday_share).toFixed(2) : '—' %></td>
+            <td style="font-weight:700;color:var(--success);font-family:var(--font-mono);"><%= t.merchant_share ? 'S$' + Number(t.merchant_share).toFixed(2) : '—' %></td>
+            <td>
+              <span class="badge" style="background:<%= t.payment_status==='success'?'var(--success-bg)':t.payment_status==='pending'?'var(--warn-bg)':'var(--accent-light)' %>;color:<%= t.payment_status==='success'?'var(--success)':t.payment_status==='pending'?'var(--warn)':'var(--accent)' %>;">
+                <%= t.payment_status ? t.payment_status.charAt(0).toUpperCase() + t.payment_status.slice(1) : 'Unpaid' %>
+              </span>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

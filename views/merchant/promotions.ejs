@@ -1,0 +1,118 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<div class="container py-5">
+  <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
+    <i class="bi bi-arrow-left me-1"></i>Dashboard
+  </a>
+  <div class="d-flex align-items-center gap-3 mb-1">
+    <div class="icon-circle flex-shrink-0" style="background:var(--accent-light);width:40px;height:40px;">
+      <i class="bi bi-tag" style="color:var(--accent);"></i>
+    </div>
+    <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;">My Promotions</h2>
+  </div>
+  <p style="color:var(--muted);margin-bottom:1.5rem;margin-left:52px;">Create discounts that appear on the public Vaniday marketplace.</p>
+
+  <% if (error) { %>
+  <div class="rounded-xl p-3 mb-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+    <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+  </div>
+  <% } %>
+  <% if (typeof success !== 'undefined' && success) { %>
+  <div class="rounded-xl p-3 mb-4" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+    <i class="bi bi-check-circle me-2"></i>Promotion created successfully!
+  </div>
+  <% } %>
+
+  <div class="row g-4">
+    <!-- Create Form -->
+    <div class="col-lg-5">
+      <div class="card border-0 p-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);position:sticky;top:80px;">
+        <h6 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">
+          <i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i>New Promotion
+        </h6>
+        <form action="/merchant/promotions/create" method="POST">
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.875rem;font-weight:600;">Promotion Title</label>
+            <input type="text" name="title" class="form-control rounded-xl" placeholder="e.g. 20% Off Facials This May" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.875rem;font-weight:600;">Description <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <textarea name="description" class="form-control rounded-xl" rows="2" placeholder="Short details about the promo..."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.875rem;font-weight:600;">Discount Percentage</label>
+            <div class="input-group">
+              <input type="number" name="discount_pct" class="form-control" min="1" max="100" step="0.01" placeholder="e.g. 20" required />
+              <span class="input-group-text fw-700">%</span>
+            </div>
+          </div>
+          <div class="row g-2 mb-4">
+            <div class="col">
+              <label class="form-label" style="font-size:.875rem;font-weight:600;">Start Date</label>
+              <input type="date" name="start_date" class="form-control rounded-xl" required />
+            </div>
+            <div class="col">
+              <label class="form-label" style="font-size:.875rem;font-weight:600;">End Date</label>
+              <input type="date" name="end_date" class="form-control rounded-xl" required />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 btn-pill" style="font-weight:700;">
+            <i class="bi bi-plus-circle me-1"></i>Create Promotion
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Promotions List -->
+    <div class="col-lg-7">
+      <% if (promotions.length === 0) { %>
+      <div class="card border-0 text-center py-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+        <div class="icon-circle-lg mx-auto mb-3">
+          <i class="bi bi-tag" style="font-size:2rem;color:var(--accent);"></i>
+        </div>
+        <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No promotions yet</h6>
+        <p style="color:var(--muted);font-size:.875rem;">Create your first promotion to attract more customers!</p>
+      </div>
+      <% } else { %>
+      <div class="d-flex flex-column gap-3">
+        <% promotions.forEach(p => { %>
+        <div class="promo-card">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="flex-grow-1 me-3">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <p class="promo-title mb-0"><%= p.title %></p>
+                <span class="badge" style="background:<%= p.is_active ? 'var(--success-bg)' : 'var(--neutral-bg)' %>;color:<%= p.is_active ? 'var(--success)' : 'var(--muted)' %>;">
+                  <%= p.is_active ? 'Live' : 'Paused' %>
+                </span>
+              </div>
+              <p class="small text-muted mb-1"><%= p.description || '' %></p>
+              <p class="promo-date mb-0"><i class="bi bi-calendar3 me-1"></i><%= p.start_date.toISOString().slice(0,10) %> – <%= p.end_date.toISOString().slice(0,10) %></p>
+            </div>
+            <div class="promo-discount flex-shrink-0 text-end">
+              <%= p.discount_pct %>%<br/>
+              <span style="font-size:.7rem;font-weight:700;">off</span>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-3">
+            <form action="/merchant/promotions/<%= p.promo_id %>/toggle" method="POST" class="m-0">
+              <button class="btn btn-sm btn-pill <%= p.is_active ? 'btn-outline-secondary' : 'btn-outline-success' %>">
+                <i class="bi bi-<%= p.is_active ? 'pause' : 'play' %>-circle me-1"></i><%= p.is_active ? 'Pause' : 'Activate' %>
+              </button>
+            </form>
+            <form action="/merchant/promotions/<%= p.promo_id %>/delete" method="POST" class="m-0"
+              onsubmit="return confirm('Delete this promotion?')">
+              <button class="btn btn-sm btn-pill btn-outline-danger">
+                <i class="bi bi-trash me-1"></i>Delete
+              </button>
+            </form>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

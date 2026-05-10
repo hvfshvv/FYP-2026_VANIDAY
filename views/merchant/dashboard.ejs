@@ -1,0 +1,176 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-start mb-5 flex-wrap gap-3">
+    <div>
+      <p class="section-label">Overview</p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Dashboard</h2>
+      <p style="color:var(--muted);margin-bottom:0;">Welcome back, <strong><%= user.full_name %></strong></p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/merchant/revenue" class="btn btn-outline-secondary btn-pill btn-sm">
+        <i class="bi bi-graph-up me-1"></i>Revenue Report
+      </a>
+      <a href="/merchant/qr" class="btn btn-primary btn-pill btn-sm">
+        <i class="bi bi-qr-code me-1"></i>My QR Code
+      </a>
+    </div>
+  </div>
+
+  <!-- Revenue Stats -->
+  <div class="row g-3 mb-5">
+    <div class="col-6 col-md-3">
+      <div class="stat-card text-center">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Total Revenue</p>
+        <p class="stat-value" style="color:var(--accent);">S$<%= Number(summary.total_revenue || 0).toFixed(2) %></p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card text-center">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Your Earnings</p>
+        <p class="stat-value" style="color:var(--success);">S$<%= Number(summary.total_merchant_share || 0).toFixed(2) %></p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card text-center">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">QR Bookings</p>
+        <p class="stat-value" style="color:var(--accent);">
+          <%= summary.qr_bookings || 0 %>
+        </p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card text-center">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Total Bookings</p>
+        <p class="stat-value" style="color:var(--ink);"><%= summary.total_bookings || 0 %></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="row g-3 mb-5">
+    <% [
+      { href:'/merchant/qr',         icon:'bi-qr-code',  label:'QR Code',    sub:'Generate & share'    },
+      { href:'/merchant/services',    icon:'bi-scissors', label:'My Services',sub:'Add & manage'        },
+      { href:'/merchant/promotions',  icon:'bi-tag',      label:'Promotions', sub:'Create deals'        },
+      { href:'/merchant/featured',    icon:'bi-star',     label:'Featured',   sub:'Marketplace listing' },
+    ].forEach(a => { %>
+    <div class="col-6 col-md-3">
+      <a href="<%= a.href %>" class="action-card">
+        <div class="action-icon">
+          <i class="bi <%= a.icon %>"></i>
+        </div>
+        <p style="font-weight:700;font-size:.875rem;color:var(--ink);margin-bottom:.1rem;"><%= a.label %></p>
+        <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= a.sub %></p>
+      </a>
+    </div>
+    <% }) %>
+  </div>
+
+  <!-- Recent Bookings -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Bookings</h5>
+    <% if (bookings.length > 0) { %>
+    <a href="/merchant/revenue" class="btn btn-outline-secondary btn-sm btn-pill">View All</a>
+    <% } %>
+  </div>
+
+  <% if (bookings.length === 0) { %>
+  <div class="card border-0 text-center py-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="icon-circle-lg mx-auto mb-3">
+      <i class="bi bi-inbox" style="font-size:2rem;color:var(--accent);"></i>
+    </div>
+    <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No bookings yet</h6>
+    <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">Generate your QR code and share it to start receiving cashless bookings.</p>
+    <div class="d-flex gap-2 justify-content-center">
+      <a href="/merchant/qr" class="btn btn-primary btn-pill btn-sm">Get My QR Code</a>
+      <a href="/merchant/services" class="btn btn-outline-secondary btn-pill btn-sm">Add Services</a>
+    </div>
+  </div>
+  <% } else { %>
+  <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+        <thead style="background:var(--accent-light);">
+          <tr>
+            <th>ID</th>
+            <th>Customer</th>
+            <th>Service</th>
+            <th>Date &amp; Time</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% bookings.slice(0,10).forEach(b => { %>
+          <tr>
+            <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= b.booking_id %></td>
+            <td>
+              <p style="font-weight:600;margin-bottom:0;"><%= b.customer_name %></p>
+              <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= b.customer_phone %></p>
+            </td>
+            <td><%= b.service_name %></td>
+            <td>
+              <%= new Date(b.booking_date).toLocaleDateString('en-SG',{day:'numeric',month:'short'}) %>
+              <span style="color:var(--muted);margin-left:.25rem;"><%= String(b.booking_time).slice(0,5) %></span>
+            </td>
+            <td>
+              <% if (b.source === 'qr_scan') { %>
+              <span class="badge" style="background:var(--accent-light);color:var(--accent);">
+                <i class="bi bi-qr-code me-1"></i>QR
+              </span>
+              <% } else { %>
+              <span class="badge bg-secondary"><%= b.source %></span>
+              <% } %>
+            </td>
+            <td>
+              <%
+                const statusMap = {
+                  confirmed: { bg:'var(--success-bg)',  color:'var(--success)'  },
+                  completed: { bg:'var(--neutral-bg)',  color:'var(--muted)'    },
+                  arrived:   { bg:'#EFF6FF',            color:'#1D4ED8'         },
+                  cancelled: { bg:'var(--danger-bg)',   color:'var(--danger)'   },
+                  pending:   { bg:'var(--warn-bg)',     color:'var(--warn)'     },
+                };
+                const st = statusMap[b.status] || statusMap.pending;
+              %>
+              <span class="badge" style="background:<%= st.bg %>;color:<%= st.color %>;">
+                <%= b.status.charAt(0).toUpperCase() + b.status.slice(1) %>
+              </span>
+            </td>
+            <td>
+              <% if (b.status === 'confirmed') { %>
+              <form action="/merchant/bookings/<%= b.booking_id %>/arrived" method="POST" class="d-inline">
+                <button class="btn btn-sm btn-outline-secondary btn-pill" style="font-size:.72rem;padding:.2rem .6rem;">
+                  <i class="bi bi-person-check me-1"></i>Arrived
+                </button>
+              </form>
+              <% } else if (b.status === 'arrived') { %>
+              <form action="/merchant/bookings/<%= b.booking_id %>/complete" method="POST" class="d-inline">
+                <button class="btn btn-sm btn-pill" style="font-size:.72rem;padding:.2rem .6rem;background:var(--success);color:#fff;border:none;">
+                  <i class="bi bi-check2-all me-1"></i>Complete
+                </button>
+              </form>
+              <% } else { %>
+              <span style="color:var(--muted);font-size:.75rem;">—</span>
+              <% } %>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% if (bookings.length > 10) { %>
+    <div class="p-3 text-center" style="border-top:1px solid var(--border);">
+      <a href="/merchant/revenue" style="color:var(--accent);font-size:.875rem;font-weight:600;text-decoration:none;">
+        View all <%= bookings.length %> bookings <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+    <% } %>
+  </div>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,7 @@
+node_modules/
+.env
+.claude/
+CLAUDE.md
+.agents/
+skills-lock.json
+public/images/qr/*.png

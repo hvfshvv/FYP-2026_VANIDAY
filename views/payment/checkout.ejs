@@ -1,0 +1,50 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<div style="min-height:80vh;display:flex;align-items:center;padding:3rem 1rem;background:var(--canvas);">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5">
+        <div class="text-center mb-4">
+          <div class="icon-circle-lg mx-auto mb-3">
+            <i class="bi bi-credit-card" style="font-size:2rem;color:var(--accent);"></i>
+          </div>
+          <h4 style="font-weight:800;letter-spacing:-.025em;color:var(--ink);margin-bottom:.25rem;">Confirm &amp; Pay</h4>
+          <p style="color:var(--muted);font-size:.875rem;">Review your booking before paying.</p>
+        </div>
+
+        <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:2rem;">
+          <!-- Booking Summary -->
+          <div class="p-3 rounded-xl mb-4" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.15);">
+            <p style="font-weight:700;font-size:.8125rem;color:var(--accent);margin-bottom:.75rem;">
+              <i class="bi bi-calendar-check me-1"></i>Booking Summary
+            </p>
+            <div class="summary-row"><span class="lbl">Merchant</span><span class="val"><%= booking.merchant_name %></span></div>
+            <div class="summary-row"><span class="lbl">Service</span><span class="val"><%= booking.service_name %></span></div>
+            <div class="summary-row"><span class="lbl">Duration</span><span class="val"><%= booking.duration_mins %> min</span></div>
+            <div class="summary-row"><span class="lbl">Date</span><span class="val"><%= new Date(booking.booking_date).toLocaleDateString('en-SG',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) %></span></div>
+            <div class="summary-row"><span class="lbl">Time</span><span class="val"><%= String(booking.booking_time).slice(0,5) %></span></div>
+            <div class="summary-row total">
+              <span style="font-weight:700;">Total</span>
+              <span style="font-weight:700;color:var(--accent);font-size:1.2rem;font-family:var(--font-mono);">S$<%= Number(booking.price).toFixed(2) %></span>
+            </div>
+          </div>
+
+          <!-- Pay Button -->
+          <form action="/payment/stripe/<%= booking.booking_id %>" method="POST">
+            <button type="submit" class="btn btn-primary btn-lg w-100 btn-pill py-3" style="font-size:1rem;font-weight:700;">
+              <i class="bi bi-lock me-2"></i>Pay S$<%= Number(booking.price).toFixed(2) %> via Stripe
+            </button>
+          </form>
+
+          <p class="text-center small mt-3 mb-0" style="color:var(--muted);">
+            <i class="bi bi-shield-check me-1" style="color:var(--success);"></i>
+            Sandbox mode — test card: <strong style="font-family:var(--font-mono);">4242 4242 4242 4242</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
