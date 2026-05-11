@@ -19,7 +19,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'vaniday-secret',
+  secret: process.env.SESSION_SECRET || 'uniday-secret',
   resave: false,
   saveUninitialized: false,
   cookie: { secure: false, maxAge: 1000 * 60 * 60 * 24 }
@@ -42,4 +42,4 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Vaniday running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Uniday running on http://localhost:${PORT}`));

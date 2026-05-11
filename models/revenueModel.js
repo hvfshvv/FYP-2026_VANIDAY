@@ -8,7 +8,7 @@ async function getMerchantRevenueSummary(merchantId) {
        COUNT(CASE WHEN b.status='completed' THEN 1 END) AS completed,
        COUNT(CASE WHEN b.status='cancelled' THEN 1 END) AS cancelled,
        COALESCE(SUM(p.amount), 0)                   AS total_revenue,
-       COALESCE(SUM(p.vaniday_share), 0)            AS total_vaniday_share,
+       COALESCE(SUM(p.uniday_share), 0)            AS total_uniday_share,
        COALESCE(SUM(p.merchant_share), 0)           AS total_merchant_share,
        COALESCE(AVG(p.amount), 0)                   AS avg_order_value
      FROM BOOKING b
@@ -26,7 +26,7 @@ async function getMerchantTransactions(merchantId) {
        s.service_name, s.duration_mins,
        u.full_name AS customer_name, u.phone AS customer_phone, u.email AS customer_email,
        p.amount, p.payment_method, p.payment_status, p.commission_pct,
-       p.vaniday_share, p.merchant_share, p.transaction_ref, p.paid_at
+       p.uniday_share, p.merchant_share, p.transaction_ref, p.paid_at
      FROM BOOKING b
      JOIN SERVICE s ON b.service_id  = s.service_id
      JOIN USERS   u ON b.customer_id = u.user_id

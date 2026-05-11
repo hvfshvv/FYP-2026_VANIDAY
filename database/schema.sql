@@ -1,5 +1,5 @@
 -- =============================================================
--- Unified Booking System | Vaniday | SOI-2026-2610-0035
+-- Unified Booking System | Uniday | SOI-2026-2610-0035
 -- Database: SOI-2026-0052-mizyana
 -- =============================================================
 -- Section 1 : Shared / Core  (used by all team members)
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS PAYMENT (
     payment_status  ENUM('pending','success','failed','refunded') NOT NULL DEFAULT 'pending',
     transaction_ref VARCHAR(255)   DEFAULT NULL,
     commission_pct  DECIMAL(5,2)   NOT NULL DEFAULT 20.00,
-    vaniday_share   DECIMAL(10,2)  DEFAULT NULL,
+    uniday_share   DECIMAL(10,2)  DEFAULT NULL,
     merchant_share  DECIMAL(10,2)  DEFAULT NULL,
     paid_at         DATETIME       DEFAULT NULL,
     PRIMARY KEY (payment_id),
@@ -175,13 +175,13 @@ CREATE TABLE IF NOT EXISTS FEATURED_LISTING (
 -- ============================================================
 
 INSERT IGNORE INTO USERS (full_name, email, password_hash, role)
-VALUES ('Admin', 'admin@vaniday.com', '$2b$10$placeholder_admin_hash', 'admin');
+VALUES ('Admin', 'admin@uniday.com', '$2b$10$placeholder_admin_hash', 'admin');
 
 INSERT IGNORE INTO USERS (full_name, email, password_hash, phone, role)
-VALUES ('Glam Studio', 'glam@vaniday.com', '$2b$10$placeholder_merchant_hash', '91234567', 'merchant');
+VALUES ('Glam Studio', 'glam@uniday.com', '$2b$10$placeholder_merchant_hash', '91234567', 'merchant');
 
 INSERT IGNORE INTO MERCHANT (user_id, merchant_name, email, phone, address, is_featured)
-VALUES (2, 'Glam Studio', 'glam@vaniday.com', '91234567', '10 Orchard Road, #02-01, Singapore 238888', 1);
+VALUES (2, 'Glam Studio', 'glam@uniday.com', '91234567', '10 Orchard Road, #02-01, Singapore 238888', 1);
 
 INSERT IGNORE INTO SERVICE (merchant_id, service_name, description, price, duration_mins)
 VALUES

@@ -8,10 +8,10 @@ async function showHome(req, res) {
       featuredListingModel.getFeaturedListings(),
       promotionModel.getActivePromotions(),
     ]);
-    res.render('index', { title: 'Vaniday — Beauty & Wellness Marketplace', featured, promotions });
+    res.render('index', { title: 'Uniday — Beauty & Wellness Marketplace', featured, promotions });
   } catch (err) {
     console.error(err);
-    res.render('index', { title: 'Vaniday', featured: [], promotions: [] });
+    res.render('index', { title: 'Uniday', featured: [], promotions: [] });
   }
 }
 

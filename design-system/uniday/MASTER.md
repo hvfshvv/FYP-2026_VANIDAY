@@ -6,7 +6,7 @@
 
 ---
 
-**Project:** Vaniday
+**Project:** Uniday
 **Generated:** 2026-05-10 23:19:08
 **Category:** Beauty/Spa/Wellness Service
 

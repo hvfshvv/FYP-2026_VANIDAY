@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 
 const MERCHANTS = [
   {
-    user: { name: 'Luxe Nail Bar', email: 'luxenail@vaniday.com', phone: '62345678' },
+    user: { name: 'Luxe Nail Bar', email: 'luxenail@uniday.com', phone: '62345678' },
     biz:  { name: 'Luxe Nail Bar', address: '391 Orchard Road, #B2-38, Ngee Ann City, Singapore 238872' },
     services: [
       { name: 'Gel Manicure',       desc: 'Long-lasting gel polish with base & top coat',    price: 38,  dur: 45 },
@@ -17,7 +17,7 @@ const MERCHANTS = [
     featured: { title: 'Luxe Nail Bar — Nail Goals ✨', desc: 'Go-to nail studio for gel manis, nail art & pedicures at Ngee Ann City.' },
   },
   {
-    user: { name: 'The Spa Sanctuary', email: 'spa@vaniday.com', phone: '63456789' },
+    user: { name: 'The Spa Sanctuary', email: 'spa@uniday.com', phone: '63456789' },
     biz:  { name: 'The Spa Sanctuary', address: '1 Raffles Place, #05-01, One Raffles Place, Singapore 048616' },
     services: [
       { name: 'Swedish Massage',      desc: 'Relaxing full-body Swedish massage',             price: 90,  dur: 60 },
@@ -30,7 +30,7 @@ const MERCHANTS = [
     featured: { title: 'The Spa Sanctuary — Total Bliss 💆', desc: 'Award-winning urban spa in Raffles Place. Swedish, deep tissue & hot stone massages.' },
   },
   {
-    user: { name: 'Hair Republic', email: 'hairrepublic@vaniday.com', phone: '64567890' },
+    user: { name: 'Hair Republic', email: 'hairrepublic@uniday.com', phone: '64567890' },
     biz:  { name: 'Hair Republic', address: '200 Victoria Street, #03-22, Bugis Junction, Singapore 188021' },
     services: [
       { name: 'Haircut & Blowdry',      desc: 'Precision cut + professional blowdry',        price: 55,  dur: 60  },
@@ -43,7 +43,7 @@ const MERCHANTS = [
     featured: { title: 'Hair Republic — Expert Hair Studio ✂️', desc: 'Top hair salon at Bugis Junction. Cuts, colour, balayage & keratin treatments.' },
   },
   {
-    user: { name: 'Glow Skin Clinic', email: 'glow@vaniday.com', phone: '65678901' },
+    user: { name: 'Glow Skin Clinic', email: 'glow@uniday.com', phone: '65678901' },
     biz:  { name: 'Glow Skin Clinic', address: '4 Tampines Central 5, #04-09, Tampines Mall, Singapore 529510' },
     services: [
       { name: 'Hydra Facial',       desc: 'HydraFacial MD — cleanse, exfoliate & hydrate',  price: 158, dur: 75 },
@@ -56,7 +56,7 @@ const MERCHANTS = [
     featured: { title: 'Glow Skin Clinic — Glass Skin Experts ✨', desc: 'Medical-grade facials, LED therapy & chemical peels at Tampines Mall.' },
   },
   {
-    user: { name: 'Zen Wellness Studio', email: 'zen@vaniday.com', phone: '66789012' },
+    user: { name: 'Zen Wellness Studio', email: 'zen@uniday.com', phone: '66789012' },
     biz:  { name: 'Zen Wellness Studio', address: '238 Thomson Road, #01-01, Novena Square, Singapore 307683' },
     services: [
       { name: 'Yoga Class (60 min)',  desc: 'All-levels hatha yoga — mat provided',          price: 35, dur: 60 },
@@ -69,7 +69,7 @@ const MERCHANTS = [
     featured: { title: 'Zen Wellness Studio — Mind & Body 🧘', desc: 'Yoga, pilates, lymphatic massage & reflexology at Novena Square.' },
   },
   {
-    user: { name: 'Pretty Lash Studio', email: 'prettylash@vaniday.com', phone: '67890123' },
+    user: { name: 'Pretty Lash Studio', email: 'prettylash@uniday.com', phone: '67890123' },
     biz:  { name: 'Pretty Lash Studio', address: '3 Temasek Boulevard, #01-330, Suntec City Mall, Singapore 038983' },
     services: [
       { name: 'Classic Lash Set',     desc: '1:1 individual lash extensions, natural look',   price: 68, dur: 90  },
@@ -82,7 +82,7 @@ const MERCHANTS = [
     featured: { title: 'Pretty Lash Studio — Eye Perfection 👁️', desc: 'Classic & volume lash extensions, lifts & brow services at Suntec City.' },
   },
   {
-    user: { name: 'Goddess Beauty Bar', email: 'goddess@vaniday.com', phone: '68901234' },
+    user: { name: 'Goddess Beauty Bar', email: 'goddess@uniday.com', phone: '68901234' },
     biz:  { name: 'Goddess Beauty Bar', address: '1 Harbourfront Walk, #02-113, VivoCity, Singapore 098585' },
     services: [
       { name: 'Full Face Makeup',    desc: 'Glam or natural everyday makeup look',           price: 80,  dur: 60 },
@@ -105,8 +105,8 @@ async function seed() {
     port:     parseInt(process.env.DB_PORT || '3306'),
   });
 
-  console.log('🌱 Seeding Vaniday database...\n');
-  const hash = bcrypt.hashSync('Vaniday2026', 10);
+  console.log('🌱 Seeding Uniday database...\n');
+  const hash = bcrypt.hashSync('Uniday2026', 10);
 
   for (const m of MERCHANTS) {
     const [existU] = await db.execute('SELECT user_id FROM USERS WHERE email = ?', [m.user.email]);
@@ -170,7 +170,7 @@ async function seed() {
   }
 
   await db.end();
-  console.log('\n🎉 Seed complete! Login with any merchant email, password: Vaniday2026');
+  console.log('\n🎉 Seed complete! Login with any merchant email, password: Uniday2026');
 }
 
 seed().catch(err => { console.error('❌ Seed failed:', err.message); process.exit(1); });
