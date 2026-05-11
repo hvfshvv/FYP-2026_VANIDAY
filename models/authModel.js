@@ -1,13 +1,13 @@
 const db = require('../config/db');
 
 async function findUserByEmail(email) {
-  const [rows] = await db.query('SELECT * FROM USERS WHERE email = ?', [email]);
+  const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
   return rows[0] || null;
 }
 
 async function createUser(full_name, email, passwordHash, phone, role) {
   const [result] = await db.query(
-    'INSERT INTO USERS (full_name, email, password_hash, phone, role) VALUES (?,?,?,?,?)',
+    'INSERT INTO users (full_name, email, password_hash, phone, role) VALUES (?,?,?,?,?)',
     [full_name, email, passwordHash, phone, role]
   );
   return result.insertId;
@@ -15,14 +15,14 @@ async function createUser(full_name, email, passwordHash, phone, role) {
 
 async function createMerchantProfile(userId, merchantName, email, phone, address) {
   const [result] = await db.query(
-    'INSERT INTO MERCHANT (user_id, merchant_name, email, phone, address) VALUES (?,?,?,?,?)',
+    'INSERT INTO merchant (user_id, merchant_name, email, contact_no, address) VALUES (?,?,?,?,?)',
     [userId, merchantName, email, phone, address]
   );
   return result.insertId;
 }
 
 async function getMerchantByUserId(userId) {
-  const [rows] = await db.query('SELECT * FROM MERCHANT WHERE user_id = ?', [userId]);
+  const [rows] = await db.query('SELECT * FROM merchant WHERE user_id = ?', [userId]);
   return rows[0] || null;
 }
 

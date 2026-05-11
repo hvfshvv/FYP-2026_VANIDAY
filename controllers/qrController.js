@@ -26,7 +26,7 @@ async function generateQRCode(req, res) {
     const dbPath    = `/images/qr/${fileName}`;
 
     await QRCode.toFile(filePath, bookingUrl, { width: 400, margin: 2 });
-    await qrModel.insertQR(merchantId, token, dbPath);
+    await qrModel.insertQR(merchantId, token, dbPath, bookingUrl);
 
     res.redirect('/merchant/qr');
   } catch (err) {

@@ -40,10 +40,9 @@ async function confirmBooking(req, res) {
       customerId:  user.user_id,
       serviceId:   service_id,
       merchantId:  qr.merchant_id,
-      qrId:        qr.qr_id,
       bookingDate: booking_date,
       bookingTime: booking_time,
-      source:      'qr_scan',
+      source:      'qr',
     });
 
     res.redirect(`/payment/checkout/${bookingId}`);

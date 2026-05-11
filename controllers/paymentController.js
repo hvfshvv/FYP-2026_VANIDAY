@@ -51,13 +51,13 @@ async function paymentSuccess(req, res) {
   const { booking_id, session_id } = req.query;
   try {
     const existing = await paymentModel.getPaymentByBooking(booking_id);
-    if (!existing || existing.payment_status !== 'success') {
+    if (!existing || existing.payment_status !== 'paid') {
       const session = await stripe.checkout.sessions.retrieve(session_id);
       if (session.payment_status === 'paid') {
         if (!existing) {
           await paymentModel.createPayment(booking_id, session.amount_total / 100, 'stripe');
         }
-        await paymentModel.updatePaymentStatus(booking_id, 'success', session.payment_intent, session.amount_total / 100);
+        await paymentModel.updatePaymentStatus(booking_id, 'paid', session.payment_intent);
         await bookingModel.updateBookingStatus(booking_id, 'confirmed');
       }
     }

@@ -1,21 +1,59 @@
 const db = require('../config/db');
 
-async function createBooking({ customerId, serviceId, merchantId, qrId, bookingDate, bookingTime, source }) {
+async function createBooking({ customerId, serviceId, merchantId, bookingDate, bookingTime, source }) {
+  // get service price and duration for total_amount and slot end_time
+  const [[svc]] = await db.query(
+    'SELECT price, duration_mins FROM service WHERE service_id = ?',
+    [serviceId]
+  );
+
+  // find an existing available slot or create one
+  const [existing] = await db.query(
+    `SELECT slot_id FROM time_slot
+     WHERE merchant_id=? AND service_id=? AND slot_date=? AND start_time=? AND is_available=TRUE
+     LIMIT 1`,
+    [merchantId, serviceId, bookingDate, bookingTime]
+  );
+
+  let slotId;
+  if (existing.length) {
+    slotId = existing[0].slot_id;
+    await db.query('UPDATE time_slot SET is_available=FALSE WHERE slot_id=?', [slotId]);
+  } else {
+    const [slotResult] = await db.query(
+      `INSERT INTO time_slot (merchant_id, service_id, staff_id, slot_date, start_time, end_time, is_available)
+       VALUES (?,?,NULL,?,?,ADDTIME(?,SEC_TO_TIME(?*60)),FALSE)`,
+      [merchantId, serviceId, bookingDate, bookingTime, bookingTime, svc.duration_mins]
+    );
+    slotId = slotResult.insertId;
+  }
+
+  const mappedSource    = source === 'qr_scan' ? 'qr' : source === 'portal' ? 'web' : source;
+  const mappedBookingType = mappedSource === 'qr' ? 'walk_in' : 'advance';
+
   const [result] = await db.query(
-    `INSERT INTO BOOKING (customer_id, service_id, merchant_id, qr_id, booking_date, booking_time, source)
-     VALUES (?,?,?,?,?,?,?)`,
-    [customerId, serviceId, merchantId, qrId || null, bookingDate, bookingTime, source]
+    `INSERT INTO booking
+       (customer_id, merchant_id, service_id, staff_id, slot_id, booking_type, source, status, total_amount)
+     VALUES (?,?,?,NULL,?,?,'${mappedSource}','pending_payment',?)`,
+    [customerId, merchantId, serviceId, slotId, mappedBookingType, svc.price]
   );
   return result.insertId;
 }
 
 async function getBookingById(bookingId) {
   const [rows] = await db.query(
-    `SELECT b.*, s.service_name, s.price, s.duration_mins, m.merchant_name, u.full_name AS customer_name, u.phone AS customer_phone
-     FROM BOOKING b
-     JOIN SERVICE  s ON b.service_id  = s.service_id
-     JOIN MERCHANT m ON b.merchant_id = m.merchant_id
-     JOIN USERS    u ON b.customer_id = u.user_id
+    `SELECT b.*,
+            ts.slot_date  AS booking_date,
+            ts.start_time AS booking_time,
+            s.service_name, s.price, s.duration_mins,
+            m.merchant_name,
+            u.full_name   AS customer_name,
+            u.phone       AS customer_phone
+     FROM booking b
+     JOIN time_slot ts ON b.slot_id     = ts.slot_id
+     JOIN service   s  ON b.service_id  = s.service_id
+     JOIN merchant  m  ON b.merchant_id = m.merchant_id
+     JOIN users     u  ON b.customer_id = u.user_id
      WHERE b.booking_id = ?`,
     [bookingId]
   );
@@ -23,16 +61,23 @@ async function getBookingById(bookingId) {
 }
 
 async function updateBookingStatus(bookingId, status) {
-  await db.query('UPDATE BOOKING SET status = ? WHERE booking_id = ?', [status, bookingId]);
+  await db.query('UPDATE booking SET status = ? WHERE booking_id = ?', [status, bookingId]);
 }
 
 async function getMerchantBookings(merchantId) {
   const [rows] = await db.query(
-    `SELECT b.*, s.service_name, u.full_name AS customer_name, u.phone AS customer_phone
-     FROM BOOKING b
-     JOIN SERVICE s ON b.service_id  = s.service_id
-     JOIN USERS   u ON b.customer_id = u.user_id
-     WHERE b.merchant_id = ? ORDER BY b.booking_date DESC, b.booking_time DESC`,
+    `SELECT b.*,
+            ts.slot_date  AS booking_date,
+            ts.start_time AS booking_time,
+            s.service_name,
+            u.full_name   AS customer_name,
+            u.phone       AS customer_phone
+     FROM booking b
+     JOIN time_slot ts ON b.slot_id     = ts.slot_id
+     JOIN service   s  ON b.service_id  = s.service_id
+     JOIN users     u  ON b.customer_id = u.user_id
+     WHERE b.merchant_id = ?
+     ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [merchantId]
   );
   return rows;
