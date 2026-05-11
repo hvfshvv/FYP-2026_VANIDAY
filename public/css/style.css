@@ -6,13 +6,13 @@
 
 /* ─── 1. TOKENS ─────────────────────────────── */
 :root {
-  --canvas:        #F9FAFB;
+  --canvas:        #FFF5F7;
   --surface:       #FFFFFF;
   --ink:           #18181B;
   --muted:         #71717A;
   --ghost:         #94A3B8;
-  --border:        rgba(226,232,240,.65);
-  --neutral-bg:    #F4F4F5;
+  --border:        rgba(226,214,218,.65);
+  --neutral-bg:    #FFE8ED;
 
   --accent:        #E11D48;
   --accent-light:  #FFF1F3;
@@ -109,7 +109,7 @@ a:hover { color: var(--accent-dark); }
   display: flex; align-items: center; justify-content: space-between; gap: 2rem;
 }
 .nav-logo {
-  font-size: 1.3rem; font-weight: 800; letter-spacing: -.05em;
+  font-size: 1.65rem; font-weight: 800; letter-spacing: -.05em;
   color: var(--accent); text-decoration: none; flex-shrink: 0;
 }
 .nav-logo:hover { color: var(--accent-dark); }
