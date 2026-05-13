@@ -1,0 +1,495 @@
+<%
+  const merchantName = (typeof merchant !== 'undefined' && merchant && merchant.merchant_name) || 'Luxe Beauty Studio';
+  const merchantAddress = (typeof merchant !== 'undefined' && merchant && merchant.address) || 'Orchard Road';
+  const serviceList = (typeof services !== 'undefined' && services && services.length)
+    ? services
+    : [
+        { service_id: 1, service_name: 'Hydra Facial', description: 'HydraFacial MD - cleanse, exfoliate & hydrate', price: 158, duration_mins: 75 },
+        { service_id: 2, service_name: 'LED Light Therapy', description: 'Anti-aging & acne-fighting LED phototherapy', price: 68, duration_mins: 30 },
+        { service_id: 3, service_name: 'Chemical Peel', description: 'Superficial peel for skin renewal & radiance', price: 95, duration_mins: 45 },
+      ];
+  const selectedId = typeof selectedServiceId !== 'undefined' && selectedServiceId ? String(selectedServiceId) : String(serviceList[0].service_id);
+  const selectedService = serviceList.find(service => String(service.service_id) === selectedId) || serviceList[0];
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complete Your Booking</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #fff3f6;
+      color: #030712;
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 18px 36px;
+    }
+
+    h1 {
+      color: #030712;
+      font-size: 28px;
+      line-height: 1.2;
+      margin: 0 0 24px;
+    }
+
+    .booking-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .booking-card,
+    .summary-card {
+      background: #fff;
+      border: 1px solid #f0dfe4;
+      border-radius: 22px;
+      box-shadow: 0 10px 28px rgba(225, 29, 72, .08);
+    }
+
+    .booking-card {
+      margin-bottom: 18px;
+      padding: 24px;
+    }
+
+    .card-title {
+      align-items: center;
+      color: #030712;
+      display: flex;
+      gap: 8px;
+      font-size: 16px;
+      font-weight: 800;
+      margin: 0 0 16px;
+    }
+
+    .service-option {
+      align-items: center;
+      border: 1px solid #ead9de;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      gap: 10px;
+      min-height: 50px;
+      padding: 13px 14px;
+      transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+
+    .service-option + .service-option {
+      margin-top: 11px;
+    }
+
+    .service-option:has(input:checked),
+    .staff-card:has(input:checked) {
+      background: #fff1f5;
+      border-color: #e11d48;
+      box-shadow: 0 0 0 3px rgba(225, 29, 72, .1);
+    }
+
+    .service-option input,
+    .points-row input {
+      accent-color: #e11d48;
+    }
+
+    .service-option span {
+      color: #030712;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .date-time-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field,
+    .textarea {
+      background: #fffafb;
+      border: 1px solid #ead9de;
+      border-radius: 14px;
+      color: #030712;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      padding: 13px 14px;
+      width: 100%;
+    }
+
+    .field:focus,
+    .textarea:focus {
+      border-color: #e11d48;
+      box-shadow: 0 0 0 3px rgba(225, 29, 72, .1);
+    }
+
+    .textarea {
+      min-height: 104px;
+      resize: vertical;
+    }
+
+    .staff-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .staff-card {
+      align-items: center;
+      border: 1px solid #ead9de;
+      border-radius: 16px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      justify-content: center;
+      min-height: 112px;
+      padding: 14px;
+      position: relative;
+      transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+
+    .staff-card input {
+      opacity: 0;
+      position: absolute;
+    }
+
+    .avatar {
+      align-items: center;
+      background: #ffe4ec;
+      border-radius: 999px;
+      color: #e11d48;
+      display: flex;
+      font-size: 24px;
+      height: 50px;
+      justify-content: center;
+      width: 50px;
+    }
+
+    .staff-name {
+      color: #030712;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .summary-card {
+      padding: 22px 18px;
+      position: sticky;
+      top: 18px;
+    }
+
+    .merchant-row {
+      align-items: center;
+      border-bottom: 1px solid #f0dfe4;
+      display: flex;
+      gap: 12px;
+      padding: 8px 0 14px;
+    }
+
+    .merchant-image {
+      background: linear-gradient(135deg, #e11d48, #ffe4ec);
+      border-radius: 12px;
+      height: 52px;
+      overflow: hidden;
+      width: 52px;
+    }
+
+    .merchant-name {
+      color: #030712;
+      display: block;
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 3px;
+    }
+
+    .merchant-area,
+    .label,
+    .terms {
+      color: #667085;
+      font-size: 12px;
+    }
+
+    .summary-details {
+      padding: 16px 0 10px;
+    }
+
+    .summary-value {
+      color: #030712;
+      font-size: 13px;
+      font-weight: 800;
+      margin: 4px 0 12px;
+    }
+
+    .voucher-row {
+      align-items: center;
+      color: #e11d48;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .voucher-row .field {
+      padding: 9px 10px;
+    }
+
+    .points-row {
+      align-items: center;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 12px;
+      color: #030712;
+      display: flex;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 10px;
+    }
+
+    .points-row .bi-award {
+      color: #e11d48;
+    }
+
+    .price-box {
+      border-bottom: 1px solid #f0dfe4;
+      border-top: 1px solid #f0dfe4;
+      margin: 16px 0;
+      padding: 10px 0;
+    }
+
+    .price-line,
+    .total-line {
+      align-items: center;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .price-line {
+      font-size: 13px;
+      margin: 8px 0;
+    }
+
+    .cashback {
+      color: #009f45;
+    }
+
+    .total-line {
+      color: #030712;
+      font-size: 15px;
+      font-weight: 900;
+      margin-bottom: 20px;
+    }
+
+    .pay-button {
+      background: #e11d48;
+      border: 0;
+      border-radius: 22px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 900;
+      padding: 15px 18px;
+      width: 100%;
+    }
+
+    .pay-button:hover {
+      background: #be123c;
+    }
+
+    .terms {
+      margin: 12px 0 0;
+      text-align: center;
+    }
+
+    @media (max-width: 860px) {
+      .booking-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .summary-card {
+        position: static;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .date-time-row,
+      .staff-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>Complete Your Booking</h1>
+
+    <form class="booking-layout" action="/payment/checkout" method="POST">
+      <section>
+        <div class="booking-card">
+          <p class="card-title">Select Service</p>
+
+          <% serviceList.forEach(service => { %>
+            <label class="service-option">
+              <input
+                type="radio"
+                name="service_id"
+                value="<%= service.service_id %>"
+                data-name="<%= service.service_name %>"
+                data-price="<%= Number(service.price) %>"
+                data-duration="<%= service.duration_mins || 60 %>"
+                <%= String(service.service_id) === String(selectedService.service_id) ? 'checked' : '' %>
+              />
+              <span><%= service.service_name %> - $<%= Number(service.price).toFixed(2) %></span>
+            </label>
+          <% }) %>
+        </div>
+
+        <div class="booking-card">
+          <p class="card-title"><i class="bi bi-calendar3"></i>Select Date &amp; Time</p>
+
+          <div class="date-time-row">
+            <input class="field" type="date" name="booking_date" id="bookingDate" />
+
+            <select class="field" name="booking_time" id="bookingTime">
+              <option>10:00 AM</option>
+              <option>11:00 AM</option>
+              <option>12:00 PM</option>
+              <option>1:00 PM</option>
+              <option selected>2:00 PM</option>
+              <option>3:00 PM</option>
+              <option>4:00 PM</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="booking-card">
+          <p class="card-title"><i class="bi bi-person"></i>Select Staff (Optional)</p>
+
+          <div class="staff-grid">
+            <label class="staff-card">
+              <input type="radio" name="staff" value="Any Available" checked />
+              <span class="avatar"><i class="bi bi-person"></i></span>
+              <span class="staff-name">Any Available</span>
+            </label>
+
+            <label class="staff-card">
+              <input type="radio" name="staff" value="Sarah Chen" />
+              <span class="avatar"><i class="bi bi-person"></i></span>
+              <span class="staff-name">Sarah Chen</span>
+            </label>
+
+            <label class="staff-card">
+              <input type="radio" name="staff" value="Michael Tan" />
+              <span class="avatar"><i class="bi bi-person"></i></span>
+              <span class="staff-name">Michael Tan</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="booking-card">
+          <p class="card-title"><i class="bi bi-chat-left"></i>Special Requests</p>
+          <textarea class="textarea" name="special_requests" placeholder="Any special requests or notes..."></textarea>
+        </div>
+      </section>
+
+      <aside class="summary-card">
+        <p class="card-title">Booking Summary</p>
+
+        <div class="merchant-row">
+          <div class="merchant-image"></div>
+          <div>
+            <span class="merchant-name"><%= merchantName %></span>
+            <span class="merchant-area"><%= merchantAddress %></span>
+          </div>
+        </div>
+
+        <div class="summary-details">
+          <div class="label">Service</div>
+          <div class="summary-value" id="summaryService"><%= selectedService.service_name %></div>
+
+          <div class="label">Date &amp; Time</div>
+          <div class="summary-value" id="summaryDateTime">May 5, 2026 at 2:00 PM</div>
+
+          <div class="label">Duration</div>
+          <div class="summary-value" id="summaryDuration"><%= selectedService.duration_mins || 60 %> minutes</div>
+        </div>
+
+        <div class="voucher-row">
+          <i class="bi bi-tag"></i>
+          <input class="field" type="text" name="voucher_code" placeholder="Enter voucher code" />
+        </div>
+
+        <label class="points-row">
+          <input type="checkbox" name="use_points" id="usePoints" />
+          <i class="bi bi-award"></i>
+          <span>Use 500 points (-$5)</span>
+        </label>
+
+        <div class="price-box">
+          <div class="price-line">
+            <span class="label">Service Price</span>
+            <span id="summaryPrice">$<%= Number(selectedService.price).toFixed(2) %></span>
+          </div>
+
+          <div class="price-line cashback">
+            <span>Cashback (5%)</span>
+            <span id="summaryCashback">+$<%= (Number(selectedService.price) * 0.05).toFixed(2) %></span>
+          </div>
+        </div>
+
+        <div class="total-line">
+          <span>Total</span>
+          <span id="summaryTotal">$<%= Number(selectedService.price).toFixed(2) %></span>
+        </div>
+
+        <button class="pay-button" type="submit">Proceed to Payment</button>
+        <p class="terms">By booking, you agree to our terms and conditions</p>
+      </aside>
+    </form>
+  </main>
+
+  <script>
+    const serviceInputs = document.querySelectorAll('input[name="service_id"]');
+    const bookingDate = document.getElementById('bookingDate');
+    const bookingTime = document.getElementById('bookingTime');
+    const usePoints = document.getElementById('usePoints');
+
+    function getSelectedService() {
+      return document.querySelector('input[name="service_id"]:checked');
+    }
+
+    function formatDate(value) {
+      if (!value) return 'May 5, 2026';
+      const date = new Date(value + 'T00:00:00');
+      return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    function updateSummary() {
+      const service = getSelectedService();
+      const price = Number(service.dataset.price);
+      const total = Math.max(price - (usePoints.checked ? 5 : 0), 0);
+
+      document.getElementById('summaryService').textContent = service.dataset.name;
+      document.getElementById('summaryDuration').textContent = service.dataset.duration + ' minutes';
+      document.getElementById('summaryDateTime').textContent = formatDate(bookingDate.value) + ' at ' + bookingTime.value;
+      document.getElementById('summaryPrice').textContent = '$' + price.toFixed(2);
+      document.getElementById('summaryCashback').textContent = '+$' + (price * 0.05).toFixed(2);
+      document.getElementById('summaryTotal').textContent = '$' + total.toFixed(2);
+    }
+
+    serviceInputs.forEach(input => input.addEventListener('change', updateSummary));
+    bookingDate.addEventListener('change', updateSummary);
+    bookingTime.addEventListener('change', updateSummary);
+    usePoints.addEventListener('change', updateSummary);
+    updateSummary();
+  </script>
+</body>
+</html>

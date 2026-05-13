@@ -4,6 +4,17 @@ const authModel     = require('../models/authModel');
 const bookingModel  = require('../models/bookingModel');
 const bcrypt        = require('bcryptjs');
 
+async function showPortalBookingPage(req, res) {
+  const { merchantId, serviceId } = req.query;
+  try {
+    const merchant = merchantId ? await merchantModel.getMerchantById(merchantId) : null;
+    const services = merchantId ? await merchantModel.getMerchantServices(merchantId) : [];
+    res.render('booking/book', { title: 'Complete Your Booking', merchant, services, selectedServiceId: serviceId || null });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error loading booking page');
+  }
+}
 async function showBookingPage(req, res) {
   const { token } = req.params;
   try {
@@ -65,4 +76,5 @@ async function confirmArrival(req, res) {
   }
 }
 
-module.exports = { showBookingPage, confirmBooking, confirmArrival };
+module.exports = { showPortalBookingPage, showBookingPage, confirmBooking, confirmArrival };
+
