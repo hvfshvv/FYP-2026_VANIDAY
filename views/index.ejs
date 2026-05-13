@@ -210,8 +210,8 @@
     <% } %>
 
     <% if (promotions.length > 0) { %>
-    <div id="tab-deals" style="<%= featured.length > 0 ? 'display:none' : '' %>">
-      <div class="row g-3">
+ <div id="tab-deals" class="<%= featured.length > 0 ? 'd-none' : '' %>"></div>
+        <div class="row g-3">
         <% promotions.forEach(promo => { %>
         <div class="col-md-6 col-lg-4">
           <div class="promo-card h-100">
