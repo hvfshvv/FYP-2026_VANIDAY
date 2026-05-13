@@ -143,7 +143,7 @@
         { icon:'bi-eye',         label:'Aesthetics', desc:'Lashes · Brows'            },
         { icon:'bi-flower2',     label:'Spa',        desc:'Luxury packages'           },
       ].forEach(c => { %>
-      <a href="/marketplace" class="cat-card" aria-label="Browse <%= c.label %> services">
+      <a href="/marketplace?category=<%= encodeURIComponent(c.label) %>" class="cat-card" aria-label="Browse <%= c.label %> services">
         <div class="cat-icon"><i class="bi <%= c.icon %>"></i></div>
         <p><%= c.label %></p>
         <p><%= c.desc %></p>

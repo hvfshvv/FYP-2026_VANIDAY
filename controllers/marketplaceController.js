@@ -2,6 +2,13 @@ const featuredListingModel = require('../models/featuredListingModel');
 const promotionModel = require('../models/promotionModel');
 const merchantModel = require('../models/merchantModel');
 
+const MARKETPLACE_CATEGORIES = ['Hair', 'Nails', 'Facial', 'Massage', 'Wellness', 'Body', 'Aesthetics', 'Spa'];
+
+function getSelectedCategory(req) {
+  const requested = String(req.query.category || '').trim();
+  return MARKETPLACE_CATEGORIES.find(category => category.toLowerCase() === requested.toLowerCase()) || null;
+}
+
 async function showHome(req, res) {
   try {
     const [featured, promotions] = await Promise.all([
@@ -26,17 +33,20 @@ async function showHome(req, res) {
 
 async function showMarketplace(req, res) {
   try {
+    const selectedCategory = getSelectedCategory(req);
     const [featured, promotions, merchants] = await Promise.all([
-      featuredListingModel.getFeaturedListings(),
-      promotionModel.getActivePromotions(),
-      merchantModel.getAllActiveMerchants()
+      featuredListingModel.getFeaturedListings(selectedCategory),
+      promotionModel.getActivePromotions(selectedCategory),
+      merchantModel.getAllActiveMerchants(selectedCategory)
     ]);
 
     res.render('marketplace/index', {
-      title: 'Marketplace',
+      title: selectedCategory ? `${selectedCategory} Marketplace` : 'Marketplace',
       featured,
       promotions,
-      merchants
+      merchants,
+      selectedCategory,
+      categories: MARKETPLACE_CATEGORIES
     });
   } catch (err) {
     console.error(err);
@@ -44,7 +54,9 @@ async function showMarketplace(req, res) {
       title: 'Marketplace',
       featured: [],
       promotions: [],
-      merchants: []
+      merchants: [],
+      selectedCategory: null,
+      categories: MARKETPLACE_CATEGORIES
     });
   }
 }

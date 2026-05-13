@@ -18,20 +18,31 @@ async function getMerchantServices(merchantId) {
   return rows;
 }
 
-/* NEW */
-async function getAllActiveMerchants() {
+async function getAllActiveMerchants(category = null) {
+  const params = [];
+  let categoryFilter = '';
+
+  if (category) {
+    categoryFilter = ' AND LOWER(m.category) = LOWER(?)';
+    params.push(category);
+  }
+
   const [rows] = await db.query(`
     SELECT
       m.merchant_id,
       m.merchant_name,
+      m.description,
+      m.category,
       m.address,
-      m.phone,
+      m.contact_no,
       fl.image_path
     FROM merchant m
     LEFT JOIN featured_listing fl
       ON m.merchant_id = fl.merchant_id
+    WHERE m.is_active = 1
+      ${categoryFilter}
     ORDER BY m.merchant_name
-  `);
+  `, params);
 
   return rows;
 }

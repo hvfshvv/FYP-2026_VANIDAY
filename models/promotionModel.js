@@ -16,13 +16,23 @@ async function getMerchantPromotions(merchantId) {
   return rows;
 }
 
-async function getActivePromotions() {
+async function getActivePromotions(category = null) {
+  const params = [];
+  let categoryFilter = '';
+
+  if (category) {
+    categoryFilter = ' AND LOWER(m.category) = LOWER(?)';
+    params.push(category);
+  }
+
   const [rows] = await db.query(
-    `SELECT p.*, m.merchant_name
+    `SELECT p.*, m.merchant_name, m.category
      FROM promotion p
      JOIN merchant m ON p.merchant_id = m.merchant_id
      WHERE p.is_active = 1 AND p.start_date <= CURDATE() AND p.end_date >= CURDATE()
-     ORDER BY p.start_date DESC`
+       ${categoryFilter}
+     ORDER BY p.start_date DESC`,
+    params
   );
   return rows;
 }

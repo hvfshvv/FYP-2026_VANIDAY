@@ -1,13 +1,23 @@
 const db = require('../config/db');
 
-async function getFeaturedListings() {
+async function getFeaturedListings(category = null) {
+  const params = [];
+  let categoryFilter = '';
+
+  if (category) {
+    categoryFilter = ' AND LOWER(m.category) = LOWER(?)';
+    params.push(category);
+  }
+
   const [rows] = await db.query(
-    `SELECT fl.*, m.merchant_name, m.address, p.title AS promo_title
+    `SELECT fl.*, m.merchant_name, m.address, m.category, p.title AS promo_title
      FROM featured_listing fl
      JOIN merchant m   ON fl.merchant_id = m.merchant_id
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
      WHERE fl.is_visible = 1
-     ORDER BY fl.created_at DESC`
+       ${categoryFilter}
+     ORDER BY fl.created_at DESC`,
+    params
   );
   return rows;
 }

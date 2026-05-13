@@ -71,7 +71,7 @@
       { icon:'bi-eye',         label:'Aesthetics' },
       { icon:'bi-flower2',     label:'Spa'        },
     ].forEach(c => { %>
-    <a href="/marketplace" class="cat-strip-link" aria-label="<%= c.label %> services">
+    <a href="/marketplace?category=<%= encodeURIComponent(c.label) %>" class="cat-strip-link" aria-label="<%= c.label %> services">
       <i class="bi <%= c.icon %>"></i><%= c.label %>
     </a>
     <% }) %>
