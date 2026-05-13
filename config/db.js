@@ -1,5 +1,7 @@
 const mysql = require('mysql2/promise');
 
+const isAzure = (process.env.DB_HOST || '').includes('azure.com');
+
 const pool = mysql.createPool({
   host:               process.env.DB_HOST     || 'localhost',
   user:               process.env.DB_USER     || 'root',
@@ -8,6 +10,7 @@ const pool = mysql.createPool({
   port:               process.env.DB_PORT     || 3306,
   waitForConnections: true,
   connectionLimit:    10,
+  ...(isAzure && { ssl: { rejectUnauthorized: false } }),
 });
 
 module.exports = pool;

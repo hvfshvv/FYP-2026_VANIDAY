@@ -28,6 +28,7 @@ async function login(req, res) {
       user_id:   user.user_id,
       full_name: user.full_name,
       email:     user.email,
+      phone:     user.phone || '',
       role:      user.role,
     };
     if (user.role === 'merchant') {
@@ -35,7 +36,8 @@ async function login(req, res) {
       req.session.user.merchant_id = merchant ? merchant.merchant_id : null;
       return res.redirect('/merchant/dashboard');
     }
-    res.redirect('/');
+    const next = req.query.next;
+    res.redirect(next && next.startsWith('/') ? next : '/');
   } catch (err) {
     console.error(err);
     res.render('auth/login', { title: 'Login', error: 'Something went wrong. Please try again.' });

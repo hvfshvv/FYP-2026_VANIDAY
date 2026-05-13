@@ -1,11 +1,14 @@
 const db = require('../config/db');
 
 async function createBooking({ customerId, serviceId, merchantId, bookingDate, bookingTime, source }) {
-  // get service price and duration for total_amount and slot end_time
+  // Confirm the selected service belongs to the selected merchant before pricing.
   const [[svc]] = await db.query(
-    'SELECT price, duration_mins FROM service WHERE service_id = ?',
-    [serviceId]
+    'SELECT price, duration_mins FROM service WHERE service_id = ? AND merchant_id = ? AND is_active = 1',
+    [serviceId, merchantId]
   );
+  if (!svc) {
+    throw new Error('Selected service is not available for this merchant');
+  }
 
   // find an existing available slot or create one
   const [existing] = await db.query(
@@ -28,14 +31,16 @@ async function createBooking({ customerId, serviceId, merchantId, bookingDate, b
     slotId = slotResult.insertId;
   }
 
-  const mappedSource    = source === 'qr_scan' ? 'qr' : source === 'portal' ? 'web' : source;
-  const mappedBookingType = mappedSource === 'qr' ? 'walk_in' : 'advance';
+  const mappedSource = source === 'qr_scan' ? 'qr' : source === 'portal' ? 'web' : source;
+  const allowedSources = ['web', 'qr', 'marketplace'];
+  const safeSource = allowedSources.includes(mappedSource) ? mappedSource : 'web';
+  const mappedBookingType = safeSource === 'qr' ? 'walk_in' : 'advance';
 
   const [result] = await db.query(
     `INSERT INTO booking
        (customer_id, merchant_id, service_id, staff_id, slot_id, booking_type, source, status, total_amount)
-     VALUES (?,?,?,NULL,?,?,'${mappedSource}','pending_payment',?)`,
-    [customerId, merchantId, serviceId, slotId, mappedBookingType, svc.price]
+     VALUES (?,?,?,NULL,?,?,?,'pending_payment',?)`,
+    [customerId, merchantId, serviceId, slotId, mappedBookingType, safeSource, svc.price]
   );
   return result.insertId;
 }
@@ -46,6 +51,7 @@ async function getBookingById(bookingId) {
             ts.slot_date  AS booking_date,
             ts.start_time AS booking_time,
             s.service_name, s.price, s.duration_mins,
+            COALESCE(b.total_amount, s.price) AS payable_amount,
             m.merchant_name,
             u.full_name   AS customer_name,
             u.phone       AS customer_phone

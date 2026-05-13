@@ -50,10 +50,8 @@
 
       <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
         <div class="card-body p-4">
-<form 
-  action="<%= isPortalBooking ? ('/book/confirm?merchantId=' + qr.merchant_id) : ('/book/' + qr.qr_token + '/confirm') %>" 
-  method="POST" 
-  id="bookingForm">
+<form action="/book/<%= qr.qr_token %>/confirm" method="POST" id="bookingForm">
+            <input type="hidden" name="service_id" id="hidden_service_id" />
             <input type="hidden" name="booking_time" id="hidden_booking_time" />
 
             <!-- STEP 1 -->

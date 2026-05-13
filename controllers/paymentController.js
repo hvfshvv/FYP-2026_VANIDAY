@@ -23,6 +23,7 @@ async function processStripe(req, res) {
   try {
     const booking = await bookingModel.getBookingById(bookingId);
     if (!booking) return res.redirect('/');
+    const amount = Number(booking.payable_amount || booking.total_amount || booking.price);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -30,7 +31,7 @@ async function processStripe(req, res) {
         price_data: {
           currency:     'sgd',
           product_data: { name: booking.service_name, description: `at ${booking.merchant_name}` },
-          unit_amount:  Math.round(booking.price * 100),
+          unit_amount:  Math.round(amount * 100),
         },
         quantity: 1,
       }],
