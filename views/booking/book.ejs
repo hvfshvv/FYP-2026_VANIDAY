@@ -1,15 +1,14 @@
 <%
-  const merchantName = (typeof merchant !== 'undefined' && merchant && merchant.merchant_name) || 'Luxe Beauty Studio';
-  const merchantAddress = (typeof merchant !== 'undefined' && merchant && merchant.address) || 'Orchard Road';
-  const serviceList = (typeof services !== 'undefined' && services && services.length)
-    ? services
-    : [
-        { service_id: 1, service_name: 'Hydra Facial', description: 'HydraFacial MD - cleanse, exfoliate & hydrate', price: 158, duration_mins: 75 },
-        { service_id: 2, service_name: 'LED Light Therapy', description: 'Anti-aging & acne-fighting LED phototherapy', price: 68, duration_mins: 30 },
-        { service_id: 3, service_name: 'Chemical Peel', description: 'Superficial peel for skin renewal & radiance', price: 95, duration_mins: 45 },
-      ];
-  const selectedId = typeof selectedServiceId !== 'undefined' && selectedServiceId ? String(selectedServiceId) : String(serviceList[0].service_id);
-  const selectedService = serviceList.find(service => String(service.service_id) === selectedId) || serviceList[0];
+  const merchantName = (typeof merchant !== 'undefined' && merchant && merchant.merchant_name) || 'Selected Merchant';
+  const merchantAddress = (typeof merchant !== 'undefined' && merchant && merchant.address) || 'Singapore';
+  const bookingServices = (typeof serviceList !== 'undefined' && Array.isArray(serviceList))
+    ? serviceList
+    : ((typeof services !== 'undefined' && Array.isArray(services)) ? services : []);
+  const selectedId = (typeof selectedService !== 'undefined' && selectedService && selectedService.service_id)
+    ? String(selectedService.service_id)
+    : ((typeof selectedServiceId !== 'undefined' && selectedServiceId) ? String(selectedServiceId) : (bookingServices[0] ? String(bookingServices[0].service_id) : ''));
+  const activeService = bookingServices.find(service => String(service.service_id) === selectedId) || bookingServices[0] || null;
+  const activePrice = activeService ? Number(activeService.price) : 0;
 %>
 <!DOCTYPE html>
 <html lang="en">
@@ -331,12 +330,17 @@
   <main class="page">
     <h1>Complete Your Booking</h1>
 
-    <form class="booking-layout" action="/payment/checkout" method="POST">
+    <form class="booking-layout" action="/book/confirm" method="POST">
+      <input type="hidden" name="merchant_id" value="<%= merchant ? merchant.merchant_id : '' %>" />
       <section>
         <div class="booking-card">
           <p class="card-title">Select Service</p>
 
-          <% serviceList.forEach(service => { %>
+          <% if (!bookingServices.length) { %>
+            <p class="terms" style="text-align:left;margin:0;">No active services are available for this merchant.</p>
+          <% } %>
+
+          <% bookingServices.forEach(service => { %>
             <label class="service-option">
               <input
                 type="radio"
@@ -345,7 +349,7 @@
                 data-name="<%= service.service_name %>"
                 data-price="<%= Number(service.price) %>"
                 data-duration="<%= service.duration_mins || 60 %>"
-                <%= String(service.service_id) === String(selectedService.service_id) ? 'checked' : '' %>
+                <%= activeService && String(service.service_id) === String(activeService.service_id) ? 'checked' : '' %>
               />
               <span><%= service.service_name %> - $<%= Number(service.price).toFixed(2) %></span>
             </label>
@@ -359,13 +363,13 @@
             <input class="field" type="date" name="booking_date" id="bookingDate" />
 
             <select class="field" name="booking_time" id="bookingTime">
-              <option>10:00 AM</option>
-              <option>11:00 AM</option>
-              <option>12:00 PM</option>
-              <option>1:00 PM</option>
-              <option selected>2:00 PM</option>
-              <option>3:00 PM</option>
-              <option>4:00 PM</option>
+              <option value="10:00:00">10:00 AM</option>
+              <option value="11:00:00">11:00 AM</option>
+              <option value="12:00:00">12:00 PM</option>
+              <option value="13:00:00">1:00 PM</option>
+              <option value="14:00:00" selected>2:00 PM</option>
+              <option value="15:00:00">3:00 PM</option>
+              <option value="16:00:00">4:00 PM</option>
             </select>
           </div>
         </div>
@@ -413,13 +417,13 @@
 
         <div class="summary-details">
           <div class="label">Service</div>
-          <div class="summary-value" id="summaryService"><%= selectedService.service_name %></div>
+          <div class="summary-value" id="summaryService"><%= activeService ? activeService.service_name : 'No service selected' %></div>
 
           <div class="label">Date &amp; Time</div>
           <div class="summary-value" id="summaryDateTime">May 5, 2026 at 2:00 PM</div>
 
           <div class="label">Duration</div>
-          <div class="summary-value" id="summaryDuration"><%= selectedService.duration_mins || 60 %> minutes</div>
+          <div class="summary-value" id="summaryDuration"><%= activeService ? (activeService.duration_mins || 60) : 0 %> minutes</div>
         </div>
 
         <div class="voucher-row">
@@ -436,21 +440,21 @@
         <div class="price-box">
           <div class="price-line">
             <span class="label">Service Price</span>
-            <span id="summaryPrice">$<%= Number(selectedService.price).toFixed(2) %></span>
+            <span id="summaryPrice">$<%= activePrice.toFixed(2) %></span>
           </div>
 
           <div class="price-line cashback">
             <span>Cashback (5%)</span>
-            <span id="summaryCashback">+$<%= (Number(selectedService.price) * 0.05).toFixed(2) %></span>
+            <span id="summaryCashback">+$<%= (activePrice * 0.05).toFixed(2) %></span>
           </div>
         </div>
 
         <div class="total-line">
           <span>Total</span>
-          <span id="summaryTotal">$<%= Number(selectedService.price).toFixed(2) %></span>
+          <span id="summaryTotal">$<%= activePrice.toFixed(2) %></span>
         </div>
 
-        <button class="pay-button" type="submit">Proceed to Payment</button>
+        <button class="pay-button" type="submit" <%= !activeService ? 'disabled' : '' %>>Proceed to Payment</button>
         <p class="terms">By booking, you agree to our terms and conditions</p>
       </aside>
     </form>
@@ -474,6 +478,7 @@
 
     function updateSummary() {
       const service = getSelectedService();
+      if (!service) return;
       const price = Number(service.dataset.price);
       const total = Math.max(price - (usePoints.checked ? 5 : 0), 0);
 
