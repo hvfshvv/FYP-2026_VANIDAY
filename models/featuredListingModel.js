@@ -7,7 +7,7 @@ async function getFeaturedListings() {
      JOIN merchant m   ON fl.merchant_id = m.merchant_id
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
      WHERE fl.is_visible = 1
-     ORDER BY fl.display_order ASC, fl.created_at DESC`
+     ORDER BY fl.created_at DESC`
   );
   return rows;
 }

@@ -21,18 +21,15 @@ async function getMerchantServices(merchantId) {
 /* NEW */
 async function getAllActiveMerchants() {
   const [rows] = await db.query(`
-    SELECT 
+    SELECT
       m.merchant_id,
       m.merchant_name,
-      m.description,
-      m.category,
       m.address,
-      m.contact_no,
+      m.phone,
       fl.image_path
     FROM merchant m
     LEFT JOIN featured_listing fl
       ON m.merchant_id = fl.merchant_id
-    WHERE m.is_active = 1
     ORDER BY m.merchant_name
   `);
 
