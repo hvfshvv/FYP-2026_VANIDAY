@@ -23,10 +23,10 @@ async function deactivateMerchantQRs(merchantId) {
   await db.query('UPDATE qr_code SET is_active = 0 WHERE merchant_id = ?', [merchantId]);
 }
 
-async function insertQR(merchantId, token, imagePath) {
+async function insertQR(merchantId, token, imagePath, qrUrl) {
   const [result] = await db.query(
-    'INSERT INTO qr_code (merchant_id, qr_token, qr_image_path) VALUES (?,?,?)',
-    [merchantId, token, imagePath]
+    'INSERT INTO qr_code (merchant_id, qr_token, qr_url, qr_image_path, qr_type) VALUES (?,?,?,?,?)',
+    [merchantId, token, qrUrl, imagePath, 'booking']
   );
   return result.insertId;
 }
