@@ -96,7 +96,7 @@
               <div class="mb-4">
                 <label class="form-label" style="font-weight:600;font-size:.875rem;">Date</label>
                 <input type="date" name="booking_date" id="booking_date" class="form-control rounded-xl"
-                  min="<%= new Date().toISOString().slice(0,10) %>" required onchange="updateSummary()" />
+                  min="<%= new Date().toISOString().slice(0,10) %>" required onchange="validateBookingDate(); updateAvailableTimes(); updateSummary()" />
               </div>
 
               <div class="mb-3">
@@ -104,7 +104,7 @@
                 <div class="time-grid">
                   <% ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','13:00',
                       '13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'].forEach(t => { %>
-                  <div class="time-btn" onclick="selectTime(this,'<%= t %>')"><%= t %></div>
+                  <div class="time-btn" data-time="<%= t %>" onclick="selectTime(this,'<%= t %>')"><%= t %></div>
                   <% }) %>
                 </div>
                 <div id="step2-error" style="display:none;color:var(--danger);font-size:.8125rem;margin-top:.75rem;">
@@ -244,6 +244,78 @@
 let selectedService = null;
 let selectedTime    = null;
 
+function pad2(value) {
+  return String(value).padStart(2, '0');
+}
+
+function localDateValue(date = new Date()) {
+  return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+}
+
+function getSelectedDateTime() {
+  const date = document.getElementById('booking_date').value;
+  if (!date || !selectedTime) return null;
+  return new Date(date + 'T' + selectedTime + ':00');
+}
+
+function setStep2Error(message) {
+  const error = document.getElementById('step2-error');
+  error.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>' + message;
+  error.style.display = 'block';
+}
+
+function clearStep2Error() {
+  document.getElementById('step2-error').style.display = 'none';
+}
+
+function validateBookingDate() {
+  const dateEl = document.getElementById('booking_date');
+  const today = localDateValue();
+  dateEl.min = today;
+
+  if (dateEl.value && dateEl.value < today) {
+    dateEl.value = today;
+    selectedTime = null;
+    document.getElementById('hidden_booking_time').value = '';
+    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+    setStep2Error('Please choose today or a future date.');
+    return false;
+  }
+  return true;
+}
+
+function updateAvailableTimes() {
+  const date = document.getElementById('booking_date').value;
+  const now = new Date();
+
+  document.querySelectorAll('.time-btn').forEach(btn => {
+    const time = btn.dataset.time;
+    const isPast = Boolean(date && new Date(date + 'T' + time + ':00') < now);
+    btn.classList.toggle('disabled', isPast);
+    btn.setAttribute('aria-disabled', String(isPast));
+
+    if (isPast && selectedTime === time) {
+      btn.classList.remove('selected');
+      selectedTime = null;
+      document.getElementById('hidden_booking_time').value = '';
+    }
+  });
+}
+
+function validateSelectedDateTime() {
+  if (!validateBookingDate()) return false;
+  if (!document.getElementById('booking_date').value || !selectedTime) {
+    setStep2Error('Please pick both a date and a time.');
+    return false;
+  }
+  if (getSelectedDateTime() < new Date()) {
+    setStep2Error('Please choose a time that is on or after the current date and time.');
+    return false;
+  }
+  clearStep2Error();
+  return true;
+}
+
 function selectService(el) {
   document.querySelectorAll('.service-card').forEach(c => {
     c.classList.remove('selected');
@@ -262,10 +334,16 @@ function selectService(el) {
 }
 
 function selectTime(el, time) {
+  updateAvailableTimes();
+  if (el.classList.contains('disabled')) {
+    setStep2Error('Please choose a time that is on or after the current date and time.');
+    return;
+  }
   document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected');
   selectedTime = time;
   document.getElementById('hidden_booking_time').value = time;
+  clearStep2Error();
   updateSummary();
 }
 
@@ -290,6 +368,10 @@ function updateSummary() {
     document.getElementById('sum-time').textContent     = selectedTime;
     document.getElementById('sum-time').style.cssText   = 'font-weight:600;';
     document.getElementById('confirm-time').textContent = selectedTime;
+  } else {
+    document.getElementById('sum-time').textContent     = '—';
+    document.getElementById('sum-time').style.cssText   = 'color:var(--muted);';
+    document.getElementById('confirm-time').textContent = '—';
   }
 }
 
@@ -325,13 +407,20 @@ function nextStep(current) {
     document.getElementById('step1-error').style.display = 'none';
   }
   if (current === 2) {
-    const date = document.getElementById('booking_date').value;
-    if (!date || !selectedTime) { document.getElementById('step2-error').style.display = 'block'; return; }
-    document.getElementById('step2-error').style.display = 'none';
+    if (!validateSelectedDateTime()) return;
   }
   setStep(current + 1);
 }
 function prevStep(current) { setStep(current - 1); }
+
+validateBookingDate();
+updateAvailableTimes();
+document.getElementById('bookingForm').addEventListener('submit', function(event) {
+  if (!validateSelectedDateTime()) {
+    event.preventDefault();
+    setStep(2);
+  }
+});
 </script>
 
 <%- include('../partials/footer') %>

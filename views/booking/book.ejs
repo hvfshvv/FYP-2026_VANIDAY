@@ -1,505 +1,223 @@
 <%
   const merchantName = (typeof merchant !== 'undefined' && merchant && merchant.merchant_name) || 'Selected Merchant';
   const merchantAddress = (typeof merchant !== 'undefined' && merchant && merchant.address) || 'Singapore';
-  const bookingServices = (typeof serviceList !== 'undefined' && Array.isArray(serviceList))
-    ? serviceList
-    : ((typeof services !== 'undefined' && Array.isArray(services)) ? services : []);
+  const bookingServices = (typeof serviceList !== 'undefined' && Array.isArray(serviceList)) ? serviceList : [];
   const selectedId = (typeof selectedService !== 'undefined' && selectedService && selectedService.service_id)
     ? String(selectedService.service_id)
-    : ((typeof selectedServiceId !== 'undefined' && selectedServiceId) ? String(selectedServiceId) : (bookingServices[0] ? String(bookingServices[0].service_id) : ''));
+    : (bookingServices[0] ? String(bookingServices[0].service_id) : '');
   const activeService = bookingServices.find(service => String(service.service_id) === selectedId) || bookingServices[0] || null;
   const activePrice = activeService ? Number(activeService.price) : 0;
 %>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Complete Your Booking</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
 
-    body {
-      background: #fff3f6;
-      color: #030712;
-      font-family: Arial, Helvetica, sans-serif;
-      margin: 0;
-    }
-
-    .page {
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 28px 18px 36px;
-    }
-
-    h1 {
-      color: #030712;
-      font-size: 28px;
-      line-height: 1.2;
-      margin: 0 0 24px;
-    }
-
-    .booking-layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 300px;
-      gap: 24px;
-      align-items: start;
-    }
-
-    .booking-card,
-    .summary-card {
-      background: #fff;
-      border: 1px solid #f0dfe4;
-      border-radius: 22px;
-      box-shadow: 0 10px 28px rgba(225, 29, 72, .08);
-    }
-
-    .booking-card {
-      margin-bottom: 18px;
-      padding: 24px;
-    }
-
-    .card-title {
-      align-items: center;
-      color: #030712;
-      display: flex;
-      gap: 8px;
-      font-size: 16px;
-      font-weight: 800;
-      margin: 0 0 16px;
-    }
-
-    .service-option {
-      align-items: center;
-      border: 1px solid #ead9de;
-      border-radius: 14px;
-      cursor: pointer;
-      display: flex;
-      gap: 10px;
-      min-height: 50px;
-      padding: 13px 14px;
-      transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
-    }
-
-    .service-option + .service-option {
-      margin-top: 11px;
-    }
-
-    .service-option:has(input:checked),
-    .staff-card:has(input:checked) {
-      background: #fff1f5;
-      border-color: #e11d48;
-      box-shadow: 0 0 0 3px rgba(225, 29, 72, .1);
-    }
-
-    .service-option input,
-    .points-row input {
-      accent-color: #e11d48;
-    }
-
-    .service-option span {
-      color: #030712;
-      font-size: 14px;
-      font-weight: 800;
-    }
-
-    .date-time-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .field,
-    .textarea {
-      background: #fffafb;
-      border: 1px solid #ead9de;
-      border-radius: 14px;
-      color: #030712;
-      font-family: inherit;
-      font-size: 14px;
-      outline: none;
-      padding: 13px 14px;
-      width: 100%;
-    }
-
-    .field:focus,
-    .textarea:focus {
-      border-color: #e11d48;
-      box-shadow: 0 0 0 3px rgba(225, 29, 72, .1);
-    }
-
-    .textarea {
-      min-height: 104px;
-      resize: vertical;
-    }
-
-    .staff-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-
-    .staff-card {
-      align-items: center;
-      border: 1px solid #ead9de;
-      border-radius: 16px;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      justify-content: center;
-      min-height: 112px;
-      padding: 14px;
-      position: relative;
-      transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
-    }
-
-    .staff-card input {
-      opacity: 0;
-      position: absolute;
-    }
-
-    .avatar {
-      align-items: center;
-      background: #ffe4ec;
-      border-radius: 999px;
-      color: #e11d48;
-      display: flex;
-      font-size: 24px;
-      height: 50px;
-      justify-content: center;
-      width: 50px;
-    }
-
-    .staff-name {
-      color: #030712;
-      font-size: 13px;
-      font-weight: 800;
-    }
-
-    .summary-card {
-      padding: 22px 18px;
-      position: sticky;
-      top: 18px;
-    }
-
-    .merchant-row {
-      align-items: center;
-      border-bottom: 1px solid #f0dfe4;
-      display: flex;
-      gap: 12px;
-      padding: 8px 0 14px;
-    }
-
-    .merchant-image {
-      background: linear-gradient(135deg, #e11d48, #ffe4ec);
-      border-radius: 12px;
-      height: 52px;
-      overflow: hidden;
-      width: 52px;
-    }
-
-    .merchant-name {
-      color: #030712;
-      display: block;
-      font-size: 14px;
-      font-weight: 800;
-      margin-bottom: 3px;
-    }
-
-    .merchant-area,
-    .label,
-    .terms {
-      color: #667085;
-      font-size: 12px;
-    }
-
-    .summary-details {
-      padding: 16px 0 10px;
-    }
-
-    .summary-value {
-      color: #030712;
-      font-size: 13px;
-      font-weight: 800;
-      margin: 4px 0 12px;
-    }
-
-    .voucher-row {
-      align-items: center;
-      color: #e11d48;
-      display: flex;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
-
-    .voucher-row .field {
-      padding: 9px 10px;
-    }
-
-    .points-row {
-      align-items: center;
-      background: #fff7ed;
-      border: 1px solid #fed7aa;
-      border-radius: 12px;
-      color: #030712;
-      display: flex;
-      gap: 7px;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 10px;
-    }
-
-    .points-row .bi-award {
-      color: #e11d48;
-    }
-
-    .price-box {
-      border-bottom: 1px solid #f0dfe4;
-      border-top: 1px solid #f0dfe4;
-      margin: 16px 0;
-      padding: 10px 0;
-    }
-
-    .price-line,
-    .total-line {
-      align-items: center;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .price-line {
-      font-size: 13px;
-      margin: 8px 0;
-    }
-
-    .cashback {
-      color: #009f45;
-    }
-
-    .total-line {
-      color: #030712;
-      font-size: 15px;
-      font-weight: 900;
-      margin-bottom: 20px;
-    }
-
-    .pay-button {
-      background: #e11d48;
-      border: 0;
-      border-radius: 22px;
-      color: #fff;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 900;
-      padding: 15px 18px;
-      width: 100%;
-    }
-
-    .pay-button:hover {
-      background: #be123c;
-    }
-
-    .terms {
-      margin: 12px 0 0;
-      text-align: center;
-    }
-
-    @media (max-width: 860px) {
-      .booking-layout {
-        grid-template-columns: 1fr;
-      }
-
-      .summary-card {
-        position: static;
-      }
-    }
-
-    @media (max-width: 560px) {
-      .date-time-row,
-      .staff-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
-</head>
-<body>
-  <main class="page">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;">
-      <h1 style="margin:0;">Complete Your Booking</h1>
-      <a href="/book/viewBookings" style="background:#fff;border:1px solid #ead9de;border-radius:999px;color:#e11d48;font-size:13px;font-weight:800;padding:10px 14px;text-decoration:none;white-space:nowrap;">
-        <i class="bi bi-clock-history"></i> My Bookings
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container" style="max-width:980px;">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+      <div>
+        <p class="section-label mb-2">Booking</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Complete Your Booking</h2>
+        <p style="color:var(--muted);margin:0;"><%= merchantName %> · <%= merchantAddress %></p>
+      </div>
+      <a href="/book/viewBookings" class="btn btn-outline-secondary btn-pill">
+        <i class="bi bi-clock-history me-1"></i>My Bookings
       </a>
     </div>
 
-    <form class="booking-layout" action="/book/confirm" method="POST">
+    <form action="/book/confirm" method="POST" class="row g-4">
       <input type="hidden" name="merchant_id" value="<%= merchant ? merchant.merchant_id : '' %>" />
-      <section>
-        <div class="booking-card">
-          <p class="card-title">Select Service</p>
 
-          <% if (!bookingServices.length) { %>
-            <p class="terms" style="text-align:left;margin:0;">No active services are available for this merchant.</p>
-          <% } %>
+      <section class="col-lg-7">
+        <div class="card border-0 mb-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+          <div class="card-body p-4">
+            <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Select Service</h5>
 
-          <% bookingServices.forEach(service => { %>
-            <label class="service-option">
-              <input
-                type="radio"
-                name="service_id"
-                value="<%= service.service_id %>"
-                data-name="<%= service.service_name %>"
-                data-price="<%= Number(service.price) %>"
-                data-duration="<%= service.duration_mins || 60 %>"
-                <%= activeService && String(service.service_id) === String(activeService.service_id) ? 'checked' : '' %>
-              />
-              <span><%= service.service_name %> - $<%= Number(service.price).toFixed(2) %></span>
-            </label>
-          <% }) %>
-        </div>
+            <% if (!bookingServices.length) { %>
+              <p style="color:var(--muted);margin:0;">No active services are available for this merchant.</p>
+            <% } %>
 
-        <div class="booking-card">
-          <p class="card-title"><i class="bi bi-calendar3"></i>Select Date &amp; Time</p>
-
-          <div class="date-time-row">
-            <input class="field" type="date" name="booking_date" id="bookingDate" />
-
-            <select class="field" name="booking_time" id="bookingTime">
-              <option value="10:00:00">10:00 AM</option>
-              <option value="11:00:00">11:00 AM</option>
-              <option value="12:00:00">12:00 PM</option>
-              <option value="13:00:00">1:00 PM</option>
-              <option value="14:00:00" selected>2:00 PM</option>
-              <option value="15:00:00">3:00 PM</option>
-              <option value="16:00:00">4:00 PM</option>
-            </select>
+            <% bookingServices.forEach(service => { %>
+              <label class="d-flex align-items-center justify-content-between gap-3 mb-2 p-3" style="border:1px solid var(--border);border-radius:var(--r);background:var(--surface);cursor:pointer;">
+                <span>
+                  <input
+                    type="radio"
+                    name="service_id"
+                    value="<%= service.service_id %>"
+                    data-name="<%= service.service_name %>"
+                    data-price="<%= Number(service.price) %>"
+                    data-duration="<%= service.duration_mins || 60 %>"
+                    <%= activeService && String(service.service_id) === String(activeService.service_id) ? 'checked' : '' %>
+                    required
+                  />
+                  <span style="font-weight:700;color:var(--ink);margin-left:.5rem;"><%= service.service_name %></span>
+                </span>
+                <span style="font-family:var(--font-mono);font-weight:700;color:var(--accent);">S$<%= Number(service.price).toFixed(2) %></span>
+              </label>
+            <% }) %>
           </div>
         </div>
 
-        <div class="booking-card">
-          <p class="card-title"><i class="bi bi-person"></i>Select Staff (Optional)</p>
-
-          <div class="staff-grid">
-            <label class="staff-card">
-              <input type="radio" name="staff" value="Any Available" checked />
-              <span class="avatar"><i class="bi bi-person"></i></span>
-              <span class="staff-name">Any Available</span>
-            </label>
-
-            <label class="staff-card">
-              <input type="radio" name="staff" value="Sarah Chen" />
-              <span class="avatar"><i class="bi bi-person"></i></span>
-              <span class="staff-name">Sarah Chen</span>
-            </label>
-
-            <label class="staff-card">
-              <input type="radio" name="staff" value="Michael Tan" />
-              <span class="avatar"><i class="bi bi-person"></i></span>
-              <span class="staff-name">Michael Tan</span>
-            </label>
+        <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+          <div class="card-body p-4">
+            <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Select Date &amp; Time</h5>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight:600;font-size:.875rem;">Date</label>
+                <input class="form-control rounded-xl" type="date" name="booking_date" id="bookingDate" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight:600;font-size:.875rem;">Time</label>
+                <select class="form-control rounded-xl" name="booking_time" id="bookingTime" required>
+                  <% ['10:00:00','11:00:00','12:00:00','13:00:00','14:00:00','15:00:00','16:00:00'].forEach(t => { %>
+                    <option value="<%= t %>" <%= t === '14:00:00' ? 'selected' : '' %>><%= t.slice(0, 5) %></option>
+                  <% }) %>
+                </select>
+              </div>
+            </div>
+            <div id="bookingDateError" style="display:none;color:var(--danger);font-size:.8125rem;margin-top:.75rem;">
+              <i class="bi bi-exclamation-circle me-1"></i>Please choose a date and time that is not in the past.
+            </div>
           </div>
         </div>
 
-        <div class="booking-card">
-          <p class="card-title"><i class="bi bi-chat-left"></i>Special Requests</p>
-          <textarea class="textarea" name="special_requests" placeholder="Any special requests or notes..."></textarea>
+        <div class="card border-0 mt-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+          <div class="card-body p-4">
+            <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">
+              <i class="bi bi-person me-1"></i>Select Staff (Optional)
+            </h5>
+            <div class="row g-3">
+              <% ['Any Available', 'Sarah Chen', 'Michael Tan'].forEach((staff, index) => { %>
+                <div class="col-md-4">
+                  <button type="button" class="staff-option d-flex flex-column align-items-center justify-content-center text-center h-100 p-3 <%= index === 0 ? 'selected' : '' %>" onclick="selectStaff(this)" style="border:1px solid var(--border);border-radius:var(--r);background:var(--surface);cursor:pointer;min-height:112px;width:100%;">
+                    <input type="radio" name="staff" value="<%= staff %>" <%= index === 0 ? 'checked' : '' %> style="position:absolute;opacity:0;pointer-events:none;" />
+                    <span style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:999px;background:var(--accent-light);color:var(--accent);font-size:1.4rem;margin-bottom:.75rem;">
+                      <i class="bi bi-person"></i>
+                    </span>
+                    <span style="font-weight:700;color:var(--ink);font-size:.875rem;"><%= staff %></span>
+                  </button>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+
+        <div class="card border-0 mt-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+          <div class="card-body p-4">
+            <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">
+              <i class="bi bi-chat-left me-1"></i>Special Requests
+            </h5>
+            <textarea
+              name="special_requests"
+              class="form-control rounded-xl"
+              rows="4"
+              placeholder="Any special requests or notes..."
+              style="resize:vertical;"
+            ></textarea>
+          </div>
         </div>
       </section>
 
-      <aside class="summary-card">
-        <p class="card-title">Booking Summary</p>
-
-        <div class="merchant-row">
-          <div class="merchant-image"></div>
-          <div>
-            <span class="merchant-name"><%= merchantName %></span>
-            <span class="merchant-area"><%= merchantAddress %></span>
+      <aside class="col-lg-5">
+        <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);position:sticky;top:90px;">
+          <div class="card-body p-4">
+            <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Booking Summary</h5>
+            <div class="mb-3">
+              <p style="color:var(--muted);font-size:.8rem;margin-bottom:.25rem;">Merchant</p>
+              <p style="font-weight:700;color:var(--ink);margin:0;"><%= merchantName %></p>
+            </div>
+            <div class="mb-3">
+              <p style="color:var(--muted);font-size:.8rem;margin-bottom:.25rem;">Service</p>
+              <p id="summaryService" style="font-weight:700;color:var(--ink);margin:0;"><%= activeService ? activeService.service_name : 'No service selected' %></p>
+            </div>
+            <div class="mb-3">
+              <p style="color:var(--muted);font-size:.8rem;margin-bottom:.25rem;">Date &amp; Time</p>
+              <p id="summaryDateTime" style="font-weight:700;color:var(--ink);margin:0;">Select a date and time</p>
+            </div>
+            <div class="d-flex justify-content-between align-items-center pt-3 mb-4" style="border-top:1px solid var(--border);">
+              <span style="font-weight:800;color:var(--ink);">Total</span>
+              <span id="summaryTotal" style="font-family:var(--font-mono);font-weight:800;color:var(--accent);font-size:1.25rem;">S$<%= activePrice.toFixed(2) %></span>
+            </div>
+            <button class="btn btn-primary btn-pill w-100 py-2" type="submit" style="font-weight:800;" <%= !activeService ? 'disabled' : '' %>>
+              Proceed to Payment
+            </button>
           </div>
         </div>
-
-        <div class="summary-details">
-          <div class="label">Service</div>
-          <div class="summary-value" id="summaryService"><%= activeService ? activeService.service_name : 'No service selected' %></div>
-
-          <div class="label">Date &amp; Time</div>
-          <div class="summary-value" id="summaryDateTime">May 5, 2026 at 2:00 PM</div>
-
-          <div class="label">Duration</div>
-          <div class="summary-value" id="summaryDuration"><%= activeService ? (activeService.duration_mins || 60) : 0 %> minutes</div>
-        </div>
-
-        <div class="voucher-row">
-          <i class="bi bi-tag"></i>
-          <input class="field" type="text" name="voucher_code" placeholder="Enter voucher code" />
-        </div>
-
-        <label class="points-row">
-          <input type="checkbox" name="use_points" id="usePoints" />
-          <i class="bi bi-award"></i>
-          <span>Use 500 points (-$5)</span>
-        </label>
-
-        <div class="price-box">
-          <div class="price-line">
-            <span class="label">Service Price</span>
-            <span id="summaryPrice">$<%= activePrice.toFixed(2) %></span>
-          </div>
-
-          <div class="price-line cashback">
-            <span>Cashback (5%)</span>
-            <span id="summaryCashback">+$<%= (activePrice * 0.05).toFixed(2) %></span>
-          </div>
-        </div>
-
-        <div class="total-line">
-          <span>Total</span>
-          <span id="summaryTotal">$<%= activePrice.toFixed(2) %></span>
-        </div>
-
-        <button class="pay-button" type="submit" <%= !activeService ? 'disabled' : '' %>>Proceed to Payment</button>
-        <p class="terms">By booking, you agree to our terms and conditions</p>
       </aside>
     </form>
-  </main>
+  </div>
+</main>
 
-  <script>
-    const serviceInputs = document.querySelectorAll('input[name="service_id"]');
-    const bookingDate = document.getElementById('bookingDate');
-    const bookingTime = document.getElementById('bookingTime');
-    const usePoints = document.getElementById('usePoints');
+<script>
+const bookingDate = document.getElementById('bookingDate');
+const bookingTime = document.getElementById('bookingTime');
+const serviceInputs = document.querySelectorAll('input[name="service_id"]');
+const error = document.getElementById('bookingDateError');
 
-    function getSelectedService() {
-      return document.querySelector('input[name="service_id"]:checked');
-    }
+document.querySelectorAll('.staff-option').forEach(option => {
+  option.style.transition = 'border-color .15s, background .15s, box-shadow .15s';
+  if (option.classList.contains('selected')) {
+    option.style.borderColor = 'var(--accent)';
+    option.style.background = 'var(--accent-light)';
+    option.style.boxShadow = '0 0 0 3px var(--accent-mid)';
+  }
+});
 
-    function formatDate(value) {
-      if (!value) return 'May 5, 2026';
-      const date = new Date(value + 'T00:00:00');
-      return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    }
+function pad2(value) {
+  return String(value).padStart(2, '0');
+}
 
-    function updateSummary() {
-      const service = getSelectedService();
-      if (!service) return;
-      const price = Number(service.dataset.price);
-      const total = Math.max(price - (usePoints.checked ? 5 : 0), 0);
+function localDateValue(date = new Date()) {
+  return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+}
 
-      document.getElementById('summaryService').textContent = service.dataset.name;
-      document.getElementById('summaryDuration').textContent = service.dataset.duration + ' minutes';
-      document.getElementById('summaryDateTime').textContent = formatDate(bookingDate.value) + ' at ' + bookingTime.value;
-      document.getElementById('summaryPrice').textContent = '$' + price.toFixed(2);
-      document.getElementById('summaryCashback').textContent = '+$' + (price * 0.05).toFixed(2);
-      document.getElementById('summaryTotal').textContent = '$' + total.toFixed(2);
-    }
+function selectedSlot() {
+  if (!bookingDate.value || !bookingTime.value) return null;
+  return new Date(bookingDate.value + 'T' + bookingTime.value);
+}
 
-    serviceInputs.forEach(input => input.addEventListener('change', updateSummary));
-    bookingDate.addEventListener('change', updateSummary);
-    bookingTime.addEventListener('change', updateSummary);
-    usePoints.addEventListener('change', updateSummary);
-    updateSummary();
-  </script>
-</body>
-</html>
+function validateSlot() {
+  bookingDate.min = localDateValue();
+  const slot = selectedSlot();
+  const valid = slot && slot >= new Date();
+  error.style.display = valid ? 'none' : 'block';
+  return valid;
+}
+
+function updateSummary() {
+  const service = document.querySelector('input[name="service_id"]:checked');
+  if (service) {
+    document.getElementById('summaryService').textContent = service.dataset.name;
+    document.getElementById('summaryTotal').textContent = 'S$' + Number(service.dataset.price).toFixed(2);
+  }
+  document.getElementById('summaryDateTime').textContent = bookingDate.value && bookingTime.value
+    ? bookingDate.value + ' at ' + bookingTime.value.slice(0, 5)
+    : 'Select a date and time';
+}
+
+function selectStaff(button) {
+  document.querySelectorAll('.staff-option').forEach(option => {
+    option.classList.remove('selected');
+    option.style.borderColor = 'var(--border)';
+    option.style.background = 'var(--surface)';
+    option.style.boxShadow = 'none';
+    option.querySelector('input[name="staff"]').checked = false;
+  });
+
+  button.classList.add('selected');
+  button.style.borderColor = 'var(--accent)';
+  button.style.background = 'var(--accent-light)';
+  button.style.boxShadow = '0 0 0 3px var(--accent-mid)';
+  button.querySelector('input[name="staff"]').checked = true;
+}
+
+bookingDate.min = localDateValue();
+bookingDate.addEventListener('change', () => { validateSlot(); updateSummary(); });
+bookingTime.addEventListener('change', () => { validateSlot(); updateSummary(); });
+serviceInputs.forEach(input => input.addEventListener('change', updateSummary));
+document.querySelector('form').addEventListener('submit', event => {
+  if (!validateSlot()) event.preventDefault();
+});
+updateSummary();
+</script>
+
+<%- include('../partials/footer') %>

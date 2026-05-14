@@ -4,6 +4,12 @@ const authModel     = require('../models/authModel');
 const bookingModel  = require('../models/bookingModel');
 const bcrypt        = require('bcryptjs');
 
+function isCurrentOrFutureSlot(bookingDate, bookingTime) {
+  if (!bookingDate || !bookingTime) return false;
+  const slot = new Date(`${bookingDate}T${String(bookingTime).slice(0, 5)}:00`);
+  return !Number.isNaN(slot.getTime()) && slot >= new Date();
+}
+
 async function showPortalBookingPage(req, res) {
   const { merchantId, serviceId } = req.query;
   try {
@@ -87,6 +93,15 @@ async function confirmBooking(req, res) {
   try {
     const qr = await qrModel.getQRByToken(token);
     if (!qr) return res.redirect(`/book/${token}`);
+    if (!isCurrentOrFutureSlot(booking_date, booking_time)) {
+      const services = await merchantModel.getMerchantServices(qr.merchant_id).catch(() => []);
+      return res.render('booking/page', {
+        title: 'Book Appointment',
+        qr,
+        services,
+        error: 'Please choose a booking date and time that is not in the past.',
+      });
+    }
 
     // find or create a guest user record
     let user = await authModel.findUserByEmail(email);

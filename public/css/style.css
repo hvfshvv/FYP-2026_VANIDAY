@@ -545,6 +545,14 @@ a:hover { color: var(--accent-dark); }
 }
 .time-btn:hover { border-color: rgba(225,29,72,.4); background: var(--accent-light); }
 .time-btn.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+.time-btn.disabled {
+  background: var(--canvas);
+  border-color: var(--border);
+  color: var(--ghost);
+  cursor: not-allowed;
+  opacity: .65;
+}
+.time-btn.disabled:hover { background: var(--canvas); border-color: var(--border); box-shadow: none; }
 
 .summary-panel {
   background: var(--surface); border: 1px solid var(--border);
