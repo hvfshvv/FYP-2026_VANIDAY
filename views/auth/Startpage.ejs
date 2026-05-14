@@ -1,27 +1,39 @@
 <% locals.hideCatNav = true %>
 <%- include('../partials/header') %>
 
-<main style="min-height:80vh;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;background:#fff;">
+<main style="min-height:80vh;display:flex;align-items:flex-start;justify-content:center;padding:3rem 1rem;background:var(--canvas);">
   <section style="width:100%;max-width:672px;">
-    <h1 style="margin:0 0 4rem;text-align:center;font-size:2rem;font-weight:800;line-height:1.2;color:#050505;">
+    <div class="text-center" style="margin-bottom:3rem;">
+      <a href="/" class="text-decoration-none">
+        <span style="font-size:1.5rem;font-weight:800;color:var(--ink);letter-spacing:-.03em;">
+          <i class="bi bi-flower1 me-1" style="color:var(--accent);"></i>uniday
+        </span>
+      </a>
+      <h1 style="margin:1rem 0 .5rem;text-align:center;font-size:2rem;font-weight:800;line-height:1.2;color:var(--ink);">
       Sign up
-    </h1>
+      </h1>
+      <p style="color:var(--muted);margin:0;font-size:.95rem;">Choose how you want to use Uniday.</p>
+    </div>
 
     <div style="display:grid;gap:1.25rem;">
-      <a href="/auth/register" class="text-decoration-none" style="display:flex;align-items:center;justify-content:space-between;gap:1.5rem;min-height:122px;padding:1.5rem 2.125rem;border:1px solid #e4e4e4;border-radius:22px;color:#050505;background:#fff;">
+      <a href="/auth/register" class="text-decoration-none" style="display:flex;align-items:center;justify-content:space-between;gap:1.5rem;min-height:122px;padding:1.5rem 2.125rem;border:1px solid var(--border);border-radius:var(--r-xl);color:var(--ink);background:var(--surface);box-shadow:var(--shadow);">
         <span>
-          <span style="display:block;font-size:1.5rem;font-weight:600;line-height:1.25;color:#050505;">For customers</span>
-          <span style="display:block;margin-top:.25rem;font-size:1.375rem;line-height:1.25;color:#6f6f6f;">Book salons and spas near you</span>
+          <span style="display:block;font-size:1.5rem;font-weight:700;line-height:1.25;color:var(--ink);">For customers</span>
+          <span style="display:block;margin-top:.25rem;font-size:1.125rem;line-height:1.35;color:var(--muted);">Book salons and spas near you</span>
         </span>
-        <i class="bi bi-arrow-right" style="flex:0 0 auto;font-size:2rem;color:#050505;"></i>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:999px;background:var(--accent-light);color:var(--accent);">
+          <i class="bi bi-arrow-right" style="font-size:1.35rem;"></i>
+        </span>
       </a>
 
-      <a href="/auth/registerMer" class="text-decoration-none" style="display:flex;align-items:center;justify-content:space-between;gap:1.5rem;min-height:122px;padding:1.5rem 2.125rem;border:1px solid #e4e4e4;border-radius:22px;color:#050505;background:#fff;">
+      <a href="/auth/registerMer" class="text-decoration-none" style="display:flex;align-items:center;justify-content:space-between;gap:1.5rem;min-height:122px;padding:1.5rem 2.125rem;border:1px solid var(--border);border-radius:var(--r-xl);color:var(--ink);background:var(--surface);box-shadow:var(--shadow);">
         <span>
-          <span style="display:block;font-size:1.5rem;font-weight:600;line-height:1.25;color:#050505;">For professionals</span>
-          <span style="display:block;margin-top:.25rem;font-size:1.375rem;line-height:1.25;color:#6f6f6f;">Manage and grow your business</span>
+          <span style="display:block;font-size:1.5rem;font-weight:700;line-height:1.25;color:var(--ink);">For professionals</span>
+          <span style="display:block;margin-top:.25rem;font-size:1.125rem;line-height:1.35;color:var(--muted);">Manage and grow your business</span>
         </span>
-        <i class="bi bi-arrow-right" style="flex:0 0 auto;font-size:2rem;color:#050505;"></i>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:999px;background:var(--accent-light);color:var(--accent);">
+          <i class="bi bi-arrow-right" style="font-size:1.35rem;"></i>
+        </span>
       </a>
     </div>
   </section>
