@@ -12,8 +12,16 @@ async function getStaffByMerchant(merchantId) {
   return rows;
 }
 
-async function addStaff(merchantId, fullName, role, bio, experienceYears) {
-  await db.query(
+async function addStaff(
+  merchantId,
+  fullName,
+  role,
+  bio,
+  experienceYears,
+  serviceIds = []
+) {
+
+  const [result] = await db.query(
     `INSERT INTO staff
       (merchant_id, full_name, role, bio, experience_years, is_active)
      VALUES (?, ?, ?, ?, ?, 1)`,
@@ -25,6 +33,20 @@ async function addStaff(merchantId, fullName, role, bio, experienceYears) {
       experienceYears || null
     ]
   );
+
+  const staffId = result.insertId;
+
+  if (!Array.isArray(serviceIds)) {
+    serviceIds = [serviceIds];
+  }
+
+  for (const serviceId of serviceIds) {
+    await db.query(
+      `INSERT INTO staff_service (staff_id, service_id)
+       VALUES (?, ?)`,
+      [staffId, serviceId]
+    );
+  }
 }
 
 async function toggleStaff(staffId, merchantId) {
@@ -44,9 +66,29 @@ async function deleteStaff(staffId, merchantId) {
   );
 }
 
+async function getStaffByService(serviceId, merchantId) {
+
+  const [rows] = await db.query(
+    `
+    SELECT DISTINCT s.*
+    FROM staff s
+    JOIN staff_service ss
+      ON s.staff_id = ss.staff_id
+    WHERE ss.service_id = ?
+    AND s.merchant_id = ?
+    AND s.is_active = 1
+    ORDER BY s.full_name ASC
+    `,
+    [serviceId, merchantId]
+  );
+
+  return rows;
+}
+
 module.exports = {
   getStaffByMerchant,
   addStaff,
   toggleStaff,
-  deleteStaff
+  deleteStaff,
+  getStaffByService
 };

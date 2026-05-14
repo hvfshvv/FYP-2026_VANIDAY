@@ -1,29 +1,44 @@
+const serviceModel = require('../models/serviceModel');
 const staffModel = require('../models/staffModel');
 
 async function showStaff(req, res) {
   const merchantId = req.session.user.merchant_id;
 
-  const staff = await staffModel
-    .getStaffByMerchant(merchantId)
-    .catch(() => []);
+  const [staff, services] = await Promise.all([
+    staffModel.getStaffByMerchant(merchantId).catch(() => []),
+    serviceModel.getServicesByMerchant(merchantId).catch(() => [])
+  ]);
 
   res.render('merchant/staff', {
     title: 'Manage Staff',
-    staff
+    staff,
+    services
   });
 }
 
 async function addStaff(req, res) {
   const merchantId = req.session.user.merchant_id;
-  const { full_name, role, bio, experience_years } = req.body;
+
+  const {
+    full_name,
+    role,
+    bio,
+    experience_years,
+    service_ids
+  } = req.body;
 
   if (!full_name || full_name.trim() === '') {
     return res.redirect('/merchant/staff');
   }
 
-  await staffModel
-    .addStaff(merchantId, full_name.trim(), role, bio, experience_years)
-    .catch(console.error);
+  await staffModel.addStaff(
+    merchantId,
+    full_name.trim(),
+    role,
+    bio,
+    experience_years,
+    service_ids
+  ).catch(console.error);
 
   res.redirect('/merchant/staff');
 }

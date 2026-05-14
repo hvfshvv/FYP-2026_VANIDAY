@@ -2,7 +2,9 @@ const qrModel       = require('../models/qrModel');
 const merchantModel = require('../models/merchantModel');
 const authModel     = require('../models/authModel');
 const bookingModel  = require('../models/bookingModel');
+const staffModel = require('../models/staffModel');
 const bcrypt        = require('bcryptjs');
+
 
 function isCurrentOrFutureSlot(bookingDate, bookingTime) {
   if (!bookingDate || !bookingTime) return false;
@@ -16,11 +18,19 @@ async function showPortalBookingPage(req, res) {
     const merchant     = merchantId ? await merchantModel.getMerchantById(merchantId) : null;
     const serviceList  = merchantId ? await merchantModel.getMerchantServices(merchantId) : [];
     const selectedService = serviceList.find(s => String(s.service_id) === String(serviceId)) || serviceList[0] || {};
+    const staff =
+  selectedService?.service_id
+    ? await staffModel.getStaffByService(
+        selectedService.service_id,
+        merchantId
+      )
+    : [];
     res.render('booking/book', {
       title:           'Complete Your Booking',
       merchant,
       serviceList,
       selectedService,
+      staff,
       merchantName:    merchant?.merchant_name || '',
       merchantAddress: merchant?.address || '',
     });
@@ -70,20 +80,34 @@ async function viewCustomerBookings(req, res) {
   }
 }
 
-async function showBookingPage(req, res) {
-  const { token } = req.params;
-  try {
-    const qr = await qrModel.getQRByToken(token);
-    if (!qr) return res.render('booking/invalid', { title: 'Invalid QR Code' });
+async function showPortalBookingPage(req, res) {
+  const { merchantId, serviceId } = req.query;
 
-    const services = await merchantModel.getMerchantServices(qr.merchant_id);
-    if (!services.length) {
-      return res.render('booking/invalid', { title: 'No Services Available' });
-    }
-    res.render('booking/page', { title: `Book at ${qr.merchant_name}`, qr, services, error: null });
+  try {
+    const merchant = merchantId ? await merchantModel.getMerchantById(merchantId) : null;
+    const serviceList = merchantId ? await merchantModel.getMerchantServices(merchantId) : [];
+
+    const selectedService =
+      serviceList.find(s => String(s.service_id) === String(serviceId)) ||
+      serviceList[0] ||
+      {};
+
+    const staff = selectedService?.service_id
+      ? await staffModel.getStaffByService(selectedService.service_id, merchantId)
+      : [];
+
+    res.render('booking/book', {
+      title: 'Complete Your Booking',
+      merchant,
+      serviceList,
+      selectedService,
+      staff,
+      merchantName: merchant?.merchant_name || '',
+      merchantAddress: merchant?.address || '',
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Something went wrong. Please try again.');
+    res.status(500).send('Error loading booking page');
   }
 }
 
@@ -140,5 +164,36 @@ async function confirmArrival(req, res) {
   }
 }
 
-module.exports = { showPortalBookingPage, confirmPortalBooking, viewCustomerBookings, showBookingPage, confirmBooking, confirmArrival };
+async function getAvailableSlots(req, res) {
 
+  try {
+
+    const {
+      merchantId,
+      serviceId,
+      staffId,
+      bookingDate
+    } = req.query;
+
+    const slots = await bookingModel.getAvailableSlots({
+      merchantId,
+      serviceId,
+      staffId,
+      bookingDate
+    });
+
+    res.json(slots);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json([]);
+  }
+}
+
+module.exports = {
+  showPortalBookingPage,
+  confirmPortalBooking,
+  viewCustomerBookings,
+  confirmArrival,
+  getAvailableSlots
+};
