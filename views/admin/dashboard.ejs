@@ -64,22 +64,50 @@
     <% }) %>
   </div>
 
-  <div class="row g-3 mb-5">
+  <div class="row g-3 mb-5" id="admin-modules">
     <% [
-      { icon:'bi-people', label:'Manage Users', sub:'Review customers and admins' },
-      { icon:'bi-shop-window', label:'Manage Merchants', sub:'Monitor merchant accounts' },
-      { icon:'bi-bug', label:'Validation & Error Logs', sub:'Inspect platform issues' },
-      { icon:'bi-credit-card-2-front', label:'Payment Monitoring', sub:'Track payment status' },
-      { icon:'bi-calendar2-check', label:'Booking Monitoring', sub:'Watch booking activity' },
+      {
+        href:'/admin/customers',
+        icon:'bi-person-lines-fill',
+        label:'Manage Customers',
+        sub:'View customer profiles, booking history, loyalty points, vouchers, wallet balances, cancellations, and favourite merchants.'
+      },
+      {
+        href:'/admin/merchants',
+        icon:'bi-shop-window',
+        label:'Manage Merchants',
+        sub:'Review merchant business details, services, staff, promotions, cancellation policies, revenue, QR bookings, and performance analytics.'
+      },
+      {
+        href:'/admin/validation',
+        icon:'bi-shield-exclamation',
+        label:'Validation & Error Logs',
+        sub:'Monitor booking failures, payment failures, WhatsApp/API issues, invalid vouchers, and backend validation errors.'
+      },
+      {
+        href:'/admin/featured',
+        icon:'bi-stars',
+        label:'Featured Merchants',
+        sub:'Select merchants to feature on the marketplace homepage and promotional sections.'
+      },
+      {
+        href:'/admin/campaigns',
+        icon:'bi-ticket-perforated',
+        label:'Voucher & Campaign Management',
+        sub:'Manage platform vouchers, cashback campaigns, first-time-user offers, seasonal campaigns, and eligibility rules.'
+      },
     ].forEach(item => { %>
-    <div class="col-12 col-sm-6 col-lg">
-      <div class="action-card h-100" style="cursor:default;">
+    <div class="col-12 col-md-6 col-xl">
+      <a href="<%= item.href %>" class="action-card h-100" style="min-height:220px;">
         <div class="action-icon">
           <i class="bi <%= item.icon %>"></i>
         </div>
-        <p style="font-weight:700;font-size:.875rem;color:var(--ink);margin-bottom:.1rem;"><%= item.label %></p>
-        <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= item.sub %></p>
-      </div>
+        <p style="font-weight:800;font-size:.95rem;color:var(--ink);margin-bottom:.4rem;line-height:1.25;"><%= item.label %></p>
+        <p style="color:var(--muted);font-size:.8125rem;line-height:1.5;margin-bottom:1rem;"><%= item.sub %></p>
+        <span style="margin-top:auto;color:var(--accent);font-size:.78rem;font-weight:700;display:inline-flex;align-items:center;gap:.35rem;">
+          Open module <i class="bi bi-arrow-right"></i>
+        </span>
+      </a>
     </div>
     <% }) %>
   </div>
