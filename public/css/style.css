@@ -111,8 +111,15 @@ a:hover { color: var(--accent-dark); }
 .nav-logo {
   font-size: 2rem; font-weight: 800; letter-spacing: -.05em;
   color: var(--accent); text-decoration: none; flex-shrink: 0;
+  display: inline-flex; align-items: center; flex-direction: row; gap: .45rem;
+  white-space: nowrap; line-height: 1;
 }
 .nav-logo:hover { color: var(--accent-dark); }
+.nav-logo-mark {
+  width: 2.25rem; height: 2.25rem;
+  display: block; object-fit: contain; flex: 0 0 auto;
+}
+.nav-logo-fallback { display: none; }
 .nav-links {
   display: flex; align-items: center; gap: 1.75rem;
   list-style: none; margin: 0; padding: 0;
