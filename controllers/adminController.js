@@ -32,4 +32,22 @@ async function showDashboard(req, res) {
   }
 }
 
-module.exports = { showDashboard };
+function showComingSoon(req, res) {
+  const pages = {
+    customers: 'Manage Customers',
+    merchants: 'Manage Merchants',
+    validation: 'Validation & Error Logs',
+    featured: 'Featured Merchants',
+    campaigns: 'Voucher & Campaign Management',
+  };
+
+  const pageKey = req.params.page;
+  const pageTitle = pages[pageKey] || 'Admin Module';
+
+  res.render('admin/comingSoon', {
+    title: pageTitle,
+    pageTitle,
+  });
+}
+
+module.exports = { showDashboard, showComingSoon };

@@ -114,4 +114,77 @@ async function getCustomerBookings(customerId) {
   return rows;
 }
 
-module.exports = { createBooking, getBookingById, updateBookingStatus, getMerchantBookings, getCustomerBookings };
+async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }) {
+  if (!merchantId || !serviceId || !bookingDate) return [];
+
+  const [[service]] = await db.query(
+    `SELECT duration_mins 
+     FROM service 
+     WHERE service_id = ? AND merchant_id = ? AND is_active = 1`,
+    [serviceId, merchantId]
+  );
+
+  if (!service) return [];
+
+  const dayOfWeek = new Date(bookingDate + 'T00:00:00')
+    .toLocaleDateString('en-US', { weekday: 'long' });
+
+  const [[availability]] = await db.query(
+    `SELECT start_time, end_time
+     FROM merchant_availability
+     WHERE merchant_id = ?
+     AND day_of_week = ?
+     AND is_active = 1
+     LIMIT 1`,
+    [merchantId, dayOfWeek]
+  );
+
+  if (!availability) return [];
+
+  let bookedQuery = `
+    SELECT start_time
+    FROM time_slot
+    WHERE merchant_id = ?
+    AND slot_date = ?
+    AND is_available = 0
+  `;
+
+  const bookedParams = [merchantId, bookingDate];
+
+  if (staffId) {
+    bookedQuery += ` AND staff_id = ?`;
+    bookedParams.push(staffId);
+  }
+
+  const [bookedRows] = await db.query(bookedQuery, bookedParams);
+  const bookedTimes = bookedRows.map(row => String(row.start_time).slice(0, 5));
+
+  const slots = [];
+
+  const start = String(availability.start_time).slice(0, 5);
+  const end = String(availability.end_time).slice(0, 5);
+
+  let current = new Date(`${bookingDate}T${start}:00`);
+  const closing = new Date(`${bookingDate}T${end}:00`);
+
+  while (current < closing) {
+    const slotEnd = new Date(current.getTime() + service.duration_mins * 60000);
+
+    if (slotEnd <= closing && current >= new Date()) {
+      const timeValue = current.toTimeString().slice(0, 5);
+
+      if (!bookedTimes.includes(timeValue)) {
+        slots.push({
+          start_time: timeValue + ':00',
+          label: timeValue
+        });
+      }
+    }
+
+    current.setMinutes(current.getMinutes() + 30);
+  }
+
+  return slots;
+}
+
+module.exports = { createBooking, getBookingById, updateBookingStatus, getMerchantBookings, getCustomerBookings, getAvailableSlots };
