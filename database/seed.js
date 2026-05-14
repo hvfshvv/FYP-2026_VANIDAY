@@ -3,6 +3,13 @@ require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 
+const ADMIN = {
+  name: 'Uniday Admin',
+  email: 'admin@uniday.com',
+  phone: '60000000',
+  password: 'Admin2026',
+};
+
 const MERCHANTS = [
   {
     user: { name: 'Luxe Nail Bar', email: 'luxenail@uniday.com', phone: '62345678' },
@@ -102,12 +109,32 @@ async function seed() {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
-    database: 'SOI-2026-2610-0035-mizyana',
+    database: process.env.DB_NAME || 'SOI-2026-2610-0035-mizyana',
     port: parseInt(process.env.DB_PORT || '3306'),
   });
 
   console.log('🌱 Seeding Uniday database...\n');
   const hash = bcrypt.hashSync('Uniday2026', 10);
+  const adminHash = bcrypt.hashSync(ADMIN.password, 10);
+
+  const [existingAdmin] = await db.execute(
+    'SELECT user_id FROM users WHERE email = ?',
+    [ADMIN.email]
+  );
+
+  if (existingAdmin.length) {
+    await db.execute(
+      'UPDATE users SET full_name = ?, password_hash = ?, phone = ?, role = ? WHERE email = ?',
+      [ADMIN.name, adminHash, ADMIN.phone, 'admin', ADMIN.email]
+    );
+    console.log(`Admin updated: ${ADMIN.email}`);
+  } else {
+    await db.execute(
+      'INSERT INTO users (full_name, email, password_hash, phone, role) VALUES (?, ?, ?, ?, ?)',
+      [ADMIN.name, ADMIN.email, adminHash, ADMIN.phone, 'admin']
+    );
+    console.log(`Admin created: ${ADMIN.email}`);
+  }
 
   for (const m of MERCHANTS) {
     const [existU] = await db.execute(
@@ -212,6 +239,8 @@ async function seed() {
 
   await db.end();
   console.log('\n🎉 Seed complete! Login with any merchant email, password: Uniday2026');
+  console.log('Admin login: admin@uniday.com / Admin2026');
+  console.log('Merchant login: any merchant email / Uniday2026');
 }
 
 seed().catch(err => {

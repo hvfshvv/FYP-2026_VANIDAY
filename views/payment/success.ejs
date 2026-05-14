@@ -24,6 +24,12 @@
               <span class="lbl">Booking ID</span>
               <span class="val" style="font-family:var(--font-mono);">#<%= booking.booking_id %></span>
             </div>
+            <% if (typeof payment !== 'undefined' && payment) { %>
+              <div class="summary-row">
+                <span class="lbl">Payment Method</span>
+                <span class="val"><%= payment.payment_method.replace('_', ' ').toUpperCase() %></span>
+              </div>
+            <% } %>
           </div>
           <% } %>
 

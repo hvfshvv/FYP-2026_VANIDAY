@@ -3,7 +3,7 @@ const router  = express.Router();
 const ctrl    = require('../controllers/paymentController');
 
 router.get('/checkout/:bookingId',  ctrl.showCheckout);
-router.post('/stripe/:bookingId',   ctrl.processStripe);
+router.post('/checkout/:bookingId', ctrl.processPayment);
 router.get('/success',              ctrl.paymentSuccess);
 
 module.exports = router;
