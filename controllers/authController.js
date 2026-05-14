@@ -4,7 +4,9 @@ const authModel = require('../models/authModel');
 const ALLOWED_ROLES = ['customer', 'merchant'];
 
 function redirectDashboard(res, user) {
-  return res.redirect(user.role === 'merchant' ? '/merchant/dashboard' : '/');
+  if (user.role === 'admin') return res.redirect('/admin/dashboard');
+  if (user.role === 'merchant') return res.redirect('/merchant/dashboard');
+  return res.redirect('/marketplace');
 }
 
 function showLogin(req, res) {
@@ -46,8 +48,11 @@ async function login(req, res) {
       req.session.user.merchant_id = merchant ? merchant.merchant_id : null;
       return res.redirect('/merchant/dashboard');
     }
+    if (user.role === 'admin') {
+      return res.redirect('/admin/dashboard');
+    }
     const next = req.query.next;
-    res.redirect(next && next.startsWith('/') ? next : '/');
+    res.redirect(next && next.startsWith('/') ? next : '/marketplace');
   } catch (err) {
     console.error(err);
     res.render('auth/login', { title: 'Login', error: 'Something went wrong. Please try again.' });

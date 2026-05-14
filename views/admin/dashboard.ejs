@@ -1,0 +1,233 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const money = value => 'S$' + Number(value || 0).toFixed(2);
+  const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+  const formatTime = value => value ? String(value).slice(0, 5) : '';
+  const badgeStyle = status => {
+    const map = {
+      paid: 'background:var(--success-bg);color:var(--success);',
+      confirmed: 'background:var(--success-bg);color:var(--success);',
+      completed: 'background:var(--neutral-bg);color:var(--muted);',
+      pending: 'background:var(--warn-bg);color:var(--warn);',
+      pending_payment: 'background:var(--warn-bg);color:var(--warn);',
+      arrived: 'background:#EFF6FF;color:#1D4ED8;',
+      failed: 'background:var(--danger-bg);color:var(--danger);',
+      cancelled: 'background:var(--danger-bg);color:var(--danger);',
+      refunded: 'background:var(--neutral-bg);color:var(--muted);',
+    };
+    return map[status] || 'background:var(--accent-light);color:var(--accent);';
+  };
+%>
+
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-start mb-5 flex-wrap gap-3">
+    <div>
+      <p class="section-label">Platform Control</p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Admin Dashboard</h2>
+      <p style="color:var(--muted);margin-bottom:0;">Welcome back, <strong><%= user.full_name %></strong></p>
+    </div>
+  </div>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert alert-warning mb-4">
+    <i class="bi bi-exclamation-triangle"></i>
+    <span><%= error %></span>
+  </div>
+  <% } %>
+
+  <div class="row g-3 mb-5">
+    <% [
+      { label:'Customers', value:summary.total_customers || 0, icon:'bi-people', color:'var(--accent)' },
+      { label:'Merchants', value:summary.total_merchants || 0, icon:'bi-shop', color:'var(--ink)' },
+      { label:'Bookings', value:summary.total_bookings || 0, icon:'bi-calendar-check', color:'#1D4ED8' },
+      { label:'Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)' },
+      { label:'Payments', value:summary.total_payments || 0, icon:'bi-receipt', color:'var(--accent)' },
+      { label:'Services', value:summary.total_services || 0, icon:'bi-scissors', color:'var(--ink)' },
+      { label:'Promotions', value:summary.total_promotions || 0, icon:'bi-tag', color:'var(--accent)' },
+      { label:'Validation Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)' },
+    ].forEach(stat => { %>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
+            <p class="stat-value" style="color:<%= stat.color %>;"><%= stat.value %></p>
+          </div>
+          <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+            <i class="bi <%= stat.icon %>"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  <div class="row g-3 mb-5">
+    <% [
+      { icon:'bi-people', label:'Manage Users', sub:'Review customers and admins' },
+      { icon:'bi-shop-window', label:'Manage Merchants', sub:'Monitor merchant accounts' },
+      { icon:'bi-bug', label:'Validation & Error Logs', sub:'Inspect platform issues' },
+      { icon:'bi-credit-card-2-front', label:'Payment Monitoring', sub:'Track payment status' },
+      { icon:'bi-calendar2-check', label:'Booking Monitoring', sub:'Watch booking activity' },
+    ].forEach(item => { %>
+    <div class="col-12 col-sm-6 col-lg">
+      <div class="action-card h-100" style="cursor:default;">
+        <div class="action-icon">
+          <i class="bi <%= item.icon %>"></i>
+        </div>
+        <p style="font-weight:700;font-size:.875rem;color:var(--ink);margin-bottom:.1rem;"><%= item.label %></p>
+        <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= item.sub %></p>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12">
+      <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+        <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
+          <div>
+            <p class="section-label mb-1">Bookings</p>
+            <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Bookings</h5>
+          </div>
+          <span class="badge" style="background:var(--accent-light);color:var(--accent);">Latest <%= recentBookings.length %></span>
+        </div>
+        <% if (recentBookings.length === 0) { %>
+        <div class="text-center py-5">
+          <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
+            <i class="bi bi-calendar-x" style="font-size:2rem;color:var(--accent);"></i>
+          </div>
+          <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No bookings found</h6>
+          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Bookings will appear here once customers reserve services.</p>
+        </div>
+        <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+            <thead style="background:var(--accent-light);">
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Merchant</th>
+                <th>Service</th>
+                <th>Date &amp; Time</th>
+                <th>Source</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentBookings.forEach(b => { %>
+              <tr>
+                <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= b.booking_id %></td>
+                <td style="font-weight:600;"><%= b.customer_name || '-' %></td>
+                <td><%= b.merchant_name || '-' %></td>
+                <td><%= b.service_name || '-' %></td>
+                <td><%= formatDate(b.slot_date) %> <span style="color:var(--muted);"><%= formatTime(b.start_time) %></span></td>
+                <td><span class="badge bg-secondary"><%= b.source || '-' %></span></td>
+                <td style="font-family:var(--font-mono);"><%= money(b.total_amount) %></td>
+                <td><span class="badge" style="<%= badgeStyle(b.status) %>"><%= (b.status || 'unknown').replace('_', ' ') %></span></td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card border-0 overflow-hidden h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+        <div class="p-4" style="border-bottom:1px solid var(--border);">
+          <p class="section-label mb-1">Payments</p>
+          <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Payments</h5>
+        </div>
+        <% if (recentPayments.length === 0) { %>
+        <div class="text-center py-5 px-4">
+          <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
+            <i class="bi bi-receipt" style="font-size:2rem;color:var(--accent);"></i>
+          </div>
+          <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No payments found</h6>
+          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Paid bookings will be listed here.</p>
+        </div>
+        <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+            <thead style="background:var(--accent-light);">
+              <tr>
+                <th>ID</th>
+                <th>Booking</th>
+                <th>Merchant</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentPayments.forEach(p => { %>
+              <tr>
+                <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= p.payment_id %></td>
+                <td>#<%= p.booking_id %></td>
+                <td><%= p.merchant_name || '-' %></td>
+                <td style="font-family:var(--font-mono);font-weight:700;"><%= money(p.amount) %></td>
+                <td><span class="badge" style="<%= badgeStyle(p.payment_status) %>"><%= p.payment_status || 'unknown' %></span></td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card border-0 overflow-hidden h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+        <div class="p-4" style="border-bottom:1px solid var(--border);">
+          <p class="section-label mb-1">Validation</p>
+          <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Validation Errors</h5>
+        </div>
+        <% if (recentErrors.length === 0) { %>
+        <div class="text-center py-5 px-4">
+          <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
+            <i class="bi bi-shield-check" style="font-size:2rem;color:var(--success);"></i>
+          </div>
+          <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No validation errors</h6>
+          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Recent platform validation issues will appear here.</p>
+        </div>
+        <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+            <thead style="background:var(--accent-light);">
+              <tr>
+                <th>ID</th>
+                <th>Module</th>
+                <th>Type</th>
+                <th>Resolved</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentErrors.forEach(log => { %>
+              <tr>
+                <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= log.log_id %></td>
+                <td>
+                  <p style="font-weight:600;margin-bottom:.1rem;"><%= log.module || '-' %></p>
+                  <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;max-width:32ch;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><%= log.error_message || '-' %></p>
+                </td>
+                <td><%= log.error_type || '-' %></td>
+                <td>
+                  <span class="badge" style="<%= log.is_resolved ? 'background:var(--success-bg);color:var(--success);' : 'background:var(--warn-bg);color:var(--warn);' %>">
+                    <%= log.is_resolved ? 'Resolved' : 'Open' %>
+                  </span>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
