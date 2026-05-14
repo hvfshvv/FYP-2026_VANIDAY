@@ -89,4 +89,25 @@ async function getMerchantBookings(merchantId) {
   return rows;
 }
 
-module.exports = { createBooking, getBookingById, updateBookingStatus, getMerchantBookings };
+async function getCustomerBookings(customerId) {
+  const [rows] = await db.query(
+    `SELECT b.*,
+            ts.slot_date  AS booking_date,
+            ts.start_time AS booking_time,
+            s.service_name,
+            s.duration_mins,
+            COALESCE(b.total_amount, s.price) AS payable_amount,
+            m.merchant_name,
+            m.address AS merchant_address
+     FROM booking b
+     JOIN time_slot ts ON b.slot_id     = ts.slot_id
+     JOIN service   s  ON b.service_id  = s.service_id
+     JOIN merchant  m  ON b.merchant_id = m.merchant_id
+     WHERE b.customer_id = ?
+     ORDER BY ts.slot_date DESC, ts.start_time DESC`,
+    [customerId]
+  );
+  return rows;
+}
+
+module.exports = { createBooking, getBookingById, updateBookingStatus, getMerchantBookings, getCustomerBookings };

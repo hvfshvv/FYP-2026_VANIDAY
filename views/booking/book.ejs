@@ -328,7 +328,12 @@
 </head>
 <body>
   <main class="page">
-    <h1>Complete Your Booking</h1>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;">
+      <h1 style="margin:0;">Complete Your Booking</h1>
+      <a href="/book/viewBookings" style="background:#fff;border:1px solid #ead9de;border-radius:999px;color:#e11d48;font-size:13px;font-weight:800;padding:10px 14px;text-decoration:none;white-space:nowrap;">
+        <i class="bi bi-clock-history"></i> My Bookings
+      </a>
+    </div>
 
     <form class="booking-layout" action="/book/confirm" method="POST">
       <input type="hidden" name="merchant_id" value="<%= merchant ? merchant.merchant_id : '' %>" />

@@ -46,6 +46,24 @@ async function confirmPortalBooking(req, res) {
     res.redirect('/');
   }
 }
+
+async function viewCustomerBookings(req, res) {
+  try {
+    const bookings = await bookingModel.getCustomerBookings(req.session.user.user_id);
+    res.render('booking/viewBookings', {
+      title: 'My Bookings',
+      bookings,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('booking/viewBookings', {
+      title: 'My Bookings',
+      bookings: [],
+      error: 'Could not load your bookings. Please try again.',
+    });
+  }
+}
+
 async function showBookingPage(req, res) {
   const { token } = req.params;
   try {
@@ -107,5 +125,5 @@ async function confirmArrival(req, res) {
   }
 }
 
-module.exports = { showPortalBookingPage, confirmPortalBooking, showBookingPage, confirmBooking, confirmArrival };
+module.exports = { showPortalBookingPage, confirmPortalBooking, viewCustomerBookings, showBookingPage, confirmBooking, confirmArrival };
 

@@ -56,6 +56,7 @@ async function login(req, res) {
 
 async function register(req, res) {
   const { full_name, email, password, phone, role, merchant_name, address } = req.body;
+  const normalizedPhone = phone && phone.trim() ? phone.trim() : null;
   const safeRole = ALLOWED_ROLES.includes(role) ? role : 'customer';
   const registerView = safeRole === 'merchant' ? 'auth/registerMer' : 'auth/register';
   const registerTitle = safeRole === 'merchant' ? 'Register Merchant' : 'Register';
@@ -68,13 +69,13 @@ async function register(req, res) {
       return res.render(registerView, { title: registerTitle, error: 'Password must be at least 6 characters.' });
     }
     const hash   = await bcrypt.hash(password, 10);
-    const userId = await authModel.createUser(full_name, email, hash, phone, safeRole);
+    const userId = await authModel.createUser(full_name, email, hash, normalizedPhone, safeRole);
 
     if (safeRole === 'merchant') {
       if (!merchant_name || !merchant_name.trim()) {
         return res.render(registerView, { title: registerTitle, error: 'Please enter your business name.' });
       }
-      await authModel.createMerchantProfile(userId, merchant_name.trim(), email, phone, address || '');
+      await authModel.createMerchantProfile(userId, merchant_name.trim(), email, normalizedPhone, address || '');
     }
     res.redirect('/auth/login?registered=1');
   } catch (err) {

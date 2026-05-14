@@ -1,0 +1,101 @@
+<%- include('../partials/header') %>
+
+<%
+  const bookingList = Array.isArray(bookings) ? bookings : [];
+  const statusStyles = {
+    pending_payment: { label: 'Pending Payment', bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    confirmed:       { label: 'Confirmed', bg: 'var(--success-bg)', color: 'var(--success)' },
+    arrived:         { label: 'Arrived', bg: 'var(--accent-light)', color: 'var(--accent)' },
+    completed:       { label: 'Completed', bg: 'var(--success-bg)', color: 'var(--success)' },
+    cancelled:       { label: 'Cancelled', bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    no_show:         { label: 'No Show', bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  };
+
+  function formatDate(value) {
+    return new Date(value).toLocaleDateString('en-SG', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
+  function formatTime(value) {
+    return String(value || '').slice(0, 5);
+  }
+%>
+
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container" style="max-width:980px;">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+      <div>
+        <p class="section-label mb-2">Bookings</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">My Booking History</h2>
+        <p style="color:var(--muted);margin:0;">View your past and current appointments from Uniday.</p>
+      </div>
+      <a href="/marketplace" class="btn btn-primary btn-pill">
+        <i class="bi bi-calendar-plus me-2"></i>Book Again
+      </a>
+    </div>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+        <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+      </div>
+    <% } %>
+
+    <% if (!bookingList.length) { %>
+      <div class="card border-0 text-center" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:3rem 1.5rem;">
+        <div style="width:64px;height:64px;border-radius:999px;background:var(--accent-light);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:1.75rem;margin-bottom:1rem;">
+          <i class="bi bi-calendar2-heart"></i>
+        </div>
+        <h5 style="font-weight:800;color:var(--ink);">No bookings yet</h5>
+        <p style="color:var(--muted);margin:0 auto 1.25rem;max-width:420px;">Your appointments will appear here after you make a booking.</p>
+        <a href="/marketplace" class="btn btn-outline-secondary btn-pill">Explore merchants</a>
+      </div>
+    <% } else { %>
+      <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
+        <% bookingList.forEach((booking, index) => {
+          const status = statusStyles[booking.status] || { label: booking.status || 'Booked', bg: 'var(--accent-light)', color: 'var(--accent)' };
+          const isPast = new Date(booking.booking_date) < new Date(new Date().toDateString());
+        %>
+          <div class="p-4" style="<%= index ? 'border-top:1px solid var(--border);' : '' %>">
+            <div class="d-flex flex-wrap justify-content-between gap-3">
+              <div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                  <h5 style="font-weight:800;color:var(--ink);margin:0;"><%= booking.service_name %></h5>
+                  <span class="badge rounded-pill" style="background:<%= status.bg %>;color:<%= status.color %>;"><%= status.label %></span>
+                  <% if (isPast) { %>
+                    <span class="badge rounded-pill" style="background:var(--canvas);color:var(--muted);border:1px solid var(--border);">Past</span>
+                  <% } %>
+                </div>
+                <p style="color:var(--muted);margin:0 0 .75rem;">
+                  <i class="bi bi-shop me-1"></i><%= booking.merchant_name %>
+                  <% if (booking.merchant_address) { %>
+                    <span style="margin-left:.5rem;"><i class="bi bi-geo-alt me-1"></i><%= booking.merchant_address %></span>
+                  <% } %>
+                </p>
+                <div class="d-flex flex-wrap gap-3" style="color:var(--ink);font-size:.925rem;font-weight:600;">
+                  <span><i class="bi bi-calendar3 me-1" style="color:var(--accent);"></i><%= formatDate(booking.booking_date) %></span>
+                  <span><i class="bi bi-clock me-1" style="color:var(--accent);"></i><%= formatTime(booking.booking_time) %></span>
+                  <span><i class="bi bi-hourglass-split me-1" style="color:var(--accent);"></i><%= booking.duration_mins || 60 %> mins</span>
+                </div>
+              </div>
+
+              <div class="text-md-end">
+                <p style="color:var(--muted);font-size:.8rem;margin:0;">Total</p>
+                <p style="color:var(--ink);font-weight:800;font-size:1.2rem;margin:0 0 .75rem;">S$<%= Number(booking.payable_amount || booking.total_amount || 0).toFixed(2) %></p>
+                <% if (booking.status === 'pending_payment') { %>
+                  <a href="/payment/checkout/<%= booking.booking_id %>" class="btn btn-primary btn-sm btn-pill">Pay Now</a>
+                <% } else { %>
+                  <a href="/marketplace/merchant/<%= booking.merchant_id %>" class="btn btn-outline-secondary btn-sm btn-pill">View Merchant</a>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>
