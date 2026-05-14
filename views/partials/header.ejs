@@ -23,7 +23,9 @@
     <ul class="nav-links" role="list">
       <li><a href="/">Home</a></li>
       <li><a href="/marketplace">Marketplace</a></li>
+      <% if (user) { %>
       <li><a href="/book/viewBookings">View bookings</a></li>
+      <% } %>
       <% if (user && user.role === 'merchant') { %>
       <li><a href="/merchant/dashboard">Dashboard</a></li>
       <% } %>
@@ -47,7 +49,9 @@
 <div class="nav-mobile" id="mobileNav" role="navigation" aria-label="Mobile navigation">
   <a href="/">Home</a>
   <a href="/marketplace">Marketplace</a>
+  <% if (user) { %>
   <a href="/book/viewBookings">View bookings</a>
+  <% } %>
   <% if (user && user.role === 'merchant') { %>
   <a href="/merchant/dashboard">Dashboard</a>
   <% } %>
