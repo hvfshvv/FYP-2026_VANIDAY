@@ -5,6 +5,7 @@ const path       = require('path');
 
 const authRoutes        = require('./routes/auth');
 const merchantRoutes    = require('./routes/merchant');
+const adminRoutes       = require('./routes/admin');
 const bookingRoutes     = require('./routes/booking');
 const paymentRoutes     = require('./routes/payment');
 const marketplaceRoutes = require('./routes/marketplace');
@@ -34,6 +35,7 @@ app.use((req, res, next) => {
 app.use('/',           marketplaceRoutes);
 app.use('/auth',       authRoutes);
 app.use('/merchant',   merchantRoutes);
+app.use('/admin',      adminRoutes);
 app.use('/book',       bookingRoutes);
 app.use('/payment',    paymentRoutes);
 

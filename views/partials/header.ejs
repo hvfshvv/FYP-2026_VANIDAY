@@ -25,13 +25,20 @@
     </a>
 
     <ul class="nav-links" role="list">
+      <% if (!user || user.role === 'customer') { %>
       <li><a href="/">Home</a></li>
       <li><a href="/marketplace">Marketplace</a></li>
-      <% if (user) { %>
+      <% } %>
+      <% if (user && user.role === 'customer') { %>
       <li><a href="/book/viewBookings">View bookings</a></li>
       <% } %>
       <% if (user && user.role === 'merchant') { %>
       <li><a href="/merchant/dashboard">Dashboard</a></li>
+      <li><a href="/merchant/services">Services</a></li>
+      <li><a href="/merchant/promotions">Promotions</a></li>
+      <% } %>
+      <% if (user && user.role === 'admin') { %>
+      <li><a href="/admin/dashboard">Admin</a></li>
       <% } %>
     </ul>
 
@@ -51,13 +58,20 @@
 </nav>
 
 <div class="nav-mobile" id="mobileNav" role="navigation" aria-label="Mobile navigation">
+  <% if (!user || user.role === 'customer') { %>
   <a href="/">Home</a>
   <a href="/marketplace">Marketplace</a>
-  <% if (user) { %>
+  <% } %>
+  <% if (user && user.role === 'customer') { %>
   <a href="/book/viewBookings">View bookings</a>
   <% } %>
   <% if (user && user.role === 'merchant') { %>
   <a href="/merchant/dashboard">Dashboard</a>
+  <a href="/merchant/services">Services</a>
+  <a href="/merchant/promotions">Promotions</a>
+  <% } %>
+  <% if (user && user.role === 'admin') { %>
+  <a href="/admin/dashboard">Admin Dashboard</a>
   <% } %>
   <% if (user) { %>
   <a href="/auth/logout">Sign out</a>

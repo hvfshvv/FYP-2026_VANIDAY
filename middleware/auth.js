@@ -10,4 +10,11 @@ function requireMerchant(req, res, next) {
   next();
 }
 
-module.exports = { requireLogin, requireMerchant };
+function requireAdmin(req, res, next) {
+  if (!req.session.user || req.session.user.role !== 'admin') {
+    return res.status(403).send('Access denied. Admin account required.');
+  }
+  next();
+}
+
+module.exports = { requireLogin, requireMerchant, requireAdmin };
