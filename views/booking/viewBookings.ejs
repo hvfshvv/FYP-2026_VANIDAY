@@ -88,13 +88,12 @@
                   <a href="/payment/checkout/<%= booking.booking_id %>" class="btn btn-primary btn-sm btn-pill">Pay Now</a>
                 <% } else if (booking.payment_status === 'paid') { %>
                   <div class="d-flex flex-column gap-2 align-items-md-end">
-                    <a href="/payment/receipt/<%= booking.booking_id %>.pdf" class="btn btn-primary btn-sm btn-pill" download>
-                      <i class="bi bi-download me-1"></i>Receipt
+                    <a href="/payment/receipt/<%= booking.booking_id %>.pdf" class="btn btn-outline-secondary btn-sm btn-pill" download>
+                      <i class="bi bi-download me-1"></i>Download Receipt
                     </a>
-                    <a href="/marketplace/merchant/<%= booking.merchant_id %>" class="btn btn-outline-secondary btn-sm btn-pill">View Merchant</a>
                   </div>
                 <% } else { %>
-                  <a href="/marketplace/merchant/<%= booking.merchant_id %>" class="btn btn-outline-secondary btn-sm btn-pill">View Merchant</a>
+                  <span class="badge rounded-pill" style="background:var(--canvas);color:var(--muted);border:1px solid var(--border);">Receipt unavailable</span>
                 <% } %>
               </div>
             </div>
