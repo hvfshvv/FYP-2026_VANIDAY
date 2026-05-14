@@ -29,6 +29,10 @@
                 <span class="lbl">Payment Method</span>
                 <span class="val"><%= payment.payment_method.replace('_', ' ').toUpperCase() %></span>
               </div>
+              <div class="summary-row">
+                <span class="lbl">Reference</span>
+                <span class="val" style="font-family:var(--font-mono);"><%= payment.payment_ref || payment.transaction_ref || ('#' + booking.booking_id) %></span>
+              </div>
             <% } %>
           </div>
           <% } %>

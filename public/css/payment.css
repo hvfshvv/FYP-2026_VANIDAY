@@ -1,0 +1,71 @@
+/* ── Payment page styles ── */
+
+.pay-tab {
+  flex: 1;
+  padding: .625rem 1rem;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: .875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+
+.pay-tab.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.pay-tab:hover:not(.active) {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+/* Stripe card element container */
+#card-element-wrap {
+  padding: .75rem 1rem;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  transition: border-color .2s;
+}
+
+#card-element-wrap.focused {
+  border-color: var(--accent);
+}
+
+.StripeElement {
+  padding: .25rem 0;
+}
+
+/* PayNow QR */
+.paynow-qr-wrap {
+  width: 180px;
+  height: 180px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.paynow-qr-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+#panel-stripe, #panel-paynow {
+  animation: fadeIn .2s ease;
+}

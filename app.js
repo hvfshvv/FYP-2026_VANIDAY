@@ -7,13 +7,16 @@ const authRoutes        = require('./routes/auth');
 const merchantRoutes    = require('./routes/merchant');
 const adminRoutes       = require('./routes/admin');
 const bookingRoutes     = require('./routes/booking');
-const paymentRoutes     = require('./routes/payment');
+const paymentRoutes     = require('./routes/paymentRoutes');
+const paymentController = require('./controllers/paymentController');
 const marketplaceRoutes = require('./routes/marketplace');
 
 const app = express();
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
+app.post('/payment/webhook', express.raw({ type: 'application/json' }), paymentController.handleStripeWebhook);
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -37,6 +40,7 @@ app.use('/auth',       authRoutes);
 app.use('/merchant',   merchantRoutes);
 app.use('/admin',      adminRoutes);
 app.use('/book',       bookingRoutes);
+app.post('/create-payment-intent', paymentController.createStripeIntent);
 app.use('/payment',    paymentRoutes);
 
 app.use((req, res) => {
