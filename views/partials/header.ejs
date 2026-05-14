@@ -33,8 +33,7 @@
       <span style="font-size:.875rem;font-weight:500;color:var(--muted);"><i class="bi bi-person-circle me-1"></i><%= user.full_name.split(' ')[0] %></span>
       <a href="/auth/logout" class="btn btn-outline-secondary btn-sm btn-pill">Sign out</a>
       <% } else { %>
-      <a href="/auth/login"    class="btn btn-outline-secondary btn-sm btn-pill">Sign in</a>
-      <a href="/auth/register" class="btn btn-primary btn-sm btn-pill">Get started</a>
+      <a href="/auth/login" class="btn btn-outline-secondary btn-sm btn-pill">Sign In / Register</a>
       <% } %>
     </div>
 
@@ -53,7 +52,7 @@
   <% if (user) { %>
   <a href="/auth/logout">Sign out</a>
   <% } else { %>
-  <a href="/auth/login">Sign in/Register</a>
+  <a href="/auth/login">Sign In / Register</a>
   <% } %>
 </div>
 

@@ -4,14 +4,14 @@
 <div style="min-height:80vh;display:flex;align-items:center;padding:3rem 1rem;background:var(--canvas);">
   <div class="container">
     <div class="row justify-content-center">
-      <div class="col-md-5 col-lg-4">
+      <div class="col-md-6 col-lg-5">
         <div class="text-center mb-5">
           <a href="/" class="text-decoration-none">
             <span style="font-size:1.5rem;font-weight:800;color:var(--ink);letter-spacing:-.03em;">
               <i class="bi bi-flower1 me-1" style="color:var(--accent);"></i>uniday
             </span>
           </a>
-          <p style="color:var(--muted);margin-top:.5rem;margin-bottom:0;font-size:.875rem;">Welcome back — sign in to continue.</p>
+          <p style="color:var(--muted);margin-top:.5rem;margin-bottom:0;font-size:.875rem;">Create your merchant account today.</p>
         </div>
 
         <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:2rem;">
@@ -26,24 +26,44 @@
           </div>
           <% } %>
 
-          <form action="/auth/login" method="POST">
+          <form action="/auth/register" method="POST">
+            <input type="hidden" name="role" value="merchant" />
+            <div class="mb-3">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Full Name</label>
+              <input type="text" name="full_name" class="form-control rounded-xl" placeholder="e.g. Sarah Lim" required autofocus />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Brand Name</label>
+              <input type="text" name="merchant_name" class="form-control rounded-xl" placeholder="e.g. Glow Studio" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Brand Location</label>
+              <input type="text" name="address" class="form-control rounded-xl" placeholder="e.g. Orchard, Singapore" required />
+            </div>
             <div class="mb-3">
               <label class="form-label" style="font-weight:600;font-size:.875rem;">Email Address</label>
-              <input type="email" name="email" class="form-control rounded-xl" placeholder="you@example.com" required autofocus />
+              <input type="email" name="email" class="form-control rounded-xl" placeholder="you@example.com" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Business Contact</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-telephone me-1"></i>+65</span>
+                <input type="text" name="phone" class="form-control" placeholder="9XXXXXXX" />
+              </div>
             </div>
             <div class="mb-4">
               <label class="form-label" style="font-weight:600;font-size:.875rem;">Password</label>
-              <input type="password" name="password" class="form-control rounded-xl" placeholder="••••••••" required />
+              <input type="password" name="password" class="form-control rounded-xl" placeholder="Min. 6 characters" minlength="6" required />
             </div>
             <button type="submit" class="btn btn-primary w-100 py-2 btn-pill" style="font-weight:700;">
-              <i class="bi bi-box-arrow-in-right me-2"></i>Sign Up
+              <i class="bi bi-shop me-2"></i>Create Merchant Account
             </button>
           </form>
 
           <div style="border-top:1px solid var(--border);margin:1.25rem 0;"></div>
           <p class="text-center small mb-0" style="color:var(--muted);">
-            Don't have an account?
-            <a href="/auth/register" style="font-weight:700;color:var(--accent);">Sign up free</a>
+            Already have an account?
+            <a href="/auth/login" style="font-weight:700;color:var(--accent);">Sign in</a>
           </p>
         </div>
 
