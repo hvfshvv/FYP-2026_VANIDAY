@@ -43,6 +43,61 @@ async function retrievePaymentIntent(paymentIntentId) {
   });
 }
 
+async function createPayNowCheckoutSession({ booking, amount, successUrl, cancelUrl, userId }) {
+  assertStripeConfigured();
+  const amountInCents = Math.round(Number(amount) * 100);
+  if (!Number.isInteger(amountInCents) || amountInCents < 50) {
+    throw new Error('Invalid payment amount');
+  }
+
+  const metadata = {
+    booking_id: String(booking.booking_id),
+    merchant_name: booking.merchant_name || '',
+    service_name: booking.service_name || '',
+  };
+  if (userId) metadata.user_id = String(userId);
+
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ['paynow'],
+    mode: 'payment',
+    line_items: [{
+      price_data: {
+        currency: 'sgd',
+        product_data: {
+          name: booking.service_name || 'Uniday booking',
+          description: booking.merchant_name ? `at ${booking.merchant_name}` : undefined,
+        },
+        unit_amount: amountInCents,
+      },
+      quantity: 1,
+    }],
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata,
+    payment_intent_data: {
+      capture_method: 'automatic',
+      metadata,
+    },
+  });
+
+  console.log('[stripe] created PayNow Checkout Session', {
+    sessionId: session.id,
+    paymentIntentId: session.payment_intent,
+    bookingId: booking.booking_id,
+    selectedPaymentMethod: 'paynow',
+    testModeKey: isTestModeKey(),
+  });
+
+  return session;
+}
+
+async function retrieveCheckoutSession(sessionId) {
+  assertStripeConfigured();
+  return stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ['payment_intent.latest_charge.balance_transaction'],
+  });
+}
+
 async function capturePaymentIntent(paymentIntentId) {
   assertStripeConfigured();
   return stripe.paymentIntents.capture(paymentIntentId);
@@ -62,6 +117,8 @@ function isTestModeKey() {
 
 module.exports = {
   createPaymentIntent,
+  createPayNowCheckoutSession,
+  retrieveCheckoutSession,
   retrievePaymentIntent,
   capturePaymentIntent,
   constructWebhookEvent,

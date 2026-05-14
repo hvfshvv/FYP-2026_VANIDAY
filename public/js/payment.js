@@ -183,10 +183,13 @@
       hideError();
 
       try {
-        const res = await fetch(`/payment/confirm-paynow/${BOOKING_ID}`, { method: 'POST' });
+        console.log('[stripe] selected payment method', { selectedPaymentMethod: 'paynow' });
+        const res = await fetch(`/payment/paynow-session/${BOOKING_ID}`, { method: 'POST' });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to confirm payment.');
-        showSuccessThenRedirect(data.redirectUrl);
+        if (!res.ok) throw new Error(data.error || 'Failed to initialise PayNow payment.');
+        if (!data.url) throw new Error('Stripe did not return a PayNow checkout URL.');
+        console.log('[stripe] redirecting to PayNow Checkout Session', { checkoutSessionId: data.sessionId });
+        window.location.href = data.url;
       } catch (err) {
         showError(err.message);
         setLoading('paynow', false);

@@ -209,6 +209,7 @@ CREATE TABLE IF NOT EXISTS payment (
     transaction_ref VARCHAR(255),
     payment_ref VARCHAR(255),
     stripe_payment_intent_id VARCHAR(255),
+    stripe_checkout_session_id VARCHAR(255),
     stripe_latest_charge_id VARCHAR(255),
     stripe_balance_transaction_id VARCHAR(255),
     stripe_status VARCHAR(64),

@@ -40,6 +40,7 @@ async function updateStripePaymentDetails(bookingId, details) {
          transaction_ref=?,
          payment_ref=?,
          stripe_payment_intent_id=?,
+         stripe_checkout_session_id=COALESCE(?, stripe_checkout_session_id),
          stripe_latest_charge_id=?,
          stripe_balance_transaction_id=?,
          stripe_status=?,
@@ -53,6 +54,7 @@ async function updateStripePaymentDetails(bookingId, details) {
       details.paymentRef,
       details.paymentRef,
       details.paymentIntentId,
+      details.checkoutSessionId || null,
       details.latestChargeId,
       details.balanceTransactionId,
       details.stripeStatus,
@@ -62,6 +64,19 @@ async function updateStripePaymentDetails(bookingId, details) {
       details.paymentStatus,
       bookingId,
     ]
+  );
+  return result.affectedRows;
+}
+
+async function updateStripeCheckoutSession(bookingId, checkoutSessionId, paymentIntentId) {
+  const [result] = await db.query(
+    `UPDATE payment
+     SET stripe_checkout_session_id=?,
+         payment_ref=COALESCE(payment_ref, ?),
+         transaction_ref=COALESCE(transaction_ref, ?),
+         stripe_payment_intent_id=COALESCE(stripe_payment_intent_id, ?)
+     WHERE booking_id=?`,
+    [checkoutSessionId, checkoutSessionId, checkoutSessionId, paymentIntentId || null, bookingId]
   );
   return result.affectedRows;
 }
@@ -76,5 +91,6 @@ module.exports = {
   createOrUpdatePayment,
   updatePaymentStatus,
   updateStripePaymentDetails,
+  updateStripeCheckoutSession,
   getPaymentByBooking,
 };

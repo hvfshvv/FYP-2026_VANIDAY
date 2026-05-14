@@ -1,11 +1,13 @@
 const {
   createPaymentIntent,
+  createPayNowCheckoutSession,
+  retrieveCheckoutSession,
   retrievePaymentIntent,
   capturePaymentIntent,
   constructWebhookEvent,
   isTestModeKey,
 } = require('../services/stripeService');
-const { getPayNowDetails, generateTransactionRef }   = require('../services/paynowService');
+const { buildReceiptPdf } = require('../services/receiptPdfService');
 const bookingModel = require('../models/bookingModel');
 const paymentModel = require('../models/paymentModel');
 
@@ -16,20 +18,20 @@ async function showCheckout(req, res) {
     if (!booking) return res.redirect('/');
 
     const payment  = await paymentModel.getPaymentByBooking(bookingId);
-    const amount   = Number(booking.payable_amount || booking.total_amount || booking.price);
-    const paynow   = getPayNowDetails(bookingId, amount);
-
     res.render('payment/checkout', {
       title: 'Checkout',
       booking,
       payment,
-      paynow,
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
     });
   } catch (err) {
     console.error('showCheckout error:', err);
     res.redirect('/');
   }
+}
+
+function getBaseUrl(req) {
+  return process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
 }
 
 function getBookingId(req) {
@@ -57,6 +59,7 @@ function extractStripePaymentDetails(intent) {
     amount: Number(intent.amount_received || intent.amount || 0) / 100,
     currency: intent.currency,
     receiptUrl: latestCharge ? latestCharge.receipt_url : null,
+    checkoutSessionId: null,
   };
 }
 
@@ -85,6 +88,47 @@ async function persistStripePaymentIntent(intent) {
     await bookingModel.updateBookingStatus(bookingId, 'confirmed');
   }
 
+  return { bookingId, details };
+}
+
+async function persistCheckoutSession(session) {
+  const bookingId = session.metadata && session.metadata.booking_id;
+  if (!bookingId) {
+    console.warn('[stripe] Checkout Session missing booking_id metadata', session.id);
+    return null;
+  }
+
+  const paymentIntent = session.payment_intent && typeof session.payment_intent === 'object'
+    ? session.payment_intent
+    : session.payment_intent
+      ? await retrievePaymentIntent(session.payment_intent)
+      : null;
+
+  console.log('[stripe] persist Checkout Session', {
+    sessionId: session.id,
+    paymentIntentId: paymentIntent ? paymentIntent.id : session.payment_intent,
+    paymentStatus: session.payment_status,
+    selectedPaymentMethod: 'paynow',
+    testModeKey: isTestModeKey(),
+  });
+
+  if (!paymentIntent) {
+    await paymentModel.updateStripeCheckoutSession(bookingId, session.id, null);
+    return { bookingId, details: null };
+  }
+
+  const expandedIntent = paymentIntent.latest_charge && typeof paymentIntent.latest_charge === 'object'
+    ? paymentIntent
+    : await retrievePaymentIntent(paymentIntent.id);
+  const details = {
+    ...extractStripePaymentDetails(expandedIntent),
+    checkoutSessionId: session.id,
+  };
+
+  await paymentModel.updateStripePaymentDetails(bookingId, details);
+  if (details.paymentStatus === 'paid') {
+    await bookingModel.updateBookingStatus(bookingId, 'confirmed');
+  }
   return { bookingId, details };
 }
 
@@ -148,6 +192,37 @@ async function confirmStripePayment(req, res) {
   }
 }
 
+async function createPayNowSession(req, res) {
+  const { bookingId } = req.params;
+  try {
+    const booking = await bookingModel.getBookingById(bookingId);
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    const amount = Number(booking.payable_amount || booking.total_amount || booking.price);
+    const baseUrl = getBaseUrl(req);
+    const session = await createPayNowCheckoutSession({
+      booking,
+      amount,
+      successUrl: `${baseUrl}/payment/success?booking_id=${bookingId}&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${baseUrl}/payment/checkout/${bookingId}`,
+      userId: req.session.user && req.session.user.user_id,
+    });
+
+    console.log('[stripe] selected payment method', {
+      selectedPaymentMethod: 'paynow',
+      checkoutSessionId: session.id,
+      paymentIntentId: session.payment_intent,
+    });
+
+    await paymentModel.createOrUpdatePayment(bookingId, amount, 'paynow');
+    await paymentModel.updateStripeCheckoutSession(bookingId, session.id, session.payment_intent);
+    res.json({ url: session.url, sessionId: session.id });
+  } catch (err) {
+    console.error('createPayNowSession error:', err);
+    res.status(500).json({ error: 'Failed to initialise PayNow payment' });
+  }
+}
+
 async function handleStripeWebhook(req, res) {
   let event;
   try {
@@ -158,12 +233,23 @@ async function handleStripeWebhook(req, res) {
   }
 
   try {
+    console.log('[stripe] webhook event', { type: event.type });
     if (event.type === 'payment_intent.succeeded') {
       await persistStripePaymentIntent(event.data.object);
     } else if (event.type === 'payment_intent.payment_failed') {
       const result = await persistStripePaymentIntent(event.data.object);
       if (result) {
         await paymentModel.updatePaymentStatus(result.bookingId, 'failed', event.data.object.id);
+      }
+    } else if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+      const session = await retrieveCheckoutSession(event.data.object.id);
+      await persistCheckoutSession(session);
+    } else if (event.type === 'checkout.session.async_payment_failed') {
+      const session = await retrieveCheckoutSession(event.data.object.id);
+      const bookingId = session.metadata && session.metadata.booking_id;
+      if (bookingId) {
+        await paymentModel.updateStripeCheckoutSession(bookingId, session.id, session.payment_intent);
+        await paymentModel.updatePaymentStatus(bookingId, 'failed', session.payment_intent || session.id);
       }
     } else if (event.type === 'charge.updated') {
       const charge = event.data.object;
@@ -198,28 +284,21 @@ async function markStripePaymentFailed(req, res) {
   }
 }
 
-async function confirmPayNow(req, res) {
-  const { bookingId } = req.params;
-  try {
-    const booking = await bookingModel.getBookingById(bookingId);
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
-
-    const amount = Number(booking.payable_amount || booking.total_amount || booking.price);
-    const ref    = generateTransactionRef(bookingId);
-
-    await paymentModel.createOrUpdatePayment(bookingId, amount, 'paynow');
-    await paymentModel.updatePaymentStatus(bookingId, 'paid', ref);
-    await bookingModel.updateBookingStatus(bookingId, 'confirmed');
-    res.json({ success: true, redirectUrl: `/payment/success?booking_id=${bookingId}` });
-  } catch (err) {
-    console.error('confirmPayNow error:', err);
-    res.status(500).json({ error: 'Failed to confirm payment' });
-  }
-}
-
 async function paymentSuccess(req, res) {
-  const { booking_id } = req.query;
+  const { booking_id, session_id } = req.query;
   try {
+    if (session_id) {
+      const session = await retrieveCheckoutSession(session_id);
+      console.log('[stripe] success page session lookup', {
+        checkoutSessionId: session.id,
+        paymentIntentId: session.payment_intent && typeof session.payment_intent === 'object' ? session.payment_intent.id : session.payment_intent,
+        paymentStatus: session.payment_status,
+      });
+      if (session.payment_status === 'paid') {
+        await persistCheckoutSession(session);
+      }
+    }
+
     const existing = await paymentModel.getPaymentByBooking(booking_id);
     if (!existing || existing.payment_status !== 'paid') {
       return res.redirect(`/payment/checkout/${booking_id}`);
@@ -232,12 +311,34 @@ async function paymentSuccess(req, res) {
   }
 }
 
+async function downloadReceipt(req, res) {
+  const { bookingId } = req.params;
+  try {
+    const booking = await bookingModel.getBookingById(bookingId);
+    const payment = await paymentModel.getPaymentByBooking(bookingId);
+
+    if (!booking || !payment || payment.payment_status !== 'paid') {
+      return res.status(404).send('Receipt not available.');
+    }
+
+    const pdf = buildReceiptPdf({ booking, payment });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="uniday-receipt-${bookingId}.pdf"`);
+    res.setHeader('Content-Length', pdf.length);
+    res.send(pdf);
+  } catch (err) {
+    console.error('downloadReceipt error:', err);
+    res.status(500).send('Could not generate receipt.');
+  }
+}
+
 module.exports = {
   showCheckout,
   createStripeIntent,
   confirmStripePayment,
+  createPayNowSession,
   markStripePaymentFailed,
   handleStripeWebhook,
-  confirmPayNow,
   paymentSuccess,
+  downloadReceipt,
 };

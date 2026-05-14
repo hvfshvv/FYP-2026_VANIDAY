@@ -98,11 +98,15 @@ async function getCustomerBookings(customerId) {
             s.duration_mins,
             COALESCE(b.total_amount, s.price) AS payable_amount,
             m.merchant_name,
-            m.address AS merchant_address
+            m.address AS merchant_address,
+            p.payment_status,
+            p.payment_ref,
+            p.transaction_ref
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
+     LEFT JOIN payment p ON p.booking_id = b.booking_id
      WHERE b.customer_id = ?
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [customerId]

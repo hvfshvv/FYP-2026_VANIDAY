@@ -2,11 +2,9 @@
 <% const payableAmount = Number(booking.payable_amount || booking.total_amount || booking.price); %>
 <%- include('../partials/header') %>
 
-<!-- Stripe.js must load before payment.js -->
 <script src="https://js.stripe.com/v3/"></script>
 <link rel="stylesheet" href="/css/payment.css">
 
-<!-- Data bridge: passes server values to external payment.js without inline script -->
 <div id="payment-data"
      data-booking-id="<%= booking.booking_id %>"
      data-stripe-key="<%= stripePublishableKey %>"
@@ -16,8 +14,6 @@
   <div class="container">
     <div class="row justify-content-center">
       <div class="col-md-7 col-lg-6">
-
-        <!-- Page header -->
         <div class="text-center mb-4">
           <div class="icon-circle-lg mx-auto mb-3">
             <i class="bi bi-credit-card" style="font-size:2rem;color:var(--accent);"></i>
@@ -27,8 +23,6 @@
         </div>
 
         <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:2rem;">
-
-          <!-- ── Booking summary ── -->
           <div class="p-3 rounded-xl mb-4" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.15);">
             <p style="font-weight:700;font-size:.8125rem;color:var(--accent);margin-bottom:.75rem;">
               <i class="bi bi-calendar-check me-1"></i>Booking Summary
@@ -44,33 +38,27 @@
             </div>
           </div>
 
-          <!-- ── Error banner ── -->
           <div id="payment-error" class="alert alert-danger py-2 d-none mb-3" role="alert" style="font-size:.875rem;"></div>
 
-          <!-- ── Payment method tabs ── -->
           <p style="font-weight:700;color:var(--ink);font-size:.875rem;margin-bottom:.75rem;">Payment Method</p>
           <div class="d-flex gap-2 mb-4">
-            <button type="button" id="tab-stripe"  class="pay-tab active" onclick="switchTab('stripe')">
+            <button type="button" id="tab-stripe" class="pay-tab active" onclick="switchTab('stripe')">
               <i class="bi bi-credit-card me-1"></i>Credit / Debit Card
             </button>
-            <button type="button" id="tab-paynow" class="pay-tab"        onclick="switchTab('paynow')">
+            <button type="button" id="tab-paynow" class="pay-tab" onclick="switchTab('paynow')">
               <i class="bi bi-qr-code me-1"></i>PayNow / NETS QR
             </button>
           </div>
 
-          <!-- ══════════════════════════════════════
-               STRIPE PANEL
-          ══════════════════════════════════════ -->
           <div id="panel-stripe">
             <p class="small mb-2" style="color:var(--muted);">
-              <i class="bi bi-lock-fill me-1"></i>Card details are handled securely by Stripe — we never see your number.
+              <i class="bi bi-lock-fill me-1"></i>Card details are handled securely by Stripe. We never see your number.
             </p>
             <div id="card-element-wrap" class="mb-1">
-              <div id="payment-element"><!-- Stripe Payment Element mounts here --></div>
+              <div id="payment-element"></div>
             </div>
             <div id="card-errors" class="text-danger small mb-3" style="min-height:1.2rem;" aria-live="polite"></div>
 
-            <!-- Test card hint (remove before real demo if preferred) -->
             <div class="p-2 rounded-xl mb-3" style="background:#f0fdf4;border:1px solid #bbf7d0;font-size:.78rem;color:#166534;">
               <i class="bi bi-info-circle me-1"></i>
               <strong>Test card:</strong> 4242 4242 4242 4242 &nbsp;|&nbsp; Any future date &nbsp;|&nbsp; Any 3-digit CVC
@@ -78,66 +66,44 @@
 
             <button id="stripe-pay-btn" class="btn btn-primary btn-lg w-100 btn-pill py-3" style="font-size:1rem;font-weight:700;">
               <span id="stripe-lbl"><i class="bi bi-lock me-2"></i>Pay S$<%= payableAmount.toFixed(2) %></span>
-              <span id="stripe-spin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Processing…</span>
+              <span id="stripe-spin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Processing...</span>
             </button>
           </div>
 
-          <!-- ══════════════════════════════════════
-               PAYNOW / NETS QR PANEL
-          ══════════════════════════════════════ -->
           <div id="panel-paynow" class="d-none">
-
-            <!-- QR image — replace /images/paynow-qr.png with your real PayNow QR -->
-            <div class="text-center mb-3">
-              <div class="paynow-qr-wrap">
-                <img src="<%= paynow.qrImagePath %>" alt="PayNow QR Code"
-                     onerror="this.style.display='none';document.getElementById('qr-icon').style.display='flex'">
-                <div id="qr-icon" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">
-                  <i class="bi bi-qr-code" style="font-size:4.5rem;color:#9ca3af;"></i>
-                </div>
-              </div>
-              <p class="mt-2 mb-0 small" style="color:var(--muted);">Scan with any Singapore banking app</p>
-            </div>
-
             <div class="p-3 rounded-xl mb-3" style="background:var(--surface);border:1.5px solid var(--border);">
-              <div class="summary-row">
-                <span class="lbl">UEN</span>
-                <span class="val" style="font-family:var(--font-mono);"><%= paynow.uen %></span>
-              </div>
               <div class="summary-row">
                 <span class="lbl">Amount</span>
                 <span class="val" style="font-family:var(--font-mono);font-weight:700;color:var(--accent);">S$<%= payableAmount.toFixed(2) %></span>
               </div>
               <div class="summary-row">
-                <span class="lbl">Reference</span>
-                <span class="val" style="font-family:var(--font-mono);"><%= paynow.reference %></span>
+                <span class="lbl">Provider</span>
+                <span class="val">Stripe PayNow sandbox</span>
               </div>
             </div>
 
             <ol class="small ps-3 mb-4" style="color:var(--muted);line-height:1.9;">
-              <li>Open your banking app (DBS, OCBC, UOB, etc.).</li>
-              <li>Go to <strong>PayNow → Scan QR</strong> and scan the code above.</li>
-              <li>Enter <strong>S$<%= payableAmount.toFixed(2) %></strong> and add reference <strong style="font-family:var(--font-mono);"><%= paynow.reference %></strong>.</li>
-              <li>Confirm the transfer, then tap the button below.</li>
+              <li>Tap <strong>Continue with PayNow</strong> to open Stripe's secure checkout.</li>
+              <li>Choose <strong>PayNow</strong>, then click <strong>Generate QR code</strong>.</li>
+              <li>In test mode, use Stripe's PayNow test page to approve the payment.</li>
+              <li>After approval, Stripe will return you to Uniday with your booking confirmed.</li>
             </ol>
 
             <button id="paynow-pay-btn" class="btn btn-primary btn-lg w-100 btn-pill py-3" style="font-size:1rem;font-weight:700;">
-              <span id="paynow-lbl"><i class="bi bi-check2-circle me-2"></i>I've Completed Payment</span>
-              <span id="paynow-spin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Confirming…</span>
+              <span id="paynow-lbl"><i class="bi bi-qr-code me-2"></i>Continue with PayNow</span>
+              <span id="paynow-spin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Opening Stripe...</span>
             </button>
 
             <p class="small text-center mt-2 mb-0" style="color:var(--muted);">
-              Only tap this after you have transferred the money.
+              You will be redirected to Stripe's secure sandbox checkout for the QR code.
             </p>
           </div>
 
-          <!-- Footer note -->
           <p class="text-center small mt-4 mb-0" style="color:var(--muted);">
             <i class="bi bi-shield-check me-1" style="color:var(--success);"></i>
             Payments are processed securely. Uniday does not store card details.
           </p>
         </div>
-
       </div>
     </div>
   </div>
