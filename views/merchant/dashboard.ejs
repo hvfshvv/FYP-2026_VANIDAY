@@ -53,6 +53,8 @@
     <% [
       { href:'/merchant/qr',         icon:'bi-qr-code',  label:'QR Code',    sub:'Generate & share'    },
       { href:'/merchant/services',    icon:'bi-scissors', label:'My Services',sub:'Add & manage'        },
+      { href:'/merchant/staff',        icon:'bi-people',   label:'Staff',        sub:'Manage employees' },
+      { href:'/merchant/availability', icon:'bi-clock',    label:'Availability', sub:'Set working hours' },
       { href:'/merchant/promotions',  icon:'bi-tag',      label:'Promotions', sub:'Create deals'        },
       { href:'/merchant/featured',    icon:'bi-star',     label:'Featured',   sub:'Marketplace listing' },
     ].forEach(a => { %>
@@ -136,7 +138,7 @@
                 };
                 const st = statusMap[b.status] || statusMap.pending;
               %>
-              <span class="badge" style="background:<%= st.bg %>;color:<%= st.color %>;">
+              <span class="badge" style="background:<%= st.bg %>;color:<%= st.color %>">
                 <%= b.status.charAt(0).toUpperCase() + b.status.slice(1) %>
               </span>
             </td>
