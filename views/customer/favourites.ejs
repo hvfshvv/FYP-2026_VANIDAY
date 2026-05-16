@@ -1,0 +1,38 @@
+<%- include('../partials/header') %>
+
+<div class="container py-5">
+  <h1>My Favourite Merchants</h1>
+
+  <% if (!merchants.length) { %>
+    <p>No favourites yet.</p>
+  <% } %>
+
+  <div class="row">
+    <% merchants.forEach(merchant => { %>
+
+      <div class="col-md-4 mb-4">
+        <div class="card p-3">
+
+          <h5>
+            <%= merchant.merchant_name %>
+          </h5>
+
+          <p>
+            <%= merchant.category || 'General' %>
+          </p>
+
+          <a
+            href="/marketplace/merchant/<%= merchant.merchant_id %>"
+            class="btn btn-primary"
+          >
+            View Merchant
+          </a>
+
+        </div>
+      </div>
+
+    <% }) %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

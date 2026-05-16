@@ -11,6 +11,7 @@ const paymentRoutes     = require('./routes/paymentRoutes');
 const paymentController = require('./controllers/paymentController');
 const marketplaceRoutes = require('./routes/marketplace');
 const whatsappRoutes    = require('./routes/whatsapp');
+const favouriteRoutes   = require('./routes/favourite');
 
 const app = express();
 
@@ -44,6 +45,8 @@ app.use('/book',       bookingRoutes);
 app.post('/create-payment-intent', paymentController.createStripeIntent);
 app.use('/payment',    paymentRoutes);
 app.use('/whatsapp',   whatsappRoutes);
+app.use('/favourite', favouriteRoutes);
+
 
 app.use((req, res) => {
   res.status(404).render('404', { title: 'Page Not Found' });

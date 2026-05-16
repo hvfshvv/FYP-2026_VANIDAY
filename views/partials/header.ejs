@@ -32,6 +32,9 @@
       <% if (user && user.role === 'customer') { %>
       <li><a href="/book/viewBookings">View bookings</a></li>
       <% } %>
+      <% if (user && user.role === 'customer') { %>
+      <li><a href="/favourite">My Favourites</a></li>
+      <% } %>
       <% if (user && user.role === 'merchant') { %>
       <li><a href="/merchant/dashboard">Dashboard</a></li>
       <li><a href="/merchant/services">Services</a></li>

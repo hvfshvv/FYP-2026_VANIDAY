@@ -1,11 +1,13 @@
-<%- include('../partials/header') %>
+<%- include('../partials/header') %> 
 
 <div class="section" style="padding-top:2.5rem;padding-bottom:2rem;border-bottom:1px solid var(--border);">
   <div class="container">
     <p class="section-label">Merchant</p>
+
     <h1 style="font-size:2rem;font-weight:800;color:var(--ink);margin-bottom:.25rem;">
       <%= merchant.merchant_name %>
     </h1>
+
     <p style="color:var(--muted);margin-bottom:0;">
       <%= merchant.description || 'Beauty and wellness merchant' %>
     </p>
@@ -13,44 +15,128 @@
 </div>
 
 <div class="container" style="padding-top:2.5rem;padding-bottom:4rem;">
-  <p><strong>Category:</strong> <%= merchant.category || 'General' %></p>
-  <p><strong>Address:</strong> <%= merchant.address || 'Singapore' %></p>
-  <p><strong>Contact:</strong> <%= merchant.contact_no || 'Not provided' %></p>
+
+  <p>
+    <strong>Category:</strong>
+    <%= merchant.category || 'General' %>
+  </p>
+
+  <p>
+    <strong>Address:</strong>
+    <%= merchant.address || 'Singapore' %>
+  </p>
+
+  <p>
+    <strong>Contact:</strong>
+    <%= merchant.contact_no || 'Not provided' %>
+  </p>
 
   <hr style="margin:2rem 0;">
 
   <div class="section-header">
     <div>
       <p class="section-label">Services</p>
-      <h2 class="section-title">Available services</h2>
-      <p class="section-sub">View pricing and choose a service to book.</p>
+
+      <h2 class="section-title">
+        Available services
+      </h2>
+
+      <p class="section-sub">
+        View pricing and choose a service to book.
+      </p>
     </div>
   </div>
 
   <% if (!services || services.length === 0) { %>
-    <p style="color:var(--muted);">No services available yet.</p>
-  <% } else { %>
-    <div class="row g-3">
-      <% services.forEach(service => { %>
-        <div class="col-md-6 col-lg-4">
-          <div class="promo-card h-100">
-            <h5 style="font-weight:700;color:var(--ink);"><%= service.service_name %></h5>
-            <p class="small text-muted"><%= service.description || 'No description available.' %></p>
-            <p><strong>$<%= Number(service.price).toFixed(2) %></strong></p>
-            <p class="small text-muted"><%= service.duration_mins %> mins</p>
 
-            <a class="btn btn-primary" href="/book?merchantId=<%= merchant.merchant_id %>&serviceId=<%= service.service_id %>">
+    <p style="color:var(--muted);">
+      No services available yet.
+    </p>
+
+  <% } else { %>
+
+    <div class="row g-3">
+
+      <% services.forEach(service => { %>
+
+        <div class="col-md-6 col-lg-4">
+
+          <div class="promo-card h-100" style="position:relative;">
+
+            <% if (user && user.role === 'customer') { %>
+
+              <% const isServiceFav = favouriteServiceIds && favouriteServiceIds.includes(service.service_id); %>
+
+              <form
+                action="<%= isServiceFav ? '/favourite/service/remove/' + service.service_id : '/favourite/service' %>"
+                method="POST"
+                style="position:absolute;top:14px;right:14px;z-index:5;"
+              >
+
+                <input
+                  type="hidden"
+                  name="merchantId"
+                  value="<%= merchant.merchant_id %>"
+                >
+
+                <input
+                  type="hidden"
+                  name="serviceId"
+                  value="<%= service.service_id %>"
+                >
+
+                <button
+                  type="submit"
+                  style="width:38px;height:38px;border-radius:999px;border:none;background:#fff;color:var(--accent);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;"
+                >
+                  <i class="bi <%= isServiceFav ? 'bi-heart-fill' : 'bi-heart' %>"></i>
+                </button>
+
+              </form>
+
+            <% } %>
+
+            <h5 style="font-weight:700;color:var(--ink);">
+              <%= service.service_name %>
+            </h5>
+
+            <p class="small text-muted">
+              <%= service.description || 'No description available.' %>
+            </p>
+
+            <p>
+              <strong>
+                $<%= Number(service.price).toFixed(2) %>
+              </strong>
+            </p>
+
+            <p class="small text-muted">
+              <%= service.duration_mins %> mins
+            </p>
+
+            <a
+              class="btn btn-primary"
+              href="/book?merchantId=<%= merchant.merchant_id %>&serviceId=<%= service.service_id %>"
+            >
               Book now
             </a>
+
           </div>
+
         </div>
+
       <% }) %>
+
     </div>
+
   <% } %>
 
   <div style="margin-top:2rem;">
-    <a href="/marketplace">← Back to Marketplace</a>
+    <a href="/marketplace">
+      ← Back to Marketplace
+    </a>
   </div>
+
 </div>
 
 <%- include('../partials/footer') %>

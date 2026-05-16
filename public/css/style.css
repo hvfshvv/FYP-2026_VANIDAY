@@ -212,6 +212,7 @@ a:hover { color: var(--accent-dark); }
   text-decoration: none;
   color: var(--ink);
   box-shadow: 0 6px 18px rgba(0,0,0,.05);
+   position: relative;
   transition:
     transform .22s ease,
     box-shadow .22s ease,
