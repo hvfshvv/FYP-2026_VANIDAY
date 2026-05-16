@@ -52,15 +52,19 @@ function showComingSoon(req, res) {
 
 async function showMerchantValidations(req, res) {
   try {
-    const [pendingMerchants, recentDecisions] = await Promise.all([
+    const [pendingMerchants, recentDecisions, statusSummary, applicationTrend] = await Promise.all([
       adminModel.getPendingMerchantApplications(),
       adminModel.getRecentMerchantValidationDecisions(),
+      adminModel.getMerchantValidationStatusSummary(),
+      adminModel.getMerchantApplicationTrend(),
     ]);
 
     res.render('admin/merchantValidations', {
       title: 'Merchant Validations',
       pendingMerchants,
       recentDecisions,
+      statusSummary,
+      applicationTrend,
       query: req.query,
     });
   } catch (err) {
@@ -69,6 +73,8 @@ async function showMerchantValidations(req, res) {
       title: 'Merchant Validations',
       pendingMerchants: [],
       recentDecisions: [],
+      statusSummary: { pending: 0, approved: 0, rejected: 0 },
+      applicationTrend: [],
       query: req.query,
       error: 'Failed to load merchant validation data.',
     });

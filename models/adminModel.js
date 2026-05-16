@@ -135,6 +135,45 @@ async function getRecentMerchantValidationDecisions(limit = 8) {
   return rows;
 }
 
+async function getMerchantValidationStatusSummary() {
+  const [rows] = await db.query(
+    `SELECT
+       verification_status,
+       COUNT(*) AS total
+     FROM merchant
+     GROUP BY verification_status`
+  );
+
+  const summary = {
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+  };
+
+  rows.forEach(row => {
+    if (Object.prototype.hasOwnProperty.call(summary, row.verification_status)) {
+      summary[row.verification_status] = row.total;
+    }
+  });
+
+  return summary;
+}
+
+async function getMerchantApplicationTrend(days = 14) {
+  const [rows] = await db.query(
+    `SELECT
+       DATE(COALESCE(submitted_at, created_at)) AS application_date,
+       COUNT(*) AS total
+     FROM merchant
+     WHERE COALESCE(submitted_at, created_at) >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+     GROUP BY DATE(COALESCE(submitted_at, created_at))
+     ORDER BY application_date ASC`,
+    [days - 1]
+  );
+
+  return rows;
+}
+
 async function approveMerchant(merchantId, adminId) {
   const [result] = await db.query(
     `UPDATE merchant
@@ -193,6 +232,8 @@ module.exports = {
   getRecentValidationErrors,
   getPendingMerchantApplications,
   getRecentMerchantValidationDecisions,
+  getMerchantValidationStatusSummary,
+  getMerchantApplicationTrend,
   approveMerchant,
   rejectMerchant,
 };
