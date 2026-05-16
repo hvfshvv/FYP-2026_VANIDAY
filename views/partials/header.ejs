@@ -41,7 +41,8 @@
       <li><a href="/merchant/promotions">Promotions</a></li>
       <% } %>
       <% if (user && user.role === 'admin') { %>
-      <li><a href="/admin/dashboard">Admin</a></li>
+      <li><a href="/admin/dashboard">Dashboard</a></li>
+      <li><a href="/admin/merchant-validations">Merchant Validation</a></li>
       <% } %>
     </ul>
 
@@ -74,7 +75,8 @@
   <a href="/merchant/promotions">Promotions</a>
   <% } %>
   <% if (user && user.role === 'admin') { %>
-  <a href="/admin/dashboard">Admin Dashboard</a>
+  <a href="/admin/dashboard">Dashboard</a>
+  <a href="/admin/merchant-validations">Merchant Validation</a>
   <% } %>
   <% if (user) { %>
   <a href="/auth/logout">Sign out</a>
