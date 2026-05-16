@@ -37,20 +37,34 @@ async function removeMerchantFavourite(req, res) {
   }
 }
 
+const CATEGORIES = [
+  'Hair',
+  'Nails',
+  'Facial',
+  'Massage',
+  'Wellness',
+  'Body',
+  'Aesthetics',
+  'Spa'
+];
+
 async function showFavourites(req, res) {
   try {
     const customerId = req.session.user.customer_id;
+    const selectedCategory = req.query.category || null;
 
-    const merchants =
-      await favouriteModel.getFavouriteMerchants(customerId);
-
-    const services =
-      await favouriteModel.getFavouriteServices(customerId);
+    const merchants = await favouriteModel.getFavouriteMerchants(customerId);
+    const services = await favouriteModel.getFavouriteServices(
+      customerId,
+      selectedCategory
+    );
 
     res.render('customer/favourites', {
       title: 'My Favourites',
       merchants,
-      services
+      services,
+      categories: CATEGORIES,
+      selectedCategory
     });
 
   } catch (err) {

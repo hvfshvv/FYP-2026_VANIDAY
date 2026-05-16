@@ -1,38 +1,335 @@
 <%- include('../partials/header') %>
 
-<div class="container py-5">
-  <h1>My Favourite Merchants</h1>
+<div
+  class="section"
+  style="padding-top:2.5rem;padding-bottom:2rem;border-bottom:1px solid var(--border);"
+>
+  <div class="container">
 
-  <% if (!merchants.length) { %>
-    <p>No favourites yet.</p>
-  <% } %>
+    <p class="section-label">
+      Customer
+    </p>
 
-  <div class="row">
-    <% merchants.forEach(merchant => { %>
+    <h1 style="
+      font-size:2rem;
+      font-weight:800;
+      color:var(--ink);
+      margin-bottom:.25rem;
+    ">
+      My Favourites
+    </h1>
 
-      <div class="col-md-4 mb-4">
-        <div class="card p-3">
+    <p style="color:var(--muted);margin-bottom:0;">
+      Saved merchants and services you love.
+    </p>
 
-          <h5>
-            <%= merchant.merchant_name %>
-          </h5>
+  </div>
+</div>
 
-          <p>
-            <%= merchant.category || 'General' %>
-          </p>
+<div class="container" style="padding-top:2.5rem;padding-bottom:4rem;">
 
-          <a
-            href="/marketplace/merchant/<%= merchant.merchant_id %>"
-            class="btn btn-primary"
-          >
-            View Merchant
-          </a>
+  <!-- FAVOURITE MERCHANTS -->
+  <div style="margin-bottom:4rem;">
 
-        </div>
+    <div class="section-header">
+
+      <div>
+
+        <p class="section-label">
+          Merchants
+        </p>
+
+        <h2 class="section-title">
+          Favourite merchants
+        </h2>
+
+        <p class="section-sub">
+          Your saved beauty and wellness merchants.
+        </p>
+
       </div>
 
-    <% }) %>
+    </div>
+
+    <% if (!merchants || merchants.length === 0) { %>
+
+      <div class="text-center py-5">
+
+        <div class="icon-circle-lg mx-auto mb-3">
+          <i
+            class="bi bi-heart"
+            style="font-size:2rem;color:var(--accent);"
+          ></i>
+        </div>
+
+        <h5 style="font-weight:700;color:var(--ink);">
+          No favourite merchants yet
+        </h5>
+
+        <p style="color:var(--muted);">
+          Start exploring merchants and save your favourites.
+        </p>
+
+        <a
+          href="/marketplace"
+          class="btn btn-primary btn-pill"
+        >
+          Browse Marketplace
+        </a>
+
+      </div>
+
+    <% } else { %>
+
+      <div class="row g-3">
+
+        <% merchants.forEach(merchant => { %>
+
+          <div class="col-md-6 col-lg-4">
+
+            <a
+              href="/marketplace/merchant/<%= merchant.merchant_id %>"
+              class="merchant-card"
+            >
+
+              <% if (merchant.image_path) { %>
+
+                <div class="card-img-wrapper">
+                  <img
+                    src="<%= merchant.image_path %>"
+                    class="card-img"
+                    alt="<%= merchant.merchant_name %>"
+                  >
+                </div>
+
+              <% } else { %>
+
+                <div class="card-no-img">
+                  <i class="bi bi-shop"></i>
+                </div>
+
+              <% } %>
+
+              <div class="card-body">
+
+                <div class="card-top">
+
+                  <h6 class="card-title">
+                    <%= merchant.merchant_name %>
+                  </h6>
+
+                </div>
+
+                <p class="card-meta">
+                  <%= merchant.description || 'Beauty and wellness merchant' %>
+                </p>
+
+                <div class="discount-pill">
+                  <i class="bi bi-grid"></i>
+                  <%= merchant.category || 'General' %>
+                </div>
+
+                <div class="info-row">
+
+                  <i class="bi bi-geo-alt"></i>
+
+                  <span>
+                    <%= merchant.address || 'Singapore' %>
+                  </span>
+
+                </div>
+
+              </div>
+
+            </a>
+
+          </div>
+
+        <% }) %>
+
+      </div>
+
+    <% } %>
+
   </div>
+
+  <!-- FAVOURITE SERVICES -->
+  <div>
+
+    <div class="section-header">
+
+      <div>
+
+        <p class="section-label">
+          Services
+        </p>
+
+        <h2 class="section-title">
+          Favourite services
+        </h2>
+
+        <p class="section-sub">
+          Services you saved for future bookings.
+        </p>
+
+        <!-- CATEGORY FILTER -->
+        <div class="d-flex flex-wrap gap-2 mt-3 mb-4">
+
+          <a
+            href="/favourite"
+            class="btn btn-sm btn-pill <%= !selectedCategory ? 'btn-primary' : 'btn-outline-secondary' %>"
+          >
+            All
+          </a>
+
+          <% categories.forEach(category => { %>
+
+            <a
+              href="/favourite?category=<%= category %>"
+              class="btn btn-sm btn-pill <%= selectedCategory === category ? 'btn-primary' : 'btn-outline-secondary' %>"
+            >
+              <%= category %>
+            </a>
+
+          <% }) %>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <% if (!services || services.length === 0) { %>
+
+      <div class="text-center py-5">
+
+        <div class="icon-circle-lg mx-auto mb-3">
+          <i
+            class="bi bi-heart-fill"
+            style="font-size:2rem;color:var(--accent);"
+          ></i>
+        </div>
+
+        <h5 style="font-weight:700;color:var(--ink);">
+          <%= selectedCategory
+            ? 'No favourite services under ' + selectedCategory + ' yet'
+            : 'No favourite services yet' %>
+        </h5>
+
+        <p style="color:var(--muted);">
+          <%= selectedCategory
+            ? 'Browse ' + selectedCategory.toLowerCase() + ' merchants and save services you like.'
+            : 'Save services from merchant pages to see them here.' %>
+        </p>
+
+        <% if (selectedCategory) { %>
+
+          <a
+            href="/marketplace?category=<%= selectedCategory %>"
+            class="btn btn-primary btn-pill"
+          >
+            Browse <%= selectedCategory %> merchants
+          </a>
+
+        <% } else { %>
+
+          <a
+            href="/marketplace"
+            class="btn btn-primary btn-pill"
+          >
+            Browse Marketplace
+          </a>
+
+        <% } %>
+
+      </div>
+
+    <% } else { %>
+
+      <div class="row g-3">
+
+        <% services.forEach(service => { %>
+
+          <div class="col-md-6 col-lg-4">
+
+            <div class="promo-card h-100">
+
+              <div class="d-flex justify-content-between align-items-start mb-2">
+
+                <div class="flex-grow-1 me-3">
+
+                  <h5 style="
+                    font-weight:700;
+                    color:var(--ink);
+                    margin-bottom:.35rem;
+                  ">
+                    <%= service.service_name %>
+                  </h5>
+
+                  <p class="promo-merchant mb-0">
+                    <i class="bi bi-shop me-1"></i>
+                    <%= service.merchant_name %>
+                  </p>
+
+                </div>
+
+                <div class="promo-discount">
+                  $<%= Number(service.price).toFixed(0) %>
+                </div>
+
+              </div>
+
+              <p class="small text-muted mb-3">
+                <%= service.description || 'No description available.' %>
+              </p>
+
+              <div class="discount-pill mb-3">
+                <i class="bi bi-grid"></i>
+                <%= service.category || 'General' %>
+              </div>
+
+              <p class="promo-date">
+                <i class="bi bi-clock me-1"></i>
+                <%= service.duration_mins %> mins
+              </p>
+
+              <div class="d-flex gap-2 mt-3">
+
+                <a
+                  href="/book?merchantId=<%= service.merchant_id %>&serviceId=<%= service.service_id %>"
+                  class="btn btn-primary btn-sm"
+                >
+                  Book now
+                </a>
+
+                <form
+                  action="/favourite/service/remove/<%= service.service_id %>"
+                  method="POST"
+                >
+
+                  <button
+                    type="submit"
+                    class="btn btn-outline-danger btn-sm"
+                  >
+                    <i class="bi bi-heart-fill"></i>
+                  </button>
+
+                </form>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        <% }) %>
+
+      </div>
+
+    <% } %>
+
+  </div>
+
 </div>
 
 <%- include('../partials/footer') %>

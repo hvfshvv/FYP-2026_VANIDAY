@@ -62,25 +62,37 @@ async function removeServiceFavourite(customerId, serviceId) {
   );
 }
 
-async function getFavouriteServices(customerId) {
+async function getFavouriteServices(customerId, category = null) {
+  const params = [customerId];
+
+  let categoryFilter = '';
+
+  if (category) {
+    categoryFilter = ' AND LOWER(m.category) = LOWER(?)';
+    params.push(category);
+  }
+
   const [rows] = await db.query(
     `SELECT 
        f.favourite_id,
-       s.service_id,
+       f.customer_id,
+       f.merchant_id,
+       f.service_id,
        s.service_name,
        s.description,
        s.price,
        s.duration_mins,
-       m.merchant_id,
        m.merchant_name,
-       m.category
+       m.category,
+       m.address
      FROM favourite f
      JOIN service s ON f.service_id = s.service_id
      JOIN merchant m ON f.merchant_id = m.merchant_id
      WHERE f.customer_id = ?
      AND f.service_id IS NOT NULL
+     ${categoryFilter}
      ORDER BY m.category, s.service_name`,
-    [customerId]
+    params
   );
 
   return rows;
