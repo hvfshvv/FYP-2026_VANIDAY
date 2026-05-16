@@ -21,7 +21,16 @@
     if (today > end) return { label: 'Expired', style: 'background:var(--danger-bg);color:var(--danger);' };
     return { label: 'Active', style: 'background:var(--success-bg);color:var(--success);' };
   };
-  const summary = voucherSummary || {};
+  const summary = { active_count: 0, upcoming_count: 0, paused_count: 0, expired_count: 0 };
+
+  vouchers.forEach(voucher => {
+    const status = campaignStatus(voucher).label;
+
+    if (status === 'Active') summary.active_count += 1;
+    if (status === 'Upcoming') summary.upcoming_count += 1;
+    if (status === 'Paused') summary.paused_count += 1;
+    if (status === 'Expired') summary.expired_count += 1;
+  });
 %>
 
 <div class="container py-5">
@@ -219,11 +228,17 @@
             </td>
             <td><span class="badge" style="<%= status.style %>"><%= status.label %></span></td>
             <td>
+              <% if (status.label === 'Expired') { %>
+              <button type="button" class="btn btn-sm btn-pill btn-outline-secondary" disabled>
+                <i class="bi bi-calendar-x me-1"></i>Expired
+              </button>
+              <% } else { %>
               <form action="/admin/campaigns/<%= voucher.voucher_id %>/toggle" method="POST" class="m-0">
                 <button type="submit" class="btn btn-sm btn-pill <%= voucher.is_active ? 'btn-outline-secondary' : 'btn-outline-success' %>">
                   <i class="bi bi-<%= voucher.is_active ? 'pause' : 'play' %>-circle me-1"></i><%= voucher.is_active ? 'Pause' : 'Activate' %>
                 </button>
               </form>
+              <% } %>
             </td>
           </tr>
           <% }) %>
