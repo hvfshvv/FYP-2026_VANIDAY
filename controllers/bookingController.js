@@ -48,7 +48,7 @@ async function confirmPortalBooking(req, res) {
     }
 
     const bookingId = await bookingModel.createBooking({
-      customerId:  req.session.user.user_id,
+      customerId:  req.session.user.customer_id,
       serviceId:   service_id,
       merchantId:  merchant_id,
       bookingDate: booking_date,
@@ -65,7 +65,7 @@ async function confirmPortalBooking(req, res) {
 
 async function viewCustomerBookings(req, res) {
   try {
-    const bookings = await bookingModel.getCustomerBookings(req.session.user.user_id);
+    const bookings = await bookingModel.getCustomerBookings(req.session.user.customer_id);
     res.render('booking/viewBookings', {
       title: 'My Bookings',
       bookings,

@@ -53,13 +53,13 @@ async function getBookingById(bookingId) {
             s.service_name, s.price, s.duration_mins,
             COALESCE(b.total_amount, s.price) AS payable_amount,
             m.merchant_name,
-            u.full_name   AS customer_name,
-            u.phone       AS customer_phone
+            c.full_name   AS customer_name,
+            c.phone       AS customer_phone
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
-     JOIN users     u  ON b.customer_id = u.user_id
+     JOIN customer c ON b.customer_id = c.customer_id
      WHERE b.booking_id = ?`,
     [bookingId]
   );
@@ -76,12 +76,12 @@ async function getMerchantBookings(merchantId) {
             ts.slot_date  AS booking_date,
             ts.start_time AS booking_time,
             s.service_name,
-            u.full_name   AS customer_name,
-            u.phone       AS customer_phone
+            c.full_name   AS customer_name,
+            c.phone       AS customer_phone
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
-     JOIN users     u  ON b.customer_id = u.user_id
+     JOIN customer c ON b.customer_id = c.customer_id
      WHERE b.merchant_id = ?
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [merchantId]
