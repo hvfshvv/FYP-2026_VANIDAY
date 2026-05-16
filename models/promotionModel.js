@@ -30,6 +30,8 @@ async function getActivePromotions(category = null) {
      FROM promotion p
      JOIN merchant m ON p.merchant_id = m.merchant_id
      WHERE p.is_active = 1 AND p.start_date <= CURDATE() AND p.end_date >= CURDATE()
+       AND m.is_active = 1
+       AND m.verification_status = 'approved'
        ${categoryFilter}
      ORDER BY p.start_date DESC`,
     params

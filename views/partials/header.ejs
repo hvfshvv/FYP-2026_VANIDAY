@@ -35,7 +35,7 @@
       <% if (user && user.role === 'customer') { %>
       <li><a href="/favourite">My Favourites</a></li>
       <% } %>
-      <% if (user && user.role === 'merchant') { %>
+      <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
       <li><a href="/merchant/dashboard">Dashboard</a></li>
       <li><a href="/merchant/services">Services</a></li>
       <li><a href="/merchant/promotions">Promotions</a></li>
@@ -68,7 +68,7 @@
   <% if (user && user.role === 'customer') { %>
   <a href="/book/viewBookings">View bookings</a>
   <% } %>
-  <% if (user && user.role === 'merchant') { %>
+  <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
   <a href="/merchant/dashboard">Dashboard</a>
   <a href="/merchant/services">Services</a>
   <a href="/merchant/promotions">Promotions</a>

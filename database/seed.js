@@ -167,8 +167,8 @@ async function seed() {
     } else {
       const [mr] = await db.execute(
         `INSERT INTO merchant 
-          (user_id, merchant_name, email, description, category, address, contact_no, is_featured, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (user_id, merchant_name, email, description, category, address, business_uen, contact_no, is_featured, is_active, verification_status, verified_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', NOW())`,
         [
           userId,
           m.biz.name,
@@ -176,6 +176,7 @@ async function seed() {
           m.featured.desc,
           m.biz.category,
           m.biz.address,
+          null,
           m.user.phone,
           1,
           1,
@@ -183,6 +184,14 @@ async function seed() {
       );
 
       merchantId = mr.insertId;
+    } else {
+      await db.execute(
+        `UPDATE merchant
+         SET verification_status = 'approved',
+             verified_at = COALESCE(verified_at, NOW())
+         WHERE merchant_id = ?`,
+        [merchantId]
+      );
     }
 
     const [existS] = await db.execute(

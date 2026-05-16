@@ -1,0 +1,178 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const formatDateTime = value => value
+    ? new Date(value).toLocaleString('en-SG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : '-';
+  const statusBadge = status => {
+    if (status === 'approved') return 'background:var(--success-bg);color:var(--success);';
+    if (status === 'rejected') return 'background:var(--danger-bg);color:var(--danger);';
+    return 'background:var(--warn-bg);color:var(--warn);';
+  };
+%>
+
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+    <div>
+      <p class="section-label">Admin Validation</p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Applications</h2>
+      <p style="color:var(--muted);margin-bottom:0;">Review new merchant signups before they can access Uniday merchant tools.</p>
+    </div>
+    <a href="/admin/dashboard" class="btn btn-outline-secondary btn-pill btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Dashboard
+    </a>
+  </div>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+  <div class="alert alert-warning mb-4"><%= error %></div>
+  <% } %>
+
+  <% if (query && query.approved) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+    <i class="bi bi-check-circle me-2"></i>Merchant application approved.
+  </div>
+  <% } %>
+
+  <% if (query && query.rejected) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+    <i class="bi bi-shield-x me-2"></i>Merchant application rejected.
+  </div>
+  <% } %>
+
+  <% if (query && query.unchanged) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--warn-bg);color:var(--warn);font-size:.875rem;">
+    <i class="bi bi-info-circle me-2"></i>No pending application was changed.
+  </div>
+  <% } %>
+
+  <% if (query && query.error) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+    <i class="bi bi-exclamation-circle me-2"></i>Unable to update merchant validation status.
+  </div>
+  <% } %>
+
+  <div class="card border-0 overflow-hidden mb-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
+      <div>
+        <p class="section-label mb-1">Pending Review</p>
+        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Merchant Validation Queue</h5>
+      </div>
+      <span class="badge" style="background:var(--warn-bg);color:var(--warn);"><%= pendingMerchants.length %> pending</span>
+    </div>
+
+    <% if (pendingMerchants.length === 0) { %>
+    <div class="text-center py-5 px-4">
+      <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
+        <i class="bi bi-shield-check" style="font-size:2rem;color:var(--success);"></i>
+      </div>
+      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No merchant applications pending</h6>
+      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">New merchant signups will appear here for admin validation.</p>
+    </div>
+    <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+        <thead style="background:var(--accent-light);">
+          <tr>
+            <th>Merchant</th>
+            <th>Owner</th>
+            <th>Business Details</th>
+            <th>Submitted</th>
+            <th style="min-width:280px;">Decision</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% pendingMerchants.forEach(m => { %>
+          <tr>
+            <td>
+              <p style="font-weight:700;color:var(--ink);margin-bottom:.15rem;"><%= m.merchant_name %></p>
+              <p style="color:var(--muted);margin-bottom:0;"><%= m.merchant_email || '-' %></p>
+            </td>
+            <td>
+              <p style="font-weight:600;margin-bottom:.15rem;"><%= m.owner_name || '-' %></p>
+              <p style="color:var(--muted);margin-bottom:0;"><%= m.owner_email || '-' %></p>
+            </td>
+            <td>
+              <p style="margin-bottom:.15rem;"><strong>UEN:</strong> <%= m.business_uen || '-' %></p>
+              <p style="color:var(--muted);margin-bottom:.15rem;"><i class="bi bi-telephone me-1"></i><%= m.contact_no || m.owner_phone || '-' %></p>
+              <p style="color:var(--muted);margin-bottom:0;max-width:34ch;"><i class="bi bi-geo-alt me-1"></i><%= m.address || '-' %></p>
+            </td>
+            <td><%= formatDateTime(m.submitted_at || m.created_at) %></td>
+            <td>
+              <div class="d-flex gap-2 flex-wrap mb-2">
+                <form action="/admin/merchant-validations/<%= m.merchant_id %>/approve" method="POST" class="m-0">
+                  <button type="submit" class="btn btn-sm btn-success btn-pill">
+                    <i class="bi bi-check2-circle me-1"></i>Approve
+                  </button>
+                </form>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger btn-pill"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#rejectMerchant<%= m.merchant_id %>"
+                  aria-expanded="false"
+                  aria-controls="rejectMerchant<%= m.merchant_id %>"
+                >
+                  <i class="bi bi-x-circle me-1"></i>Reject
+                </button>
+              </div>
+              <div class="collapse" id="rejectMerchant<%= m.merchant_id %>">
+                <form action="/admin/merchant-validations/<%= m.merchant_id %>/reject" method="POST">
+                  <textarea name="notes" class="form-control rounded-xl mb-2" rows="2" placeholder="Optional rejection notes"></textarea>
+                  <button type="submit" class="btn btn-sm btn-danger btn-pill">
+                    Confirm Rejection
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+
+  <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="p-4" style="border-bottom:1px solid var(--border);">
+      <p class="section-label mb-1">Recent Decisions</p>
+      <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Merchant Validation History</h5>
+    </div>
+
+    <% if (recentDecisions.length === 0) { %>
+    <div class="text-center py-5 px-4">
+      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Approved and rejected merchant applications will appear here.</p>
+    </div>
+    <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+        <thead style="background:var(--accent-light);">
+          <tr>
+            <th>Merchant</th>
+            <th>UEN</th>
+            <th>Status</th>
+            <th>Reviewed By</th>
+            <th>Reviewed At</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% recentDecisions.forEach(m => { %>
+          <tr>
+            <td>
+              <p style="font-weight:700;color:var(--ink);margin-bottom:.15rem;"><%= m.merchant_name %></p>
+              <p style="color:var(--muted);margin-bottom:0;"><%= m.merchant_email || '-' %></p>
+            </td>
+            <td><%= m.business_uen || '-' %></td>
+            <td><span class="badge" style="<%= statusBadge(m.verification_status) %>"><%= m.verification_status %></span></td>
+            <td><%= m.verified_by_name || '-' %></td>
+            <td><%= formatDateTime(m.verified_at) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

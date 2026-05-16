@@ -50,4 +50,65 @@ function showComingSoon(req, res) {
   });
 }
 
-module.exports = { showDashboard, showComingSoon };
+async function showMerchantValidations(req, res) {
+  try {
+    const [pendingMerchants, recentDecisions] = await Promise.all([
+      adminModel.getPendingMerchantApplications(),
+      adminModel.getRecentMerchantValidationDecisions(),
+    ]);
+
+    res.render('admin/merchantValidations', {
+      title: 'Merchant Validations',
+      pendingMerchants,
+      recentDecisions,
+      query: req.query,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/merchantValidations', {
+      title: 'Merchant Validations',
+      pendingMerchants: [],
+      recentDecisions: [],
+      query: req.query,
+      error: 'Failed to load merchant validation data.',
+    });
+  }
+}
+
+async function approveMerchant(req, res) {
+  try {
+    const affectedRows = await adminModel.approveMerchant(
+      req.params.merchantId,
+      req.session.user.user_id
+    );
+
+    res.redirect(`/admin/merchant-validations?${affectedRows ? 'approved=1' : 'unchanged=1'}`);
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/merchant-validations?error=approve');
+  }
+}
+
+async function rejectMerchant(req, res) {
+  try {
+    const notes = String(req.body.notes || '').trim();
+    const affectedRows = await adminModel.rejectMerchant(
+      req.params.merchantId,
+      req.session.user.user_id,
+      notes
+    );
+
+    res.redirect(`/admin/merchant-validations?${affectedRows ? 'rejected=1' : 'unchanged=1'}`);
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/merchant-validations?error=reject');
+  }
+}
+
+module.exports = {
+  showDashboard,
+  showComingSoon,
+  showMerchantValidations,
+  approveMerchant,
+  rejectMerchant,
+};

@@ -8,6 +8,8 @@ router.get('/start',    ctrl.showStartpage);
 router.get('/register', ctrl.showRegister);
 router.post('/register', ctrl.register);
 router.get('/registerMer', ctrl.showMerchantRegister);
+router.get('/merchant-pending', ctrl.showMerchantPending);
+router.get('/merchant-rejected', ctrl.showMerchantRejected);
 router.get('/logout',   ctrl.logout);
 
 module.exports = router;

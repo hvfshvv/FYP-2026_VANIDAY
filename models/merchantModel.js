@@ -2,7 +2,11 @@ const db = require('../config/db');
 
 async function getMerchantById(merchantId) {
   const [rows] = await db.query(
-    'SELECT * FROM merchant WHERE merchant_id = ?',
+    `SELECT *
+     FROM merchant
+     WHERE merchant_id = ?
+       AND is_active = 1
+       AND verification_status = 'approved'`,
     [merchantId]
   );
 
@@ -40,6 +44,7 @@ async function getAllActiveMerchants(category = null) {
     LEFT JOIN featured_listing fl
       ON m.merchant_id = fl.merchant_id
     WHERE m.is_active = 1
+      AND m.verification_status = 'approved'
       ${categoryFilter}
     ORDER BY m.merchant_name
   `, params);

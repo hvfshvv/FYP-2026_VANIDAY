@@ -40,11 +40,18 @@ CREATE TABLE IF NOT EXISTS merchant (
     description TEXT,
     category VARCHAR(100),
     address TEXT,
+    business_uen VARCHAR(20),
     contact_no VARCHAR(20),
     is_featured BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
+    verification_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    verification_notes TEXT NULL,
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    verified_at DATETIME NULL,
+    verified_by INT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (verified_by) REFERENCES users(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS service (

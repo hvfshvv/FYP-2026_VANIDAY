@@ -1,0 +1,36 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<div style="min-height:80vh;display:flex;align-items:center;padding:3rem 1rem;background:var(--canvas);">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-7 col-lg-6">
+        <div class="card border-0 text-center" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:2.5rem;">
+          <div class="icon-circle-lg mx-auto mb-3" style="width:72px;height:72px;background:var(--danger-bg);">
+            <i class="bi bi-shield-x" style="font-size:2rem;color:var(--danger);"></i>
+          </div>
+
+          <p class="section-label">Merchant Verification</p>
+          <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.75rem;">
+            Application Not Approved
+          </h2>
+
+          <p style="color:var(--muted);font-size:1rem;line-height:1.65;margin:0 auto 1.5rem;max-width:56ch;">
+            Your merchant application could not be approved at this time. Please contact Uniday support if you believe this decision needs to be reviewed.
+          </p>
+
+          <div class="d-flex justify-content-center gap-2 flex-wrap">
+            <a href="/marketplace" class="btn btn-outline-secondary btn-pill">
+              <i class="bi bi-grid me-1"></i>Browse Marketplace
+            </a>
+            <a href="/auth/logout" class="btn btn-primary btn-pill">
+              <i class="bi bi-box-arrow-right me-1"></i>Sign Out
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

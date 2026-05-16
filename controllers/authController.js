@@ -5,7 +5,11 @@ const ALLOWED_ROLES = ['customer', 'merchant'];
 
 function redirectDashboard(res, user) {
   if (user.role === 'admin') return res.redirect('/admin/dashboard');
-  if (user.role === 'merchant') return res.redirect('/merchant/dashboard');
+  if (user.role === 'merchant') {
+    if (user.verification_status === 'pending') return res.redirect('/auth/merchant-pending');
+    if (user.verification_status === 'rejected') return res.redirect('/auth/merchant-rejected');
+    return res.redirect('/merchant/dashboard');
+  }
 
   return res.redirect('/marketplace');
 }
@@ -82,6 +86,18 @@ async function login(req, res) {
       req.session.user.merchant_id = merchant
         ? merchant.merchant_id
         : null;
+
+      req.session.user.verification_status = merchant
+        ? merchant.verification_status
+        : 'pending';
+
+      if (!merchant || merchant.verification_status === 'pending') {
+        return res.redirect('/auth/merchant-pending');
+      }
+
+      if (merchant.verification_status === 'rejected') {
+        return res.redirect('/auth/merchant-rejected');
+      }
 
       return res.redirect('/merchant/dashboard');
     }
@@ -197,6 +213,10 @@ async function register(req, res) {
       );
     }
 
+    if (safeRole === 'merchant') {
+      return res.redirect('/auth/merchant-pending?submitted=1');
+    }
+
     res.redirect('/auth/login?registered=1');
 
   } catch (err) {
@@ -213,11 +233,26 @@ function logout(req, res) {
   req.session.destroy(() => res.redirect('/'));
 }
 
+function showMerchantPending(req, res) {
+  res.render('auth/merchantPending', {
+    title: 'Merchant Verification Pending',
+    submitted: Boolean(req.query.submitted)
+  });
+}
+
+function showMerchantRejected(req, res) {
+  res.render('auth/merchantRejected', {
+    title: 'Merchant Application Rejected'
+  });
+}
+
 module.exports = {
   showLogin,
   showStartpage,
   showRegister,
   showMerchantRegister,
+  showMerchantPending,
+  showMerchantRejected,
   login,
   register,
   logout

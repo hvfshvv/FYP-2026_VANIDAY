@@ -46,6 +46,7 @@
       { label:'Payments', value:summary.total_payments || 0, icon:'bi-receipt', color:'var(--accent)' },
       { label:'Services', value:summary.total_services || 0, icon:'bi-scissors', color:'var(--ink)' },
       { label:'Promotions', value:summary.total_promotions || 0, icon:'bi-tag', color:'var(--accent)' },
+      { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)' },
       { label:'Validation Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)' },
     ].forEach(stat => { %>
     <div class="col-6 col-lg-3">
@@ -77,6 +78,12 @@
         icon:'bi-shop-window',
         label:'Manage Merchants',
         sub:'Review merchant business details, services, staff, promotions, cancellation policies, revenue, QR bookings, and performance analytics.'
+      },
+      {
+        href:'/admin/merchant-validations',
+        icon:'bi-patch-check',
+        label:'Merchant Validation',
+        sub:'Review pending merchant registrations, verify company details, and approve or reject access to merchant tools.'
       },
       {
         href:'/admin/validation',
