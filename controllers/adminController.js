@@ -1,4 +1,5 @@
 const adminModel = require('../models/adminModel');
+const voucherModel = require('../models/voucherModel');
 
 async function showDashboard(req, res) {
   try {
@@ -111,10 +112,111 @@ async function rejectMerchant(req, res) {
   }
 }
 
+async function showCampaigns(req, res) {
+  try {
+    const [vouchers, merchants, voucherSummary] = await Promise.all([
+      voucherModel.getVoucherCampaigns(),
+      voucherModel.getApprovedMerchants(),
+      voucherModel.getVoucherStatusSummary(),
+    ]);
+
+    res.render('admin/campaigns', {
+      title: 'Voucher & Campaign Management',
+      vouchers,
+      merchants,
+      voucherSummary,
+      query: req.query,
+      form: {},
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/campaigns', {
+      title: 'Voucher & Campaign Management',
+      vouchers: [],
+      merchants: [],
+      voucherSummary: {},
+      query: req.query,
+      form: {},
+      error: 'Failed to load voucher campaigns.',
+    });
+  }
+}
+
+async function createCampaign(req, res) {
+  const form = req.body;
+
+  try {
+    const voucherCode = String(form.voucher_code || '').trim().toUpperCase();
+    const voucherType = form.voucher_type === 'merchant' ? 'merchant' : 'platform';
+    const merchantId = voucherType === 'merchant' ? form.merchant_id : null;
+    const discountType = form.discount_type === 'fixed_amount' ? 'fixed_amount' : 'percent';
+    const discountValue = Number(form.discount_value || 0);
+    const minSpend = form.min_spend ? Number(form.min_spend) : null;
+    const usageLimit = form.usage_limit ? Number.parseInt(form.usage_limit, 10) : null;
+    const usagePerCustomer = form.usage_per_customer ? Number.parseInt(form.usage_per_customer, 10) : null;
+
+    if (!voucherCode) throw new Error('Voucher code is required.');
+    if (!form.campaign_name || !String(form.campaign_name).trim()) throw new Error('Campaign name is required.');
+    if (voucherType === 'merchant' && !merchantId) throw new Error('Please select a merchant for merchant vouchers.');
+    if (!discountValue || discountValue <= 0) throw new Error('Discount value must be more than 0.');
+    if (discountType === 'percent' && discountValue > 100) throw new Error('Percent discount cannot be more than 100.');
+    if (!form.start_date || !form.end_date) throw new Error('Start and end dates are required.');
+    if (new Date(form.end_date) < new Date(form.start_date)) throw new Error('End date cannot be before start date.');
+
+    await voucherModel.createVoucherCampaign({
+      merchantId,
+      voucherCode,
+      voucherType,
+      campaignName: String(form.campaign_name).trim(),
+      discountType,
+      discountValue,
+      minSpend,
+      usageLimit,
+      usagePerCustomer,
+      startDate: form.start_date,
+      endDate: form.end_date,
+    });
+
+    res.redirect('/admin/campaigns?created=1');
+  } catch (err) {
+    const [vouchers, merchants, voucherSummary] = await Promise.all([
+      voucherModel.getVoucherCampaigns().catch(() => []),
+      voucherModel.getApprovedMerchants().catch(() => []),
+      voucherModel.getVoucherStatusSummary().catch(() => ({})),
+    ]);
+
+    res.render('admin/campaigns', {
+      title: 'Voucher & Campaign Management',
+      vouchers,
+      merchants,
+      voucherSummary,
+      query: req.query,
+      form,
+      error: err.code === 'ER_DUP_ENTRY'
+        ? 'That voucher code already exists. Please use another code.'
+        : err.message,
+    });
+  }
+}
+
+async function toggleCampaign(req, res) {
+  try {
+    await voucherModel.toggleVoucherStatus(req.params.voucherId);
+    res.redirect('/admin/campaigns?updated=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/campaigns?error=update');
+  }
+}
+
 module.exports = {
   showDashboard,
   showComingSoon,
   showMerchantValidations,
   approveMerchant,
   rejectMerchant,
+  showCampaigns,
+  createCampaign,
+  toggleCampaign,
 };

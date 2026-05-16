@@ -1,0 +1,291 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const money = value => 'S$' + Number(value || 0).toFixed(2);
+  const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+  const discountText = voucher => voucher.discount_type === 'percent'
+    ? Number(voucher.discount_value || 0).toFixed(0) + '%'
+    : money(voucher.discount_value);
+  const campaignStatus = voucher => {
+    const today = new Date();
+    const start = new Date(voucher.start_date);
+    const end = new Date(voucher.end_date);
+
+    today.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    if (!voucher.is_active) return { label: 'Paused', style: 'background:var(--neutral-bg);color:var(--muted);' };
+    if (today < start) return { label: 'Upcoming', style: 'background:#EFF6FF;color:#1D4ED8;' };
+    if (today > end) return { label: 'Expired', style: 'background:var(--danger-bg);color:var(--danger);' };
+    return { label: 'Active', style: 'background:var(--success-bg);color:var(--success);' };
+  };
+  const summary = voucherSummary || {};
+%>
+
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+    <div>
+      <p class="section-label">Admin Campaigns</p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Voucher &amp; Campaign Management</h2>
+      <p style="color:var(--muted);margin-bottom:0;">Create platform vouchers, merchant campaigns, and monitor voucher usage.</p>
+    </div>
+    <a href="/admin/dashboard" class="btn btn-outline-secondary btn-pill btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Dashboard
+    </a>
+  </div>
+
+  <% if (error) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+    <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+  </div>
+  <% } %>
+
+  <% if (query && query.created) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+    <i class="bi bi-check-circle me-2"></i>Voucher campaign created.
+  </div>
+  <% } %>
+
+  <% if (query && query.updated) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+    <i class="bi bi-check-circle me-2"></i>Voucher status updated.
+  </div>
+  <% } %>
+
+  <% if (query && query.error) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+    <i class="bi bi-exclamation-circle me-2"></i>Unable to update voucher campaign.
+  </div>
+  <% } %>
+
+  <div class="row g-3 mb-4">
+    <% [
+      { label:'Active', value:summary.active_count || 0, icon:'bi-play-circle', color:'var(--success)' },
+      { label:'Upcoming', value:summary.upcoming_count || 0, icon:'bi-calendar-plus', color:'#1D4ED8' },
+      { label:'Paused', value:summary.paused_count || 0, icon:'bi-pause-circle', color:'var(--muted)' },
+      { label:'Expired', value:summary.expired_count || 0, icon:'bi-calendar-x', color:'var(--danger)' },
+    ].forEach(stat => { %>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
+            <p class="stat-value" style="color:<%= stat.color %>;"><%= stat.value %></p>
+          </div>
+          <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+            <i class="bi <%= stat.icon %>"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-5">
+      <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
+        <p class="section-label mb-2">Campaign Status</p>
+        <div style="height:260px;">
+          <canvas id="voucherStatusChart" aria-label="Voucher status chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
+        <p class="section-label mb-2">Create Voucher</p>
+        <form action="/admin/campaigns/create" method="POST">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Campaign Name</label>
+              <input type="text" name="campaign_name" class="form-control rounded-xl" value="<%= form.campaign_name || '' %>" placeholder="e.g. May Beauty Deals" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Voucher Code</label>
+              <input type="text" name="voucher_code" class="form-control rounded-xl text-uppercase" value="<%= form.voucher_code || '' %>" placeholder="e.g. BEAUTY20" maxlength="50" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Voucher Type</label>
+              <select name="voucher_type" class="form-select rounded-xl" id="voucherTypeSelect">
+                <option value="platform" <%= form.voucher_type === 'platform' ? 'selected' : '' %>>Platform-wide</option>
+                <option value="merchant" <%= form.voucher_type === 'merchant' ? 'selected' : '' %>>Merchant-specific</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Merchant</label>
+              <select name="merchant_id" class="form-select rounded-xl" id="merchantSelect">
+                <option value="">No merchant selected</option>
+                <% merchants.forEach(merchant => { %>
+                <option value="<%= merchant.merchant_id %>" <%= String(form.merchant_id || '') === String(merchant.merchant_id) ? 'selected' : '' %>><%= merchant.merchant_name %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Discount Type</label>
+              <select name="discount_type" class="form-select rounded-xl">
+                <option value="percent" <%= form.discount_type === 'percent' ? 'selected' : '' %>>Percent</option>
+                <option value="fixed_amount" <%= form.discount_type === 'fixed_amount' ? 'selected' : '' %>>Fixed amount</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Discount Value</label>
+              <input type="number" name="discount_value" class="form-control rounded-xl" value="<%= form.discount_value || '' %>" min="0.01" step="0.01" placeholder="20" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Min Spend</label>
+              <input type="number" name="min_spend" class="form-control rounded-xl" value="<%= form.min_spend || '' %>" min="0" step="0.01" placeholder="50" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Usage Limit</label>
+              <input type="number" name="usage_limit" class="form-control rounded-xl" value="<%= form.usage_limit || '' %>" min="1" step="1" placeholder="100" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Per Customer</label>
+              <input type="number" name="usage_per_customer" class="form-control rounded-xl" value="<%= form.usage_per_customer || '1' %>" min="1" step="1" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Start Date</label>
+              <input type="date" name="start_date" class="form-control rounded-xl" value="<%= form.start_date || '' %>" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">End Date</label>
+              <input type="date" name="end_date" class="form-control rounded-xl" value="<%= form.end_date || '' %>" required />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-pill mt-3">
+            <i class="bi bi-ticket-perforated me-1"></i>Create Campaign
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
+      <div>
+        <p class="section-label mb-1">Voucher Campaigns</p>
+        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">All Vouchers</h5>
+      </div>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);"><%= vouchers.length %> total</span>
+    </div>
+
+    <% if (vouchers.length === 0) { %>
+    <div class="text-center py-5 px-4">
+      <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
+        <i class="bi bi-ticket-perforated" style="font-size:2rem;color:var(--accent);"></i>
+      </div>
+      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No voucher campaigns yet</h6>
+      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Created voucher campaigns will appear here.</p>
+    </div>
+    <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+        <thead style="background:var(--accent-light);">
+          <tr>
+            <th>Campaign</th>
+            <th>Scope</th>
+            <th>Discount</th>
+            <th>Dates</th>
+            <th>Usage</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% vouchers.forEach(voucher => { const status = campaignStatus(voucher); %>
+          <tr>
+            <td>
+              <p style="font-weight:700;color:var(--ink);margin-bottom:.15rem;"><%= voucher.campaign_name || 'Untitled Campaign' %></p>
+              <p style="color:var(--muted);font-family:var(--font-mono);margin-bottom:0;"><%= voucher.voucher_code %></p>
+            </td>
+            <td>
+              <span class="badge" style="background:var(--accent-light);color:var(--accent);"><%= voucher.voucher_type %></span>
+              <p style="color:var(--muted);margin:.25rem 0 0;"><%= voucher.merchant_name || 'All merchants' %></p>
+            </td>
+            <td>
+              <p style="font-weight:700;margin-bottom:.15rem;"><%= discountText(voucher) %></p>
+              <p style="color:var(--muted);margin-bottom:0;">Min <%= money(voucher.min_spend) %></p>
+            </td>
+            <td>
+              <%= formatDate(voucher.start_date) %>
+              <span style="color:var(--muted);">to</span>
+              <%= formatDate(voucher.end_date) %>
+            </td>
+            <td>
+              <p style="font-weight:700;margin-bottom:.15rem;"><%= voucher.redemption_count || 0 %> used</p>
+              <p style="color:var(--muted);margin-bottom:0;">Limit <%= voucher.usage_limit || 'Unlimited' %></p>
+            </td>
+            <td><span class="badge" style="<%= status.style %>"><%= status.label %></span></td>
+            <td>
+              <form action="/admin/campaigns/<%= voucher.voucher_id %>/toggle" method="POST" class="m-0">
+                <button type="submit" class="btn btn-sm btn-pill <%= voucher.is_active ? 'btn-outline-secondary' : 'btn-outline-success' %>">
+                  <i class="bi bi-<%= voucher.is_active ? 'pause' : 'play' %>-circle me-1"></i><%= voucher.is_active ? 'Pause' : 'Activate' %>
+                </button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+  const voucherSummary = <%- JSON.stringify(summary) %>;
+  const voucherStatusCanvas = document.getElementById('voucherStatusChart');
+  const voucherTypeSelect = document.getElementById('voucherTypeSelect');
+  const merchantSelect = document.getElementById('merchantSelect');
+
+  function syncMerchantSelect() {
+    if (!voucherTypeSelect || !merchantSelect) return;
+    const isMerchantVoucher = voucherTypeSelect.value === 'merchant';
+    merchantSelect.disabled = !isMerchantVoucher;
+    merchantSelect.required = isMerchantVoucher;
+    if (!isMerchantVoucher) merchantSelect.value = '';
+  }
+
+  if (voucherTypeSelect) {
+    voucherTypeSelect.addEventListener('change', syncMerchantSelect);
+    syncMerchantSelect();
+  }
+
+  if (voucherStatusCanvas && window.Chart) {
+    new Chart(voucherStatusCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: ['Active', 'Upcoming', 'Paused', 'Expired'],
+        datasets: [{
+          data: [
+            voucherSummary.active_count || 0,
+            voucherSummary.upcoming_count || 0,
+            voucherSummary.paused_count || 0,
+            voucherSummary.expired_count || 0
+          ],
+          backgroundColor: ['#10B981', '#1D4ED8', '#6B7280', '#EF4444'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 10,
+              usePointStyle: true
+            }
+          }
+        },
+        cutout: '68%'
+      }
+    });
+  }
+</script>
+
+<%- include('../partials/footer') %>

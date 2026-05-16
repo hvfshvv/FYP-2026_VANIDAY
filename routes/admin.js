@@ -9,6 +9,9 @@ router.get('/dashboard', adminController.showDashboard);
 router.get('/merchant-validations', adminController.showMerchantValidations);
 router.post('/merchant-validations/:merchantId/approve', adminController.approveMerchant);
 router.post('/merchant-validations/:merchantId/reject', adminController.rejectMerchant);
-router.get('/:page(customers|merchants|validation|featured|campaigns)', adminController.showComingSoon);
+router.get('/campaigns', adminController.showCampaigns);
+router.post('/campaigns/create', adminController.createCampaign);
+router.post('/campaigns/:voucherId/toggle', adminController.toggleCampaign);
+router.get('/:page(customers|merchants|validation|featured)', adminController.showComingSoon);
 
 module.exports = router;
