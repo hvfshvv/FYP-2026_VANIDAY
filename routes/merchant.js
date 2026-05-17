@@ -92,6 +92,7 @@ router.post('/services/:id/delete', svcCtrl.deleteService);
 // Staff
 router.get('/staff', staffCtrl.showStaff);
 router.post('/staff/add', staffCtrl.addStaff);
+router.post('/staff/:id/edit', staffCtrl.editStaff);
 router.post('/staff/:id/toggle', staffCtrl.toggleStaff);
 router.post('/staff/:id/delete', staffCtrl.deleteStaff);
 

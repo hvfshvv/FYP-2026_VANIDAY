@@ -43,6 +43,34 @@ async function addStaff(req, res) {
   res.redirect('/merchant/staff');
 }
 
+async function editStaff(req, res) {
+  try {
+    const merchantId = req.session.user.merchant_id;
+    const staffId = req.params.id;
+
+    const {
+      full_name,
+      role,
+      bio,
+      experience_years
+    } = req.body;
+
+    await staffModel.updateStaff(
+      staffId,
+      merchantId,
+      full_name,
+      role,
+      bio,
+      experience_years
+    );
+
+    res.redirect('/merchant/staff');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/merchant/staff');
+  }
+}
+
 async function toggleStaff(req, res) {
   const merchantId = req.session.user.merchant_id;
 
@@ -66,6 +94,7 @@ async function deleteStaff(req, res) {
 module.exports = {
   showStaff,
   addStaff,
+   editStaff,
   toggleStaff,
   deleteStaff
 };

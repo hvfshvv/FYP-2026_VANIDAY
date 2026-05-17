@@ -49,6 +49,19 @@ async function addStaff(
   }
 }
 
+async function updateStaff(staffId, merchantId, fullName, role, bio, experienceYears) {
+  await db.query(
+    `UPDATE staff
+     SET full_name = ?,
+         role = ?,
+         bio = ?,
+         experience_years = ?
+     WHERE staff_id = ?
+     AND merchant_id = ?`,
+    [fullName, role, bio, experienceYears || 0, staffId, merchantId]
+  );
+}
+
 async function toggleStaff(staffId, merchantId) {
   await db.query(
     `UPDATE staff
@@ -88,6 +101,7 @@ async function getStaffByService(serviceId, merchantId) {
 module.exports = {
   getStaffByMerchant,
   addStaff,
+  updateStaff,
   toggleStaff,
   deleteStaff,
   getStaffByService
