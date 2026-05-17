@@ -42,6 +42,11 @@
         <i class="bi bi-exclamation-circle me-2"></i><%= error %>
       </div>
     <% } %>
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+        <i class="bi bi-check-circle me-2"></i><%= success %>
+      </div>
+    <% } %>
 
     <% if (!bookingList.length) { %>
       <div class="card border-0 text-center" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:3rem 1.5rem;">
@@ -57,6 +62,7 @@
         <% bookingList.forEach((booking, index) => {
           const status = statusStyles[booking.status] || { label: booking.status || 'Booked', bg: 'var(--accent-light)', color: 'var(--accent)' };
           const isPast = new Date(booking.booking_date) < new Date(new Date().toDateString());
+          const canManage = !isPast && !['cancelled', 'completed', 'no_show'].includes(booking.status);
         %>
           <div class="p-4" style="<%= index ? 'border-top:1px solid var(--border);' : '' %>">
             <div class="d-flex flex-wrap justify-content-between gap-3">
@@ -94,6 +100,18 @@
                   </div>
                 <% } else { %>
                   <span class="badge rounded-pill" style="background:var(--canvas);color:var(--muted);border:1px solid var(--border);">Receipt unavailable</span>
+                <% } %>
+                <% if (canManage) { %>
+                  <div class="d-flex flex-wrap gap-2 justify-content-md-end mt-2">
+                    <a href="/book/<%= booking.booking_id %>/reschedule" class="btn btn-outline-secondary btn-sm btn-pill">
+                      <i class="bi bi-calendar-event me-1"></i>Reschedule
+                    </a>
+                    <form action="/book/<%= booking.booking_id %>/cancel" method="POST" onsubmit="return confirm('Cancel this booking?');">
+                      <button type="submit" class="btn btn-outline-danger btn-sm btn-pill">
+                        <i class="bi bi-x-circle me-1"></i>Cancel
+                      </button>
+                    </form>
+                  </div>
                 <% } %>
               </div>
             </div>

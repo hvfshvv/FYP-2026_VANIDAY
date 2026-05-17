@@ -66,8 +66,174 @@ async function getBookingById(bookingId) {
   return rows[0] || null;
 }
 
+async function getCustomerBookingById(bookingId, customerId) {
+  const [rows] = await db.query(
+    `SELECT b.*,
+            ts.slot_date  AS booking_date,
+            ts.start_time AS booking_time,
+            s.service_name, s.price, s.duration_mins,
+            COALESCE(b.total_amount, s.price) AS payable_amount,
+            m.merchant_name,
+            m.address AS merchant_address,
+            p.payment_status
+     FROM booking b
+     JOIN time_slot ts ON b.slot_id     = ts.slot_id
+     JOIN service   s  ON b.service_id  = s.service_id
+     JOIN merchant  m  ON b.merchant_id = m.merchant_id
+     LEFT JOIN payment p ON p.booking_id = b.booking_id
+     WHERE b.booking_id = ? AND b.customer_id = ?`,
+    [bookingId, customerId]
+  );
+  return rows[0] || null;
+}
+
 async function updateBookingStatus(bookingId, status) {
   await db.query('UPDATE booking SET status = ? WHERE booking_id = ?', [status, bookingId]);
+}
+
+async function cancelCustomerBooking(bookingId, customerId) {
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[booking]] = await connection.query(
+      `SELECT b.booking_id, b.slot_id, b.status, ts.slot_date, ts.start_time
+       FROM booking b
+       JOIN time_slot ts ON b.slot_id = ts.slot_id
+       WHERE b.booking_id = ? AND b.customer_id = ?
+       FOR UPDATE`,
+      [bookingId, customerId]
+    );
+
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    if (['cancelled', 'completed', 'no_show'].includes(booking.status)) {
+      throw new Error('This booking cannot be cancelled');
+    }
+
+    const slotDate = formatDateValue(booking.slot_date);
+    const slotDateTime = new Date(`${slotDate}T${String(booking.start_time).slice(0, 5)}:00`);
+
+    if (slotDateTime < new Date()) {
+      throw new Error('Past bookings cannot be cancelled');
+    }
+
+    await connection.query('UPDATE booking SET status = ? WHERE booking_id = ?', ['cancelled', bookingId]);
+    await connection.query('UPDATE time_slot SET is_available = TRUE WHERE slot_id = ?', [booking.slot_id]);
+
+    await connection.commit();
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, bookingTime) {
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[booking]] = await connection.query(
+      `SELECT b.*, s.duration_mins, ts.slot_date, ts.start_time
+       FROM booking b
+       JOIN service s ON b.service_id = s.service_id
+       JOIN time_slot ts ON b.slot_id = ts.slot_id
+       WHERE b.booking_id = ? AND b.customer_id = ?
+       FOR UPDATE`,
+      [bookingId, customerId]
+    );
+
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    if (['cancelled', 'completed', 'no_show'].includes(booking.status)) {
+      throw new Error('This booking cannot be rescheduled');
+    }
+
+    const requestedSlot = new Date(`${bookingDate}T${String(bookingTime).slice(0, 5)}:00`);
+    if (Number.isNaN(requestedSlot.getTime()) || requestedSlot < new Date()) {
+      throw new Error('Please choose a future date and time');
+    }
+
+    const currentDate = formatDateValue(booking.slot_date);
+    const currentTime = String(booking.start_time).slice(0, 5);
+    const requestedTime = String(bookingTime).slice(0, 5);
+
+    if (currentDate === bookingDate && currentTime === requestedTime) {
+      await connection.commit();
+      return;
+    }
+
+    const [existing] = await connection.query(
+      `SELECT slot_id, is_available
+       FROM time_slot
+       WHERE merchant_id = ? AND service_id = ? AND slot_date = ? AND start_time = ? AND is_available = TRUE
+       LIMIT 1
+       FOR UPDATE`,
+      [booking.merchant_id, booking.service_id, bookingDate, bookingTime]
+    );
+
+    let newSlotId;
+    if (existing.length) {
+      newSlotId = existing[0].slot_id;
+      await connection.query('UPDATE time_slot SET is_available = FALSE WHERE slot_id = ?', [newSlotId]);
+    } else {
+      const [conflicting] = await connection.query(
+        `SELECT slot_id
+         FROM time_slot
+         WHERE merchant_id = ? AND service_id = ? AND slot_date = ? AND start_time = ? AND is_available = FALSE
+         LIMIT 1`,
+        [booking.merchant_id, booking.service_id, bookingDate, bookingTime]
+      );
+
+      if (conflicting.length) {
+        throw new Error('That time slot is already booked');
+      }
+
+      const [slotResult] = await connection.query(
+        `INSERT INTO time_slot (merchant_id, service_id, staff_id, slot_date, start_time, end_time, is_available)
+         VALUES (?,?,?, ?, ?, ADDTIME(?, SEC_TO_TIME(? * 60)), FALSE)`,
+        [
+          booking.merchant_id,
+          booking.service_id,
+          booking.staff_id || null,
+          bookingDate,
+          bookingTime,
+          bookingTime,
+          booking.duration_mins,
+        ]
+      );
+      newSlotId = slotResult.insertId;
+    }
+
+    await connection.query('UPDATE time_slot SET is_available = TRUE WHERE slot_id = ?', [booking.slot_id]);
+    await connection.query('UPDATE booking SET slot_id = ? WHERE booking_id = ?', [newSlotId, bookingId]);
+
+    await connection.commit();
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+function formatDateValue(value) {
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  return String(value || '').slice(0, 10);
 }
 
 async function getMerchantBookings(merchantId) {
@@ -187,4 +353,14 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
   return slots;
 }
 
-module.exports = { createBooking, getBookingById, updateBookingStatus, getMerchantBookings, getCustomerBookings, getAvailableSlots };
+module.exports = {
+  createBooking,
+  getBookingById,
+  getCustomerBookingById,
+  updateBookingStatus,
+  cancelCustomerBooking,
+  rescheduleCustomerBooking,
+  getMerchantBookings,
+  getCustomerBookings,
+  getAvailableSlots
+};

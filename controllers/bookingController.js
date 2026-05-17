@@ -69,6 +69,8 @@ async function viewCustomerBookings(req, res) {
     res.render('booking/viewBookings', {
       title: 'My Bookings',
       bookings,
+      success: req.query.success,
+      error: req.query.error,
     });
   } catch (err) {
     console.error(err);
@@ -76,6 +78,62 @@ async function viewCustomerBookings(req, res) {
       title: 'My Bookings',
       bookings: [],
       error: 'Could not load your bookings. Please try again.',
+    });
+  }
+}
+
+async function cancelCustomerBooking(req, res) {
+  try {
+    await bookingModel.cancelCustomerBooking(req.params.bookingId, req.session.user.customer_id);
+    res.redirect('/book/viewBookings?success=Booking cancelled successfully.');
+  } catch (err) {
+    console.error(err);
+    res.redirect(`/book/viewBookings?error=${encodeURIComponent(err.message || 'Could not cancel booking.')}`);
+  }
+}
+
+async function showRescheduleBooking(req, res) {
+  try {
+    const booking = await bookingModel.getCustomerBookingById(req.params.bookingId, req.session.user.customer_id);
+
+    if (!booking) {
+      return res.redirect('/book/viewBookings?error=Booking not found.');
+    }
+
+    res.render('booking/reschedule', {
+      title: 'Reschedule Booking',
+      booking,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.redirect('/book/viewBookings?error=Could not load booking.');
+  }
+}
+
+async function rescheduleCustomerBooking(req, res) {
+  const { booking_date, booking_time } = req.body;
+
+  try {
+    await bookingModel.rescheduleCustomerBooking(
+      req.params.bookingId,
+      req.session.user.customer_id,
+      booking_date,
+      booking_time
+    );
+    res.redirect('/book/viewBookings?success=Booking rescheduled successfully.');
+  } catch (err) {
+    console.error(err);
+    const booking = await bookingModel.getCustomerBookingById(req.params.bookingId, req.session.user.customer_id).catch(() => null);
+
+    if (!booking) {
+      return res.redirect('/book/viewBookings?error=Could not reschedule booking.');
+    }
+
+    res.render('booking/reschedule', {
+      title: 'Reschedule Booking',
+      booking,
+      error: err.message || 'Could not reschedule booking.',
     });
   }
 }
@@ -194,6 +252,9 @@ module.exports = {
   showPortalBookingPage,
   confirmPortalBooking,
   viewCustomerBookings,
+  cancelCustomerBooking,
+  showRescheduleBooking,
+  rescheduleCustomerBooking,
   confirmArrival,
   getAvailableSlots
 };
