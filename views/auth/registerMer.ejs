@@ -66,9 +66,22 @@
                 <input type="text" name="phone" class="form-control" placeholder="9XXXXXXX" />
               </div>
             </div>
-            <div class="mb-4">
+            <div class="mb-3">
               <label class="form-label" style="font-weight:600;font-size:.875rem;">Password</label>
               <input type="password" name="password" class="form-control rounded-xl" placeholder="Min. 6 characters" minlength="6" required />
+            </div>
+            <div class="mb-4">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Business Category</label>
+              <select name="category" class="form-select rounded-xl" required>
+                <option value="" selected disabled>Select a category</option>
+                <option value="Hair">Hair</option>
+                <option value="Nails">Nails</option>
+                <option value="Facial">Facial</option>
+                <option value="Massage">Massage</option>
+                <option value="Wellness">Wellness</option>
+                <option value="BodyAestheitcs">BodyAestheitcs</option>
+                <option value="Spa">Spa</option>
+              </select>
             </div>
             <button type="submit" class="btn btn-primary w-100 py-2 btn-pill" style="font-weight:700;">
               <i class="bi bi-shop me-2"></i>Create Merchant Account
