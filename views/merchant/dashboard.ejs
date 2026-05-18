@@ -54,6 +54,7 @@
   <div class="row g-3 mb-5">
     <% [
       { href:'/merchant/services',    icon:'bi-scissors', label:'My Services',sub:'Add & manage'        },
+      { href:'/merchant/bookings',    icon:'bi-calendar-check', label:'Bookings', sub:'View all'        },
       { href:'/merchant/staff',        icon:'bi-people',   label:'Staff',        sub:'Manage employees' },
       { href:'/merchant/availability', icon:'bi-clock',    label:'Availability', sub:'Set working hours' },
       { href:'/merchant/promotions',  icon:'bi-tag',      label:'Promotions', sub:'Create deals'        },
@@ -74,9 +75,6 @@
   <!-- Recent Bookings -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Bookings</h5>
-    <% if (bookings.length > 0) { %>
-    <a href="/merchant/revenue" class="btn btn-outline-secondary btn-sm btn-pill">View All</a>
-    <% } %>
   </div>
 
   <% if (bookings.length === 0) { %>
@@ -165,13 +163,6 @@
         </tbody>
       </table>
     </div>
-    <% if (bookings.length > 10) { %>
-    <div class="p-3 text-center" style="border-top:1px solid var(--border);">
-      <a href="/merchant/revenue" style="color:var(--accent);font-size:.875rem;font-weight:600;text-decoration:none;">
-        View all <%= bookings.length %> bookings <i class="bi bi-arrow-right ms-1"></i>
-      </a>
-    </div>
-    <% } %>
   </div>
   <% } %>
 </div>
