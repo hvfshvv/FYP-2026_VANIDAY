@@ -41,9 +41,32 @@ async function getCustomerByUserId(userId) {
   return rows[0] || null;
 }
 
+async function ensureCustomerProfile(userId, fullName, email, phone) {
+  const existing = await getCustomerByUserId(userId);
+  if (existing) return existing;
+
+  await createCustomerProfile(userId, fullName, email, phone);
+
+  return {
+    customer_id: userId,
+    user_id: userId,
+    full_name: fullName,
+    email,
+    phone,
+  };
+}
+
 async function getMerchantByUserId(userId) {
   const [rows] = await db.query('SELECT * FROM merchant WHERE user_id = ?', [userId]);
   return rows[0] || null;
 }
 
-module.exports = { findUserByEmail, createUser, createCustomerProfile,createMerchantProfile,getCustomerByUserId, getMerchantByUserId };
+module.exports = {
+  findUserByEmail,
+  createUser,
+  createCustomerProfile,
+  createMerchantProfile,
+  getCustomerByUserId,
+  ensureCustomerProfile,
+  getMerchantByUserId,
+};

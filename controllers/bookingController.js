@@ -138,6 +138,34 @@ async function rescheduleCustomerBooking(req, res) {
   }
 }
 
+async function showBookingPage(req, res) {
+  const { token } = req.params;
+
+  try {
+    const qr = await qrModel.getQRByToken(token);
+
+    if (!qr) {
+      return res.status(404).render('booking/invalid', {
+        title: 'Invalid QR Code',
+      });
+    }
+
+    const services = await merchantModel.getMerchantServices(qr.merchant_id);
+
+    res.render('booking/page', {
+      title: 'Book Appointment',
+      qr,
+      services,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).render('booking/invalid', {
+      title: 'Unable to Load QR Code',
+    });
+  }
+}
+
 async function showPortalBookingPage(req, res) {
   const { merchantId, serviceId } = req.query;
 
@@ -185,16 +213,44 @@ async function confirmBooking(req, res) {
       });
     }
 
-    // find or create a guest user record
-    let user = await authModel.findUserByEmail(email);
+    // Find or create a customer account for guest QR bookings.
+    const sessionUser = req.session.user && req.session.user.role === 'customer'
+      ? req.session.user
+      : null;
+
+    let user = sessionUser
+      ? await authModel.findUserByEmail(sessionUser.email)
+      : await authModel.findUserByEmail(email);
+
+    if (user && user.role !== 'customer') {
+      const services = await merchantModel.getMerchantServices(qr.merchant_id).catch(() => []);
+      return res.render('booking/page', {
+        title: 'Book Appointment',
+        qr,
+        services,
+        error: 'Please use a customer account or a different email to make this booking.',
+      });
+    }
+
     if (!user) {
       const hash = await bcrypt.hash(Math.random().toString(36), 8);
       const uid  = await authModel.createUser(full_name, email, hash, phone, 'customer');
-      user = { user_id: uid };
+      user = { user_id: uid, full_name, email, phone };
+    }
+
+    const customer = await authModel.ensureCustomerProfile(
+      user.user_id,
+      full_name || user.full_name,
+      email || user.email,
+      phone || user.phone || null
+    );
+
+    if (sessionUser) {
+      req.session.user.customer_id = customer.customer_id;
     }
 
     const bookingId = await bookingModel.createBooking({
-      customerId:  user.user_id,
+      customerId:  customer.customer_id,
       serviceId:   service_id,
       merchantId:  qr.merchant_id,
       bookingDate: booking_date,
@@ -208,6 +264,66 @@ async function confirmBooking(req, res) {
     const qr      = await qrModel.getQRByToken(token).catch(() => null);
     const services = qr ? await merchantModel.getMerchantServices(qr.merchant_id).catch(() => []) : [];
     res.render('booking/page', { title: 'Book Appointment', qr, services, error: 'Booking failed. Please try again.' });
+  }
+}
+
+async function confirmArrivalByQR(req, res) {
+  const { token } = req.params;
+
+  try {
+    const qr = await qrModel.getQRByToken(token, 'check_in');
+
+    if (!qr) {
+      return res.status(404).render('booking/arrivalStatus', {
+        title: 'Invalid Arrival QR',
+        state: 'invalid',
+        merchantName: '',
+        booking: null,
+        message: 'This arrival QR code is invalid or no longer active.',
+      });
+    }
+
+    if (!req.session.user) {
+      return res.redirect(`/auth/login?next=${encodeURIComponent(`/book/arrival/${token}`)}`);
+    }
+
+    if (req.session.user.role !== 'customer' || !req.session.user.customer_id) {
+      return res.status(403).render('booking/arrivalStatus', {
+        title: 'Customer Login Required',
+        state: 'invalid',
+        merchantName: qr.merchant_name,
+        booking: null,
+        message: 'Please scan this QR with a customer account to confirm arrival.',
+      });
+    }
+
+    const result = await bookingModel.markCustomerArrivedForMerchant(
+      req.session.user.customer_id,
+      qr.merchant_id
+    );
+
+    const messageMap = {
+      arrived: 'Arrival confirmed. The merchant can now see you as arrived.',
+      already_arrived: 'You have already confirmed arrival for this booking.',
+      no_active_booking: 'No confirmed booking for today was found for this merchant.',
+    };
+
+    return res.render('booking/arrivalStatus', {
+      title: 'Arrival Confirmation',
+      state: result.status,
+      merchantName: qr.merchant_name,
+      booking: result.booking,
+      message: messageMap[result.status] || messageMap.no_active_booking,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).render('booking/arrivalStatus', {
+      title: 'Arrival Confirmation Failed',
+      state: 'invalid',
+      merchantName: '',
+      booking: null,
+      message: 'Arrival confirmation failed. Please ask the merchant for help.',
+    });
   }
 }
 
@@ -249,8 +365,11 @@ async function getAvailableSlots(req, res) {
 }
 
 module.exports = {
+  showBookingPage,
   showPortalBookingPage,
   confirmPortalBooking,
+  confirmBooking,
+  confirmArrivalByQR,
   viewCustomerBookings,
   cancelCustomerBooking,
   showRescheduleBooking,

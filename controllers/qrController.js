@@ -1,33 +1,39 @@
-const path    = require('path');
-const QRCode  = require('qrcode');
-const { v4: uuidv4 } = require('uuid');
-const qrModel = require('../models/qrModel');
+const qrService = require('../services/qrService');
+
+function getRequestBaseUrl(req) {
+  return `${req.protocol}://${req.get('host')}`;
+}
 
 async function showQRPage(req, res) {
   const merchantId = req.session.user.merchant_id;
+
   try {
-    const qr = await qrModel.getActiveQRByMerchant(merchantId);
-    res.render('merchant/qr', { title: 'QR Code Management', qr });
+    const { bookingQR, arrivalQR } = await qrService.ensureMerchantQRCodes(merchantId, {
+      baseUrl: getRequestBaseUrl(req),
+    });
+
+    res.render('merchant/qr', {
+      title: 'QR Code Management',
+      qr: bookingQR,
+      arrivalQr: arrivalQR,
+    });
   } catch (err) {
     console.error(err);
-    res.render('merchant/qr', { title: 'QR Code Management', qr: null });
+    res.render('merchant/qr', {
+      title: 'QR Code Management',
+      qr: null,
+      arrivalQr: null,
+    });
   }
 }
 
 async function generateQRCode(req, res) {
   const merchantId = req.session.user.merchant_id;
+
   try {
-    await qrModel.deactivateMerchantQRs(merchantId);
-
-    const token     = uuidv4();
-    const bookingUrl = `${process.env.APP_URL}/book/${token}`;
-    const fileName  = `${token}.png`;
-    const filePath  = path.join(__dirname, '..', 'public', 'images', 'qr', fileName);
-    const dbPath    = `/images/qr/${fileName}`;
-
-    await QRCode.toFile(filePath, bookingUrl, { width: 400, margin: 2 });
-    await qrModel.insertQR(merchantId, token, dbPath, bookingUrl);
-
+    await qrService.createBookingQRForMerchant(merchantId, {
+      baseUrl: getRequestBaseUrl(req),
+    });
     res.redirect('/merchant/qr');
   } catch (err) {
     console.error(err);
@@ -35,7 +41,25 @@ async function generateQRCode(req, res) {
   }
 }
 
-// regenerate reuses the same flow — old QR is deactivated in generateQRCode
+async function regenerateArrivalQRCode(req, res) {
+  const merchantId = req.session.user.merchant_id;
+
+  try {
+    await qrService.createArrivalQRForMerchant(merchantId, {
+      baseUrl: getRequestBaseUrl(req),
+    });
+    res.redirect('/merchant/qr');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/merchant/qr');
+  }
+}
+
 const regenerateQRCode = generateQRCode;
 
-module.exports = { showQRPage, generateQRCode, regenerateQRCode };
+module.exports = {
+  showQRPage,
+  generateQRCode,
+  regenerateQRCode,
+  regenerateArrivalQRCode,
+};

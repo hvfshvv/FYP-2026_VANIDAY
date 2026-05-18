@@ -2,6 +2,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
+const qrService = require('../services/qrService');
 
 const ADMIN = {
   name: 'Uniday Admin',
@@ -164,6 +165,13 @@ async function seed() {
 
     if (existM.length) {
       merchantId = existM[0].merchant_id;
+      await db.execute(
+        `UPDATE merchant
+         SET verification_status = 'approved',
+             verified_at = COALESCE(verified_at, NOW())
+         WHERE merchant_id = ?`,
+        [merchantId]
+      );
     } else {
       const [mr] = await db.execute(
         `INSERT INTO merchant 
@@ -184,14 +192,6 @@ async function seed() {
       );
 
       merchantId = mr.insertId;
-    } else {
-      await db.execute(
-        `UPDATE merchant
-         SET verification_status = 'approved',
-             verified_at = COALESCE(verified_at, NOW())
-         WHERE merchant_id = ?`,
-        [merchantId]
-      );
     }
 
     const [existS] = await db.execute(
@@ -243,10 +243,13 @@ async function seed() {
       );
     }
 
+    await qrService.ensureMerchantQRCodes(merchantId);
+
     console.log(`${m.biz.name} (merchant_id: ${merchantId})`);
   }
 
   await db.end();
+  await require('../config/db').end();
   console.log('\n🎉 Seed complete! Login with any merchant email, password: Uniday2026');
   console.log('Admin login: admin@uniday.com / Admin2026');
   console.log('Merchant login: any merchant email / Uniday2026');

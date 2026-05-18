@@ -1,34 +1,72 @@
 const db = require('../config/db');
 
-async function getActiveQRByMerchant(merchantId) {
+function normalizeQRType(type) {
+  return type === 'check_in' ? 'check_in' : 'booking';
+}
+
+async function getActiveQRByMerchant(merchantId, type = 'booking') {
+  const qrType = normalizeQRType(type);
   const [rows] = await db.query(
-    'SELECT * FROM qr_code WHERE merchant_id = ? AND is_active = 1 ORDER BY generated_at DESC LIMIT 1',
-    [merchantId]
+    `SELECT *
+     FROM qr_code
+     WHERE merchant_id = ?
+       AND qr_type = ?
+       AND is_active = 1
+     ORDER BY generated_at DESC, qr_id DESC
+     LIMIT 1`,
+    [merchantId, qrType]
   );
   return rows[0] || null;
 }
 
-async function getQRByToken(token) {
+async function getQRByToken(token, type = 'booking') {
+  const qrType = normalizeQRType(type);
   const [rows] = await db.query(
     `SELECT q.*, m.merchant_name, m.address
      FROM qr_code q
      JOIN merchant m ON q.merchant_id = m.merchant_id
-     WHERE q.qr_token = ? AND q.is_active = 1`,
+     WHERE q.qr_token = ?
+       AND q.qr_type = ?
+       AND q.is_active = 1
+       AND m.is_active = 1
+       AND m.verification_status = 'approved'`,
+    [token, qrType]
+  );
+  return rows[0] || null;
+}
+
+async function getQRByTokenIncludingInactive(token) {
+  const [rows] = await db.query(
+    'SELECT * FROM qr_code WHERE qr_token = ? LIMIT 1',
     [token]
   );
   return rows[0] || null;
 }
 
-async function deactivateMerchantQRs(merchantId) {
-  await db.query('UPDATE qr_code SET is_active = 0 WHERE merchant_id = ?', [merchantId]);
+async function deactivateMerchantQRs(merchantId, type = 'booking') {
+  const qrType = normalizeQRType(type);
+  await db.query(
+    `UPDATE qr_code
+     SET is_active = 0
+     WHERE merchant_id = ?
+       AND qr_type = ?`,
+    [merchantId, qrType]
+  );
 }
 
-async function insertQR(merchantId, token, imagePath, qrUrl) {
+async function insertQR(merchantId, token, imagePath, qrUrl, type = 'booking') {
+  const qrType = normalizeQRType(type);
   const [result] = await db.query(
     'INSERT INTO qr_code (merchant_id, qr_token, qr_url, qr_image_path, qr_type) VALUES (?,?,?,?,?)',
-    [merchantId, token, qrUrl, imagePath, 'booking']
+    [merchantId, token, qrUrl, imagePath, qrType]
   );
   return result.insertId;
 }
 
-module.exports = { getActiveQRByMerchant, getQRByToken, deactivateMerchantQRs, insertQR };
+module.exports = {
+  getActiveQRByMerchant,
+  getQRByToken,
+  getQRByTokenIncludingInactive,
+  deactivateMerchantQRs,
+  insertQR,
+};

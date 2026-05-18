@@ -153,7 +153,7 @@
               <br/><span style="color:var(--muted);"><%= String(t.booking_time).slice(0,5) %></span>
             </td>
             <td>
-              <% if (t.source === 'qr_scan') { %>
+              <% if (t.source === 'qr' || t.source === 'qr_scan') { %>
               <span class="badge" style="background:var(--accent-light);color:var(--accent);">
                 <i class="bi bi-qr-code me-1"></i>QR
               </span>

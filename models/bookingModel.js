@@ -91,6 +91,97 @@ async function updateBookingStatus(bookingId, status) {
   await db.query('UPDATE booking SET status = ? WHERE booking_id = ?', [status, bookingId]);
 }
 
+async function updateMerchantBookingStatus(bookingId, merchantId, status) {
+  const fields = ['status = ?'];
+  const params = [status];
+
+  if (status === 'arrived') {
+    fields.push('checked_in_at = NOW()', "arrival_method = 'manual'");
+  }
+
+  params.push(bookingId, merchantId);
+
+  const [result] = await db.query(
+    `UPDATE booking
+     SET ${fields.join(', ')}
+     WHERE booking_id = ?
+       AND merchant_id = ?`,
+    params
+  );
+
+  return result.affectedRows;
+}
+
+async function markCustomerArrivedForMerchant(customerId, merchantId) {
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[arrivedBooking]] = await connection.query(
+      `SELECT b.booking_id, b.status, ts.slot_date, ts.start_time, s.service_name, m.merchant_name
+       FROM booking b
+       JOIN time_slot ts ON b.slot_id = ts.slot_id
+       JOIN service s ON b.service_id = s.service_id
+       JOIN merchant m ON b.merchant_id = m.merchant_id
+       WHERE b.customer_id = ?
+         AND b.merchant_id = ?
+         AND b.status = 'arrived'
+         AND ts.slot_date = CURDATE()
+       ORDER BY ts.start_time ASC
+       LIMIT 1
+       FOR UPDATE`,
+      [customerId, merchantId]
+    );
+
+    if (arrivedBooking) {
+      await connection.commit();
+      return { status: 'already_arrived', booking: arrivedBooking };
+    }
+
+    const [[booking]] = await connection.query(
+      `SELECT b.booking_id, b.status, ts.slot_date, ts.start_time, s.service_name, m.merchant_name
+       FROM booking b
+       JOIN time_slot ts ON b.slot_id = ts.slot_id
+       JOIN service s ON b.service_id = s.service_id
+       JOIN merchant m ON b.merchant_id = m.merchant_id
+       WHERE b.customer_id = ?
+         AND b.merchant_id = ?
+         AND b.status = 'confirmed'
+         AND ts.slot_date = CURDATE()
+       ORDER BY ts.start_time ASC
+       LIMIT 1
+       FOR UPDATE`,
+      [customerId, merchantId]
+    );
+
+    if (!booking) {
+      await connection.commit();
+      return { status: 'no_active_booking', booking: null };
+    }
+
+    await connection.query(
+      `UPDATE booking
+       SET status = 'arrived',
+           checked_in_at = NOW(),
+           arrival_method = 'qr'
+       WHERE booking_id = ?
+         AND merchant_id = ?
+         AND customer_id = ?
+         AND status = 'confirmed'`,
+      [booking.booking_id, merchantId, customerId]
+    );
+
+    await connection.commit();
+    return { status: 'arrived', booking };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 async function cancelCustomerBooking(bookingId, customerId) {
   const connection = await db.getConnection();
 
@@ -358,6 +449,8 @@ module.exports = {
   getBookingById,
   getCustomerBookingById,
   updateBookingStatus,
+  updateMerchantBookingStatus,
+  markCustomerArrivedForMerchant,
   cancelCustomerBooking,
   rescheduleCustomerBooking,
   getMerchantBookings,

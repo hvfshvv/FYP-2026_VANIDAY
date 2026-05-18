@@ -58,6 +58,7 @@
 <form action="/book/<%= qr.qr_token %>/confirm" method="POST" id="bookingForm">
             <input type="hidden" name="service_id" id="hidden_service_id" />
             <input type="hidden" name="booking_time" id="hidden_booking_time" />
+            <input type="hidden" id="merchant_id" value="<%= qr.merchant_id %>" />
 
             <!-- STEP 1 -->
             <div class="step-panel active" id="step-1">
@@ -107,10 +108,9 @@
               <div class="mb-3">
                 <label class="form-label" style="font-weight:600;font-size:.875rem;">Available Times</label>
                 <div class="time-grid">
-                  <% ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','13:00',
-                      '13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'].forEach(t => { %>
-                  <div class="time-btn" data-time="<%= t %>" onclick="selectTime(this,'<%= t %>')"><%= t %></div>
-                  <% }) %>
+                  <div class="time-empty" id="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">
+                    Select a service and date to view available times.
+                  </div>
                 </div>
                 <div id="step2-error" style="display:none;color:var(--danger);font-size:.8125rem;margin-top:.75rem;">
                   <i class="bi bi-exclamation-circle me-1"></i>Please pick both a date and a time.
@@ -289,22 +289,45 @@ function validateBookingDate() {
   return true;
 }
 
-function updateAvailableTimes() {
+async function updateAvailableTimes() {
   const date = document.getElementById('booking_date').value;
-  const now = new Date();
+  const grid = document.querySelector('.time-grid');
+  const merchantId = document.getElementById('merchant_id').value;
 
-  document.querySelectorAll('.time-btn').forEach(btn => {
-    const time = btn.dataset.time;
-    const isPast = Boolean(date && new Date(date + 'T' + time + ':00') < now);
-    btn.classList.toggle('disabled', isPast);
-    btn.setAttribute('aria-disabled', String(isPast));
+  selectedTime = null;
+  document.getElementById('hidden_booking_time').value = '';
+  updateSummary();
 
-    if (isPast && selectedTime === time) {
-      btn.classList.remove('selected');
-      selectedTime = null;
-      document.getElementById('hidden_booking_time').value = '';
-    }
+  if (!date || !selectedService) {
+    grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">Select a service and date to view available times.</div>';
+    return;
+  }
+
+  grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">Loading available times...</div>';
+
+  const params = new URLSearchParams({
+    merchantId,
+    serviceId: selectedService.id,
+    bookingDate: date,
   });
+
+  try {
+    const response = await fetch('/book/api/slots?' + params.toString());
+    const slots = await response.json();
+
+    if (!slots.length) {
+      grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">No slots available for this date.</div>';
+      return;
+    }
+
+    grid.innerHTML = slots.map(slot => {
+      const time = String(slot.start_time).slice(0, 5);
+      return `<div class="time-btn" data-time="${time}" onclick="selectTime(this,'${time}')">${slot.label || time}</div>`;
+    }).join('');
+  } catch (err) {
+    console.error(err);
+    grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--danger);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">Unable to load available times.</div>';
+  }
 }
 
 function validateSelectedDateTime() {
@@ -335,11 +358,11 @@ function selectService(el) {
     duration: el.dataset.duration,
   };
   document.getElementById('hidden_service_id').value = selectedService.id;
+  updateAvailableTimes();
   updateSummary();
 }
 
 function selectTime(el, time) {
-  updateAvailableTimes();
   if (el.classList.contains('disabled')) {
     setStep2Error('Please choose a time that is on or after the current date and time.');
     return;

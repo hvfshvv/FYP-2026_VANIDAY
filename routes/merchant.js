@@ -52,16 +52,20 @@ router.get('/revenue', async (req, res) => {
 
 // Booking status updates
 router.post('/bookings/:bookingId/arrived', async (req, res) => {
+  const merchantId = req.session.user.merchant_id;
+
   await bookingModel
-    .updateBookingStatus(req.params.bookingId, 'arrived')
+    .updateMerchantBookingStatus(req.params.bookingId, merchantId, 'arrived')
     .catch(console.error);
 
   res.redirect('/merchant/dashboard');
 });
 
 router.post('/bookings/:bookingId/complete', async (req, res) => {
+  const merchantId = req.session.user.merchant_id;
+
   await bookingModel
-    .updateBookingStatus(req.params.bookingId, 'completed')
+    .updateMerchantBookingStatus(req.params.bookingId, merchantId, 'completed')
     .catch(console.error);
 
   res.redirect('/merchant/dashboard');
@@ -71,6 +75,7 @@ router.post('/bookings/:bookingId/complete', async (req, res) => {
 router.get('/qr', qrCtrl.showQRPage);
 router.post('/qr/generate', qrCtrl.generateQRCode);
 router.post('/qr/regenerate', qrCtrl.regenerateQRCode);
+router.post('/qr/arrival/regenerate', qrCtrl.regenerateArrivalQRCode);
 
 // Promotions
 router.get('/promotions', promoCtrl.showPromotions);

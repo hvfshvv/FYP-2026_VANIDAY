@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const authModel = require('../models/authModel');
+const qrService = require('../services/qrService');
 
 const ALLOWED_ROLES = ['customer', 'merchant'];
 
@@ -203,7 +204,7 @@ async function register(req, res) {
         });
       }
 
-      await authModel.createMerchantProfile(
+      const merchantId = await authModel.createMerchantProfile(
         userId,
         merchant_name.trim(),
         email,
@@ -211,6 +212,8 @@ async function register(req, res) {
         address || '',
         business_uen
       );
+
+      await qrService.ensureMerchantQRCodes(merchantId);
     }
 
     if (safeRole === 'merchant') {
