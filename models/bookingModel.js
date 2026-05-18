@@ -1,48 +1,133 @@
 const db = require('../config/db');
 
 async function createBooking({ customerId, serviceId, merchantId, bookingDate, bookingTime, source }) {
-  // Confirm the selected service belongs to the selected merchant before pricing.
-  const [[svc]] = await db.query(
-    'SELECT price, duration_mins FROM service WHERE service_id = ? AND merchant_id = ? AND is_active = 1',
-    [serviceId, merchantId]
-  );
-  if (!svc) {
-    throw new Error('Selected service is not available for this merchant');
-  }
+  const connection = await db.getConnection();
 
-  // find an existing available slot or create one
-  const [existing] = await db.query(
-    `SELECT slot_id FROM time_slot
-     WHERE merchant_id=? AND service_id=? AND slot_date=? AND start_time=? AND is_available=TRUE
-     LIMIT 1`,
-    [merchantId, serviceId, bookingDate, bookingTime]
-  );
+  try {
+    await connection.beginTransaction();
+    await lockCustomerForBooking(connection, customerId);
 
-  let slotId;
-  if (existing.length) {
-    slotId = existing[0].slot_id;
-    await db.query('UPDATE time_slot SET is_available=FALSE WHERE slot_id=?', [slotId]);
-  } else {
-    const [slotResult] = await db.query(
-      `INSERT INTO time_slot (merchant_id, service_id, staff_id, slot_date, start_time, end_time, is_available)
-       VALUES (?,?,NULL,?,?,ADDTIME(?,SEC_TO_TIME(?*60)),FALSE)`,
-      [merchantId, serviceId, bookingDate, bookingTime, bookingTime, svc.duration_mins]
+    // Confirm the selected service belongs to the selected merchant before pricing.
+    const [[svc]] = await connection.query(
+      'SELECT price, duration_mins FROM service WHERE service_id = ? AND merchant_id = ? AND is_active = 1',
+      [serviceId, merchantId]
     );
-    slotId = slotResult.insertId;
+    if (!svc) {
+      throw new Error('Selected service is not available for this merchant');
+    }
+
+    await assertNoCustomerBookingConflict(connection, {
+      customerId,
+      bookingDate,
+      bookingTime,
+      durationMins: svc.duration_mins,
+    });
+
+    // Find an existing available slot or create one.
+    const [existing] = await connection.query(
+      `SELECT slot_id FROM time_slot
+       WHERE merchant_id=? AND service_id=? AND slot_date=? AND start_time=? AND is_available=TRUE
+       LIMIT 1
+       FOR UPDATE`,
+      [merchantId, serviceId, bookingDate, bookingTime]
+    );
+
+    let slotId;
+    if (existing.length) {
+      slotId = existing[0].slot_id;
+      await connection.query('UPDATE time_slot SET is_available=FALSE WHERE slot_id=?', [slotId]);
+    } else {
+      const [conflicting] = await connection.query(
+        `SELECT slot_id
+         FROM time_slot
+         WHERE merchant_id = ? AND service_id = ? AND slot_date = ? AND start_time = ? AND is_available = FALSE
+         LIMIT 1
+         FOR UPDATE`,
+        [merchantId, serviceId, bookingDate, bookingTime]
+      );
+
+      if (conflicting.length) {
+        throw new Error('That time slot is already booked');
+      }
+
+      const [slotResult] = await connection.query(
+        `INSERT INTO time_slot (merchant_id, service_id, staff_id, slot_date, start_time, end_time, is_available)
+         VALUES (?,?,NULL,?,?,ADDTIME(?,SEC_TO_TIME(?*60)),FALSE)`,
+        [merchantId, serviceId, bookingDate, bookingTime, bookingTime, svc.duration_mins]
+      );
+      slotId = slotResult.insertId;
+    }
+
+    const mappedSource = source === 'qr_scan' ? 'qr' : source === 'portal' ? 'web' : source;
+    const allowedSources = ['web', 'qr', 'marketplace'];
+    const safeSource = allowedSources.includes(mappedSource) ? mappedSource : 'web';
+    const mappedBookingType = safeSource === 'qr' ? 'walk_in' : 'advance';
+
+    const [result] = await connection.query(
+      `INSERT INTO booking
+         (customer_id, merchant_id, service_id, staff_id, slot_id, booking_type, source, status, total_amount)
+       VALUES (?,?,?,NULL,?,?,?,'pending_payment',?)`,
+      [customerId, merchantId, serviceId, slotId, mappedBookingType, safeSource, svc.price]
+    );
+
+    await connection.commit();
+    return result.insertId;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+async function lockCustomerForBooking(connection, customerId) {
+  const [[customer]] = await connection.query(
+    'SELECT user_id FROM users WHERE user_id = ? FOR UPDATE',
+    [customerId]
+  );
+
+  if (!customer) {
+    throw new Error('Customer account not found');
+  }
+}
+
+async function assertNoCustomerBookingConflict(connection, {
+  customerId,
+  bookingDate,
+  bookingTime,
+  durationMins,
+  excludeBookingId = null,
+}) {
+  let query = `
+    SELECT b.booking_id, ts.start_time, ts.end_time, s.service_name, m.merchant_name
+    FROM booking b
+    JOIN time_slot ts ON b.slot_id = ts.slot_id
+    JOIN service s ON b.service_id = s.service_id
+    JOIN merchant m ON b.merchant_id = m.merchant_id
+    WHERE b.customer_id = ?
+      AND b.status IN ('pending_payment', 'confirmed', 'arrived')
+      AND ts.slot_date = ?
+      AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
+      AND ts.end_time > ?
+  `;
+  const params = [customerId, bookingDate, bookingTime, durationMins, bookingTime];
+
+  if (excludeBookingId) {
+    query += ' AND b.booking_id <> ?';
+    params.push(excludeBookingId);
   }
 
-  const mappedSource = source === 'qr_scan' ? 'qr' : source === 'portal' ? 'web' : source;
-  const allowedSources = ['web', 'qr', 'marketplace'];
-  const safeSource = allowedSources.includes(mappedSource) ? mappedSource : 'web';
-  const mappedBookingType = safeSource === 'qr' ? 'walk_in' : 'advance';
+  query += ' LIMIT 1 FOR UPDATE';
 
-  const [result] = await db.query(
-    `INSERT INTO booking
-       (customer_id, merchant_id, service_id, staff_id, slot_id, booking_type, source, status, total_amount)
-     VALUES (?,?,?,NULL,?,?,?,'pending_payment',?)`,
-    [customerId, merchantId, serviceId, slotId, mappedBookingType, safeSource, svc.price]
-  );
-  return result.insertId;
+  const [[conflict]] = await connection.query(query, params);
+
+  if (conflict) {
+    const start = String(conflict.start_time).slice(0, 5);
+    const end = String(conflict.end_time).slice(0, 5);
+    throw new Error(
+      `You already have a booking at ${conflict.merchant_name} (${conflict.service_name}) from ${start} to ${end}. Please choose a different time.`
+    );
+  }
 }
 
 async function getBookingById(bookingId) {
@@ -187,6 +272,7 @@ async function cancelCustomerBooking(bookingId, customerId) {
 
   try {
     await connection.beginTransaction();
+    await lockCustomerForBooking(connection, customerId);
 
     const [[booking]] = await connection.query(
       `SELECT b.booking_id, b.slot_id, b.status, ts.slot_date, ts.start_time
@@ -261,6 +347,14 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
       await connection.commit();
       return;
     }
+
+    await assertNoCustomerBookingConflict(connection, {
+      customerId,
+      bookingDate,
+      bookingTime,
+      durationMins: booking.duration_mins,
+      excludeBookingId: bookingId,
+    });
 
     const [existing] = await connection.query(
       `SELECT slot_id, is_available

@@ -59,7 +59,26 @@ async function confirmPortalBooking(req, res) {
     res.redirect(`/payment/checkout/${bookingId}`);
   } catch (err) {
     console.error(err);
-    res.redirect('/');
+    const merchant = merchant_id ? await merchantModel.getMerchantById(merchant_id).catch(() => null) : null;
+    const serviceList = merchant_id ? await merchantModel.getMerchantServices(merchant_id).catch(() => []) : [];
+    const selectedService =
+      serviceList.find(s => String(s.service_id) === String(service_id)) ||
+      serviceList[0] ||
+      {};
+    const staff = selectedService?.service_id
+      ? await staffModel.getStaffByService(selectedService.service_id, merchant_id).catch(() => [])
+      : [];
+
+    res.status(400).render('booking/book', {
+      title: 'Complete Your Booking',
+      merchant,
+      serviceList,
+      selectedService,
+      staff,
+      merchantName: merchant?.merchant_name || '',
+      merchantAddress: merchant?.address || '',
+      error: err.message || 'Booking failed. Please try again.',
+    });
   }
 }
 
@@ -190,6 +209,7 @@ async function showPortalBookingPage(req, res) {
       staff,
       merchantName: merchant?.merchant_name || '',
       merchantAddress: merchant?.address || '',
+      error: null,
     });
   } catch (err) {
     console.error(err);
@@ -263,7 +283,12 @@ async function confirmBooking(req, res) {
     console.error(err);
     const qr      = await qrModel.getQRByToken(token).catch(() => null);
     const services = qr ? await merchantModel.getMerchantServices(qr.merchant_id).catch(() => []) : [];
-    res.render('booking/page', { title: 'Book Appointment', qr, services, error: 'Booking failed. Please try again.' });
+    res.status(400).render('booking/page', {
+      title: 'Book Appointment',
+      qr,
+      services,
+      error: err.message || 'Booking failed. Please try again.',
+    });
   }
 }
 
