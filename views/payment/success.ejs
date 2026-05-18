@@ -44,15 +44,30 @@
             </p>
           </div>
 
+          <% if (booking && !booking.customer_id) { %>
+          <div class="p-3 rounded-xl mb-4" style="background:var(--warn-bg);border:1.5px solid rgba(245,158,11,.2);">
+            <p class="small mb-0" style="color:var(--warn);">
+              <i class="bi bi-info-circle me-1"></i>
+              This was booked as a guest. It will not appear in member booking history and does not earn loyalty points.
+            </p>
+          </div>
+          <% } %>
+
           <% if (booking && typeof payment !== 'undefined' && payment && payment.payment_status === 'paid') { %>
           <a href="/payment/receipt/<%= booking.booking_id %>.pdf" class="btn btn-outline-secondary btn-pill w-100 py-2 mb-2" download>
             <i class="bi bi-download me-2"></i>Download Receipt
           </a>
           <% } %>
 
+          <% if (booking && booking.customer_id) { %>
           <a href="/book/viewBookings" class="btn btn-primary btn-pill w-100 py-2">
             <i class="bi bi-calendar-check me-2"></i>View Bookings
           </a>
+          <% } else { %>
+          <a href="/marketplace" class="btn btn-primary btn-pill w-100 py-2">
+            <i class="bi bi-grid me-2"></i>Back to Marketplace
+          </a>
+          <% } %>
         </div>
       </div>
     </div>

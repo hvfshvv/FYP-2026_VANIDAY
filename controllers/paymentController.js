@@ -10,6 +10,17 @@ const {
 const { buildReceiptPdf } = require('../services/receiptPdfService');
 const bookingModel = require('../models/bookingModel');
 const paymentModel = require('../models/paymentModel');
+const loyaltyModel = require('../models/loyaltyModel');
+
+async function confirmPaidBooking(bookingId) {
+  await bookingModel.updateBookingStatus(bookingId, 'confirmed');
+
+  try {
+    await loyaltyModel.awardBookingPoints(bookingId);
+  } catch (err) {
+    console.error('loyalty award failed:', err);
+  }
+}
 
 async function showCheckout(req, res) {
   const { bookingId } = req.params;
@@ -85,7 +96,7 @@ async function persistStripePaymentIntent(intent) {
 
   await paymentModel.updateStripePaymentDetails(bookingId, details);
   if (details.paymentStatus === 'paid') {
-    await bookingModel.updateBookingStatus(bookingId, 'confirmed');
+    await confirmPaidBooking(bookingId);
   }
 
   return { bookingId, details };
@@ -127,7 +138,7 @@ async function persistCheckoutSession(session) {
 
   await paymentModel.updateStripePaymentDetails(bookingId, details);
   if (details.paymentStatus === 'paid') {
-    await bookingModel.updateBookingStatus(bookingId, 'confirmed');
+    await confirmPaidBooking(bookingId);
   }
   return { bookingId, details };
 }
@@ -342,3 +353,4 @@ module.exports = {
   paymentSuccess,
   downloadReceipt,
 };
+

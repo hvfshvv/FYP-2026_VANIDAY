@@ -1,4 +1,11 @@
 <% locals.hideCatNav = true %>
+<%
+  const state = typeof formState !== 'undefined' && formState ? formState : {};
+  const loggedInCustomer = typeof user !== 'undefined' && user && user.role === 'customer';
+  const selectedServiceId = state.service_id || '';
+  const selectedDate = state.booking_date || '';
+  const selectedBookingTime = state.booking_time ? String(state.booking_time).slice(0,5) : '';
+%>
 <%- include('../partials/header') %>
 
 <div class="container py-4" style="max-width:900px;">
@@ -71,6 +78,7 @@
                 data-service-name="<%= s.service_name %>"
                 data-price="<%= s.price %>"
                 data-duration="<%= s.duration_mins %>"
+                data-selected="<%= String(s.service_id) === String(selectedServiceId) ? '1' : '0' %>"
                 onclick="selectService(this)">
                 <div>
                   <p style="font-weight:700;margin-bottom:.1rem;color:var(--ink);"><%= s.service_name %></p>
@@ -102,7 +110,7 @@
               <div class="mb-4">
                 <label class="form-label" style="font-weight:600;font-size:.875rem;">Date</label>
                 <input type="date" name="booking_date" id="booking_date" class="form-control rounded-xl"
-                  min="<%= new Date().toISOString().slice(0,10) %>" required onchange="validateBookingDate(); updateAvailableTimes(); updateSummary()" />
+                  min="<%= new Date().toISOString().slice(0,10) %>" value="<%= selectedDate %>" required onchange="validateBookingDate(); updateAvailableTimes(); updateSummary(); updateAuthLinks()" />
               </div>
 
               <div class="mb-3">
@@ -131,7 +139,7 @@
             <div class="step-panel" id="step-3">
               <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">Your Details</h5>
               <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">
-                <% if (user) { %>
+                <% if (loggedInCustomer) { %>
                 <i class="bi bi-person-check-fill me-1" style="color:var(--success);"></i>
                 Logged in as <strong><%= user.full_name %></strong> — details pre-filled for you.
                 <% } else { %>
@@ -139,27 +147,61 @@
                 <% } %>
               </p>
 
+              <% if (!loggedInCustomer) { %>
+              <div class="p-3 rounded-xl mb-3" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.15);">
+                <p style="font-weight:700;color:var(--accent);font-size:.875rem;margin-bottom:.35rem;">
+                  <i class="bi bi-stars me-1"></i>Member benefits
+                </p>
+                <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.75rem;">Guest bookings are confirmed after payment, but they do not appear in member booking history and do not earn loyalty points.</p>
+                <div class="d-flex flex-column gap-2">
+                  <label style="font-size:.875rem;color:var(--ink);font-weight:600;">
+                    <input type="radio" name="booking_mode" value="guest" <%= state.booking_mode !== 'register' ? 'checked' : '' %> />
+                    Continue as guest
+                  </label>
+                  <label style="font-size:.875rem;color:var(--ink);font-weight:600;">
+                    <input type="radio" name="booking_mode" value="register" <%= state.booking_mode === 'register' ? 'checked' : '' %> />
+                    Create an account before payment
+                  </label>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                  <a href="<%= loginUrl %>" id="loginForPointsLink" class="btn btn-outline-secondary btn-sm btn-pill">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>Log in for points
+                  </a>
+                  <a href="<%= registerUrl %>" id="registerForPointsLink" class="btn btn-outline-secondary btn-sm btn-pill">
+                    <i class="bi bi-person-plus me-1"></i>Register
+                  </a>
+                </div>
+              </div>
+              <div id="member-email-warning" class="rounded-xl p-3 mb-3" style="display:none;background:var(--warn-bg);color:var(--warn);font-size:.875rem;">
+                <i class="bi bi-exclamation-circle me-2"></i>
+                This email is already registered. Please log in to continue and earn loyalty points.
+              </div>
+              <% } %>
+
               <div class="mb-3">
                 <label class="form-label" style="font-weight:600;font-size:.875rem;">Full Name</label>
                 <input type="text" name="full_name" class="form-control rounded-xl"
                   placeholder="e.g. Sarah Lim"
-                  value="<%= user ? user.full_name : '' %>" required />
+                  value="<%= loggedInCustomer ? user.full_name : (state.full_name || '') %>" required />
               </div>
               <div class="mb-3">
                 <label class="form-label" style="font-weight:600;font-size:.875rem;">Phone Number</label>
                 <div class="input-group">
                   <span class="input-group-text"><i class="bi bi-telephone me-1"></i>+65</span>
                   <input type="text" name="phone" class="form-control" placeholder="9XXXXXXX"
-                    value="<%= user && user.phone ? user.phone.replace('+65','').trim() : '' %>" required />
+                    value="<%= loggedInCustomer && user.phone ? user.phone.replace('+65','').trim() : (state.phone || '') %>" required />
                 </div>
               </div>
               <div class="mb-4">
                 <label class="form-label" style="font-weight:600;font-size:.875rem;">
                   Email <span style="color:var(--muted);font-weight:400;font-size:.8125rem;">(confirmation sent here)</span>
                 </label>
-                <input type="email" name="email" class="form-control rounded-xl"
+                <input type="email" name="email" id="booking_email" class="form-control rounded-xl"
                   placeholder="you@example.com"
-                  value="<%= user ? user.email : '' %>" required />
+                  value="<%= loggedInCustomer ? user.email : (state.email || '') %>" <%= loggedInCustomer ? 'readonly' : '' %> required />
+                <% if (loggedInCustomer) { %>
+                <p style="color:var(--muted);font-size:.75rem;margin:.4rem 0 0;">Member bookings use your logged-in account email.</p>
+                <% } %>
               </div>
 
               <!-- Booking summary before submit -->
@@ -248,6 +290,9 @@
 <script>
 let selectedService = null;
 let selectedTime    = null;
+const initialServiceId = '<%= selectedServiceId %>';
+const initialTime = '<%= selectedBookingTime %>';
+const loggedInCustomer = <%= loggedInCustomer ? 'true' : 'false' %>;
 
 function pad2(value) {
   return String(value).padStart(2, '0');
@@ -360,6 +405,7 @@ function selectService(el) {
   document.getElementById('hidden_service_id').value = selectedService.id;
   updateAvailableTimes();
   updateSummary();
+  updateAuthLinks();
 }
 
 function selectTime(el, time) {
@@ -373,6 +419,7 @@ function selectTime(el, time) {
   document.getElementById('hidden_booking_time').value = time;
   clearStep2Error();
   updateSummary();
+  updateAuthLinks();
 }
 
 function updateSummary() {
@@ -401,6 +448,22 @@ function updateSummary() {
     document.getElementById('sum-time').style.cssText   = 'color:var(--muted);';
     document.getElementById('confirm-time').textContent = '—';
   }
+}
+
+function updateAuthLinks() {
+  const loginLink = document.getElementById('loginForPointsLink');
+  const registerLink = document.getElementById('registerForPointsLink');
+  if (!loginLink && !registerLink) return;
+
+  const params = new URLSearchParams();
+  if (selectedService && selectedService.id) params.set('serviceId', selectedService.id);
+  const dateValue = document.getElementById('booking_date').value;
+  if (dateValue) params.set('bookingDate', dateValue);
+  if (selectedTime) params.set('bookingTime', selectedTime);
+
+  const next = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+  if (loginLink) loginLink.href = '/auth/login?next=' + encodeURIComponent(next);
+  if (registerLink) registerLink.href = '/auth/register?next=' + encodeURIComponent(next);
 }
 
 function setStep(n) {
@@ -441,8 +504,44 @@ function nextStep(current) {
 }
 function prevStep(current) { setStep(current - 1); }
 
+const initialServiceCard = initialServiceId
+  ? document.querySelector('.service-card[data-service-id="' + initialServiceId + '"]')
+  : document.querySelector('.service-card[data-selected="1"]');
+
+if (initialServiceCard) {
+  selectService(initialServiceCard);
+}
+
 validateBookingDate();
-updateAvailableTimes();
+updateAvailableTimes().then(() => {
+  if (!initialTime) return;
+  const initialTimeButton = document.querySelector('.time-btn[data-time="' + initialTime + '"]');
+  if (initialTimeButton) selectTime(initialTimeButton, initialTime);
+});
+
+const emailInput = document.getElementById('booking_email');
+if (emailInput && !loggedInCustomer) {
+  let emailCheckTimer = null;
+  emailInput.addEventListener('input', function() {
+    clearTimeout(emailCheckTimer);
+    const warning = document.getElementById('member-email-warning');
+    if (warning) warning.style.display = 'none';
+
+    emailCheckTimer = setTimeout(async () => {
+      if (!emailInput.value || !emailInput.checkValidity()) return;
+      try {
+        const response = await fetch('/book/api/email-member?email=' + encodeURIComponent(emailInput.value));
+        const result = await response.json();
+        if (result.exists && result.isCustomer && warning) {
+          warning.style.display = 'block';
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }, 350);
+  });
+}
+
 document.getElementById('bookingForm').addEventListener('submit', function(event) {
   if (!validateSelectedDateTime()) {
     event.preventDefault();

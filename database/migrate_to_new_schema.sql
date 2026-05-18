@@ -182,7 +182,10 @@ CREATE TABLE IF NOT EXISTS featured_listing (
 
 CREATE TABLE IF NOT EXISTS booking (
     booking_id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT NOT NULL,
+    customer_id INT NULL,
+    guest_name VARCHAR(150) NULL,
+    guest_email VARCHAR(150) NULL,
+    guest_phone VARCHAR(30) NULL,
     merchant_id INT NOT NULL,
     service_id INT NOT NULL,
     staff_id INT NULL,
@@ -263,6 +266,7 @@ CREATE TABLE IF NOT EXISTS loyalty_transaction (
     cashback_amount DECIMAL(10,2),
     description VARCHAR(255),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_loyalty_booking_transaction (booking_id, transaction_type),
     FOREIGN KEY (wallet_id) REFERENCES loyalty_wallet(wallet_id),
     FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
 );

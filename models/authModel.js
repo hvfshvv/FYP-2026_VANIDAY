@@ -5,6 +5,19 @@ async function findUserByEmail(email) {
   return rows[0] || null;
 }
 
+async function findCustomerUserByEmail(email) {
+  const [rows] = await db.query(
+    `SELECT u.*, c.customer_id
+     FROM users u
+     JOIN customer c ON c.user_id = u.user_id
+     WHERE u.email = ?
+       AND u.role = 'customer'
+     LIMIT 1`,
+    [email]
+  );
+  return rows[0] || null;
+}
+
 async function createUser(full_name, email, passwordHash, phone, role) {
   const [result] = await db.query(
     'INSERT INTO users (full_name, email, password_hash, phone, role) VALUES (?,?,?,?,?)',
@@ -63,6 +76,7 @@ async function getMerchantByUserId(userId) {
 
 module.exports = {
   findUserByEmail,
+  findCustomerUserByEmail,
   createUser,
   createCustomerProfile,
   createMerchantProfile,

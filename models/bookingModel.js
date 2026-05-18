@@ -1,11 +1,24 @@
 const db = require('../config/db');
 
-async function createBooking({ customerId, serviceId, merchantId, bookingDate, bookingTime, source }) {
+async function createBooking({
+  customerId = null,
+  serviceId,
+  merchantId,
+  bookingDate,
+  bookingTime,
+  source,
+  guestName = null,
+  guestEmail = null,
+  guestPhone = null,
+}) {
   const connection = await db.getConnection();
 
   try {
     await connection.beginTransaction();
-    await lockCustomerForBooking(connection, customerId);
+
+    if (customerId) {
+      await lockCustomerForBooking(connection, customerId);
+    }
 
     // Confirm the selected service belongs to the selected merchant before pricing.
     const [[svc]] = await connection.query(
@@ -16,12 +29,14 @@ async function createBooking({ customerId, serviceId, merchantId, bookingDate, b
       throw new Error('Selected service is not available for this merchant');
     }
 
-    await assertNoCustomerBookingConflict(connection, {
-      customerId,
-      bookingDate,
-      bookingTime,
-      durationMins: svc.duration_mins,
-    });
+    if (customerId) {
+      await assertNoCustomerBookingConflict(connection, {
+        customerId,
+        bookingDate,
+        bookingTime,
+        durationMins: svc.duration_mins,
+      });
+    }
 
     // Find an existing available slot or create one.
     const [existing] = await connection.query(
@@ -65,9 +80,20 @@ async function createBooking({ customerId, serviceId, merchantId, bookingDate, b
 
     const [result] = await connection.query(
       `INSERT INTO booking
-         (customer_id, merchant_id, service_id, staff_id, slot_id, booking_type, source, status, total_amount)
-       VALUES (?,?,?,NULL,?,?,?,'pending_payment',?)`,
-      [customerId, merchantId, serviceId, slotId, mappedBookingType, safeSource, svc.price]
+         (customer_id, guest_name, guest_email, guest_phone, merchant_id, service_id, staff_id, slot_id, booking_type, source, status, total_amount)
+       VALUES (?,?,?,?,?,?,NULL,?,?,?,'pending_payment',?)`,
+      [
+        customerId,
+        guestName,
+        guestEmail,
+        guestPhone,
+        merchantId,
+        serviceId,
+        slotId,
+        mappedBookingType,
+        safeSource,
+        svc.price,
+      ]
     );
 
     await connection.commit();
@@ -138,13 +164,14 @@ async function getBookingById(bookingId) {
             s.service_name, s.price, s.duration_mins,
             COALESCE(b.total_amount, s.price) AS payable_amount,
             m.merchant_name,
-            c.full_name   AS customer_name,
-            c.phone       AS customer_phone
+            COALESCE(c.full_name, b.guest_name) AS customer_name,
+            COALESCE(c.email, b.guest_email) AS customer_email,
+            COALESCE(c.phone, b.guest_phone) AS customer_phone
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
-     JOIN customer c ON b.customer_id = c.customer_id
+     LEFT JOIN customer c ON b.customer_id = c.customer_id
      WHERE b.booking_id = ?`,
     [bookingId]
   );
@@ -427,12 +454,13 @@ async function getMerchantBookings(merchantId) {
             ts.slot_date  AS booking_date,
             ts.start_time AS booking_time,
             s.service_name,
-            c.full_name   AS customer_name,
-            c.phone       AS customer_phone
+            COALESCE(c.full_name, b.guest_name) AS customer_name,
+            COALESCE(c.email, b.guest_email) AS customer_email,
+            COALESCE(c.phone, b.guest_phone) AS customer_phone
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
-     JOIN customer c ON b.customer_id = c.customer_id
+     LEFT JOIN customer c ON b.customer_id = c.customer_id
      WHERE b.merchant_id = ?
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [merchantId]
