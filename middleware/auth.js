@@ -1,7 +1,13 @@
 const authModel = require('../models/authModel');
 
+
 function requireLogin(req, res, next) {
-  if (!req.session.user) return res.redirect('/auth/login');
+  if (!req.session.user) {
+    return res.redirect(
+      '/auth/login?next=' + encodeURIComponent(req.originalUrl)
+    );
+  }
+
   next();
 }
 
