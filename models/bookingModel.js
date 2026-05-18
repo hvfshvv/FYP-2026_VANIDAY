@@ -59,7 +59,7 @@ async function createBooking({ customerId, serviceId, merchantId, bookingDate, b
     }
 
     const mappedSource = source === 'qr_scan' ? 'qr' : source === 'portal' ? 'web' : source;
-    const allowedSources = ['web', 'qr', 'marketplace'];
+    const allowedSources = ['web', 'qr', 'marketplace', 'whatsapp'];
     const safeSource = allowedSources.includes(mappedSource) ? mappedSource : 'web';
     const mappedBookingType = safeSource === 'qr' ? 'walk_in' : 'advance';
 
@@ -82,7 +82,7 @@ async function createBooking({ customerId, serviceId, merchantId, bookingDate, b
 
 async function lockCustomerForBooking(connection, customerId) {
   const [[customer]] = await connection.query(
-    'SELECT user_id FROM users WHERE user_id = ? FOR UPDATE',
+    'SELECT customer_id FROM customer WHERE customer_id = ? FOR UPDATE',
     [customerId]
   );
 
@@ -138,13 +138,13 @@ async function getBookingById(bookingId) {
             s.service_name, s.price, s.duration_mins,
             COALESCE(b.total_amount, s.price) AS payable_amount,
             m.merchant_name,
-            c.full_name   AS customer_name,
-            c.phone       AS customer_phone
+            u.full_name   AS customer_name,
+            u.phone       AS customer_phone
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
-     JOIN customer c ON b.customer_id = c.customer_id
+     JOIN users     u  ON b.customer_id = u.user_id
      WHERE b.booking_id = ?`,
     [bookingId]
   );
@@ -427,12 +427,12 @@ async function getMerchantBookings(merchantId) {
             ts.slot_date  AS booking_date,
             ts.start_time AS booking_time,
             s.service_name,
-            c.full_name   AS customer_name,
-            c.phone       AS customer_phone
+            u.full_name   AS customer_name,
+            u.phone       AS customer_phone
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
-     JOIN customer c ON b.customer_id = c.customer_id
+     JOIN users     u  ON b.customer_id = u.user_id
      WHERE b.merchant_id = ?
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [merchantId]
