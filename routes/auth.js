@@ -4,6 +4,10 @@ const ctrl    = require('../controllers/authController');
 
 router.get('/login',    ctrl.showLogin);
 router.post('/login',   ctrl.login);
+router.get('/forgot-password', ctrl.showForgotPassword);
+router.post('/forgot-password', ctrl.requestPasswordReset);
+router.get('/reset-password/:token', ctrl.showResetPassword);
+router.post('/reset-password/:token', ctrl.resetPassword);
 router.get('/start',    ctrl.showStartpage);
 router.get('/register', ctrl.showRegister);
 router.post('/register', ctrl.register);

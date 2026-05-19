@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const crypto = require('crypto');
 
 async function findUserByEmail(email) {
   const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -74,6 +75,69 @@ async function getMerchantByUserId(userId) {
   return rows[0] || null;
 }
 
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+async function createPasswordResetToken(userId) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashResetToken(token);
+
+  await db.query(
+    `INSERT INTO password_reset_token (user_id, token_hash, expires_at)
+     VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))`,
+    [userId, tokenHash]
+  );
+
+  return token;
+}
+
+async function getValidPasswordResetToken(token) {
+  const tokenHash = hashResetToken(token);
+  const [rows] = await db.query(
+    `SELECT prt.*, u.email, u.full_name
+     FROM password_reset_token prt
+     JOIN users u ON u.user_id = prt.user_id
+     WHERE prt.token_hash = ?
+       AND prt.used_at IS NULL
+       AND prt.expires_at > NOW()
+     LIMIT 1`,
+    [tokenHash]
+  );
+
+  return rows[0] || null;
+}
+
+async function resetUserPassword(token, passwordHash) {
+  const resetToken = await getValidPasswordResetToken(token);
+  if (!resetToken) {
+    throw new Error('Reset link is invalid or expired.');
+  }
+
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    await connection.query(
+      'UPDATE users SET password_hash = ? WHERE user_id = ?',
+      [passwordHash, resetToken.user_id]
+    );
+
+    await connection.query(
+      'UPDATE password_reset_token SET used_at = NOW() WHERE reset_id = ?',
+      [resetToken.reset_id]
+    );
+
+    await connection.commit();
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   findUserByEmail,
   findCustomerUserByEmail,
@@ -83,4 +147,7 @@ module.exports = {
   getCustomerByUserId,
   ensureCustomerProfile,
   getMerchantByUserId,
+  createPasswordResetToken,
+  getValidPasswordResetToken,
+  resetUserPassword,
 };
