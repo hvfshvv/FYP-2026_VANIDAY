@@ -65,6 +65,12 @@
       </a>
     </div>
 
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="rounded-xl p-3 mb-4" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+        <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+      </div>
+    <% } %>
+
     <form action="/book/confirm" method="POST" class="row g-4">
       <input type="hidden" name="merchant_id" value="<%= merchant ? merchant.merchant_id : '' %>" />
 

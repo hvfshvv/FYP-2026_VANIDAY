@@ -1,75 +1,112 @@
 <% locals.hideCatNav = true %>
 <%- include('../partials/header') %>
 
-<div class="container py-5" style="max-width:900px;">
+<div class="container py-5" style="max-width:1080px;">
   <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
     <i class="bi bi-arrow-left me-1"></i>Dashboard
   </a>
-  <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">QR Code Management</h2>
-  <p style="color:var(--muted);margin-bottom:2rem;">Generate a unique QR code — display it at your shop or share it online. Customers scan it to book instantly with no app needed.</p>
 
-  <div class="row g-4">
-    <!-- QR Code Display -->
-    <div class="col-md-6">
-      <% if (qr) { %>
-      <div class="card border-0 text-center p-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
-        <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
-          <i class="bi bi-check-circle-fill" style="color:var(--success);font-size:1.1rem;"></i>
-          <p style="font-weight:700;color:var(--success);margin-bottom:0;font-size:.9375rem;">Your Active QR Code</p>
+  <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">QR Code Management</h2>
+  <p style="color:var(--muted);margin-bottom:2rem;max-width:780px;">
+    Use separate merchant-specific QR codes for booking and arrival confirmation. Print the booking QR where customers discover services, and place the arrival QR at your counter.
+  </p>
+
+  <div class="row g-4 align-items-start">
+    <div class="col-lg-7">
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="card border-0 text-center p-4 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+            <% if (qr) { %>
+              <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+                <i class="bi bi-check-circle-fill" style="color:var(--success);font-size:1.1rem;"></i>
+                <p style="font-weight:800;color:var(--success);margin-bottom:0;font-size:.9375rem;">Booking QR Code</p>
+              </div>
+              <div class="p-3 d-inline-block rounded-xl mx-auto mb-3" style="background:#fff;border:3px solid var(--accent);box-shadow:0 4px 20px rgba(225,29,72,.12);">
+                <img src="<%= qr.qr_image_path %>" alt="Booking QR Code" style="width:210px;height:210px;" />
+              </div>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">Customers scan this to open your booking page.</p>
+              <a href="<%= qr.qr_image_path %>" download="uniday-merchant-<%= qr.merchant_id %>-booking-qr.png" class="btn btn-primary btn-pill w-100 mb-2">
+                <i class="bi bi-download me-2"></i>Download Booking QR
+              </a>
+              <form action="/merchant/qr/regenerate" method="POST">
+                <button type="submit" class="btn btn-outline-secondary btn-pill w-100 btn-sm"
+                  onclick="return confirm('Regenerating will deactivate your old booking QR code. Continue?')">
+                  <i class="bi bi-arrow-clockwise me-1"></i>Regenerate Booking QR
+                </button>
+              </form>
+              <div class="mt-3 p-2 rounded-xl text-start" style="background:var(--accent-light);">
+                <p style="font-size:.75rem;color:var(--accent);margin-bottom:.1rem;"><i class="bi bi-link-45deg me-1"></i>Booking URL</p>
+                <p style="font-size:.78rem;font-family:var(--font-mono);font-weight:600;color:var(--ink);margin-bottom:0;word-break:break-all;"><%= qr.qr_url %></p>
+              </div>
+            <% } else { %>
+              <div class="icon-circle-lg mx-auto mb-3">
+                <i class="bi bi-qr-code" style="font-size:2rem;color:var(--accent);"></i>
+              </div>
+              <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;">No Booking QR Yet</h5>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">Generate your booking QR to receive customer bookings.</p>
+              <form action="/merchant/qr/generate" method="POST">
+                <button type="submit" class="btn btn-primary btn-lg btn-pill w-100">
+                  <i class="bi bi-qr-code-scan me-2"></i>Generate Booking QR
+                </button>
+              </form>
+            <% } %>
+          </div>
         </div>
-        <div class="p-3 d-inline-block rounded-xl mx-auto mb-3" style="background:#fff;border:3px solid var(--accent);box-shadow:0 4px 20px rgba(225,29,72,.12);">
-          <img src="<%= qr.qr_image_path %>" alt="QR Code" style="width:220px;height:220px;" />
-        </div>
-        <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">Customers scan this to access your booking page instantly.</p>
-        <a href="<%= qr.qr_image_path %>" download="uniday-qr.png" class="btn btn-primary btn-pill w-100 mb-2">
-          <i class="bi bi-download me-2"></i>Download QR Code
-        </a>
-        <form action="/merchant/qr/regenerate" method="POST">
-          <button type="submit" class="btn btn-outline-secondary btn-pill w-100 btn-sm"
-            onclick="return confirm('Regenerating will deactivate your old QR code. Continue?')">
-            <i class="bi bi-arrow-clockwise me-1"></i>Regenerate
-          </button>
-        </form>
-        <div class="mt-3 p-2 rounded-xl text-start" style="background:var(--accent-light);">
-          <p style="font-size:.75rem;color:var(--accent);margin-bottom:.1rem;"><i class="bi bi-link-45deg me-1"></i>Booking URL</p>
-          <p style="font-size:.8125rem;font-family:var(--font-mono);font-weight:600;color:var(--ink);margin-bottom:0;word-break:break-all;">/book/<%= qr.qr_token %></p>
+
+        <div class="col-md-6">
+          <div class="card border-0 text-center p-4 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+            <% if (arrivalQr) { %>
+              <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+                <i class="bi bi-person-check-fill" style="color:var(--accent);font-size:1.1rem;"></i>
+                <p style="font-weight:800;color:var(--accent);margin-bottom:0;font-size:.9375rem;">Arrival Confirmation QR Code</p>
+              </div>
+              <div class="p-3 d-inline-block rounded-xl mx-auto mb-3" style="background:#fff;border:3px solid var(--accent);box-shadow:0 4px 20px rgba(225,29,72,.12);">
+                <img src="<%= arrivalQr.qr_image_path %>" alt="Arrival Confirmation QR Code" style="width:210px;height:210px;" />
+              </div>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">Customers scan this when they arrive for today's confirmed booking.</p>
+              <a href="<%= arrivalQr.qr_image_path %>" download="uniday-merchant-<%= arrivalQr.merchant_id %>-arrival-qr.png" class="btn btn-primary btn-pill w-100 mb-2">
+                <i class="bi bi-download me-2"></i>Download Arrival QR
+              </a>
+              <form action="/merchant/qr/arrival/regenerate" method="POST">
+                <button type="submit" class="btn btn-outline-secondary btn-pill w-100 btn-sm"
+                  onclick="return confirm('Regenerating will deactivate your old arrival QR code. Continue?')">
+                  <i class="bi bi-arrow-clockwise me-1"></i>Regenerate Arrival QR
+                </button>
+              </form>
+              <div class="mt-3 p-2 rounded-xl text-start" style="background:var(--accent-light);">
+                <p style="font-size:.75rem;color:var(--accent);margin-bottom:.1rem;"><i class="bi bi-link-45deg me-1"></i>Arrival URL</p>
+                <p style="font-size:.78rem;font-family:var(--font-mono);font-weight:600;color:var(--ink);margin-bottom:0;word-break:break-all;"><%= arrivalQr.qr_url %></p>
+              </div>
+            <% } else { %>
+              <div class="icon-circle-lg mx-auto mb-3">
+                <i class="bi bi-person-check" style="font-size:2rem;color:var(--accent);"></i>
+              </div>
+              <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;">No Arrival QR Yet</h5>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">Reload this page to automatically create your arrival QR.</p>
+            <% } %>
+          </div>
         </div>
       </div>
-      <% } else { %>
-      <div class="card border-0 text-center p-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
-        <div class="icon-circle-lg mx-auto mb-3">
-          <i class="bi bi-qr-code" style="font-size:2rem;color:var(--accent);"></i>
-        </div>
-        <h5 style="font-weight:700;color:var(--ink);margin-bottom:.5rem;">No QR Code Yet</h5>
-        <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">Generate your QR code and start receiving cashless bookings from walk-in customers.</p>
-        <form action="/merchant/qr/generate" method="POST">
-          <button type="submit" class="btn btn-primary btn-lg btn-pill w-100">
-            <i class="bi bi-qr-code-scan me-2"></i>Generate QR Code
-          </button>
-        </form>
-      </div>
-      <% } %>
     </div>
 
-    <!-- Instructions -->
-    <div class="col-md-6">
+    <div class="col-lg-5">
       <div class="card border-0 p-4 mb-3" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
-        <h6 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">
-          <i class="bi bi-list-check me-2" style="color:var(--accent);"></i>How to use your QR Code
+        <h6 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">
+          <i class="bi bi-list-check me-2" style="color:var(--accent);"></i>How to use your QR codes
         </h6>
         <div class="d-flex flex-column gap-3">
           <% [
-            ['bi-download',     'Download & Print',  'Download the QR code image and print it. Place it at your reception or shop entrance.'],
-            ['bi-share',        'Share Online',       'Share it on Instagram, WhatsApp, or embed it on your website for online visitors.'],
-            ['bi-phone',        'Customers Scan',     'Customers scan with any phone camera — no app needed. They book & pay instantly.'],
-            ['bi-person-check', 'Confirm Arrival',    'When a customer arrives, they scan again to confirm their arrival.'],
+            ['bi-calendar-plus', 'Booking QR', 'Place this on posters or social posts. It opens only your merchant booking page.'],
+            ['bi-person-check', 'Arrival QR', 'Place this at your counter. It marks the logged-in customer arrived for today only.'],
+            ['bi-shield-check', 'Merchant-specific', 'Each QR is tied to your merchant account and cannot update another merchant booking.'],
+            ['bi-arrow-clockwise', 'Regeneration', 'Regenerating one QR only deactivates that QR type, not the other one.'],
           ].forEach(([icon,title,desc]) => { %>
           <div class="d-flex gap-3 align-items-start">
             <div class="icon-circle flex-shrink-0" style="background:var(--accent-light);width:40px;height:40px;min-width:40px;">
               <i class="bi <%= icon %>" style="font-size:.9rem;color:var(--accent);"></i>
             </div>
             <div>
-              <p style="font-weight:700;font-size:.875rem;color:var(--ink);margin-bottom:.1rem;"><%= title %></p>
+              <p style="font-weight:800;font-size:.875rem;color:var(--ink);margin-bottom:.1rem;"><%= title %></p>
               <p style="color:var(--muted);font-size:.8125rem;margin-bottom:0;"><%= desc %></p>
             </div>
           </div>
@@ -79,7 +116,7 @@
       <div class="p-3 rounded-xl" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.15);">
         <p style="font-size:.8125rem;color:var(--accent);margin-bottom:0;">
           <i class="bi bi-shield-check me-1"></i>
-          <strong>Note:</strong> If you regenerate your QR code, the old one is deactivated. Update all printed materials after regenerating.
+          <strong>Note:</strong> Booking and arrival QR codes are separate. Reprint only the QR that you regenerate.
         </p>
       </div>
     </div>

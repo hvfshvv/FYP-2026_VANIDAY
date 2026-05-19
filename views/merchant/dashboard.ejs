@@ -8,11 +8,13 @@
       <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Dashboard</h2>
       <p style="color:var(--muted);margin-bottom:0;">Welcome back, <strong><%= user.full_name %></strong></p>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
-      <a href="/merchant/revenue" class="btn btn-outline-secondary btn-pill btn-sm">
+    <div class="d-flex gap-2 flex-wrap justify-content-start justify-content-md-end" style="min-width:min(100%,360px);">
+      <a href="/merchant/revenue" class="btn btn-outline-secondary btn-pill"
+         style="font-weight:800;padding:.72rem 1.15rem;min-width:150px;">
         <i class="bi bi-graph-up me-1"></i>Revenue Report
       </a>
-      <a href="/merchant/qr" class="btn btn-primary btn-pill btn-sm">
+      <a href="/merchant/qr" class="btn btn-primary btn-pill"
+         style="font-weight:800;padding:.72rem 1.15rem;min-width:150px;">
         <i class="bi bi-qr-code me-1"></i>My QR Code
       </a>
     </div>
@@ -51,8 +53,8 @@
   <!-- Quick Actions -->
   <div class="row g-3 mb-5">
     <% [
-      { href:'/merchant/qr',         icon:'bi-qr-code',  label:'QR Code',    sub:'Generate & share'    },
       { href:'/merchant/services',    icon:'bi-scissors', label:'My Services',sub:'Add & manage'        },
+      { href:'/merchant/bookings',    icon:'bi-calendar-check', label:'Bookings', sub:'View all'        },
       { href:'/merchant/staff',        icon:'bi-people',   label:'Staff',        sub:'Manage employees' },
       { href:'/merchant/availability', icon:'bi-clock',    label:'Availability', sub:'Set working hours' },
       { href:'/merchant/promotions',  icon:'bi-tag',      label:'Promotions', sub:'Create deals'        },
@@ -73,9 +75,6 @@
   <!-- Recent Bookings -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Bookings</h5>
-    <% if (bookings.length > 0) { %>
-    <a href="/merchant/revenue" class="btn btn-outline-secondary btn-sm btn-pill">View All</a>
-    <% } %>
   </div>
 
   <% if (bookings.length === 0) { %>
@@ -119,7 +118,7 @@
               <span style="color:var(--muted);margin-left:.25rem;"><%= String(b.booking_time).slice(0,5) %></span>
             </td>
             <td>
-              <% if (b.source === 'qr_scan') { %>
+              <% if (b.source === 'qr' || b.source === 'qr_scan') { %>
               <span class="badge" style="background:var(--accent-light);color:var(--accent);">
                 <i class="bi bi-qr-code me-1"></i>QR
               </span>
@@ -164,13 +163,6 @@
         </tbody>
       </table>
     </div>
-    <% if (bookings.length > 10) { %>
-    <div class="p-3 text-center" style="border-top:1px solid var(--border);">
-      <a href="/merchant/revenue" style="color:var(--accent);font-size:.875rem;font-weight:600;text-decoration:none;">
-        View all <%= bookings.length %> bookings <i class="bi bi-arrow-right ms-1"></i>
-      </a>
-    </div>
-    <% } %>
   </div>
   <% } %>
 </div>

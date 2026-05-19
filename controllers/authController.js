@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const authModel = require('../models/authModel');
+const qrService = require('../services/qrService');
 
 const ALLOWED_ROLES = ['customer', 'merchant'];
 
@@ -14,8 +15,18 @@ function redirectDashboard(res, user) {
   return res.redirect('/marketplace');
 }
 
+function safeNext(next) {
+  return next && next.startsWith('/') && !next.startsWith('//')
+    ? next
+    : null;
+}
+
 function showLogin(req, res) {
-  if (req.session.user) return redirectDashboard(res, req.session.user);
+  const next = safeNext(req.query.next);
+  if (req.session.user) {
+    if (req.session.user.role === 'customer' && next) return res.redirect(next);
+    return redirectDashboard(res, req.session.user);
+  }
 
   res.render('auth/login', {
     title: 'Login',
@@ -33,11 +44,16 @@ function showStartpage(req, res) {
 }
 
 function showRegister(req, res) {
-  if (req.session.user) return redirectDashboard(res, req.session.user);
+  const next = safeNext(req.query.next);
+  if (req.session.user) {
+    if (req.session.user.role === 'customer' && next) return res.redirect(next);
+    return redirectDashboard(res, req.session.user);
+  }
 
   res.render('auth/register', {
     title: 'Register',
-    error: null
+    error: null,
+    query: req.query
   });
 }
 
@@ -60,7 +76,8 @@ async function login(req, res) {
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.render('auth/login', {
         title: 'Login',
-        error: 'Invalid email or password.'
+        error: 'Invalid email or password.',
+        query: req.query
       });
     }
 
@@ -106,10 +123,10 @@ async function login(req, res) {
       return res.redirect('/admin/dashboard');
     }
 
-    const next = req.query.next;
+    const next = safeNext(req.query.next);
 
     res.redirect(
-      next && next.startsWith('/')
+      next
         ? next
         : '/marketplace'
     );
@@ -119,7 +136,8 @@ async function login(req, res) {
 
     res.render('auth/login', {
       title: 'Login',
-      error: 'Something went wrong. Please try again.'
+      error: 'Something went wrong. Please try again.',
+      query: req.query
     });
   }
 }
@@ -135,6 +153,7 @@ async function register(req, res) {
     business_uen,
     address
   } = req.body;
+  const next = safeNext(req.query.next || req.body.next);
 
   const normalizedPhone = phone && phone.trim()
     ? phone.trim()
@@ -203,7 +222,7 @@ async function register(req, res) {
         });
       }
 
-      await authModel.createMerchantProfile(
+      const merchantId = await authModel.createMerchantProfile(
         userId,
         merchant_name.trim(),
         email,
@@ -211,13 +230,15 @@ async function register(req, res) {
         address || '',
         business_uen
       );
+
+      await qrService.ensureMerchantQRCodes(merchantId);
     }
 
     if (safeRole === 'merchant') {
       return res.redirect('/auth/merchant-pending?submitted=1');
     }
 
-    res.redirect('/auth/login?registered=1');
+    res.redirect(`/auth/login?registered=1${next ? '&next=' + encodeURIComponent(next) : ''}`);
 
   } catch (err) {
     console.error(err);

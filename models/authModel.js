@@ -5,6 +5,19 @@ async function findUserByEmail(email) {
   return rows[0] || null;
 }
 
+async function findCustomerUserByEmail(email) {
+  const [rows] = await db.query(
+    `SELECT u.*, c.customer_id
+     FROM users u
+     JOIN customer c ON c.user_id = u.user_id
+     WHERE u.email = ?
+       AND u.role = 'customer'
+     LIMIT 1`,
+    [email]
+  );
+  return rows[0] || null;
+}
+
 async function createUser(full_name, email, passwordHash, phone, role) {
   const [result] = await db.query(
     'INSERT INTO users (full_name, email, password_hash, phone, role) VALUES (?,?,?,?,?)',
@@ -41,9 +54,33 @@ async function getCustomerByUserId(userId) {
   return rows[0] || null;
 }
 
+async function ensureCustomerProfile(userId, fullName, email, phone) {
+  const existing = await getCustomerByUserId(userId);
+  if (existing) return existing;
+
+  await createCustomerProfile(userId, fullName, email, phone);
+
+  return {
+    customer_id: userId,
+    user_id: userId,
+    full_name: fullName,
+    email,
+    phone,
+  };
+}
+
 async function getMerchantByUserId(userId) {
   const [rows] = await db.query('SELECT * FROM merchant WHERE user_id = ?', [userId]);
   return rows[0] || null;
 }
 
-module.exports = { findUserByEmail, createUser, createCustomerProfile,createMerchantProfile,getCustomerByUserId, getMerchantByUserId };
+module.exports = {
+  findUserByEmail,
+  findCustomerUserByEmail,
+  createUser,
+  createCustomerProfile,
+  createMerchantProfile,
+  getCustomerByUserId,
+  ensureCustomerProfile,
+  getMerchantByUserId,
+};

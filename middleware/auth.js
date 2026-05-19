@@ -1,7 +1,13 @@
 const authModel = require('../models/authModel');
 
+
 function requireLogin(req, res, next) {
-  if (!req.session.user) return res.redirect('/auth/login');
+  if (!req.session.user) {
+    return res.redirect(
+      '/auth/login?next=' + encodeURIComponent(req.originalUrl)
+    );
+  }
+
   next();
 }
 
@@ -44,4 +50,23 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { requireLogin, requireMerchant, requireAdmin };
+function blockMerchantBookingAccess(req, res, next) {
+  if (req.session.user && req.session.user.role === 'merchant') {
+    if (req.originalUrl.startsWith('/book/api/') || (req.accepts('json') && !req.accepts('html'))) {
+      return res.status(403).json({
+        error: 'Merchant accounts cannot use customer booking pages.',
+      });
+    }
+
+    return res.redirect('/merchant/dashboard');
+  }
+
+  next();
+}
+
+module.exports = {
+  requireLogin,
+  requireMerchant,
+  requireAdmin,
+  blockMerchantBookingAccess,
+};

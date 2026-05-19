@@ -1,0 +1,152 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const bookingList = Array.isArray(bookings) ? bookings : [];
+  const statusStyles = {
+    pending_payment: { label: 'Pending Payment', bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    confirmed:       { label: 'Confirmed', bg: 'var(--success-bg)', color: 'var(--success)' },
+    arrived:         { label: 'Arrived', bg: '#EFF6FF', color: '#1D4ED8' },
+    completed:       { label: 'Completed', bg: 'var(--neutral-bg)', color: 'var(--muted)' },
+    cancelled:       { label: 'Cancelled', bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    no_show:         { label: 'No Show', bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  };
+
+  function formatDate(value) {
+    return new Date(value).toLocaleDateString('en-SG', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
+  function formatTime(value) {
+    return String(value || '').slice(0, 5);
+  }
+%>
+
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container" style="max-width:1100px;">
+    <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
+      <i class="bi bi-arrow-left me-1"></i>Dashboard
+    </a>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+      <div>
+        <p class="section-label mb-2">Bookings</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">All Merchant Bookings</h2>
+        <p style="color:var(--muted);margin:0;">View and manage every booking made for your merchant account.</p>
+      </div>
+      <a href="/merchant/qr" class="btn btn-primary btn-pill">
+        <i class="bi bi-qr-code me-1"></i>My QR Code
+      </a>
+    </div>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+        <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+      </div>
+    <% } %>
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+        <i class="bi bi-check-circle me-2"></i><%= success %>
+      </div>
+    <% } %>
+
+    <% if (!bookingList.length) { %>
+      <div class="card border-0 text-center py-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+        <div class="icon-circle-lg mx-auto mb-3">
+          <i class="bi bi-calendar2-x" style="font-size:2rem;color:var(--accent);"></i>
+        </div>
+        <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">No bookings yet</h6>
+        <p style="color:var(--muted);font-size:.875rem;margin:0 auto 1.25rem;max-width:420px;">
+          Bookings from customers will appear here once they reserve one of your services.
+        </p>
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+          <a href="/merchant/qr" class="btn btn-primary btn-pill btn-sm">Get My QR Code</a>
+          <a href="/merchant/services" class="btn btn-outline-secondary btn-pill btn-sm">Manage Services</a>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+            <thead style="background:var(--accent-light);">
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Service</th>
+                <th>Date &amp; Time</th>
+                <th>Source</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% bookingList.forEach(booking => {
+                const status = statusStyles[booking.status] || {
+                  label: booking.status || 'Booked',
+                  bg: 'var(--accent-light)',
+                  color: 'var(--accent)',
+                };
+              %>
+                <tr>
+                  <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= booking.booking_id %></td>
+                  <td>
+                    <p style="font-weight:700;margin-bottom:0;color:var(--ink);"><%= booking.customer_name %></p>
+                    <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= booking.customer_phone || 'No phone' %></p>
+                  </td>
+                  <td><%= booking.service_name %></td>
+                  <td>
+                    <%= formatDate(booking.booking_date) %>
+                    <br>
+                    <span style="color:var(--muted);"><%= formatTime(booking.booking_time) %></span>
+                  </td>
+                  <td>
+                    <% if (booking.source === 'qr' || booking.source === 'qr_scan') { %>
+                      <span class="badge" style="background:var(--accent-light);color:var(--accent);">
+                        <i class="bi bi-qr-code me-1"></i>QR
+                      </span>
+                    <% } else { %>
+                      <span class="badge bg-secondary"><%= booking.source || 'web' %></span>
+                    <% } %>
+                  </td>
+                  <td style="font-weight:700;font-family:var(--font-mono);">
+                    S$<%= Number(booking.total_amount || 0).toFixed(2) %>
+                  </td>
+                  <td>
+                    <span class="badge rounded-pill" style="background:<%= status.bg %>;color:<%= status.color %>;">
+                      <%= status.label %>
+                    </span>
+                  </td>
+                  <td>
+                    <% if (booking.status === 'confirmed') { %>
+                      <form action="/merchant/bookings/<%= booking.booking_id %>/arrived" method="POST" class="d-inline">
+                        <input type="hidden" name="returnTo" value="/merchant/bookings">
+                        <button class="btn btn-sm btn-outline-secondary btn-pill" style="font-size:.72rem;padding:.2rem .6rem;">
+                          <i class="bi bi-person-check me-1"></i>Arrived
+                        </button>
+                      </form>
+                    <% } else if (booking.status === 'arrived') { %>
+                      <form action="/merchant/bookings/<%= booking.booking_id %>/complete" method="POST" class="d-inline">
+                        <input type="hidden" name="returnTo" value="/merchant/bookings">
+                        <button class="btn btn-sm btn-pill" style="font-size:.72rem;padding:.2rem .6rem;background:var(--success);color:#fff;border:none;">
+                          <i class="bi bi-check2-all me-1"></i>Complete
+                        </button>
+                      </form>
+                    <% } else { %>
+                      <span style="color:var(--muted);font-size:.75rem;">-</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

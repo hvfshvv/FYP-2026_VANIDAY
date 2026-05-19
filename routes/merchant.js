@@ -32,6 +32,19 @@ router.get('/dashboard', async (req, res) => {
   });
 });
 
+// All merchant bookings
+router.get('/bookings', async (req, res) => {
+  const merchantId = req.session.user.merchant_id;
+  const bookings = await bookingModel.getMerchantBookings(merchantId).catch(() => []);
+
+  res.render('merchant/bookings', {
+    title: 'Merchant Bookings',
+    bookings,
+    success: req.query.success,
+    error: req.query.error,
+  });
+});
+
 // Revenue
 router.get('/revenue', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
@@ -52,25 +65,32 @@ router.get('/revenue', async (req, res) => {
 
 // Booking status updates
 router.post('/bookings/:bookingId/arrived', async (req, res) => {
+  const merchantId = req.session.user.merchant_id;
+  const returnTo = req.body.returnTo === '/merchant/bookings' ? '/merchant/bookings' : '/merchant/dashboard';
+
   await bookingModel
-    .updateBookingStatus(req.params.bookingId, 'arrived')
+    .updateMerchantBookingStatus(req.params.bookingId, merchantId, 'arrived')
     .catch(console.error);
 
-  res.redirect('/merchant/dashboard');
+  res.redirect(returnTo);
 });
 
 router.post('/bookings/:bookingId/complete', async (req, res) => {
+  const merchantId = req.session.user.merchant_id;
+  const returnTo = req.body.returnTo === '/merchant/bookings' ? '/merchant/bookings' : '/merchant/dashboard';
+
   await bookingModel
-    .updateBookingStatus(req.params.bookingId, 'completed')
+    .updateMerchantBookingStatus(req.params.bookingId, merchantId, 'completed')
     .catch(console.error);
 
-  res.redirect('/merchant/dashboard');
+  res.redirect(returnTo);
 });
 
 // QR Code
 router.get('/qr', qrCtrl.showQRPage);
 router.post('/qr/generate', qrCtrl.generateQRCode);
 router.post('/qr/regenerate', qrCtrl.regenerateQRCode);
+router.post('/qr/arrival/regenerate', qrCtrl.regenerateArrivalQRCode);
 
 // Promotions
 router.get('/promotions', promoCtrl.showPromotions);
