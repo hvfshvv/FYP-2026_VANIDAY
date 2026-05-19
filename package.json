@@ -9,6 +9,7 @@
     "seed": "node database/seed.js"
   },
   "dependencies": {
+    "axios": "^1.16.1",
     "bcryptjs": "^2.4.3",
     "code-cli": "^0.0.1",
     "codex-cli": "^0.1.3",

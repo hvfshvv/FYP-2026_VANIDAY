@@ -174,6 +174,275 @@ async function getMerchantApplicationTrend(days = 14) {
   return rows;
 }
 
+async function getMerchantAnalytics({ startDate, endDate } = {}) {
+  const rangeParams = [startDate, endDate];
+  const bookingDateFilter = 'DATE(b.created_at) BETWEEN ? AND ?';
+  const paymentDateFilter = 'DATE(COALESCE(p.paid_at, b.created_at)) BETWEEN ? AND ?';
+
+  const [
+    [overviewRows],
+    revenueTrend,
+    topServices,
+    revenueByCategory,
+    peakSalesPeriods,
+    paymentBreakdown,
+    promotionPerformance,
+    bookingStatus,
+    peakBookingTimes,
+    serviceUtilization,
+    leadTimeRows,
+    customerSegments,
+    topCustomers,
+    loyaltyUsage,
+    reviewSummaryRows,
+    campaignPerformance,
+    qrAnalytics,
+    listingPerformance,
+    staffPerformance,
+    financialRows,
+    topMerchants,
+  ] = await Promise.all([
+    db.query(
+      `SELECT
+         COUNT(DISTINCT b.booking_id) AS total_bookings,
+         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS revenue_generated,
+         COUNT(DISTINCT b.customer_id) AS number_of_customers,
+         COALESCE(
+           SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END) /
+           NULLIF(COUNT(DISTINCT CASE WHEN p.payment_status = 'paid' THEN b.booking_id END), 0),
+           0
+         ) AS average_order_value,
+         COALESCE(
+           100 * SUM(CASE WHEN b.status IN ('confirmed', 'arrived', 'completed') THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0),
+           0
+         ) AS booking_conversion_rate,
+         COALESCE(
+           100 * SUM(CASE WHEN b.status IN ('cancelled', 'no_show') THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0),
+           0
+         ) AS cancellation_no_show_rate,
+         COALESCE(AVG(r.rating), 0) AS customer_satisfaction_rating
+       FROM booking b
+       LEFT JOIN payment p ON p.booking_id = b.booking_id
+       LEFT JOIN merchant_review r ON r.booking_id = b.booking_id
+       WHERE ${bookingDateFilter}`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT DATE(COALESCE(p.paid_at, b.created_at)) AS period_label, COALESCE(SUM(p.amount), 0) AS total
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY DATE(COALESCE(p.paid_at, b.created_at))
+       ORDER BY period_label ASC`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT s.service_name, m.merchant_name, COUNT(*) AS bookings, COALESCE(SUM(b.total_amount), 0) AS revenue
+       FROM booking b
+       JOIN service s ON s.service_id = b.service_id
+       JOIN merchant m ON m.merchant_id = b.merchant_id
+       WHERE ${bookingDateFilter}
+       GROUP BY s.service_id, s.service_name, m.merchant_name
+       ORDER BY bookings DESC, revenue DESC
+       LIMIT 8`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category, COALESCE(SUM(p.amount), 0) AS revenue
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       JOIN merchant m ON m.merchant_id = b.merchant_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY COALESCE(NULLIF(m.category, ''), 'Uncategorised')
+       ORDER BY revenue DESC`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT HOUR(COALESCE(p.paid_at, b.created_at)) AS hour_label, COALESCE(SUM(p.amount), 0) AS revenue
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY HOUR(COALESCE(p.paid_at, b.created_at))
+       ORDER BY revenue DESC
+       LIMIT 8`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT p.payment_method, COUNT(*) AS total, COALESCE(SUM(p.amount), 0) AS revenue
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE ${paymentDateFilter}
+       GROUP BY p.payment_method
+       ORDER BY revenue DESC`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT v.campaign_name, v.voucher_code, COUNT(vr.redemption_id) AS redemptions, COALESCE(SUM(vr.discount_amount), 0) AS discount_given
+       FROM voucher v
+       LEFT JOIN voucher_redemption vr ON vr.voucher_id = v.voucher_id
+       LEFT JOIN booking b ON b.booking_id = vr.booking_id
+       WHERE b.booking_id IS NULL OR ${bookingDateFilter}
+       GROUP BY v.voucher_id, v.campaign_name, v.voucher_code
+       ORDER BY redemptions DESC
+       LIMIT 8`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT b.status, COUNT(*) AS total
+       FROM booking b
+       WHERE ${bookingDateFilter}
+       GROUP BY b.status
+       ORDER BY total DESC`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT DAYNAME(ts.slot_date) AS day_label, HOUR(ts.start_time) AS hour_label, COUNT(*) AS bookings
+       FROM booking b
+       JOIN time_slot ts ON ts.slot_id = b.slot_id
+       WHERE ${bookingDateFilter}
+       GROUP BY DAYNAME(ts.slot_date), HOUR(ts.start_time)
+       ORDER BY bookings DESC
+       LIMIT 10`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT s.service_name, COUNT(b.booking_id) AS booked_slots, COUNT(DISTINCT ts.slot_id) AS total_slots
+       FROM service s
+       LEFT JOIN time_slot ts ON ts.service_id = s.service_id
+       LEFT JOIN booking b ON b.slot_id = ts.slot_id AND ${bookingDateFilter}
+       GROUP BY s.service_id, s.service_name
+       ORDER BY booked_slots DESC
+       LIMIT 8`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT COALESCE(AVG(TIMESTAMPDIFF(HOUR, b.created_at, CONCAT(ts.slot_date, ' ', ts.start_time))), 0) AS avg_lead_hours
+       FROM booking b
+       JOIN time_slot ts ON ts.slot_id = b.slot_id
+       WHERE ${bookingDateFilter}`,
+      rangeParams
+    ).then(([rows]) => rows[0] || {}),
+    db.query(
+      `SELECT
+         SUM(CASE WHEN booking_count = 1 THEN 1 ELSE 0 END) AS new_customers,
+         SUM(CASE WHEN booking_count > 1 THEN 1 ELSE 0 END) AS returning_customers,
+         COUNT(*) AS total_customers
+       FROM (
+         SELECT b.customer_id, COUNT(*) AS booking_count
+         FROM booking b
+         WHERE ${bookingDateFilter}
+         GROUP BY b.customer_id
+       ) customer_bookings`,
+      rangeParams
+    ).then(([rows]) => rows[0] || {}),
+    db.query(
+      `SELECT u.full_name, u.email, COUNT(b.booking_id) AS bookings, COALESCE(SUM(p.amount), 0) AS lifetime_value
+       FROM users u
+       JOIN booking b ON b.customer_id = u.user_id
+       LEFT JOIN payment p ON p.booking_id = b.booking_id AND p.payment_status = 'paid'
+       WHERE ${bookingDateFilter}
+       GROUP BY u.user_id, u.full_name, u.email
+       ORDER BY bookings DESC, lifetime_value DESC
+       LIMIT 8`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT transaction_type, COALESCE(SUM(points_amount), 0) AS points, COALESCE(SUM(cashback_amount), 0) AS cashback
+       FROM loyalty_transaction
+       WHERE DATE(created_at) BETWEEN ? AND ?
+       GROUP BY transaction_type
+       ORDER BY points DESC, cashback DESC`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT COUNT(*) AS review_count, COALESCE(AVG(rating), 0) AS average_rating
+       FROM merchant_review
+       WHERE DATE(created_at) BETWEEN ? AND ?`,
+      rangeParams
+    ).then(([rows]) => rows[0] || {}),
+    db.query(
+      `SELECT campaign_name, voucher_code, usage_limit, start_date, end_date, is_active
+       FROM voucher
+       ORDER BY start_date DESC
+       LIMIT 8`
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT qr_type, COUNT(*) AS total, SUM(CASE WHEN is_active THEN 1 ELSE 0 END) AS active_total
+       FROM qr_code
+       GROUP BY qr_type
+       ORDER BY total DESC`
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT m.merchant_name, COUNT(fl.listing_id) AS listings, SUM(CASE WHEN fl.is_visible THEN 1 ELSE 0 END) AS visible_listings
+       FROM featured_listing fl
+       JOIN merchant m ON m.merchant_id = fl.merchant_id
+       GROUP BY m.merchant_id, m.merchant_name
+       ORDER BY visible_listings DESC, listings DESC
+       LIMIT 8`
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT COALESCE(st.full_name, 'Unassigned') AS staff_name, COUNT(b.booking_id) AS bookings, COALESCE(SUM(b.total_amount), 0) AS revenue
+       FROM booking b
+       LEFT JOIN staff st ON st.staff_id = b.staff_id
+       WHERE ${bookingDateFilter}
+       GROUP BY COALESCE(st.full_name, 'Unassigned')
+       ORDER BY bookings DESC
+       LIMIT 8`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN payment_status IN ('refunded', 'partially_refunded') THEN refund_amount ELSE 0 END), 0) AS refunded_amount,
+         SUM(CASE WHEN payment_status IN ('refunded', 'partially_refunded') THEN 1 ELSE 0 END) AS refund_count,
+         COALESCE(SUM(amount) * 0.09, 0) AS estimated_tax,
+         COALESCE(SUM(amount), 0) AS gross_revenue
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE ${paymentDateFilter}`,
+      rangeParams
+    ).then(([rows]) => rows[0] || {}),
+    db.query(
+      `SELECT m.merchant_id, m.merchant_name, COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
+              COUNT(DISTINCT b.booking_id) AS bookings,
+              COUNT(DISTINCT b.customer_id) AS customers,
+              COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS revenue,
+              COALESCE(AVG(r.rating), 0) AS rating
+       FROM merchant m
+       LEFT JOIN booking b ON b.merchant_id = m.merchant_id AND ${bookingDateFilter}
+       LEFT JOIN payment p ON p.booking_id = b.booking_id
+       LEFT JOIN merchant_review r ON r.booking_id = b.booking_id
+       GROUP BY m.merchant_id, m.merchant_name, m.category
+       ORDER BY revenue DESC, bookings DESC
+       LIMIT 12`,
+      rangeParams
+    ).then(([rows]) => rows),
+  ]);
+
+  return {
+    overview: overviewRows[0] || {},
+    revenueTrend,
+    topServices,
+    revenueByCategory,
+    peakSalesPeriods,
+    paymentBreakdown,
+    promotionPerformance,
+    bookingStatus,
+    peakBookingTimes,
+    serviceUtilization,
+    leadTime: leadTimeRows,
+    customerSegments,
+    topCustomers,
+    loyaltyUsage,
+    reviewSummary: reviewSummaryRows,
+    campaignPerformance,
+    qrAnalytics,
+    listingPerformance,
+    staffPerformance,
+    financial: financialRows,
+    topMerchants,
+  };
+}
+
 async function approveMerchant(merchantId, adminId) {
   const [result] = await db.query(
     `UPDATE merchant
@@ -230,6 +499,7 @@ module.exports = {
   getRecentBookings,
   getRecentPayments,
   getRecentValidationErrors,
+  getMerchantAnalytics,
   getPendingMerchantApplications,
   getRecentMerchantValidationDecisions,
   getMerchantValidationStatusSummary,

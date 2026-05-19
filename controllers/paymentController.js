@@ -23,6 +23,7 @@ async function showCheckout(req, res) {
       booking,
       payment,
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      webhookError: req.query.webhookError || null,
     });
   } catch (err) {
     console.error('showCheckout error:', err);

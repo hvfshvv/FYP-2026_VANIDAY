@@ -1,3 +1,4 @@
+const axios = require('axios');
 const qrModel       = require('../models/qrModel');
 const merchantModel = require('../models/merchantModel');
 const authModel     = require('../models/authModel');
@@ -5,6 +6,22 @@ const bookingModel  = require('../models/bookingModel');
 const staffModel = require('../models/staffModel');
 const bcrypt        = require('bcryptjs');
 
+// Power Automate webhook URL: paste your webhook URL here or set POWER_AUTOMATE_WEBHOOK_URL in .env
+const POWER_AUTOMATE_WEBHOOK_URL = process.env.POWER_AUTOMATE_WEBHOOK_URL || 'PASTE_YOUR_POWER_AUTOMATE_WEBHOOK_URL_HERE';
+
+async function sendPowerAutomateWebhook(payload) {
+  if (!POWER_AUTOMATE_WEBHOOK_URL || POWER_AUTOMATE_WEBHOOK_URL.includes('PASTE_YOUR_POWER_AUTOMATE_WEBHOOK_URL_HERE')) {
+    console.warn('Power Automate webhook URL is not configured. Skipping webhook call.');
+    return;
+  }
+
+  await axios.post(POWER_AUTOMATE_WEBHOOK_URL, payload, {
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    timeout: 10000
+  });
+}
 
 function isCurrentOrFutureSlot(bookingDate, bookingTime) {
   if (!bookingDate || !bookingTime) return false;
@@ -55,6 +72,20 @@ async function confirmPortalBooking(req, res) {
       bookingTime: booking_time,
       source:      'portal',
     });
+
+    try {
+      await sendPowerAutomateWebhook({
+        name: req.session.user.full_name || null,
+        email: req.session.user.email || null,
+        serviceId: service_id,
+        bookingDate: booking_date,
+        bookingTime: booking_time,
+        source: 'portal'
+      });
+    } catch (webhookErr) {
+      console.error('Power Automate webhook failed:', webhookErr.message || webhookErr);
+      return res.redirect(`/payment/checkout/${bookingId}?webhookError=${encodeURIComponent('Booking notification failed. Please continue to payment.')}`);
+    }
 
     res.redirect(`/payment/checkout/${bookingId}`);
   } catch (err) {
@@ -201,6 +232,20 @@ async function confirmBooking(req, res) {
       bookingTime: booking_time,
       source:      'qr',
     });
+
+    try {
+      await sendPowerAutomateWebhook({
+        name: full_name || null,
+        email: email || null,
+        serviceId: service_id,
+        bookingDate: booking_date,
+        bookingTime: booking_time,
+        source: 'qr'
+      });
+    } catch (webhookErr) {
+      console.error('Power Automate webhook failed:', webhookErr.message || webhookErr);
+      return res.redirect(`/payment/checkout/${bookingId}?webhookError=${encodeURIComponent('Booking notification failed. Please continue to payment.')}`);
+    }
 
     res.redirect(`/payment/checkout/${bookingId}`);
   } catch (err) {
