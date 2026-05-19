@@ -316,7 +316,10 @@ async function paymentSuccess(req, res) {
       return res.redirect(`/payment/checkout/${booking_id}`);
     }
     const booking = await bookingModel.getBookingById(booking_id);
-    res.render('payment/success', { title: 'Payment Successful', booking, payment: existing });
+    const loyaltyEarned = booking && booking.customer_id
+      ? await loyaltyModel.getEarnedPointsForBooking(booking_id).catch(() => 0)
+      : 0;
+    res.render('payment/success', { title: 'Payment Successful', booking, payment: existing, loyaltyEarned });
   } catch (err) {
     console.error('paymentSuccess error:', err);
     res.redirect('/');

@@ -35,6 +35,9 @@
       <% if (user && user.role === 'customer') { %>
       <li><a href="/favourite">My Favourites</a></li>
       <% } %>
+      <% if (user && user.role === 'customer') { %>
+      <li><a href="/loyalty"><i class="bi bi-wallet2 me-1"></i>Wallet</a></li>
+      <% } %>
       <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
       <li><a href="/merchant/dashboard">Dashboard</a></li>
       <li><a href="/merchant/services">Services</a></li>
@@ -68,6 +71,8 @@
   <% } %>
   <% if (user && user.role === 'customer') { %>
   <a href="/book/viewBookings">View bookings</a>
+  <a href="/favourite">My Favourites</a>
+  <a href="/loyalty">Wallet</a>
   <% } %>
   <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
   <a href="/merchant/dashboard">Dashboard</a>

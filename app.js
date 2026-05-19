@@ -12,6 +12,7 @@ const paymentController = require('./controllers/paymentController');
 const marketplaceRoutes = require('./routes/marketplace');
 const whatsappRoutes    = require('./routes/whatsapp');
 const favouriteRoutes   = require('./routes/favourite');
+const loyaltyRoutes     = require('./routes/loyalty');
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.post('/create-payment-intent', paymentController.createStripeIntent);
 app.use('/payment',    paymentRoutes);
 app.use('/whatsapp',   whatsappRoutes);
 app.use('/favourite', favouriteRoutes);
+app.use('/loyalty',    loyaltyRoutes);
 
 
 app.use((req, res) => {

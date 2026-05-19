@@ -1,0 +1,212 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const balance = Number(wallet.points_balance || 0);
+  const lifetimeEarned = Number(wallet.lifetime_points_earned || 0);
+  const lifetimeRedeemed = Number(wallet.lifetime_points_redeemed || 0);
+  const lifetimeSpend = Number(tier.lifetimeSpend || 0);
+  const nextTier = tier.nextTier || null;
+  const tierProgress = nextTier
+    ? Math.min(100, Math.round((lifetimeSpend / nextTier.minSpend) * 100))
+    : 100;
+
+  function formatDate(value) {
+    return new Date(value).toLocaleDateString('en-SG', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+%>
+
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container" style="max-width:1120px;">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+      <div>
+        <p class="section-label mb-2">Loyalty points</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">My Wallet</h2>
+        <p style="color:var(--muted);margin:0;">Earn 10% of every paid member booking as points.</p>
+      </div>
+      <a href="/marketplace" class="btn btn-primary btn-pill">
+        <i class="bi bi-calendar-plus me-2"></i>Earn More Points
+      </a>
+    </div>
+
+    <% if (error) { %>
+      <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+        <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+      </div>
+    <% } %>
+    <% if (success) { %>
+      <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+        <i class="bi bi-check-circle me-2"></i><%= success %>
+      </div>
+    <% } %>
+
+    <section class="row g-3 mb-4">
+      <div class="col-lg-5">
+        <div class="wallet-panel wallet-panel-lg">
+          <div class="d-flex align-items-center justify-content-between gap-3 mb-4">
+            <div>
+              <p style="color:var(--muted);font-size:.875rem;margin:0 0 .25rem;">Available points</p>
+              <h1 style="font-family:var(--font-mono);font-weight:800;font-size:3rem;letter-spacing:0;margin:0;color:var(--ink);"><%= balance %></h1>
+            </div>
+            <div class="wallet-hero-icon">
+              <i class="bi bi-wallet2"></i>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mb-4">
+            <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);font-size:.85rem;padding:.55rem .8rem;">
+              <i class="bi <%= tier.icon %> me-1"></i><%= tier.name %> tier
+            </span>
+            <span class="badge rounded-pill" style="background:var(--canvas);color:var(--muted);border:1px solid var(--border);font-size:.85rem;padding:.55rem .8rem;">
+              S$<%= lifetimeSpend.toFixed(2) %> lifetime spend
+            </span>
+          </div>
+
+          <% if (nextTier) { %>
+            <div class="d-flex justify-content-between small mb-2" style="color:var(--muted);font-weight:600;">
+              <span><%= tier.name %></span>
+              <span>S$<%= Number(tier.spendToNextTier || 0).toFixed(2) %> to <%= nextTier.name %></span>
+            </div>
+            <div class="progress" style="height:10px;">
+              <div class="progress-bar wallet-tier-progress" role="progressbar" data-progress="<%= tierProgress %>" aria-valuenow="<%= tierProgress %>" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          <% } else { %>
+            <div class="rounded-xl p-3" style="background:var(--success-bg);color:var(--success);font-weight:600;">
+              <i class="bi bi-stars me-1"></i>You have reached the highest loyalty tier.
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="row g-3 h-100">
+          <div class="col-sm-4">
+            <div class="stat-card h-100">
+              <div class="stat-label">Earned</div>
+              <div class="stat-value"><%= lifetimeEarned %></div>
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="stat-card h-100">
+              <div class="stat-label">Redeemed</div>
+              <div class="stat-value"><%= lifetimeRedeemed %></div>
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="stat-card h-100">
+              <div class="stat-label">Earn Rate</div>
+              <div class="stat-value">10%</div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="wallet-panel wallet-panel-sm">
+              <p style="font-weight:800;color:var(--ink);margin:0 0 .75rem;">Tier ladder</p>
+              <div class="d-flex flex-wrap gap-2">
+                <% tiers.forEach(item => { %>
+                  <% if (item.name === tier.name) { %>
+                    <span class="badge rounded-pill wallet-tier-badge active"><%= item.name %> from S$<%= item.minSpend %></span>
+                  <% } else { %>
+                    <span class="badge rounded-pill wallet-tier-badge"><%= item.name %> from S$<%= item.minSpend %></span>
+                  <% } %>
+                <% }) %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="row g-4">
+      <div class="col-lg-7">
+        <div class="wallet-panel">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h5 style="font-weight:800;color:var(--ink);margin:0;">Redeem vouchers</h5>
+            <span class="small" style="color:var(--muted);">Special vouchers unlock by tier</span>
+          </div>
+
+          <div class="row g-3">
+            <% rewards.forEach(reward => { %>
+              <div class="col-md-6">
+                <div class="wallet-reward-card <%= reward.redeemable ? '' : 'locked' %>">
+                  <div class="d-flex justify-content-between gap-2 mb-2">
+                    <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);"><%= reward.valueLabel %></span>
+                    <span class="small mono" style="color:var(--muted);"><%= reward.pointsCost %> pts</span>
+                  </div>
+                  <h6 style="font-weight:800;color:var(--ink);margin-bottom:.35rem;"><%= reward.title %></h6>
+                  <p class="small" style="color:var(--muted);margin-bottom:.85rem;"><%= reward.description %></p>
+                  <p class="small" style="color:var(--muted);margin-bottom:1rem;">
+                    <i class="bi bi-lock me-1"></i><%= reward.minTier %> tier
+                  </p>
+
+                  <% if (reward.redeemable) { %>
+                    <form method="POST" action="/loyalty/redeem/<%= reward.id %>" onsubmit="return confirm('Redeem this voucher with your loyalty points?');">
+                      <button class="btn btn-primary btn-sm btn-pill w-100" type="submit">
+                        <i class="bi bi-ticket-perforated me-1"></i>Redeem
+                      </button>
+                    </form>
+                  <% } else if (!reward.tierUnlocked) { %>
+                    <button class="btn btn-outline-secondary btn-sm btn-pill w-100" disabled>
+                      <i class="bi bi-lock me-1"></i>Tier Locked
+                    </button>
+                  <% } else { %>
+                    <button class="btn btn-outline-secondary btn-sm btn-pill w-100" disabled>
+                      <i class="bi bi-plus-circle me-1"></i><%= reward.pointsShort %> points short
+                    </button>
+                  <% } %>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="wallet-panel">
+          <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Recent activity</h5>
+          <% if (!transactions.length) { %>
+            <div class="text-center py-4">
+              <div class="wallet-empty-icon">
+                <i class="bi bi-receipt"></i>
+              </div>
+              <p style="color:var(--muted);margin:0;">Your point history will appear here.</p>
+            </div>
+          <% } else { %>
+            <% transactions.forEach((item, index) => {
+              const points = Number(item.points_amount || 0);
+              const isEarn = points > 0;
+            %>
+              <div class="wallet-activity-row d-flex gap-3 py-3">
+                <div class="wallet-activity-icon <%= isEarn ? 'earn' : 'redeem' %>">
+                  <% if (isEarn) { %>
+                    <i class="bi bi-plus-lg"></i>
+                  <% } else { %>
+                    <i class="bi bi-ticket-perforated"></i>
+                  <% } %>
+                </div>
+                <div style="flex:1;">
+                  <div class="d-flex justify-content-between gap-2">
+                    <p style="font-weight:700;color:var(--ink);margin:0;"><%= item.description %></p>
+                    <span class="mono wallet-points-change <%= isEarn ? 'earn' : 'redeem' %>"><%= points > 0 ? '+' : '' %><%= points %></span>
+                  </div>
+                  <p class="small" style="color:var(--muted);margin:0;"><%= formatDate(item.created_at) %></p>
+                </div>
+              </div>
+            <% }) %>
+          <% } %>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+document.querySelectorAll('.wallet-tier-progress').forEach((bar) => {
+  bar.style.width = `${bar.dataset.progress || 0}%`;
+});
+</script>
+
+<%- include('../partials/footer') %>
