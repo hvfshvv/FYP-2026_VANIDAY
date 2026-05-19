@@ -149,6 +149,72 @@
     font-size:.75rem;
     font-weight:800;
   }
+  .donut-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));
+    gap:.75rem;
+  }
+  .donut-stat {
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    padding:1rem;
+    background:var(--canvas);
+  }
+  .donut-ring {
+    width:70px;
+    height:70px;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    margin-bottom:.75rem;
+    background:conic-gradient(var(--accent) var(--ring), var(--neutral-bg) 0);
+  }
+  .donut-ring span {
+    width:46px;
+    height:46px;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    background:var(--surface);
+    color:var(--ink);
+    font-family:var(--font-mono);
+    font-size:.78rem;
+    font-weight:800;
+  }
+  .heat-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(92px, 1fr));
+    gap:.6rem;
+  }
+  .heat-cell {
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    background:rgba(225,29,72,var(--heat));
+    padding:.75rem;
+    min-height:74px;
+  }
+  .heat-cell p {
+    color:var(--ink);
+    font-weight:800;
+    margin:0 0 .2rem;
+    font-size:.78rem;
+  }
+  .heat-cell small {
+    color:var(--muted);
+    font-family:var(--font-mono);
+    font-weight:700;
+  }
+  .mini-kpi-strip {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
+    gap:.75rem;
+  }
+  .mini-kpi {
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    padding:.9rem;
+    background:var(--canvas);
+  }
 </style>
 
 <main class="merchant-analytics" id="merchantAnalytics" style="background:var(--canvas);min-height:80vh;padding:2.5rem 1rem;">
@@ -350,6 +416,26 @@
       <p class="section-label mb-1">Booking Analytics</p>
       <h4 class="analytics-title mb-3">Demand &amp; Utilization</h4>
       <div class="row g-3">
+        <div class="col-12">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Booking Status Mix</h6>
+            <% const statusTotal = (a.bookingStatus || []).reduce((sum, row) => sum + Number(row.total || 0), 0) || 1; %>
+            <div class="donut-grid">
+              <% (a.bookingStatus || []).forEach(row => {
+                const share = (Number(row.total || 0) / statusTotal) * 100;
+              %>
+                <div class="donut-stat">
+                  <div class="donut-ring" style="--ring:<%= share.toFixed(1) %>%;">
+                    <span><%= share.toFixed(0) %>%</span>
+                  </div>
+                  <p style="color:var(--ink);font-weight:800;margin:0;"><%= String(row.status || 'unknown').replace('_', ' ') %></p>
+                  <small style="color:var(--muted);font-family:var(--font-mono);"><%= number(row.total) %> bookings</small>
+                </div>
+              <% }) %>
+              <% if (!(a.bookingStatus || []).length) { %><p style="color:var(--muted);margin:0;">No booking status data yet.</p><% } %>
+            </div>
+          </div>
+        </div>
         <div class="col-lg-4">
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Confirmed vs Cancelled</h6>
@@ -384,6 +470,21 @@
             <h6 class="analytics-title mb-3">Booking Lead Time</h6>
             <p class="stat-value" style="font-size:2rem;color:var(--accent);"><%= avgLeadDays.toFixed(1) %> days</p>
             <p style="color:var(--muted);margin:0;">Average time between booking creation and appointment slot.</p>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Peak Demand Heatmap</h6>
+            <% const heatMax = maxOf(a.peakBookingTimes || [], 'bookings'); %>
+            <div class="heat-grid">
+              <% (a.peakBookingTimes || []).forEach(row => { %>
+                <div class="heat-cell" style="--heat:<%= Math.max(.08, Number(row.bookings || 0) / heatMax).toFixed(2) %>;">
+                  <p><%= row.day_label %></p>
+                  <small><%= String(row.hour_label).padStart(2, '0') %>:00 · <%= number(row.bookings) %></small>
+                </div>
+              <% }) %>
+              <% if (!(a.peakBookingTimes || []).length) { %><p style="color:var(--muted);margin:0;">No heatmap data yet.</p><% } %>
+            </div>
           </div>
         </div>
       </div>
@@ -491,6 +592,32 @@
               <% if (!(a.listingPerformance || []).length) { %><p style="color:var(--muted);margin:0;">No featured listings yet.</p><% } %>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-anchor mb-5">
+      <p class="section-label mb-1">Visual Summary</p>
+      <h4 class="analytics-title mb-3">At-a-Glance Performance</h4>
+      <div class="mini-kpi-strip">
+        <div class="mini-kpi">
+          <p style="color:var(--muted);margin:0 0 .35rem;">Paid revenue</p>
+          <p class="stat-value" style="font-size:1.45rem;color:var(--success);"><%= money(overview.revenue_generated) %></p>
+        </div>
+        <div class="mini-kpi">
+          <p style="color:var(--muted);margin:0 0 .35rem;">Conversion health</p>
+          <div class="mini-bar mb-2"><span style="width:<%= barWidth(overview.booking_conversion_rate, 100) %>%;"></span></div>
+          <p style="color:var(--ink);font-weight:800;margin:0;"><%= percent(overview.booking_conversion_rate) %></p>
+        </div>
+        <div class="mini-kpi">
+          <p style="color:var(--muted);margin:0 0 .35rem;">Risk rate</p>
+          <div class="mini-bar mb-2"><span style="width:<%= barWidth(overview.cancellation_no_show_rate, 100) %>%;background:var(--danger);"></span></div>
+          <p style="color:var(--ink);font-weight:800;margin:0;"><%= percent(overview.cancellation_no_show_rate) %></p>
+        </div>
+        <div class="mini-kpi">
+          <p style="color:var(--muted);margin:0 0 .35rem;">Customer retention</p>
+          <div class="mini-bar mb-2"><span style="width:<%= barWidth(retentionRate, 100) %>%;background:var(--success);"></span></div>
+          <p style="color:var(--ink);font-weight:800;margin:0;"><%= percent(retentionRate) %></p>
         </div>
       </div>
     </section>
