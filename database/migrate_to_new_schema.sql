@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS merchant (
     address TEXT,
     business_uen VARCHAR(20),
     contact_no VARCHAR(20),
+    profile_image VARCHAR(255),
     is_featured BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     verification_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',

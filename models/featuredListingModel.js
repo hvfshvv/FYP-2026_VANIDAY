@@ -10,7 +10,22 @@ async function getFeaturedListings(category = null) {
   }
 
   const [rows] = await db.query(
-    `SELECT fl.*, m.merchant_name, m.address, m.category, p.title AS promo_title
+    `SELECT
+       fl.listing_id,
+       fl.merchant_id,
+       fl.promo_id,
+       fl.title,
+       fl.description,
+       fl.display_order,
+       fl.is_visible,
+       fl.start_date,
+       fl.end_date,
+       fl.created_at,
+       m.profile_image AS image_path,
+       m.merchant_name,
+       m.address,
+       m.category,
+       p.title AS promo_title
      FROM featured_listing fl
      JOIN merchant m   ON fl.merchant_id = m.merchant_id
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id

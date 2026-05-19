@@ -39,10 +39,8 @@ async function getAllActiveMerchants(category = null) {
       m.category,
       m.address,
       m.contact_no,
-      fl.image_path
+      m.profile_image AS image_path
     FROM merchant m
-    LEFT JOIN featured_listing fl
-      ON m.merchant_id = fl.merchant_id
     WHERE m.is_active = 1
       AND m.verification_status = 'approved'
       ${categoryFilter}
@@ -52,8 +50,30 @@ async function getAllActiveMerchants(category = null) {
   return rows;
 }
 
+async function getMerchantProfile(merchantId) {
+  const [rows] = await db.query(
+    `SELECT merchant_id, merchant_name, description, category, address, contact_no, profile_image
+     FROM merchant
+     WHERE merchant_id = ?`,
+    [merchantId]
+  );
+
+  return rows[0] || null;
+}
+
+async function updateMerchantProfileImage(merchantId, imagePath) {
+  await db.query(
+    `UPDATE merchant
+     SET profile_image = ?
+     WHERE merchant_id = ?`,
+    [imagePath, merchantId]
+  );
+}
+
 module.exports = {
   getMerchantById,
   getMerchantServices,
-  getAllActiveMerchants
+  getAllActiveMerchants,
+  getMerchantProfile,
+  updateMerchantProfileImage
 };
