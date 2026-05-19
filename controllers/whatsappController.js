@@ -1,15 +1,19 @@
 const twilio = require('twilio');
 const merchantModel = require('../models/merchantModel');
 const bookingModel = require('../models/bookingModel');
-const whatsappModel = require('../models/whatsappModel');
+const staffModel = require('../models/staffModel');
 
 const userSessions = {};
 
 const categories = {
   1: 'Hair',
   2: 'Nails',
-  3: 'Skin & Facial',
-  4: 'Massage'
+  3: 'Facial',
+  4: 'Massage',
+  5: 'Wellness',
+  6: 'Body',
+  7: 'Aesthetics',
+  8: 'Spa'
 };
 
 const demoMerchantsByCategory = {
@@ -23,7 +27,7 @@ const demoMerchantsByCategory = {
     { merchant_name: 'Blush Nail Bar' },
     { merchant_name: 'Glossy Tips Studio' }
   ],
-  'Skin & Facial': [
+  Facial: [
     { merchant_name: 'Glow Beauty Spa' },
     { merchant_name: 'Pure Skin Studio' },
     { merchant_name: 'Radiance Facial House' }
@@ -32,6 +36,26 @@ const demoMerchantsByCategory = {
     { merchant_name: 'Calm Body Spa' },
     { merchant_name: 'Zen Wellness Studio' },
     { merchant_name: 'Relax & Restore' }
+  ],
+  Wellness: [
+    { merchant_name: 'Zen Wellness Studio' },
+    { merchant_name: 'Balance Wellness Loft' },
+    { merchant_name: 'Mindful Movement Studio' }
+  ],
+  Body: [
+    { merchant_name: 'Goddess Beauty Bar' },
+    { merchant_name: 'Smooth Body Studio' },
+    { merchant_name: 'Contour & Glow' }
+  ],
+  Aesthetics: [
+    { merchant_name: 'Pretty Lash Studio' },
+    { merchant_name: 'Brow & Lash Atelier' },
+    { merchant_name: 'Aesthetic Glow Lab' }
+  ],
+  Spa: [
+    { merchant_name: 'The Spa Sanctuary' },
+    { merchant_name: 'Urban Bliss Spa' },
+    { merchant_name: 'Serenity Spa House' }
   ]
 };
 
@@ -46,7 +70,7 @@ const demoServicesByCategory = {
     { service_name: 'Gel Manicure', price: 48, duration_mins: 60 },
     { service_name: 'Nail Art Set', price: 68, duration_mins: 90 }
   ],
-  'Skin & Facial': [
+  Facial: [
     { service_name: 'Hydrating Facial', price: 58, duration_mins: 60 },
     { service_name: 'Deep Cleansing Facial', price: 78, duration_mins: 75 },
     { service_name: 'Brightening Treatment', price: 88, duration_mins: 90 }
@@ -55,6 +79,26 @@ const demoServicesByCategory = {
     { service_name: 'Relaxing Body Massage', price: 68, duration_mins: 60 },
     { service_name: 'Deep Tissue Massage', price: 88, duration_mins: 75 },
     { service_name: 'Aromatherapy Massage', price: 98, duration_mins: 90 }
+  ],
+  Wellness: [
+    { service_name: 'Yoga Class', price: 28, duration_mins: 60 },
+    { service_name: 'Pilates Session', price: 38, duration_mins: 60 },
+    { service_name: 'Reflexology', price: 45, duration_mins: 45 }
+  ],
+  Body: [
+    { service_name: 'Body Waxing', price: 40, duration_mins: 30 },
+    { service_name: 'Body Scrub', price: 65, duration_mins: 60 },
+    { service_name: 'Toning Treatment', price: 88, duration_mins: 75 }
+  ],
+  Aesthetics: [
+    { service_name: 'Lash Extensions', price: 88, duration_mins: 90 },
+    { service_name: 'Brow Shaping', price: 28, duration_mins: 30 },
+    { service_name: 'Lash Lift', price: 68, duration_mins: 60 }
+  ],
+  Spa: [
+    { service_name: 'Aromatherapy Facial', price: 85, duration_mins: 60 },
+    { service_name: 'Body Scrub & Wrap', price: 120, duration_mins: 90 },
+    { service_name: 'Luxury Spa Package', price: 158, duration_mins: 120 }
   ]
 };
 
@@ -63,6 +107,11 @@ const demoTimeSlots = [
   { label: '11:30', start_time: '11:30:00' },
   { label: '14:00', start_time: '14:00:00' },
   { label: '16:30', start_time: '16:30:00' }
+];
+
+const demoStaff = [
+  { full_name: 'Alex Tan', role: 'Senior Specialist' },
+  { full_name: 'Jamie Lee', role: 'Service Specialist' }
 ];
 
 function getMainMenu() {
@@ -81,8 +130,12 @@ function getCategoryMenu() {
     'Great! Let\'s book a service. What type of service are you looking for?\n\n' +
     '1. Hair\n' +
     '2. Nails\n' +
-    '3. Skin & Facial\n' +
-    '4. Massage'
+    '3. Facial\n' +
+    '4. Massage\n' +
+    '5. Wellness\n' +
+    '6. Body\n' +
+    '7. Aesthetics\n' +
+    '8. Spa'
   );
 }
 
@@ -115,6 +168,62 @@ function formatTimeSlots(slots) {
     .join('\n');
 }
 
+function formatStaff(staff) {
+  const staffOptions = staff.map(function (member, index) {
+    return index + 2 + '. ' + member.full_name + (member.role ? ' - ' + member.role : '');
+  });
+
+  return ['1. No Preference'].concat(staffOptions).join('\n');
+}
+
+function getMerchantMenu(category, merchants) {
+  return (
+    'You selected ' + category + '.\n\n' +
+    'Here are some available merchants:\n\n' +
+    formatMerchants(merchants) + '\n\n' +
+    'Please reply with the merchant number.\n' +
+    'Reply 0 or back to go back.'
+  );
+}
+
+function getServiceMenu(merchant, services) {
+  return (
+    'You selected ' + merchant.merchant_name + '.\n\n' +
+    'Here are the available services:\n\n' +
+    formatServices(services) + '\n\n' +
+    'Please reply with the service number.\n' +
+    'Reply 0 or back to go back.'
+  );
+}
+
+function getDatePrompt(service) {
+  return (
+    'You selected ' + service.service_name + '.\n\n' +
+    'Please enter your preferred booking date in this format:\n\n' +
+    'YYYY-MM-DD\n\n' +
+    'Example: 2026-05-20\n\n' +
+    'Reply 0 or back to go back.'
+  );
+}
+
+function getTimeSlotMenu(bookingDate, slots) {
+  return (
+    'Here are the available time slots for ' + bookingDate + ':\n\n' +
+    formatTimeSlots(slots) + '\n\n' +
+    'Please reply with the time slot number.\n' +
+    'Reply 0 or back to go back.'
+  );
+}
+
+function getStaffMenu(staff) {
+  return (
+    'Do you have a preferred staff member?\n\n' +
+    formatStaff(staff) + '\n\n' +
+    'Please reply with the staff number.\n' +
+    'Reply 0 or back to go back.'
+  );
+}
+
 function getServicePrice(service) {
   return Number(service.price || 0).toFixed(2);
 }
@@ -125,26 +234,42 @@ function getPaymentLink(bookingReference) {
   return baseUrl + '/payment/checkout/' + bookingReference;
 }
 
-function canCreateRealBooking(session) {
-  return Boolean(
-    session.merchant &&
-    session.merchant.merchant_id &&
-    session.service &&
-    session.service.service_id
-  );
+function sendTwiml(res, twiml) {
+  res.writeHead(200, { 'Content-Type': 'text/xml' });
+  res.end(twiml.toString());
 }
 
-async function createWhatsappBooking(sender, session, selectedSlot) {
-  const customer = await whatsappModel.findOrCreateCustomerByPhone(sender);
+function saveSession(sender, nextSession) {
+  nextSession.previous = userSessions[sender] || null;
+  userSessions[sender] = nextSession;
+}
 
-  return bookingModel.createBooking({
-    customerId: customer.customer_id,
-    merchantId: session.merchant.merchant_id,
-    serviceId: session.service.service_id,
-    bookingDate: session.bookingDate,
-    bookingTime: selectedSlot.start_time,
-    source: 'whatsapp'
-  });
+function goBack(sender, twiml) {
+  const session = userSessions[sender];
+
+  if (!session || !session.previous) {
+    delete userSessions[sender];
+    twiml.message(getMainMenu());
+    return;
+  }
+
+  const previous = session.previous;
+  userSessions[sender] = previous;
+
+  if (previous.state === 'choosing_category') {
+    twiml.message(getCategoryMenu());
+  } else if (previous.state === 'choosing_merchant') {
+    twiml.message(getMerchantMenu(previous.category, previous.merchants));
+  } else if (previous.state === 'choosing_service') {
+    twiml.message(getServiceMenu(previous.merchant, previous.services));
+  } else if (previous.state === 'choosing_date') {
+    twiml.message(getDatePrompt(previous.service));
+  } else if (previous.state === 'choosing_time_slot') {
+    twiml.message(getTimeSlotMenu(previous.bookingDate, previous.slots));
+  } else {
+    delete userSessions[sender];
+    twiml.message(getMainMenu());
+  }
 }
 
 function isValidDate(message) {
@@ -217,173 +342,209 @@ async function getTimeSlotsForDate(session, bookingDate) {
   return demoTimeSlots;
 }
 
-async function receiveMessage(req, res) {
-  const incomingMessage = req.body.Body || '';
-  const message = incomingMessage.toLowerCase().trim();
-  const sender = req.body.From;
-  const session = userSessions[sender];
-
-  console.log('Incoming WhatsApp message:', incomingMessage, 'Current state:', session ? session.state : 'none');
-
-  const twiml = new twilio.twiml.MessagingResponse();
-
-  if (message === 'reset' || message === 'menu' || message === 'hi' || message === 'hello') {
-    delete userSessions[sender];
-    twiml.message(getMainMenu());
-  } else if (session && session.state === 'checking_reservation') {
-    const bookingId = incomingMessage.trim();
-
-    twiml.message('Thanks! I will check reservation ID: ' + bookingId);
-    delete userSessions[sender];
-  } else if (session && session.state === 'choosing_category') {
-    const category = categories[message];
-
-    if (category) {
-      const merchants = await getMerchantsForCategory(category);
-
-      userSessions[sender] = {
-        state: 'choosing_merchant',
-        category: category,
-        merchants: merchants
-      };
-
-      twiml.message(
-        'You selected ' + category + '.\n\n' +
-        'Here are some available merchants:\n\n' +
-        formatMerchants(merchants) + '\n\n' +
-        'Please reply with the merchant number.'
+async function getStaffForTimeSlot(session, selectedSlot) {
+  try {
+    if (session.merchant.merchant_id && session.service.service_id) {
+      const staff = await staffModel.getStaffByService(
+        session.service.service_id,
+        session.merchant.merchant_id
       );
-    } else {
-      twiml.message('Please choose 1, 2, 3, or 4.');
-    }
-  } else if (session && session.state === 'choosing_merchant') {
-    const merchantNumber = parseInt(message, 10);
-    const selectedMerchant = session.merchants[merchantNumber - 1];
 
-    if (selectedMerchant) {
-      const services = await getServicesForMerchant(selectedMerchant, session.category);
+      const availableStaff = [];
 
-      userSessions[sender] = {
-        state: 'choosing_service',
-        category: session.category,
-        merchant: selectedMerchant,
-        services: services
-      };
+      for (const member of staff) {
+        const slots = await bookingModel.getAvailableSlots({
+          merchantId: session.merchant.merchant_id,
+          serviceId: session.service.service_id,
+          staffId: member.staff_id,
+          bookingDate: session.bookingDate
+        });
 
-      twiml.message(
-        'You selected ' + selectedMerchant.merchant_name + '.\n\n' +
-        'Here are the available services:\n\n' +
-        formatServices(services) + '\n\n' +
-        'Please reply with the service number.'
-      );
-    } else {
-      twiml.message('Invalid merchant number. Please choose a merchant from the list.');
-    }
-  } else if (session && session.state === 'choosing_service') {
-    const serviceNumber = parseInt(message, 10);
-    const selectedService = session.services[serviceNumber - 1];
+        const hasSelectedSlot = slots.some(function (slot) {
+          return slot.start_time === selectedSlot.start_time;
+        });
 
-    if (selectedService) {
-      userSessions[sender] = {
-        state: 'choosing_date',
-        category: session.category,
-        merchant: session.merchant,
-        service: selectedService
-      };
-
-      twiml.message(
-        'You selected ' + selectedService.service_name + '.\n\n' +
-        'Please enter your preferred booking date in this format:\n\n' +
-        'YYYY-MM-DD\n\n' +
-        'Example: 2026-05-20'
-      );
-    } else {
-      twiml.message('Invalid service number. Please choose a service from the list.');
-    }
-  } else if (session && session.state === 'choosing_date') {
-    const bookingDate = message;
-
-    if (isValidDate(bookingDate)) {
-      const slots = await getTimeSlotsForDate(session, bookingDate);
-
-      userSessions[sender] = {
-        state: 'choosing_time_slot',
-        category: session.category,
-        merchant: session.merchant,
-        service: session.service,
-        bookingDate: bookingDate,
-        slots: slots
-      };
-
-      twiml.message(
-        'Here are the available time slots for ' + bookingDate + ':\n\n' +
-        formatTimeSlots(slots) + '\n\n' +
-        'Please reply with the time slot number.'
-      );
-    } else {
-      twiml.message(
-        'Invalid date format. Please enter your preferred booking date as YYYY-MM-DD.\n\n' +
-        'Example: 2026-05-20'
-      );
-    }
-  } else if (session && session.state === 'choosing_time_slot') {
-    const slotNumber = parseInt(message, 10);
-    const selectedSlot = session.slots[slotNumber - 1];
-
-    if (selectedSlot) {
-      let bookingReference = 'WA-' + Date.now();
-      let bookingNote = 'Note: This is a demo WhatsApp booking reference. Database booking creation will be connected later.';
-
-      if (canCreateRealBooking(session)) {
-        try {
-          bookingReference = await createWhatsappBooking(sender, session, selectedSlot);
-          bookingNote = 'Your booking has been saved with status pending_payment.';
-        } catch (error) {
-          console.error('Failed to create WhatsApp booking:', error.message);
-          bookingNote = 'Note: I could not save this booking to the database yet, so this is a demo WhatsApp booking reference.';
+        if (hasSelectedSlot) {
+          availableStaff.push(member);
         }
       }
 
-      const paymentLink = getPaymentLink(bookingReference);
-
-      twiml.message(
-        'Perfect! Your booking is pending payment.\n\n' +
-        'Booking Reference: ' + bookingReference + '\n' +
-        'Merchant: ' + session.merchant.merchant_name + '\n' +
-        'Service: ' + session.service.service_name + '\n' +
-        'Date: ' + session.bookingDate + '\n' +
-        'Time: ' + selectedSlot.label + '\n' +
-        'Total: $' + getServicePrice(session.service) + '\n\n' +
-        'Please complete payment using this link:\n' +
-        paymentLink + '\n\n' +
-        bookingNote
-      );
-
-      delete userSessions[sender];
-    } else {
-      twiml.message('Invalid time slot number. Please choose a time slot from the list.');
+      if (availableStaff.length > 0) {
+        return availableStaff;
+      }
     }
-  } else if (message === '1') {
-    userSessions[sender] = {
-      state: 'choosing_category'
-    };
-
-    twiml.message(getCategoryMenu());
-  } else if (message === '2') {
-    userSessions[sender] = {
-      state: 'checking_reservation'
-    };
-
-    twiml.message('Please enter your booking ID to check your reservation.');
-  } else if (message === '3') {
-    twiml.message('Sure! I can help you with booking, checking reservations, cancellations, and rescheduling. For urgent issues, a Uniday support staff can follow up later.');
-  } else {
-    delete userSessions[sender];
-    twiml.message(getMainMenu());
+  } catch (error) {
+    console.error('Failed to load staff from database:', error.message);
   }
 
-  res.type('text/xml');
-  res.send(twiml.toString());
+  return demoStaff;
+}
+
+async function receiveMessage(req, res) {
+  const twiml = new twilio.twiml.MessagingResponse();
+
+  try {
+    const incomingMessage = req.body.Body || '';
+    const message = incomingMessage.toLowerCase().trim();
+    const sender = req.body.From || 'unknown';
+    const session = userSessions[sender];
+
+    console.log('Incoming WhatsApp message:', incomingMessage);
+
+    if (message === 'reset' || message === 'menu' || message === 'hi' || message === 'hello') {
+      delete userSessions[sender];
+      twiml.message(getMainMenu());
+    } else if (message === '0' || message === 'back') {
+      goBack(sender, twiml);
+    } else if (session && session.state === 'checking_reservation') {
+      const bookingId = incomingMessage.trim();
+
+      twiml.message('Thanks! I will check reservation ID: ' + bookingId);
+      delete userSessions[sender];
+    } else if (session && session.state === 'choosing_category') {
+      const category = categories[message];
+
+      if (category) {
+        const merchants = await getMerchantsForCategory(category);
+
+        saveSession(sender, {
+          state: 'choosing_merchant',
+          category: category,
+          merchants: merchants
+        });
+
+        twiml.message(getMerchantMenu(category, merchants));
+      } else {
+        twiml.message('Please choose a category from 1 to 8.');
+      }
+    } else if (session && session.state === 'choosing_merchant') {
+      const merchantNumber = parseInt(message, 10);
+      const selectedMerchant = session.merchants[merchantNumber - 1];
+
+      if (selectedMerchant) {
+        const services = await getServicesForMerchant(selectedMerchant, session.category);
+
+        saveSession(sender, {
+          state: 'choosing_service',
+          category: session.category,
+          merchant: selectedMerchant,
+          services: services
+        });
+
+        twiml.message(getServiceMenu(selectedMerchant, services));
+      } else {
+        twiml.message('Invalid merchant number. Please choose a merchant from the list.');
+      }
+    } else if (session && session.state === 'choosing_service') {
+      const serviceNumber = parseInt(message, 10);
+      const selectedService = session.services[serviceNumber - 1];
+
+      if (selectedService) {
+        saveSession(sender, {
+          state: 'choosing_date',
+          category: session.category,
+          merchant: session.merchant,
+          service: selectedService
+        });
+
+        twiml.message(getDatePrompt(selectedService));
+      } else {
+        twiml.message('Invalid service number. Please choose a service from the list.');
+      }
+    } else if (session && session.state === 'choosing_date') {
+      const bookingDate = message;
+
+      if (isValidDate(bookingDate)) {
+        const slots = await getTimeSlotsForDate(session, bookingDate);
+
+        saveSession(sender, {
+          state: 'choosing_time_slot',
+          category: session.category,
+          merchant: session.merchant,
+          service: session.service,
+          bookingDate: bookingDate,
+          slots: slots
+        });
+
+        twiml.message(getTimeSlotMenu(bookingDate, slots));
+      } else {
+        twiml.message(
+          'Invalid date format. Please enter your preferred booking date as YYYY-MM-DD.\n\n' +
+          'Example: 2026-05-20'
+        );
+      }
+    } else if (session && session.state === 'choosing_time_slot') {
+      const slotNumber = parseInt(message, 10);
+      const selectedSlot = session.slots[slotNumber - 1];
+
+      if (selectedSlot) {
+        const staff = await getStaffForTimeSlot(session, selectedSlot);
+
+        saveSession(sender, {
+          state: 'choosing_staff',
+          category: session.category,
+          merchant: session.merchant,
+          service: session.service,
+          bookingDate: session.bookingDate,
+          selectedSlot: selectedSlot,
+          staff: staff
+        });
+
+        twiml.message(getStaffMenu(staff));
+      } else {
+        twiml.message('Invalid time slot number. Please choose a time slot from the list.');
+      }
+    } else if (session && session.state === 'choosing_staff') {
+      const staffNumber = parseInt(message, 10);
+      const selectedStaff = staffNumber === 1 ? null : session.staff[staffNumber - 2];
+
+      if (staffNumber === 1 || selectedStaff) {
+        const bookingReference = 'WA-' + Date.now();
+        const paymentLink = getPaymentLink(bookingReference);
+        const staffName = selectedStaff ? selectedStaff.full_name : 'No Preference';
+
+        twiml.message(
+          'Perfect! Your booking is pending payment.\n\n' +
+          'Booking Reference: ' + bookingReference + '\n' +
+          'Merchant: ' + session.merchant.merchant_name + '\n' +
+          'Service: ' + session.service.service_name + '\n' +
+          'Date: ' + session.bookingDate + '\n' +
+          'Time: ' + session.selectedSlot.label + '\n' +
+          'Staff: ' + staffName + '\n' +
+          'Total: $' + getServicePrice(session.service) + '\n\n' +
+          'Please complete payment using this link:\n' +
+          paymentLink + '\n\n' +
+          'Note: This is a demo WhatsApp booking reference. Database booking creation will be connected later.'
+        );
+
+        delete userSessions[sender];
+      } else {
+        twiml.message('Invalid staff number. Please choose a staff option from the list.');
+      }
+    } else if (message === '1') {
+      saveSession(sender, {
+        state: 'choosing_category'
+      });
+
+      twiml.message(getCategoryMenu());
+    } else if (message === '2') {
+      saveSession(sender, {
+        state: 'checking_reservation'
+      });
+
+      twiml.message('Please enter your booking ID to check your reservation.');
+    } else if (message === '3') {
+      twiml.message('Sure! I can help you with booking, checking reservations, cancellations, and rescheduling. For urgent issues, a Uniday support staff can follow up later.');
+    } else {
+      delete userSessions[sender];
+      twiml.message(getMainMenu());
+    }
+  } catch (error) {
+    console.error('WhatsApp webhook error:', error.message);
+    twiml.message('Sorry, something went wrong. Please reply menu to start again.');
+  }
+
+  return sendTwiml(res, twiml);
 }
 
 module.exports = { receiveMessage };
