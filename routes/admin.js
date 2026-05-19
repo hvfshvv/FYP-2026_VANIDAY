@@ -7,6 +7,7 @@ router.use(requireLogin, requireAdmin);
 
 router.get('/dashboard', adminController.showDashboard);
 router.get('/merchants', adminController.showMerchants);
+router.post('/merchants/:merchantId/feature', adminController.featureMerchantFromDashboard);
 router.get('/customers', adminController.showCustomers);
 router.get('/user-management', adminController.showUserManagementHome);
 router.get('/user-management/customers', adminController.showManagedCustomers);

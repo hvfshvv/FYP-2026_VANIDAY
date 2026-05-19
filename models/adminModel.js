@@ -196,7 +196,7 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
     loyaltyUsage,
     reviewSummaryRows,
     campaignPerformance,
-    qrAnalytics,
+    bookingChannelAnalytics,
     listingPerformance,
     staffPerformance,
     financialRows,
@@ -367,10 +367,20 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
        LIMIT 8`
     ).then(([rows]) => rows),
     db.query(
-      `SELECT qr_type, COUNT(*) AS total, SUM(CASE WHEN is_active THEN 1 ELSE 0 END) AS active_total
-       FROM qr_code
-       GROUP BY qr_type
-       ORDER BY total DESC`
+      `SELECT
+         CASE
+           WHEN source = 'whatsapp' THEN 'WhatsApp booking'
+           WHEN source = 'qr' AND booking_type = 'walk_in' THEN 'Walk-in QR'
+           WHEN source = 'qr' THEN 'QR booking'
+           ELSE CONCAT(UPPER(LEFT(source, 1)), SUBSTRING(source, 2), ' booking')
+         END AS channel_label,
+         COUNT(*) AS total,
+         COALESCE(SUM(total_amount), 0) AS revenue
+       FROM booking b
+       WHERE ${bookingDateFilter}
+       GROUP BY channel_label
+       ORDER BY total DESC`,
+      rangeParams
     ).then(([rows]) => rows),
     db.query(
       `SELECT m.merchant_name, COUNT(fl.listing_id) AS listings, SUM(CASE WHEN fl.is_visible THEN 1 ELSE 0 END) AS visible_listings
@@ -406,11 +416,13 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
               COUNT(DISTINCT b.booking_id) AS bookings,
               COUNT(DISTINCT b.customer_id) AS customers,
               COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS revenue,
-              COALESCE(AVG(r.rating), 0) AS rating
+              COALESCE(AVG(r.rating), 0) AS rating,
+              MAX(CASE WHEN fl.listing_id IS NOT NULL AND fl.is_visible = TRUE THEN 1 ELSE 0 END) AS is_featured
        FROM merchant m
        LEFT JOIN booking b ON b.merchant_id = m.merchant_id AND ${bookingDateFilter}
        LEFT JOIN payment p ON p.booking_id = b.booking_id
        LEFT JOIN merchant_review r ON r.booking_id = b.booking_id
+       LEFT JOIN featured_listing fl ON fl.merchant_id = m.merchant_id
        GROUP BY m.merchant_id, m.merchant_name, m.category
        ORDER BY revenue DESC, bookings DESC
        LIMIT 12`,
@@ -435,12 +447,51 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
     loyaltyUsage,
     reviewSummary: reviewSummaryRows,
     campaignPerformance,
-    qrAnalytics,
+    bookingChannelAnalytics,
     listingPerformance,
     staffPerformance,
     financial: financialRows,
     topMerchants,
   };
+}
+
+async function addMerchantToFeatured(merchantId) {
+  const [[merchant]] = await db.query(
+    `SELECT merchant_id, merchant_name, category
+     FROM merchant
+     WHERE merchant_id = ?`,
+    [merchantId]
+  );
+
+  if (!merchant) {
+    throw new Error('Merchant not found');
+  }
+
+  const title = merchant.merchant_name;
+  const description = `Featured ${merchant.category || 'merchant'} on Uniday.`;
+
+  const [existing] = await db.query(
+    'SELECT listing_id FROM featured_listing WHERE merchant_id = ? LIMIT 1',
+    [merchantId]
+  );
+
+  if (existing.length) {
+    await db.query(
+      `UPDATE featured_listing
+       SET title = ?, description = ?, is_visible = TRUE
+       WHERE merchant_id = ?`,
+      [title, description, merchantId]
+    );
+    return existing[0].listing_id;
+  }
+
+  const [result] = await db.query(
+    `INSERT INTO featured_listing (merchant_id, title, description, is_visible)
+     VALUES (?, ?, ?, TRUE)`,
+    [merchantId, title, description]
+  );
+
+  return result.insertId;
 }
 
 async function getCustomerAnalytics({ startDate, endDate } = {}) {
@@ -1076,6 +1127,7 @@ module.exports = {
   getRecentPayments,
   getRecentValidationErrors,
   getMerchantAnalytics,
+  addMerchantToFeatured,
   getCustomerAnalytics,
   getPendingMerchantApplications,
   getRecentMerchantValidationDecisions,

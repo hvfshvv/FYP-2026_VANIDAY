@@ -108,6 +108,47 @@
     color:var(--ink);
     border-color:rgba(225,29,72,.35);
   }
+  .chart-column-wrap {
+    display:flex;
+    align-items:end;
+    gap:.45rem;
+    min-height:170px;
+    padding-top:.5rem;
+  }
+  .chart-column {
+    flex:1;
+    min-width:22px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-end;
+    gap:.45rem;
+  }
+  .chart-column span {
+    width:100%;
+    min-height:8px;
+    border-radius:.45rem .45rem 0 0;
+    background:linear-gradient(180deg, var(--accent), #FB7185);
+  }
+  .chart-column small {
+    color:var(--muted);
+    font-size:.68rem;
+    font-weight:700;
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);
+    max-height:48px;
+  }
+  .status-pill {
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    border-radius:999px;
+    padding:.35rem .6rem;
+    background:var(--accent-light);
+    color:var(--accent);
+    font-size:.75rem;
+    font-weight:800;
+  }
 </style>
 
 <main class="merchant-analytics" id="merchantAnalytics" style="background:var(--canvas);min-height:80vh;padding:2.5rem 1rem;">
@@ -138,6 +179,18 @@
         <span><%= error %></span>
       </div>
     <% } %>
+    <% if (query && query.featured) { %>
+      <div class="alert alert-success mb-4">
+        <i class="bi bi-check-circle"></i>
+        <span>Merchant added to featured merchants.</span>
+      </div>
+    <% } %>
+    <% if (query && query.error === 'feature') { %>
+      <div class="alert alert-warning mb-4">
+        <i class="bi bi-exclamation-triangle"></i>
+        <span>Could not add merchant to featured merchants.</span>
+      </div>
+    <% } %>
 
     <div class="dashboard-tabs mb-4">
       <a href="#overview">Overview</a>
@@ -145,7 +198,6 @@
       <a href="#bookings">Bookings</a>
       <a href="#customers">Customers</a>
       <a href="#marketing">Marketing</a>
-      <a href="#operations">Operations</a>
       <a href="#finance">Finance</a>
       <a href="#insights">AI Insights</a>
     </div>
@@ -191,6 +243,14 @@
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Daily Revenue Trend</h6>
             <% const revenueMax = maxOf(a.revenueTrend || [], 'total'); %>
+            <div class="chart-column-wrap mb-3">
+              <% (a.revenueTrend || []).slice(-14).forEach(row => { %>
+                <div class="chart-column" title="<%= dateLabel(row.period_label) %>: <%= money(row.total) %>">
+                  <span style="height:<%= barWidth(row.total, revenueMax) %>%;"></span>
+                  <small><%= dateLabel(row.period_label) %></small>
+                </div>
+              <% }) %>
+            </div>
             <div class="metric-list">
               <% (a.revenueTrend || []).forEach(row => { %>
                 <div>
@@ -209,6 +269,11 @@
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Revenue by Category</h6>
             <% const categoryMax = maxOf(a.revenueByCategory || [], 'revenue'); %>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <% (a.revenueByCategory || []).slice(0, 4).forEach(row => { %>
+                <span class="status-pill"><%= row.category %> · <%= money(row.revenue) %></span>
+              <% }) %>
+            </div>
             <div class="metric-list">
               <% (a.revenueByCategory || []).forEach(row => { %>
                 <div>
@@ -264,6 +329,20 @@
             </div>
           </div>
         </div>
+        <div class="col-lg-4">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Peak Sales Periods</h6>
+            <div class="metric-list">
+              <% (a.peakSalesPeriods || []).forEach(row => { %>
+                <div class="metric-row">
+                  <p><%= String(row.hour_label).padStart(2, '0') %>:00</p>
+                  <small><%= money(row.revenue) %></small>
+                </div>
+              <% }) %>
+              <% if (!(a.peakSalesPeriods || []).length) { %><p style="color:var(--muted);margin:0;">No peak sales data yet.</p><% } %>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -274,9 +353,13 @@
         <div class="col-lg-4">
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Confirmed vs Cancelled</h6>
+            <% const statusMax = maxOf(a.bookingStatus || [], 'total'); %>
             <div class="metric-list">
               <% (a.bookingStatus || []).forEach(row => { %>
-                <div class="metric-row"><p><%= String(row.status || 'unknown').replace('_', ' ') %></p><small><%= number(row.total) %></small></div>
+                <div>
+                  <div class="metric-row mb-1"><p><%= String(row.status || 'unknown').replace('_', ' ') %></p><small><%= number(row.total) %></small></div>
+                  <div class="mini-bar"><span style="width:<%= barWidth(row.total, statusMax) %>%;"></span></div>
+                </div>
               <% }) %>
             </div>
           </div>
@@ -284,9 +367,13 @@
         <div class="col-lg-4">
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Peak Booking Hours &amp; Days</h6>
+            <% const peakBookingMax = maxOf(a.peakBookingTimes || [], 'bookings'); %>
             <div class="metric-list">
               <% (a.peakBookingTimes || []).forEach(row => { %>
-                <div class="metric-row"><p><%= row.day_label %>, <%= String(row.hour_label).padStart(2, '0') %>:00</p><small><%= number(row.bookings) %></small></div>
+                <div>
+                  <div class="metric-row mb-1"><p><%= row.day_label %>, <%= String(row.hour_label).padStart(2, '0') %>:00</p><small><%= number(row.bookings) %></small></div>
+                  <div class="mini-bar"><span style="width:<%= barWidth(row.bookings, peakBookingMax) %>%;"></span></div>
+                </div>
               <% }) %>
               <% if (!(a.peakBookingTimes || []).length) { %><p style="color:var(--muted);margin:0;">No booking heatmap data yet.</p><% } %>
             </div>
@@ -297,22 +384,6 @@
             <h6 class="analytics-title mb-3">Booking Lead Time</h6>
             <p class="stat-value" style="font-size:2rem;color:var(--accent);"><%= avgLeadDays.toFixed(1) %> days</p>
             <p style="color:var(--muted);margin:0;">Average time between booking creation and appointment slot.</p>
-          </div>
-        </div>
-        <div class="col-12">
-          <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Staff / Service Utilization Rate</h6>
-            <div class="row g-3">
-              <% (a.serviceUtilization || []).forEach(row => {
-                const utilization = Number(row.total_slots || 0) ? (Number(row.booked_slots || 0) / Number(row.total_slots || 1)) * 100 : 0;
-              %>
-                <div class="col-md-6 col-xl-3">
-                  <div class="metric-row mb-1"><p><%= row.service_name %></p><small><%= percent(utilization) %></small></div>
-                  <div class="mini-bar"><span style="width:<%= barWidth(utilization, 100) %>%;"></span></div>
-                </div>
-              <% }) %>
-              <% if (!(a.serviceUtilization || []).length) { %><p style="color:var(--muted);margin:0;">No utilization data yet.</p><% } %>
-            </div>
           </div>
         </div>
       </div>
@@ -378,7 +449,7 @@
 
     <section id="marketing" class="section-anchor mb-5">
       <p class="section-label mb-1">Marketing Performance</p>
-      <h4 class="analytics-title mb-3">Campaigns, QR &amp; Marketplace</h4>
+      <h4 class="analytics-title mb-3">Campaigns, WhatsApp Booking, Walk-in QR &amp; Marketplace</h4>
       <div class="row g-3">
         <div class="col-lg-4">
           <div class="analytics-card">
@@ -392,13 +463,21 @@
         </div>
         <div class="col-lg-4">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">QR Scan Analytics</h6>
+            <h6 class="analytics-title mb-3">Booking Source</h6>
+            <% const channelMax = maxOf(a.bookingChannelAnalytics || [], 'total'); %>
             <div class="metric-list">
-              <% (a.qrAnalytics || []).forEach(row => { %>
-                <div class="metric-row"><p><%= row.qr_type || 'General' %></p><small><%= number(row.active_total) %>/<%= number(row.total) %> active</small></div>
+              <%
+                const bookingSources = [...(a.bookingChannelAnalytics || [])];
+                if (!bookingSources.some(row => row.channel_label === 'WhatsApp booking')) {
+                  bookingSources.push({ channel_label: 'WhatsApp booking', total: 0, revenue: 0 });
+                }
+              %>
+              <% bookingSources.forEach(row => { %>
+                <div>
+                  <div class="metric-row mb-1"><p><%= row.channel_label || 'Booking channel' %></p><small><%= number(row.total) %> bookings</small></div>
+                  <div class="mini-bar"><span style="width:<%= barWidth(row.total, channelMax) %>%;"></span></div>
+                </div>
               <% }) %>
-              <div class="metric-row"><p>Click-through sources</p><small>Not connected</small></div>
-              <div class="metric-row"><p>Social media traffic</p><small>Not connected</small></div>
             </div>
           </div>
         </div>
@@ -410,34 +489,6 @@
                 <div class="metric-row"><p><%= row.merchant_name %></p><small><%= number(row.visible_listings) %> visible</small></div>
               <% }) %>
               <% if (!(a.listingPerformance || []).length) { %><p style="color:var(--muted);margin:0;">No featured listings yet.</p><% } %>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="operations" class="section-anchor mb-5">
-      <p class="section-label mb-1">Operational Analytics</p>
-      <h4 class="analytics-title mb-3">Staff, Services &amp; Resources</h4>
-      <div class="row g-3">
-        <div class="col-lg-6">
-          <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Staff Performance Metrics</h6>
-            <div class="metric-list">
-              <% (a.staffPerformance || []).forEach(row => { %>
-                <div class="metric-row"><p><%= row.staff_name %></p><small><%= number(row.bookings) %> bookings · <%= money(row.revenue) %></small></div>
-              <% }) %>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-6">
-          <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Service &amp; Queue Operations</h6>
-            <div class="metric-list">
-              <div class="metric-row"><p>Service duration averages</p><small>Tracked by service setup</small></div>
-              <div class="metric-row"><p>Queue / waiting time</p><small>Arrival timestamps needed</small></div>
-              <div class="metric-row"><p>Resource utilization</p><small><%= percent(overview.booking_conversion_rate) %></small></div>
-              <div class="metric-row"><p>Inventory alerts</p><small>Inventory module not configured</small></div>
             </div>
           </div>
         </div>
@@ -490,7 +541,7 @@
           { title:'Demand prediction', body: bestHour ? `Demand is strongest on ${bestHour.day_label} around ${String(bestHour.hour_label).padStart(2, '0')}:00.` : 'More bookings are needed to detect demand patterns.' },
           { title:'Recommended promotions', body: bestCategory ? `Prioritise ${bestCategory.category} campaigns; it leads category revenue.` : 'Category revenue is not available yet.' },
           { title:'Customer churn prediction', body: retentionRate ? `Retention is ${percent(retentionRate)}; low-repeat segments should receive win-back offers.` : 'Repeat booking data is not available yet.' },
-          { title:'Suggested peak staffing hours', body: bestHour ? `Schedule stronger coverage for ${bestHour.day_label} ${String(bestHour.hour_label).padStart(2, '0')}:00.` : 'Staffing recommendation needs booking heatmap data.' },
+          { title:'Suggested peak coverage hours', body: bestHour ? `Prepare extra capacity for ${bestHour.day_label} ${String(bestHour.hour_label).padStart(2, '0')}:00.` : 'Coverage recommendation needs booking heatmap data.' },
           { title:'Trend anomaly detection', body: topService ? `${topService.service_name} is the current service benchmark.` : 'No abnormal trend detected from available data.' },
         ].forEach(card => { %>
           <div class="col-md-6 col-xl-4">
@@ -503,7 +554,7 @@
       </div>
     </section>
 
-    <section class="mb-3">
+    <section class="mb-3 section-anchor" id="leaderboard">
       <p class="section-label mb-1">Merchant Leaderboard</p>
       <h4 class="analytics-title mb-3">Top Merchants</h4>
       <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
@@ -517,6 +568,7 @@
                 <th>Customers</th>
                 <th>Revenue</th>
                 <th>Rating</th>
+                <th>Featured</th>
               </tr>
             </thead>
             <tbody>
@@ -528,6 +580,17 @@
                   <td><%= number(merchant.customers) %></td>
                   <td style="font-family:var(--font-mono);font-weight:700;"><%= money(merchant.revenue) %></td>
                   <td><%= rating(merchant.rating) %></td>
+                  <td>
+                    <% if (Number(merchant.is_featured || 0)) { %>
+                      <span class="badge" style="background:var(--success-bg);color:var(--success);">Featured</span>
+                    <% } else { %>
+                      <form action="/admin/merchants/<%= merchant.merchant_id %>/feature" method="POST" class="m-0">
+                        <button type="submit" class="btn btn-primary btn-sm btn-pill">
+                          <i class="bi bi-star me-1"></i>Add Featured
+                        </button>
+                      </form>
+                    <% } %>
+                  </td>
                 </tr>
               <% }) %>
             </tbody>

@@ -72,6 +72,7 @@ async function showMerchants(req, res) {
       title: 'Merchant Analytics',
       analytics,
       range,
+      query: req.query,
       error: null,
     });
   } catch (err) {
@@ -80,6 +81,7 @@ async function showMerchants(req, res) {
       title: 'Merchant Analytics',
       analytics: emptyMerchantAnalytics(),
       range,
+      query: req.query,
       error: 'Failed to load merchant analytics data.',
     });
   }
@@ -259,6 +261,16 @@ async function showMerchantBookings(req, res) {
   }
 }
 
+async function featureMerchantFromDashboard(req, res) {
+  try {
+    await adminModel.addMerchantToFeatured(req.params.merchantId);
+    res.redirect('/admin/merchants?featured=1#leaderboard');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/merchants?error=feature#leaderboard');
+  }
+}
+
 function isDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
 }
@@ -288,7 +300,7 @@ function emptyMerchantAnalytics() {
     loyaltyUsage: [],
     reviewSummary: {},
     campaignPerformance: [],
-    qrAnalytics: [],
+    bookingChannelAnalytics: [],
     listingPerformance: [],
     staffPerformance: [],
     financial: {},
@@ -488,6 +500,7 @@ module.exports = {
   showComingSoon,
   showMerchants,
   showCustomers,
+  featureMerchantFromDashboard,
   showUserManagementHome,
   showManagedCustomers,
   showManagedMerchants,
