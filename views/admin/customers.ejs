@@ -1,0 +1,528 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const a = analytics || {};
+  const overview = a.overview || {};
+  const loyalty = a.loyaltySummary || {};
+  const security = a.security || {};
+  const money = value => 'S$' + Number(value || 0).toFixed(2);
+  const number = value => Number(value || 0).toLocaleString('en-SG');
+  const percent = value => Number(value || 0).toFixed(1) + '%';
+  const rating = value => Number(value || 0).toFixed(1) + '/5';
+  const dateLabel = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+  const timeLabel = value => value ? String(value).slice(0, 5) : '';
+  const maxOf = (items, key) => Math.max(1, ...items.map(item => Number(item[key] || 0)));
+  const barWidth = (value, max) => Math.max(5, Math.round((Number(value || 0) / max) * 100));
+  const loyaltyMembers = Number(overview.loyalty_members || 0);
+  const totalCustomers = Number(overview.total_customers || 0);
+  const loyaltyRate = totalCustomers ? (loyaltyMembers / totalCustomers) * 100 : 0;
+  const avgPoints = Number(overview.avg_points_balance || 0);
+  const tierProgress = Math.min(100, (avgPoints / 2000) * 100);
+  const qrTotal = (a.qrAccess || []).find(row => row.source === 'qr')?.total || 0;
+  const reminderTotal = (a.reminders || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
+%>
+
+<style>
+  .customer-admin {
+    background:var(--canvas);
+    min-height:80vh;
+    padding:2.5rem 1rem;
+  }
+  .customer-card {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--r-lg);
+    box-shadow:var(--shadow-sm);
+    padding:1.25rem;
+    height:100%;
+  }
+  .customer-title {
+    color:var(--ink);
+    font-weight:800;
+    letter-spacing:-.02em;
+    margin:0;
+  }
+  .admin-tabs {
+    display:flex;
+    gap:.5rem;
+    overflow-x:auto;
+    padding-bottom:.25rem;
+  }
+  .admin-tabs a {
+    flex:0 0 auto;
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--muted);
+    border-radius:999px;
+    padding:.5rem .8rem;
+    font-size:.8125rem;
+    font-weight:700;
+  }
+  .admin-tabs a:hover {
+    color:var(--ink);
+    border-color:rgba(225,29,72,.35);
+  }
+  .section-anchor { scroll-margin-top:7rem; }
+  .mini-bar {
+    height:10px;
+    background:var(--neutral-bg);
+    border-radius:999px;
+    overflow:hidden;
+  }
+  .mini-bar span {
+    display:block;
+    height:100%;
+    background:var(--accent);
+    border-radius:999px;
+  }
+  .metric-list {
+    display:flex;
+    flex-direction:column;
+    gap:.875rem;
+  }
+  .metric-row {
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    gap:.75rem;
+    align-items:center;
+  }
+  .metric-row p {
+    margin:0;
+    color:var(--ink);
+    font-weight:700;
+    font-size:.875rem;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .metric-row small {
+    color:var(--muted);
+    font-family:var(--font-mono);
+  }
+  .calendar-card {
+    display:grid;
+    grid-template-columns:64px minmax(0, 1fr);
+    gap:1rem;
+    align-items:start;
+    padding:1rem 0;
+    border-top:1px solid var(--border);
+  }
+  .calendar-date {
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    background:var(--accent-light);
+    text-align:center;
+    overflow:hidden;
+  }
+  .calendar-date span {
+    display:block;
+    color:var(--accent);
+    font-weight:800;
+    line-height:1;
+    padding:.4rem .25rem;
+  }
+  .calendar-date strong {
+    display:block;
+    background:var(--surface);
+    color:var(--ink);
+    font-size:1.35rem;
+    line-height:1;
+    padding:.5rem .25rem;
+  }
+  .pie-bars {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
+    gap:.75rem;
+  }
+</style>
+
+<main class="customer-admin">
+  <div class="container" style="max-width:1400px;">
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+      <div>
+        <p class="section-label mb-2">Admin View</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Customer Dashboard</h2>
+        <p style="color:var(--muted);margin-bottom:0;">Account health, bookings, loyalty, spending, recommendations, reviews, and security settings.</p>
+      </div>
+      <form method="GET" action="/admin/customers" class="d-flex flex-wrap gap-2 align-items-center">
+        <input type="date" name="startDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.startDate %>" />
+        <input type="date" name="endDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.endDate %>" />
+        <button type="submit" class="btn btn-primary btn-pill">
+          <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+      </form>
+    </div>
+
+    <% if (error) { %>
+      <div class="alert alert-warning mb-4">
+        <i class="bi bi-exclamation-triangle"></i>
+        <span><%= error %></span>
+      </div>
+    <% } %>
+
+    <div class="admin-tabs mb-4">
+      <a href="#overview">Account Overview</a>
+      <a href="#bookings">Bookings</a>
+      <a href="#loyalty">Loyalty</a>
+      <a href="#spending">Spending</a>
+      <a href="#recommendations">Recommendations</a>
+      <a href="#reviews">Reviews</a>
+      <a href="#security">Security</a>
+    </div>
+
+    <section id="overview" class="section-anchor mb-5">
+      <div class="row g-3">
+        <% [
+          { label:'Customer accounts', value:number(overview.total_customers), icon:'bi-person-badge', color:'var(--accent)' },
+          { label:'Loyalty members', value:number(overview.loyalty_members), icon:'bi-award', color:'var(--warn)' },
+          { label:'Reward points balance', value:number(overview.reward_points_balance), icon:'bi-coin', color:'var(--success)' },
+          { label:'Payment methods used', value:number(overview.saved_payment_methods), icon:'bi-credit-card', color:'#1D4ED8' },
+          { label:'Preferred merchants', value:number(overview.preferred_merchants), icon:'bi-heart', color:'var(--danger)' },
+          { label:'Total amount spent', value:money(overview.total_amount_spent), icon:'bi-cash-stack', color:'var(--success)' },
+          { label:'Average order value', value:money(overview.average_order_value), icon:'bi-bag-check', color:'var(--ink)' },
+          { label:'Loyalty adoption', value:percent(loyaltyRate), icon:'bi-graph-up', color:'var(--accent)' },
+        ].forEach(stat => { %>
+          <div class="col-6 col-lg-3">
+            <div class="stat-card h-100">
+              <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                  <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.45rem;"><%= stat.label %></p>
+                  <p class="stat-value" style="color:<%= stat.color %>;font-size:1.45rem;"><%= stat.value %></p>
+                </div>
+                <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+                  <i class="bi <%= stat.icon %>"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-lg-8">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Profile Information &amp; Membership Status</h6>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+                <thead style="background:var(--accent-light);"><tr><th>Customer</th><th>Contact</th><th>Points</th><th>Bookings</th><th>Spent</th><th>Favourites</th></tr></thead>
+                <tbody>
+                  <% (a.accountProfiles || []).forEach(customer => { %>
+                    <tr>
+                      <td>
+                        <p style="font-weight:700;margin:0;"><%= customer.full_name || '-' %></p>
+                        <p style="color:var(--muted);margin:0;font-size:.75rem;"><%= customer.status || 'active' %></p>
+                      </td>
+                      <td>
+                        <p style="margin:0;"><%= customer.email || '-' %></p>
+                        <p style="color:var(--muted);margin:0;font-size:.75rem;"><%= customer.phone || 'No phone' %></p>
+                      </td>
+                      <td><%= number(customer.points_balance) %></td>
+                      <td><%= number(customer.bookings) %></td>
+                      <td style="font-family:var(--font-mono);font-weight:700;"><%= money(customer.total_spent) %></td>
+                      <td><%= number(customer.favourites) %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <% if (!(a.accountProfiles || []).length) { %><p style="color:var(--muted);margin:0;">No customer profiles found.</p><% } %>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Loyalty Tier Progression</h6>
+            <p style="color:var(--muted);margin-bottom:.35rem;">Average points balance</p>
+            <p class="stat-value" style="font-size:2rem;color:var(--accent);"><%= number(avgPoints) %></p>
+            <div class="mini-bar mb-2"><span style="width:<%= barWidth(tierProgress, 100) %>%;"></span></div>
+            <div class="d-flex justify-content-between" style="color:var(--muted);font-size:.75rem;font-weight:700;">
+              <span>Bronze</span><span>Silver</span><span>Gold</span>
+            </div>
+            <div class="metric-list mt-4">
+              <div class="metric-row"><p>Bronze members</p><small><%= number(loyalty.bronze_members) %></small></div>
+              <div class="metric-row"><p>Silver members</p><small><%= number(loyalty.silver_members) %></small></div>
+              <div class="metric-row"><p>Gold members</p><small><%= number(loyalty.gold_members) %></small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="bookings" class="section-anchor mb-5">
+      <p class="section-label mb-1">Booking Management</p>
+      <h4 class="customer-title mb-3">Upcoming, Past &amp; Status Tracking</h4>
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Upcoming Appointments</h6>
+            <% (a.upcomingBookings || []).forEach(booking => { const dt = new Date(booking.slot_date); %>
+              <div class="calendar-card">
+                <div class="calendar-date">
+                  <span><%= dt.toLocaleDateString('en-SG', { month:'short' }) %></span>
+                  <strong><%= dt.getDate() %></strong>
+                </div>
+                <div>
+                  <p style="font-weight:800;color:var(--ink);margin:0;"><%= booking.service_name %></p>
+                  <p style="color:var(--muted);margin:0;"><%= booking.customer_name %> · <%= booking.merchant_name %></p>
+                  <p style="color:var(--accent);font-weight:700;margin:.25rem 0 0;"><%= timeLabel(booking.start_time) %> · <%= booking.status.replace('_', ' ') %></p>
+                </div>
+              </div>
+            <% }) %>
+            <% if (!(a.upcomingBookings || []).length) { %><p style="color:var(--muted);margin:0;">No upcoming bookings.</p><% } %>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Past Bookings</h6>
+            <div class="metric-list">
+              <% (a.pastBookings || []).forEach(booking => { %>
+                <div class="metric-row">
+                  <p><%= booking.service_name %></p>
+                  <small><%= dateLabel(booking.slot_date) %></small>
+                </div>
+              <% }) %>
+              <% if (!(a.pastBookings || []).length) { %><p style="color:var(--muted);margin:0;">No past bookings.</p><% } %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Status, QR Access &amp; Reminders</h6>
+            <div class="metric-list">
+              <% (a.bookingStatus || []).forEach(row => { %>
+                <div class="metric-row"><p><%= String(row.status || 'unknown').replace('_', ' ') %></p><small><%= number(row.total) %></small></div>
+              <% }) %>
+              <div class="metric-row"><p>QR booking access</p><small><%= number(qrTotal) %> bookings</small></div>
+              <div class="metric-row"><p>Booking reminders</p><small><%= number(reminderTotal) %> scheduled/sent</small></div>
+              <div class="metric-row"><p>Cancel/reschedule tools</p><small>Available in customer booking history</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="loyalty" class="section-anchor mb-5">
+      <p class="section-label mb-1">Loyalty &amp; Rewards</p>
+      <h4 class="customer-title mb-3">Points, Vouchers &amp; Referral Signals</h4>
+      <div class="row g-3">
+        <div class="col-lg-3">
+          <div class="customer-card">
+            <p style="color:var(--muted);margin-bottom:.35rem;">Points earned</p>
+            <p class="stat-value" style="font-size:1.8rem;color:var(--success);"><%= number(loyalty.points_earned) %></p>
+            <p style="color:var(--muted);margin-bottom:.35rem;">Points spent</p>
+            <p class="stat-value" style="font-size:1.8rem;color:var(--accent);"><%= number(loyalty.points_redeemed) %></p>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Reward History</h6>
+            <div class="metric-list">
+              <% (a.loyaltyTransactions || []).forEach(row => { %>
+                <div class="metric-row"><p><%= String(row.transaction_type || '').replace('_', ' ') %></p><small><%= number(row.points) %> pts</small></div>
+              <% }) %>
+              <% if (!(a.loyaltyTransactions || []).length) { %><p style="color:var(--muted);margin:0;">No loyalty transactions yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Available Vouchers &amp; Promotions</h6>
+            <div class="metric-list">
+              <% (a.availableVouchers || []).forEach(voucher => { %>
+                <div class="metric-row">
+                  <p><%= voucher.campaign_name || voucher.voucher_code %></p>
+                  <small><%= voucher.discount_type === 'percent' ? Number(voucher.discount_value || 0).toFixed(0) + '%' : money(voucher.discount_value) %></small>
+                </div>
+              <% }) %>
+              <div class="metric-row"><p>Referral rewards</p><small>Referral module not configured</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="spending" class="section-anchor mb-5">
+      <p class="section-label mb-1">Spending &amp; Activity Analytics</p>
+      <h4 class="customer-title mb-3">Trends, Categories &amp; Usage</h4>
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Monthly Spending Trend</h6>
+            <% const spendMax = maxOf(a.spendingTrend || [], 'total'); %>
+            <div class="metric-list">
+              <% (a.spendingTrend || []).forEach(row => { %>
+                <div>
+                  <div class="metric-row mb-1"><p><%= row.month_label %></p><small><%= money(row.total) %></small></div>
+                  <div class="mini-bar"><span style="width:<%= barWidth(row.total, spendMax) %>%;"></span></div>
+                </div>
+              <% }) %>
+              <% if (!(a.spendingTrend || []).length) { %><p style="color:var(--muted);margin:0;">No spending trend yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Spending Categories</h6>
+            <% const categoryMax = maxOf(a.spendingCategories || [], 'total'); %>
+            <div class="pie-bars">
+              <% (a.spendingCategories || []).forEach(row => { %>
+                <div>
+                  <div class="metric-row mb-1"><p><%= row.category %></p><small><%= money(row.total) %></small></div>
+                  <div class="mini-bar"><span style="width:<%= barWidth(row.total, categoryMax) %>%;"></span></div>
+                </div>
+              <% }) %>
+              <% if (!(a.spendingCategories || []).length) { %><p style="color:var(--muted);margin:0;">No category spend yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Most Visited Merchants</h6>
+            <div class="metric-list">
+              <% (a.mostVisitedMerchants || []).forEach(row => { %>
+                <div class="metric-row"><p><%= row.merchant_name %></p><small><%= number(row.visits) %> visits</small></div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Favourite Services</h6>
+            <div class="metric-list">
+              <% (a.favouriteServices || []).forEach(row => { %>
+                <div class="metric-row"><p><%= row.service_name %></p><small><%= number(row.bookings) %></small></div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Booking Frequency</h6>
+            <div class="metric-list">
+              <% (a.bookingFrequency || []).forEach(row => { %>
+                <div class="metric-row"><p><%= row.day_label %></p><small><%= number(row.bookings) %> bookings</small></div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="recommendations" class="section-anchor mb-5">
+      <p class="section-label mb-1">Personalized Recommendations</p>
+      <h4 class="customer-title mb-3">Merchant, Service &amp; Promotion Suggestions</h4>
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Recommended Merchants</h6>
+            <div class="metric-list">
+              <% (a.recommendedMerchants || []).forEach(row => { %>
+                <div class="metric-row"><p><%= row.merchant_name %></p><small><%= rating(row.rating) %></small></div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Suggested Services</h6>
+            <div class="metric-list">
+              <% (a.suggestedServices || []).forEach(row => { %>
+                <div class="metric-row"><p><%= row.service_name %></p><small><%= row.category %></small></div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">AI-Based Recommendations</h6>
+            <div class="metric-list">
+              <% (a.behaviourPromotions || []).slice(0, 4).forEach(row => { %>
+                <div class="metric-row"><p><%= row.campaign_name || row.voucher_code %></p><small>Behaviour promo</small></div>
+              <% }) %>
+              <div class="metric-row"><p>Frequently booked combinations</p><small>Service bundle model pending</small></div>
+              <div class="metric-row"><p>Promotion matching</p><small>Based on top categories</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="reviews" class="section-anchor mb-5">
+      <p class="section-label mb-1">Reviews &amp; Feedback</p>
+      <h4 class="customer-title mb-3">Ratings, Previous Feedback &amp; Support Signals</h4>
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <p style="color:var(--muted);margin-bottom:.35rem;">Average rating</p>
+            <p class="stat-value" style="font-size:2rem;color:var(--warn);"><%= rating(a.reviewSummary?.avg_rating) %></p>
+            <p style="color:var(--muted);margin-bottom:.35rem;">Reviews submitted</p>
+            <p class="stat-value"><%= number(a.reviewSummary?.review_count) %></p>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Previous Feedback</h6>
+            <div class="metric-list">
+              <% (a.recentReviews || []).forEach(row => { %>
+                <div>
+                  <div class="metric-row"><p><%= row.customer_name %></p><small><%= row.rating %>/5</small></div>
+                  <p style="color:var(--muted);margin:.15rem 0 0;font-size:.8rem;"><%= row.merchant_name %> · <%= row.service_name %></p>
+                </div>
+              <% }) %>
+              <% if (!(a.recentReviews || []).length) { %><p style="color:var(--muted);margin:0;">No reviews yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Complaint / Support Requests</h6>
+            <div class="metric-list">
+              <% (a.platformFeedback || []).forEach(row => { %>
+                <div class="metric-row"><p><%= String(row.feedback_type || 'general').replace('_', ' ') %></p><small><%= number(row.total) %></small></div>
+              <% }) %>
+              <% if (!(a.platformFeedback || []).length) { %><p style="color:var(--muted);margin:0;">No platform feedback or support records yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="security" class="section-anchor mb-3">
+      <p class="section-label mb-1">Security &amp; Settings</p>
+      <h4 class="customer-title mb-3">Account Controls</h4>
+      <div class="row g-3">
+        <% [
+          { label:'Active accounts', value:number(security.active_accounts), icon:'bi-shield-check' },
+          { label:'Suspended accounts', value:number(security.suspended_accounts), icon:'bi-shield-exclamation' },
+          { label:'Notification preferences', value:'Email / WhatsApp records', icon:'bi-bell' },
+          { label:'Linked accounts', value:'Not configured', icon:'bi-link-45deg' },
+          { label:'Privacy settings', value:'Managed by account policy', icon:'bi-lock' },
+          { label:'Password settings', value:'Available in auth module', icon:'bi-key' },
+        ].forEach(item => { %>
+          <div class="col-md-6 col-xl-4">
+            <div class="customer-card">
+              <div class="icon-circle mb-3" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+                <i class="bi <%= item.icon %>"></i>
+              </div>
+              <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;"><%= item.label %></p>
+              <p style="color:var(--ink);font-weight:800;margin:0;"><%= item.value %></p>
+            </div>
+          </div>
+        <% }) %>
+        <div class="col-12">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Payment Method Usage</h6>
+            <div class="metric-list">
+              <% (a.paymentMethods || []).forEach(row => { %>
+                <div class="metric-row"><p><%= row.payment_method || 'Unknown' %></p><small><%= number(row.total) %> payments</small></div>
+              <% }) %>
+              <% if (!(a.paymentMethods || []).length) { %><p style="color:var(--muted);margin:0;">No payment method records yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

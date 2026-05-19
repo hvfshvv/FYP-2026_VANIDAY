@@ -85,6 +85,40 @@ async function showMerchants(req, res) {
   }
 }
 
+async function showCustomers(req, res) {
+  const today = new Date();
+  const defaultStart = new Date(today);
+  defaultStart.setDate(defaultStart.getDate() - 29);
+
+  const range = {
+    startDate: isDate(req.query.startDate) ? req.query.startDate : toDateInput(defaultStart),
+    endDate: isDate(req.query.endDate) ? req.query.endDate : toDateInput(today),
+  };
+
+  if (new Date(range.endDate) < new Date(range.startDate)) {
+    range.endDate = range.startDate;
+  }
+
+  try {
+    const analytics = await adminModel.getCustomerAnalytics(range);
+
+    res.render('admin/customers', {
+      title: 'Customer Analytics',
+      analytics,
+      range,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/customers', {
+      title: 'Customer Analytics',
+      analytics: emptyCustomerAnalytics(),
+      range,
+      error: 'Failed to load customer analytics data.',
+    });
+  }
+}
+
 function isDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
 }
@@ -119,6 +153,34 @@ function emptyMerchantAnalytics() {
     staffPerformance: [],
     financial: {},
     topMerchants: [],
+  };
+}
+
+function emptyCustomerAnalytics() {
+  return {
+    overview: {},
+    accountProfiles: [],
+    upcomingBookings: [],
+    pastBookings: [],
+    bookingStatus: [],
+    loyaltySummary: {},
+    loyaltyTransactions: [],
+    availableVouchers: [],
+    spendingTrend: [],
+    spendingCategories: [],
+    mostVisitedMerchants: [],
+    favouriteServices: [],
+    bookingFrequency: [],
+    recommendedMerchants: [],
+    suggestedServices: [],
+    behaviourPromotions: [],
+    reviewSummary: {},
+    recentReviews: [],
+    platformFeedback: [],
+    security: {},
+    reminders: [],
+    qrAccess: [],
+    paymentMethods: [],
   };
 }
 
@@ -285,6 +347,7 @@ module.exports = {
   showDashboard,
   showComingSoon,
   showMerchants,
+  showCustomers,
   showMerchantValidations,
   approveMerchant,
   rejectMerchant,
