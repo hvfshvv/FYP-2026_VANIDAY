@@ -1,0 +1,103 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const money = value => 'S$' + Number(value || 0).toFixed(2);
+  const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+%>
+
+<main class="container py-5">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+      <p class="section-label">User Operations</p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Accounts</h2>
+      <p style="color:var(--muted);margin:0;">Control merchant account access and marketplace availability.</p>
+    </div>
+    <a href="/admin/user-management" class="btn btn-outline-secondary btn-pill">
+      <i class="bi bi-arrow-left me-1"></i>User Management
+    </a>
+  </div>
+
+  <% if (query.updated) { %><div class="alert alert-success"><i class="bi bi-check-circle"></i><span>Merchant account updated.</span></div><% } %>
+  <% if (query.error || (typeof error !== 'undefined' && error)) { %>
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i><span><%= query.error || error %></span></div>
+  <% } %>
+
+  <form method="GET" action="/admin/user-management/merchants" class="d-flex flex-wrap gap-2 mb-4">
+    <input type="search" name="search" value="<%= search %>" class="form-control" placeholder="Search merchants by business, owner, email, or phone" style="max-width:420px;">
+    <select name="verification" class="form-select" style="max-width:180px;">
+      <option value="all" <%= verification === 'all' ? 'selected' : '' %>>All statuses</option>
+      <option value="pending" <%= verification === 'pending' ? 'selected' : '' %>>Pending</option>
+      <option value="approved" <%= verification === 'approved' ? 'selected' : '' %>>Approved</option>
+    </select>
+    <button class="btn btn-primary btn-pill" type="submit"><i class="bi bi-search me-1"></i>Search</button>
+    <% if (search || verification !== 'all') { %><a href="/admin/user-management/merchants" class="btn btn-outline-secondary btn-pill">Clear</a><% } %>
+  </form>
+
+  <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Merchant</th>
+            <th>Owner</th>
+            <th>Status</th>
+            <th>Verification</th>
+            <th>Bookings</th>
+            <th>Revenue</th>
+            <th>Last Booking</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!merchants.length) { %>
+            <tr><td colspan="9" class="text-center py-5 text-muted">No merchant accounts found.</td></tr>
+          <% } %>
+          <% merchants.forEach(merchant => {
+            const active = merchant.user_status === 'active' && Number(merchant.is_active) === 1;
+            const verificationStyle = merchant.verification_status === 'pending'
+              ? 'background:var(--warn-bg);color:var(--warn);'
+              : 'background:var(--success-bg);color:var(--success);';
+          %>
+          <tr>
+            <td class="mono">#<%= merchant.merchant_id %></td>
+            <td>
+              <strong><%= merchant.merchant_name %></strong>
+              <div class="small text-muted"><%= merchant.category || 'General' %></div>
+            </td>
+            <td>
+              <strong><%= merchant.owner_name %></strong>
+              <div class="small text-muted"><%= merchant.owner_email %></div>
+            </td>
+            <td>
+              <span class="badge rounded-pill" style="<%= active ? 'background:var(--success-bg);color:var(--success);' : 'background:var(--warn-bg);color:var(--warn);' %>">
+                <%= active ? 'active' : 'disabled' %>
+              </span>
+            </td>
+            <td><span class="badge rounded-pill" style="<%= verificationStyle %>"><%= merchant.verification_status %></span></td>
+            <td><%= merchant.bookings || 0 %></td>
+            <td class="mono"><%= money(merchant.total_revenue) %></td>
+            <td><%= formatDate(merchant.last_booking_at) %></td>
+            <td>
+              <div class="d-flex flex-wrap gap-2">
+                <a href="/admin/user-management/merchants/<%= merchant.merchant_id %>/bookings" class="btn btn-outline-secondary btn-sm btn-pill">
+                  <i class="bi bi-calendar-check me-1"></i>View Bookings
+                </a>
+                <form method="POST" action="/admin/user-management/merchants/<%= merchant.merchant_id %>/status">
+                  <input type="hidden" name="status" value="<%= active ? 'suspended' : 'active' %>">
+                  <button class="btn <%= active ? 'btn-outline-danger' : 'btn-outline-success' %> btn-sm btn-pill" type="submit">
+                    <%= active ? 'Disable' : 'Enable' %>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

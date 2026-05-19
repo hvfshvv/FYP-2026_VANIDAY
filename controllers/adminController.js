@@ -119,6 +119,146 @@ async function showCustomers(req, res) {
   }
 }
 
+async function showUserManagementHome(req, res) {
+  try {
+    const summary = await adminModel.getUserManagementSummary();
+    res.render('admin/userManagement', {
+      title: 'User Management',
+      summary,
+      query: req.query,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/userManagement', {
+      title: 'User Management',
+      summary: {},
+      query: req.query,
+      error: 'Failed to load user management summary.',
+    });
+  }
+}
+
+async function showManagedCustomers(req, res) {
+  try {
+    const customers = await adminModel.getManagedCustomers(req.query.search);
+    res.render('admin/userCustomers', {
+      title: 'Customer Accounts',
+      customers,
+      search: req.query.search || '',
+      query: req.query,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/userCustomers', {
+      title: 'Customer Accounts',
+      customers: [],
+      search: req.query.search || '',
+      query: req.query,
+      error: 'Failed to load customer accounts.',
+    });
+  }
+}
+
+async function showManagedMerchants(req, res) {
+  try {
+    const verification = ['pending', 'approved'].includes(req.query.verification)
+      ? req.query.verification
+      : 'all';
+    const merchants = await adminModel.getManagedMerchants(req.query.search, verification);
+    res.render('admin/userMerchants', {
+      title: 'Merchant Accounts',
+      merchants,
+      search: req.query.search || '',
+      verification,
+      query: req.query,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/userMerchants', {
+      title: 'Merchant Accounts',
+      merchants: [],
+      search: req.query.search || '',
+      verification: req.query.verification || 'all',
+      query: req.query,
+      error: 'Failed to load merchant accounts.',
+    });
+  }
+}
+
+async function updateCustomerAccountStatus(req, res) {
+  try {
+    await adminModel.setUserAccountStatus(
+      req.params.customerId,
+      req.body.status,
+      req.session.user.user_id
+    );
+
+    res.redirect('/admin/user-management/customers?updated=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect(`/admin/user-management/customers?error=${encodeURIComponent(err.message || 'Could not update customer account.')}`);
+  }
+}
+
+async function updateMerchantAccountStatus(req, res) {
+  try {
+    await adminModel.setMerchantAccountStatus(
+      req.params.merchantId,
+      req.body.status === 'active',
+      req.session.user.user_id
+    );
+
+    res.redirect('/admin/user-management/merchants?updated=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect(`/admin/user-management/merchants?error=${encodeURIComponent(err.message || 'Could not update merchant account.')}`);
+  }
+}
+
+async function showCustomerBookings(req, res) {
+  try {
+    const [customer, bookings] = await Promise.all([
+      adminModel.getCustomerAccount(req.params.customerId),
+      adminModel.getCustomerBookingsForAdmin(req.params.customerId),
+    ]);
+
+    if (!customer) {
+      return res.status(404).render('404', { title: 'Customer Not Found' });
+    }
+
+    res.render('admin/userCustomerBookings', {
+      title: 'Customer Bookings',
+      customer,
+      bookings,
+    });
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/user-management/customers?error=Could not load customer bookings.');
+  }
+}
+
+async function showMerchantBookings(req, res) {
+  try {
+    const [merchant, bookings] = await Promise.all([
+      adminModel.getMerchantAccount(req.params.merchantId),
+      adminModel.getMerchantBookingsForAdmin(req.params.merchantId),
+    ]);
+
+    if (!merchant) {
+      return res.status(404).render('404', { title: 'Merchant Not Found' });
+    }
+
+    res.render('admin/userMerchantBookings', {
+      title: 'Merchant Bookings',
+      merchant,
+      bookings,
+    });
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/user-management/merchants?error=Could not load merchant bookings.');
+  }
+}
+
 function isDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
 }
@@ -348,6 +488,13 @@ module.exports = {
   showComingSoon,
   showMerchants,
   showCustomers,
+  showUserManagementHome,
+  showManagedCustomers,
+  showManagedMerchants,
+  updateCustomerAccountStatus,
+  updateMerchantAccountStatus,
+  showCustomerBookings,
+  showMerchantBookings,
   showMerchantValidations,
   approveMerchant,
   rejectMerchant,

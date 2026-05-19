@@ -81,6 +81,14 @@ async function login(req, res) {
       });
     }
 
+    if (user.status === 'suspended') {
+      return res.render('auth/login', {
+        title: 'Login',
+        error: 'This account has been disabled. Please contact support.',
+        query: req.query
+      });
+    }
+
     req.session.user = {
       user_id: user.user_id,
       full_name: user.full_name,

@@ -28,9 +28,11 @@ async function getFeaturedListings(category = null) {
        p.title AS promo_title
      FROM featured_listing fl
      JOIN merchant m   ON fl.merchant_id = m.merchant_id
+     JOIN users u ON u.user_id = m.user_id
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
      WHERE fl.is_visible = 1
        AND m.is_active = 1
+       AND u.status = 'active'
        AND m.verification_status = 'approved'
        ${categoryFilter}
      ORDER BY fl.display_order ASC, fl.created_at DESC`,

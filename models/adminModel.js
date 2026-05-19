@@ -801,6 +801,275 @@ async function logAdminAction(adminId, actionType, targetTable, targetId, descri
   }
 }
 
+function searchClause(search, columns) {
+  const term = String(search || '').trim();
+  if (!term) return { clause: '', params: [] };
+
+  return {
+    clause: ` AND (${columns.map(column => `${column} LIKE ?`).join(' OR ')})`,
+    params: columns.map(() => `%${term}%`),
+  };
+}
+
+async function getUserManagementSummary() {
+  const [rows] = await db.query(`
+    SELECT
+      (SELECT COUNT(*) FROM users WHERE role = 'customer') AS customers,
+      (SELECT COUNT(*) FROM users WHERE role = 'customer' AND status = 'active') AS active_customers,
+      (SELECT COUNT(*) FROM users WHERE role = 'customer' AND status = 'suspended') AS suspended_customers,
+      (SELECT COUNT(*) FROM users WHERE role = 'merchant') AS merchants,
+      (SELECT COUNT(*) FROM users u JOIN merchant m ON m.user_id = u.user_id WHERE u.role = 'merchant' AND u.status = 'active' AND m.is_active = 1) AS active_merchants,
+      (SELECT COUNT(*) FROM users u JOIN merchant m ON m.user_id = u.user_id WHERE u.role = 'merchant' AND (u.status = 'suspended' OR m.is_active = 0)) AS disabled_merchants
+  `);
+
+  return rows[0] || {};
+}
+
+async function getManagedCustomers(search = '') {
+  const filter = searchClause(search, ['u.full_name', 'u.email', 'u.phone']);
+  const [rows] = await db.query(
+    `SELECT
+       u.user_id,
+       u.full_name,
+       u.email,
+       u.phone,
+       u.status,
+       u.created_at,
+       COALESCE(bs.bookings, 0) AS bookings,
+       COALESCE(bs.total_spent, 0) AS total_spent,
+       CASE
+         WHEN COALESCE(bs.total_spent, 0) >= 2000 THEN 'Platinum'
+         WHEN COALESCE(bs.total_spent, 0) >= 1000 THEN 'Gold'
+         WHEN COALESCE(bs.total_spent, 0) >= 500 THEN 'Silver'
+         ELSE 'Bronze'
+       END AS tier,
+       bs.last_booking_at,
+       COALESCE(ls.points_balance, 0) AS points_balance
+     FROM users u
+     LEFT JOIN (
+       SELECT
+         b.customer_id,
+         COUNT(DISTINCT b.booking_id) AS bookings,
+         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS total_spent,
+         MAX(COALESCE(p.paid_at, b.created_at)) AS last_booking_at
+       FROM booking b
+       LEFT JOIN payment p ON p.booking_id = b.booking_id
+       WHERE b.customer_id IS NOT NULL
+       GROUP BY b.customer_id
+     ) bs ON bs.customer_id = u.user_id
+     LEFT JOIN (
+       SELECT customer_id, COALESCE(SUM(points_balance), 0) AS points_balance
+       FROM loyalty_wallet
+       GROUP BY customer_id
+     ) ls ON ls.customer_id = u.user_id
+     WHERE u.role = 'customer'
+       ${filter.clause}
+     ORDER BY u.user_id ASC`,
+    filter.params
+  );
+
+  return rows;
+}
+
+async function getManagedMerchants(search = '', verification = 'all') {
+  const filter = searchClause(search, ['u.full_name', 'u.email', 'u.phone', 'm.merchant_name', 'm.email', 'm.contact_no']);
+  const safeVerification = ['pending', 'approved'].includes(verification) ? verification : null;
+  const verificationClause = safeVerification ? ' AND m.verification_status = ?' : '';
+  const params = [...filter.params];
+  if (safeVerification) params.push(safeVerification);
+
+  const [rows] = await db.query(
+    `SELECT
+       u.user_id,
+       u.full_name AS owner_name,
+       u.email AS owner_email,
+       u.phone AS owner_phone,
+       u.status AS user_status,
+       u.created_at,
+       m.merchant_id,
+       m.merchant_name,
+       m.email AS merchant_email,
+       m.category,
+       m.contact_no,
+       m.address,
+       m.is_active,
+       m.verification_status,
+       COUNT(DISTINCT b.booking_id) AS bookings,
+       COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS total_revenue,
+       MAX(COALESCE(p.paid_at, b.created_at)) AS last_booking_at
+     FROM users u
+     JOIN merchant m ON m.user_id = u.user_id
+     LEFT JOIN booking b ON b.merchant_id = m.merchant_id
+     LEFT JOIN payment p ON p.booking_id = b.booking_id
+     WHERE u.role = 'merchant'
+       AND m.verification_status <> 'rejected'
+       ${filter.clause}
+       ${verificationClause}
+     GROUP BY u.user_id, u.full_name, u.email, u.phone, u.status, u.created_at,
+              m.merchant_id, m.merchant_name, m.email, m.category, m.contact_no,
+              m.address, m.is_active, m.verification_status
+     ORDER BY m.merchant_id ASC`,
+    params
+  );
+
+  return rows;
+}
+
+async function setUserAccountStatus(userId, status, adminId) {
+  const safeStatus = status === 'suspended' ? 'suspended' : 'active';
+  const [result] = await db.query(
+    `UPDATE users
+     SET status = ?
+     WHERE user_id = ?
+       AND role IN ('customer', 'merchant')`,
+    [safeStatus, userId]
+  );
+
+  if (result.affectedRows > 0) {
+    await logAdminAction(adminId, safeStatus === 'active' ? 'ENABLE_USER' : 'DISABLE_USER', 'users', userId, `Set user status to ${safeStatus}.`);
+  }
+
+  return result.affectedRows;
+}
+
+async function setMerchantAccountStatus(merchantId, enabled, adminId) {
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[merchant]] = await connection.query(
+      `SELECT user_id
+       FROM merchant
+       WHERE merchant_id = ?
+       FOR UPDATE`,
+      [merchantId]
+    );
+
+    if (!merchant) {
+      await connection.rollback();
+      return 0;
+    }
+
+    await connection.query(
+      `UPDATE merchant
+       SET is_active = ?
+       WHERE merchant_id = ?`,
+      [enabled ? 1 : 0, merchantId]
+    );
+
+    await connection.query(
+      `UPDATE users
+       SET status = ?
+       WHERE user_id = ?`,
+      [enabled ? 'active' : 'suspended', merchant.user_id]
+    );
+
+    await connection.commit();
+    await logAdminAction(adminId, enabled ? 'ENABLE_MERCHANT' : 'DISABLE_MERCHANT', 'merchant', merchantId, enabled ? 'Enabled merchant account.' : 'Disabled merchant account.');
+    return 1;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+async function getCustomerAccount(customerId) {
+  const [rows] = await db.query(
+    `SELECT user_id, full_name, email, phone, status, created_at
+     FROM users
+     WHERE user_id = ?
+       AND role = 'customer'`,
+    [customerId]
+  );
+
+  return rows[0] || null;
+}
+
+async function getCustomerBookingsForAdmin(customerId) {
+  const [rows] = await db.query(
+    `SELECT
+       b.booking_id,
+       b.status,
+       b.source,
+       b.total_amount,
+       b.created_at,
+       ts.slot_date AS booking_date,
+       ts.start_time AS booking_time,
+       m.merchant_name,
+       s.service_name,
+       p.payment_status,
+       p.payment_method,
+       p.amount AS paid_amount
+     FROM booking b
+     JOIN time_slot ts ON ts.slot_id = b.slot_id
+     JOIN merchant m ON m.merchant_id = b.merchant_id
+     JOIN service s ON s.service_id = b.service_id
+     LEFT JOIN payment p ON p.booking_id = b.booking_id
+     WHERE b.customer_id = ?
+     ORDER BY ts.slot_date DESC, ts.start_time DESC`,
+    [customerId]
+  );
+
+  return rows;
+}
+
+async function getMerchantAccount(merchantId) {
+  const [rows] = await db.query(
+    `SELECT
+       m.merchant_id,
+       m.merchant_name,
+       m.email,
+       m.category,
+       m.contact_no,
+       m.address,
+       m.is_active,
+       m.verification_status,
+       u.user_id,
+       u.full_name AS owner_name,
+       u.email AS owner_email,
+       u.status AS owner_status
+     FROM merchant m
+     JOIN users u ON u.user_id = m.user_id
+     WHERE m.merchant_id = ?`,
+    [merchantId]
+  );
+
+  return rows[0] || null;
+}
+
+async function getMerchantBookingsForAdmin(merchantId) {
+  const [rows] = await db.query(
+    `SELECT
+       b.booking_id,
+       b.status,
+       b.source,
+       b.total_amount,
+       b.created_at,
+       ts.slot_date AS booking_date,
+       ts.start_time AS booking_time,
+       COALESCE(c.full_name, b.guest_name) AS customer_name,
+       COALESCE(c.email, b.guest_email) AS customer_email,
+       COALESCE(c.phone, b.guest_phone) AS customer_phone,
+       s.service_name,
+       p.payment_status,
+       p.payment_method,
+       p.amount AS paid_amount
+     FROM booking b
+     JOIN time_slot ts ON ts.slot_id = b.slot_id
+     JOIN service s ON s.service_id = b.service_id
+     LEFT JOIN customer c ON c.customer_id = b.customer_id
+     LEFT JOIN payment p ON p.booking_id = b.booking_id
+     WHERE b.merchant_id = ?
+     ORDER BY ts.slot_date DESC, ts.start_time DESC`,
+    [merchantId]
+  );
+
+  return rows;
+}
+
 module.exports = {
   getDashboardSummary,
   getRecentBookings,
@@ -812,6 +1081,15 @@ module.exports = {
   getRecentMerchantValidationDecisions,
   getMerchantValidationStatusSummary,
   getMerchantApplicationTrend,
+  getUserManagementSummary,
+  getManagedCustomers,
+  getManagedMerchants,
+  setUserAccountStatus,
+  setMerchantAccountStatus,
+  getCustomerAccount,
+  getCustomerBookingsForAdmin,
+  getMerchantAccount,
+  getMerchantBookingsForAdmin,
   approveMerchant,
   rejectMerchant,
 };

@@ -2,11 +2,13 @@ const db = require('../config/db');
 
 async function getMerchantById(merchantId) {
   const [rows] = await db.query(
-    `SELECT *
-     FROM merchant
-     WHERE merchant_id = ?
-       AND is_active = 1
-       AND verification_status = 'approved'`,
+    `SELECT m.*
+     FROM merchant m
+     JOIN users u ON u.user_id = m.user_id
+     WHERE m.merchant_id = ?
+       AND m.is_active = 1
+       AND m.verification_status = 'approved'
+       AND u.status = 'active'`,
     [merchantId]
   );
 
@@ -41,7 +43,9 @@ async function getAllActiveMerchants(category = null) {
       m.contact_no,
       m.profile_image AS image_path
     FROM merchant m
+    JOIN users u ON u.user_id = m.user_id
     WHERE m.is_active = 1
+      AND u.status = 'active'
       AND m.verification_status = 'approved'
       ${categoryFilter}
     ORDER BY m.merchant_name

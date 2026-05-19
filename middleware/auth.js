@@ -34,6 +34,11 @@ async function requireMerchant(req, res, next) {
       return res.redirect('/auth/merchant-rejected');
     }
 
+    if (!merchant.is_active) {
+      req.session.destroy(() => {});
+      return res.status(403).send('This merchant account has been disabled.');
+    }
+
     req.session.user.merchant_id = merchant.merchant_id;
     req.session.user.verification_status = merchant.verification_status;
     next();

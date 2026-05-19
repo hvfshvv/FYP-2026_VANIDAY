@@ -1,0 +1,62 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const money = value => 'S$' + Number(value || 0).toFixed(2);
+  const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+  const formatTime = value => value ? String(value).slice(0, 5) : '-';
+%>
+
+<main class="container py-5">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+      <p class="section-label">Merchant Bookings</p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= merchant.merchant_name %></h2>
+      <p style="color:var(--muted);margin:0;"><%= merchant.owner_name %> · <%= merchant.verification_status %> · <%= merchant.is_active ? 'active' : 'disabled' %></p>
+    </div>
+    <a href="/admin/user-management/merchants" class="btn btn-outline-secondary btn-pill">
+      <i class="bi bi-arrow-left me-1"></i>Merchant Accounts
+    </a>
+  </div>
+
+  <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Customer</th>
+            <th>Service</th>
+            <th>Date &amp; Time</th>
+            <th>Source</th>
+            <th>Booking Status</th>
+            <th>Payment</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!bookings.length) { %>
+            <tr><td colspan="8" class="text-center py-5 text-muted">No bookings found for this merchant.</td></tr>
+          <% } %>
+          <% bookings.forEach(booking => { %>
+          <tr>
+            <td class="mono">#<%= booking.booking_id %></td>
+            <td>
+              <strong><%= booking.customer_name || 'Guest customer' %></strong>
+              <div class="small text-muted"><%= booking.customer_email || booking.customer_phone || '-' %></div>
+            </td>
+            <td><%= booking.service_name %></td>
+            <td><%= formatDate(booking.booking_date) %> <span class="text-muted"><%= formatTime(booking.booking_time) %></span></td>
+            <td><span class="badge bg-secondary"><%= booking.source || '-' %></span></td>
+            <td><span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);"><%= booking.status %></span></td>
+            <td><%= booking.payment_status || 'unpaid' %></td>
+            <td class="mono"><%= money(booking.paid_amount || booking.total_amount) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>
