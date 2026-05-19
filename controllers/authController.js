@@ -271,6 +271,109 @@ async function register(req, res) {
   }
 }
 
+function showForgotPassword(req, res) {
+  if (req.session.user) return redirectDashboard(res, req.session.user);
+
+  res.render('auth/forgotPassword', {
+    title: 'Forgot Password',
+    error: null,
+    resetLink: null,
+    submitted: false,
+  });
+}
+
+async function requestPasswordReset(req, res) {
+  const email = String(req.body.email || '').trim().toLowerCase();
+
+  try {
+    const user = email ? await authModel.findUserByEmail(email) : null;
+    let resetLink = null;
+
+    if (user) {
+      const token = await authModel.createPasswordResetToken(user.user_id);
+      resetLink = `/auth/reset-password/${token}`;
+      console.log(`Password reset link for ${email}: ${req.protocol}://${req.get('host')}${resetLink}`);
+    }
+
+    res.render('auth/forgotPassword', {
+      title: 'Forgot Password',
+      error: null,
+      resetLink,
+      submitted: true,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('auth/forgotPassword', {
+      title: 'Forgot Password',
+      error: 'Could not create a reset link. Please try again.',
+      resetLink: null,
+      submitted: false,
+    });
+  }
+}
+
+async function showResetPassword(req, res) {
+  try {
+    const resetToken = await authModel.getValidPasswordResetToken(req.params.token);
+
+    if (!resetToken) {
+      return res.render('auth/resetPassword', {
+        title: 'Reset Password',
+        token: null,
+        error: 'This reset link is invalid or expired.',
+        success: null,
+      });
+    }
+
+    res.render('auth/resetPassword', {
+      title: 'Reset Password',
+      token: req.params.token,
+      error: null,
+      success: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('auth/resetPassword', {
+      title: 'Reset Password',
+      token: null,
+      error: 'Could not load reset page.',
+      success: null,
+    });
+  }
+}
+
+async function resetPassword(req, res) {
+  const { password, confirm_password } = req.body;
+  const token = req.params.token;
+
+  try {
+    if (!password || password.length < 6) {
+      throw new Error('Password must be at least 6 characters.');
+    }
+
+    if (password !== confirm_password) {
+      throw new Error('Passwords do not match.');
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    await authModel.resetUserPassword(token, hash);
+
+    res.render('auth/resetPassword', {
+      title: 'Reset Password',
+      token: null,
+      error: null,
+      success: 'Password updated. You can now sign in.',
+    });
+  } catch (err) {
+    res.render('auth/resetPassword', {
+      title: 'Reset Password',
+      token,
+      error: err.message || 'Could not reset password.',
+      success: null,
+    });
+  }
+}
+
 function isValidBirthday(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
 
@@ -305,6 +408,10 @@ module.exports = {
   showStartpage,
   showRegister,
   showMerchantRegister,
+  showForgotPassword,
+  requestPasswordReset,
+  showResetPassword,
+  resetPassword,
   showMerchantPending,
   showMerchantRejected,
   login,

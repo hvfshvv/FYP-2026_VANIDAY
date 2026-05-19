@@ -135,6 +135,79 @@
     grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
     gap:.75rem;
   }
+  .chart-column-wrap {
+    display:flex;
+    align-items:end;
+    gap:.45rem;
+    min-height:170px;
+    padding-top:.5rem;
+  }
+  .chart-column {
+    flex:1;
+    min-width:24px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-end;
+    gap:.45rem;
+  }
+  .chart-column span {
+    width:100%;
+    min-height:8px;
+    border-radius:.45rem .45rem 0 0;
+    background:linear-gradient(180deg, var(--accent), #FB7185);
+  }
+  .chart-column small {
+    color:var(--muted);
+    font-size:.68rem;
+    font-weight:700;
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);
+    max-height:48px;
+  }
+  .donut-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
+    gap:.75rem;
+  }
+  .donut-stat {
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    background:var(--canvas);
+    padding:1rem;
+  }
+  .donut-ring {
+    width:72px;
+    height:72px;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    margin-bottom:.75rem;
+    background:conic-gradient(var(--accent) var(--ring), var(--neutral-bg) 0);
+  }
+  .donut-ring span {
+    width:48px;
+    height:48px;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    background:var(--surface);
+    color:var(--ink);
+    font-family:var(--font-mono);
+    font-size:.78rem;
+    font-weight:800;
+  }
+  .visual-strip {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));
+    gap:.75rem;
+  }
+  .visual-tile {
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    background:var(--canvas);
+    padding:.9rem;
+  }
 </style>
 
 <main class="customer-admin">
@@ -306,6 +379,28 @@
       <p class="section-label mb-1">Loyalty &amp; Rewards</p>
       <h4 class="customer-title mb-3">Points, Vouchers &amp; Referral Signals</h4>
       <div class="row g-3">
+        <div class="col-12">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Reward Balance Visual</h6>
+            <div class="visual-strip">
+              <div class="visual-tile">
+                <p style="color:var(--muted);margin:0 0 .35rem;">Points balance</p>
+                <p class="stat-value" style="font-size:1.45rem;color:var(--accent);"><%= number(loyalty.points_balance) %></p>
+                <div class="mini-bar"><span style="width:<%= barWidth(loyalty.points_balance, Math.max(1, Number(loyalty.points_earned || 1))) %>%;"></span></div>
+              </div>
+              <div class="visual-tile">
+                <p style="color:var(--muted);margin:0 0 .35rem;">Cashback balance</p>
+                <p class="stat-value" style="font-size:1.45rem;color:var(--success);"><%= money(loyalty.cashback_balance) %></p>
+                <div class="mini-bar"><span style="width:<%= barWidth(loyalty.cashback_balance, Math.max(1, Number(loyalty.cashback_balance || 1))) %>%;background:var(--success);"></span></div>
+              </div>
+              <div class="visual-tile">
+                <p style="color:var(--muted);margin:0 0 .35rem;">Tier progress</p>
+                <p class="stat-value" style="font-size:1.45rem;"><%= percent(tierProgress) %></p>
+                <div class="mini-bar"><span style="width:<%= barWidth(tierProgress, 100) %>%;"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="col-lg-3">
           <div class="customer-card">
             <p style="color:var(--muted);margin-bottom:.35rem;">Points earned</p>
@@ -350,6 +445,14 @@
           <div class="customer-card">
             <h6 class="customer-title mb-3">Monthly Spending Trend</h6>
             <% const spendMax = maxOf(a.spendingTrend || [], 'total'); %>
+            <div class="chart-column-wrap mb-3">
+              <% (a.spendingTrend || []).forEach(row => { %>
+                <div class="chart-column" title="<%= row.month_label %>: <%= money(row.total) %>">
+                  <span style="height:<%= barWidth(row.total, spendMax) %>%;"></span>
+                  <small><%= row.month_label %></small>
+                </div>
+              <% }) %>
+            </div>
             <div class="metric-list">
               <% (a.spendingTrend || []).forEach(row => { %>
                 <div>
@@ -365,6 +468,20 @@
           <div class="customer-card">
             <h6 class="customer-title mb-3">Spending Categories</h6>
             <% const categoryMax = maxOf(a.spendingCategories || [], 'total'); %>
+            <% const categoryTotal = (a.spendingCategories || []).reduce((sum, row) => sum + Number(row.total || 0), 0) || 1; %>
+            <div class="donut-grid mb-3">
+              <% (a.spendingCategories || []).slice(0, 4).forEach(row => {
+                const share = (Number(row.total || 0) / categoryTotal) * 100;
+              %>
+                <div class="donut-stat">
+                  <div class="donut-ring" style="--ring:<%= share.toFixed(1) %>%;">
+                    <span><%= share.toFixed(0) %>%</span>
+                  </div>
+                  <p style="color:var(--ink);font-weight:800;margin:0;"><%= row.category %></p>
+                  <small style="color:var(--muted);font-family:var(--font-mono);"><%= money(row.total) %></small>
+                </div>
+              <% }) %>
+            </div>
             <div class="pie-bars">
               <% (a.spendingCategories || []).forEach(row => { %>
                 <div>
@@ -399,9 +516,13 @@
         <div class="col-lg-4">
           <div class="customer-card">
             <h6 class="customer-title mb-3">Booking Frequency</h6>
+            <% const frequencyMax = maxOf(a.bookingFrequency || [], 'bookings'); %>
             <div class="metric-list">
               <% (a.bookingFrequency || []).forEach(row => { %>
-                <div class="metric-row"><p><%= row.day_label %></p><small><%= number(row.bookings) %> bookings</small></div>
+                <div>
+                  <div class="metric-row mb-1"><p><%= row.day_label %></p><small><%= number(row.bookings) %> bookings</small></div>
+                  <div class="mini-bar"><span style="width:<%= barWidth(row.bookings, frequencyMax) %>%;"></span></div>
+                </div>
               <% }) %>
             </div>
           </div>
