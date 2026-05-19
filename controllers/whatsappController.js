@@ -121,7 +121,8 @@ function getMainMenu() {
     '1. Book a Service\n' +
     '2. Check Reservation\n' +
     '3. Help / Support\n\n' +
-    'Reply with 1, 2, or 3.'
+    'Reply with 1, 2, or 3.\n' +
+    'Type menu anytime to restart.'
   );
 }
 
@@ -232,6 +233,49 @@ function getPaymentLink(bookingReference) {
   const baseUrl = process.env.APP_URL || process.env.APP_BASE_URL || 'http://localhost:3000';
 
   return baseUrl + '/payment/checkout/' + bookingReference;
+}
+
+function formatBookingDate(value) {
+  if (!value) {
+    return 'Not available';
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  return String(value).slice(0, 10);
+}
+
+function formatBookingTime(value) {
+  if (!value) {
+    return 'Not available';
+  }
+
+  return String(value).slice(0, 5);
+}
+
+function getReservationSummary(booking) {
+  return (
+    'Here are your reservation details:\n\n' +
+    'Booking ID: ' + booking.booking_id + '\n' +
+    'Merchant: ' + booking.merchant_name + '\n' +
+    'Service: ' + booking.service_name + '\n' +
+    'Date: ' + formatBookingDate(booking.booking_date) + '\n' +
+    'Time: ' + formatBookingTime(booking.booking_time) + '\n' +
+    'Status: ' + booking.status + '\n' +
+    'Total: $' + Number(booking.payable_amount || booking.total_amount || 0).toFixed(2)
+  );
+}
+
+async function checkReservation(bookingId) {
+  try {
+    const booking = await bookingModel.getBookingById(bookingId);
+    return { booking: booking, error: null };
+  } catch (error) {
+    console.error('Failed to check reservation:', error.message);
+    return { booking: null, error: error };
+  }
 }
 
 function sendTwiml(res, twiml) {
@@ -398,9 +442,22 @@ async function receiveMessage(req, res) {
       goBack(sender, twiml);
     } else if (session && session.state === 'checking_reservation') {
       const bookingId = incomingMessage.trim();
+      const result = await checkReservation(bookingId);
 
-      twiml.message('Thanks! I will check reservation ID: ' + bookingId);
-      delete userSessions[sender];
+      if (result.booking) {
+        twiml.message(getReservationSummary(result.booking));
+        delete userSessions[sender];
+      } else if (result.error) {
+        twiml.message(
+          'Sorry, I could not check reservations right now.\n\n' +
+          'Please try again later, or reply menu to start over.'
+        );
+      } else {
+        twiml.message(
+          'Sorry, I could not find a reservation with booking ID: ' + bookingId + '.\n\n' +
+          'Please enter another booking ID, or reply menu to start over.'
+        );
+      }
     } else if (session && session.state === 'choosing_category') {
       const category = categories[message];
 
