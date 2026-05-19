@@ -6,6 +6,7 @@ async function createBooking({
   merchantId,
   bookingDate,
   bookingTime,
+  staffId = null,
   source,
   guestName = null,
   guestEmail = null,
@@ -29,6 +30,26 @@ async function createBooking({
       throw new Error('Selected service is not available for this merchant');
     }
 
+    const safeStaffId = staffId ? Number(staffId) : null;
+
+    if (safeStaffId) {
+      const [[staff]] = await connection.query(
+        `SELECT s.staff_id
+         FROM staff s
+         JOIN staff_service ss ON ss.staff_id = s.staff_id
+         WHERE s.staff_id = ?
+           AND s.merchant_id = ?
+           AND ss.service_id = ?
+           AND s.is_active = 1
+         LIMIT 1`,
+        [safeStaffId, merchantId, serviceId]
+      );
+
+      if (!staff) {
+        throw new Error('Selected staff member is not available for this service');
+      }
+    }
+
     if (customerId) {
       await assertNoCustomerBookingConflict(connection, {
         customerId,
@@ -39,12 +60,17 @@ async function createBooking({
     }
 
     // Find an existing available slot or create one.
+    const availableStaffSql = safeStaffId ? 'AND staff_id = ?' : 'AND staff_id IS NULL';
+    const availableParams = [merchantId, serviceId, bookingDate, bookingTime];
+    if (safeStaffId) availableParams.push(safeStaffId);
+
     const [existing] = await connection.query(
       `SELECT slot_id FROM time_slot
        WHERE merchant_id=? AND service_id=? AND slot_date=? AND start_time=? AND is_available=TRUE
+       ${availableStaffSql}
        LIMIT 1
        FOR UPDATE`,
-      [merchantId, serviceId, bookingDate, bookingTime]
+      availableParams
     );
 
     let slotId;
@@ -52,13 +78,18 @@ async function createBooking({
       slotId = existing[0].slot_id;
       await connection.query('UPDATE time_slot SET is_available=FALSE WHERE slot_id=?', [slotId]);
     } else {
+      const conflictingStaffSql = safeStaffId ? 'AND staff_id = ?' : '';
+      const conflictingParams = [merchantId, serviceId, bookingDate, bookingTime];
+      if (safeStaffId) conflictingParams.push(safeStaffId);
+
       const [conflicting] = await connection.query(
         `SELECT slot_id
          FROM time_slot
          WHERE merchant_id = ? AND service_id = ? AND slot_date = ? AND start_time = ? AND is_available = FALSE
+         ${conflictingStaffSql}
          LIMIT 1
          FOR UPDATE`,
-        [merchantId, serviceId, bookingDate, bookingTime]
+        conflictingParams
       );
 
       if (conflicting.length) {
@@ -67,8 +98,8 @@ async function createBooking({
 
       const [slotResult] = await connection.query(
         `INSERT INTO time_slot (merchant_id, service_id, staff_id, slot_date, start_time, end_time, is_available)
-         VALUES (?,?,NULL,?,?,ADDTIME(?,SEC_TO_TIME(?*60)),FALSE)`,
-        [merchantId, serviceId, bookingDate, bookingTime, bookingTime, svc.duration_mins]
+         VALUES (?,?,?,?,?,ADDTIME(?,SEC_TO_TIME(?*60)),FALSE)`,
+        [merchantId, serviceId, safeStaffId, bookingDate, bookingTime, bookingTime, svc.duration_mins]
       );
       slotId = slotResult.insertId;
     }
@@ -81,7 +112,7 @@ async function createBooking({
     const [result] = await connection.query(
       `INSERT INTO booking
          (customer_id, guest_name, guest_email, guest_phone, merchant_id, service_id, staff_id, slot_id, booking_type, source, status, total_amount)
-       VALUES (?,?,?,?,?,?,NULL,?,?,?,'pending_payment',?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,'pending_payment',?)`,
       [
         customerId,
         guestName,
@@ -89,6 +120,7 @@ async function createBooking({
         guestPhone,
         merchantId,
         serviceId,
+        safeStaffId,
         slotId,
         mappedBookingType,
         safeSource,
@@ -383,13 +415,19 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
       excludeBookingId: bookingId,
     });
 
+    const safeStaffId = booking.staff_id || null;
+    const availableStaffSql = safeStaffId ? 'AND staff_id = ?' : 'AND staff_id IS NULL';
+    const availableParams = [booking.merchant_id, booking.service_id, bookingDate, bookingTime];
+    if (safeStaffId) availableParams.push(safeStaffId);
+
     const [existing] = await connection.query(
       `SELECT slot_id, is_available
        FROM time_slot
        WHERE merchant_id = ? AND service_id = ? AND slot_date = ? AND start_time = ? AND is_available = TRUE
+       ${availableStaffSql}
        LIMIT 1
        FOR UPDATE`,
-      [booking.merchant_id, booking.service_id, bookingDate, bookingTime]
+      availableParams
     );
 
     let newSlotId;
@@ -397,12 +435,17 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
       newSlotId = existing[0].slot_id;
       await connection.query('UPDATE time_slot SET is_available = FALSE WHERE slot_id = ?', [newSlotId]);
     } else {
+      const conflictingStaffSql = safeStaffId ? 'AND staff_id = ?' : '';
+      const conflictingParams = [booking.merchant_id, booking.service_id, bookingDate, bookingTime];
+      if (safeStaffId) conflictingParams.push(safeStaffId);
+
       const [conflicting] = await connection.query(
         `SELECT slot_id
          FROM time_slot
          WHERE merchant_id = ? AND service_id = ? AND slot_date = ? AND start_time = ? AND is_available = FALSE
+         ${conflictingStaffSql}
          LIMIT 1`,
-        [booking.merchant_id, booking.service_id, bookingDate, bookingTime]
+        conflictingParams
       );
 
       if (conflicting.length) {
@@ -415,7 +458,7 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
         [
           booking.merchant_id,
           booking.service_id,
-          booking.staff_id || null,
+          safeStaffId,
           bookingDate,
           bookingTime,
           bookingTime,

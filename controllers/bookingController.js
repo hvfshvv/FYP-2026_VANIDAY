@@ -70,6 +70,17 @@ function getQrFormState(req) {
   };
 }
 
+function rememberGuestBooking(req, bookingId) {
+  req.session.guestBookingIds = Array.isArray(req.session.guestBookingIds)
+    ? req.session.guestBookingIds
+    : [];
+
+  const safeBookingId = String(bookingId);
+  if (!req.session.guestBookingIds.includes(safeBookingId)) {
+    req.session.guestBookingIds.push(safeBookingId);
+  }
+}
+
 async function renderQRBookingPage(req, res, {
   token,
   qr,
@@ -125,7 +136,7 @@ async function showPortalBookingPage(req, res) {
 async function confirmPortalBooking(req, res) {
   if (redirectMerchantAwayFromBooking(req, res)) return;
 
-  const { merchant_id, service_id, booking_date, booking_time } = req.body;
+  const { merchant_id, service_id, booking_date, booking_time, staff_id } = req.body;
   try {
     if (!req.session.user) {
       return res.redirect(`/auth/login?next=/book?merchantId=${merchant_id}`);
@@ -137,6 +148,7 @@ async function confirmPortalBooking(req, res) {
       merchantId:  merchant_id,
       bookingDate: booking_date,
       bookingTime: booking_time,
+      staffId:     staff_id || null,
       source:      'portal',
     });
 
@@ -323,7 +335,7 @@ async function confirmBooking(req, res) {
   if (redirectMerchantAwayFromBooking(req, res)) return;
 
   const { token } = req.params;
-  const { service_id, booking_date, booking_time, full_name, phone, email, booking_mode } = req.body;
+  const { service_id, booking_date, booking_time, staff_id, full_name, phone, email, booking_mode } = req.body;
   try {
     const qr = await qrModel.getQRByToken(token);
     if (!qr) return res.redirect(`/book/${token}`);
@@ -403,11 +415,16 @@ async function confirmBooking(req, res) {
       merchantId:  qr.merchant_id,
       bookingDate: booking_date,
       bookingTime: booking_time,
+      staffId:     staff_id || null,
       source:      'qr',
       guestName,
       guestEmail,
       guestPhone,
     });
+
+    if (!customerId) {
+      rememberGuestBooking(req, bookingId);
+    }
 
     try {
       await sendPowerAutomateWebhook({

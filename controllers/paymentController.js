@@ -12,6 +12,57 @@ const bookingModel = require('../models/bookingModel');
 const paymentModel = require('../models/paymentModel');
 const loyaltyModel = require('../models/loyaltyModel');
 
+function hasGuestBookingAccess(req, bookingId) {
+  return Array.isArray(req.session.guestBookingIds)
+    && req.session.guestBookingIds.includes(String(bookingId));
+}
+
+function canAccessBooking(req, booking) {
+  if (!booking) return false;
+
+  const user = req.session.user;
+  if (hasGuestBookingAccess(req, booking.booking_id) && !booking.customer_id) {
+    return true;
+  }
+
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+
+  if (user.role === 'merchant') {
+    return String(user.merchant_id || '') === String(booking.merchant_id);
+  }
+
+  if (user.role === 'customer') {
+    return String(user.customer_id || user.user_id || '') === String(booking.customer_id);
+  }
+
+  return false;
+}
+
+async function getAuthorizedBooking(req, res, bookingId, { json = false } = {}) {
+  if (!bookingId) {
+    if (json) res.status(400).json({ error: 'Missing booking id' });
+    else res.status(400).send('Missing booking id.');
+    return null;
+  }
+
+  const booking = await bookingModel.getBookingById(bookingId);
+
+  if (!booking) {
+    if (json) res.status(404).json({ error: 'Booking not found' });
+    else res.redirect('/');
+    return null;
+  }
+
+  if (!canAccessBooking(req, booking)) {
+    if (json) res.status(403).json({ error: 'You do not have access to this booking' });
+    else res.status(403).send('You do not have access to this booking.');
+    return null;
+  }
+
+  return booking;
+}
+
 async function confirmPaidBooking(bookingId) {
   await bookingModel.updateBookingStatus(bookingId, 'confirmed');
 
@@ -25,8 +76,8 @@ async function confirmPaidBooking(bookingId) {
 async function showCheckout(req, res) {
   const { bookingId } = req.params;
   try {
-    const booking = await bookingModel.getBookingById(bookingId);
-    if (!booking) return res.redirect('/');
+    const booking = await getAuthorizedBooking(req, res, bookingId);
+    if (!booking) return;
 
     const payment  = await paymentModel.getPaymentByBooking(bookingId);
     res.render('payment/checkout', {
@@ -147,10 +198,8 @@ async function persistCheckoutSession(session) {
 async function createStripeIntent(req, res) {
   const bookingId = getBookingId(req);
   try {
-    if (!bookingId) return res.status(400).json({ error: 'Missing booking id' });
-
-    const booking = await bookingModel.getBookingById(bookingId);
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    const booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
+    if (!booking) return;
 
     const amount = Number(booking.payable_amount || booking.total_amount || booking.price);
     const intent = await createPaymentIntent(amount, booking);
@@ -168,6 +217,9 @@ async function confirmStripePayment(req, res) {
   const { paymentIntentId } = req.body;
   try {
     if (!paymentIntentId) return res.status(400).json({ error: 'Missing paymentIntentId' });
+
+    const booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
+    if (!booking) return;
 
     let intent = await retrievePaymentIntent(paymentIntentId);
     if (String(intent.metadata.booking_id) !== String(bookingId)) {
@@ -191,9 +243,6 @@ async function confirmStripePayment(req, res) {
       return res.status(400).json({ error: 'Payment has not succeeded' });
     }
 
-    const booking = await bookingModel.getBookingById(bookingId);
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
-
     const amount = Number(booking.payable_amount || booking.total_amount || booking.price);
     await paymentModel.createOrUpdatePayment(bookingId, amount, 'stripe');
     await persistStripePaymentIntent(intent);
@@ -207,8 +256,8 @@ async function confirmStripePayment(req, res) {
 async function createPayNowSession(req, res) {
   const { bookingId } = req.params;
   try {
-    const booking = await bookingModel.getBookingById(bookingId);
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    const booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
+    if (!booking) return;
 
     const amount = Number(booking.payable_amount || booking.total_amount || booking.price);
     const baseUrl = getBaseUrl(req);
@@ -283,6 +332,9 @@ async function markStripePaymentFailed(req, res) {
   try {
     if (!paymentIntentId) return res.status(400).json({ error: 'Missing paymentIntentId' });
 
+    const booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
+    if (!booking) return;
+
     const intent = await retrievePaymentIntent(paymentIntentId);
     if (String(intent.metadata.booking_id) !== String(bookingId)) {
       return res.status(400).json({ error: 'Payment does not match this booking' });
@@ -299,6 +351,9 @@ async function markStripePaymentFailed(req, res) {
 async function paymentSuccess(req, res) {
   const { booking_id, session_id } = req.query;
   try {
+    const booking = await getAuthorizedBooking(req, res, booking_id);
+    if (!booking) return;
+
     if (session_id) {
       const session = await retrieveCheckoutSession(session_id);
       console.log('[stripe] success page session lookup', {
@@ -315,7 +370,6 @@ async function paymentSuccess(req, res) {
     if (!existing || existing.payment_status !== 'paid') {
       return res.redirect(`/payment/checkout/${booking_id}`);
     }
-    const booking = await bookingModel.getBookingById(booking_id);
     const loyaltyEarned = booking && booking.customer_id
       ? await loyaltyModel.getEarnedPointsForBooking(booking_id).catch(() => 0)
       : 0;
@@ -329,7 +383,9 @@ async function paymentSuccess(req, res) {
 async function downloadReceipt(req, res) {
   const { bookingId } = req.params;
   try {
-    const booking = await bookingModel.getBookingById(bookingId);
+    const booking = await getAuthorizedBooking(req, res, bookingId);
+    if (!booking) return;
+
     const payment = await paymentModel.getPaymentByBooking(bookingId);
 
     if (!booking || !payment || payment.payment_status !== 'paid') {
