@@ -20,6 +20,45 @@
     </div>
   </div>
 
+  <% if (imageError) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+    <i class="bi bi-exclamation-circle me-2"></i><%= imageError %>
+  </div>
+  <% } %>
+  <% if (imageSuccess) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+    <i class="bi bi-check-circle me-2"></i><%= imageSuccess %>
+  </div>
+  <% } %>
+
+  <div class="card border-0 mb-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
+    <div class="row g-0 align-items-stretch">
+      <div class="col-md-4">
+        <% if (merchant && merchant.profile_image) { %>
+          <img src="<%= merchant.profile_image %>" alt="<%= merchant.merchant_name %>" style="width:100%;height:100%;min-height:220px;object-fit:cover;display:block;">
+        <% } else { %>
+          <div style="min-height:220px;height:100%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:3rem;">
+            <i class="bi bi-image"></i>
+          </div>
+        <% } %>
+      </div>
+      <div class="col-md-8">
+        <div class="p-4 h-100 d-flex flex-column justify-content-center">
+          <p class="section-label mb-2">Marketplace photo</p>
+          <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;">Your merchant card image</h5>
+          <p style="color:var(--muted);margin-bottom:1rem;">Upload the picture customers will see on your marketplace card.</p>
+          <form action="/merchant/marketplace-image" method="POST" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
+            <input type="file" name="marketplace_image" class="form-control rounded-xl" accept="image/*" required style="max-width:360px;">
+            <button type="submit" class="btn btn-primary btn-pill">
+              <i class="bi bi-upload me-1"></i>Update Photo
+            </button>
+          </form>
+          <p class="small mt-2 mb-0" style="color:var(--muted);">Recommended: landscape photo, under 2MB.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Revenue Stats -->
   <div class="row g-3 mb-5">
     <div class="col-6 col-md-3">

@@ -7,12 +7,14 @@ const qrCtrl    = require('../controllers/qrController');
 const promoCtrl = require('../controllers/promotionController');
 const featCtrl  = require('../controllers/featuredController');
 const svcCtrl   = require('../controllers/serviceController');
+const merchantProfileCtrl = require('../controllers/merchantProfileController');
 
 const staffCtrl = require('../controllers/staffController');
 const availabilityCtrl = require('../controllers/availabilityController');
 
 const bookingModel = require('../models/bookingModel');
 const revenueModel = require('../models/revenueModel');
+const merchantModel = require('../models/merchantModel');
 
 router.use(requireLogin, requireMerchant);
 
@@ -20,17 +22,27 @@ router.use(requireLogin, requireMerchant);
 router.get('/dashboard', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
 
-  const [bookings, summary] = await Promise.all([
+  const [bookings, summary, merchant] = await Promise.all([
     bookingModel.getMerchantBookings(merchantId).catch(() => []),
     revenueModel.getMerchantRevenueSummary(merchantId).catch(() => ({})),
+    merchantModel.getMerchantProfile(merchantId).catch(() => null),
   ]);
 
   res.render('merchant/dashboard', {
     title: 'Merchant Dashboard',
     bookings,
-    summary
+    summary,
+    merchant,
+    imageSuccess: req.query.imageSuccess,
+    imageError: req.query.imageError,
   });
 });
+
+router.post(
+  '/marketplace-image',
+  merchantProfileCtrl.handleMarketplaceImageUpload,
+  merchantProfileCtrl.updateMarketplaceImage
+);
 
 // All merchant bookings
 router.get('/bookings', async (req, res) => {

@@ -40,7 +40,7 @@ const MERCHANTS = [
   },
   {
     user: { name: 'Hair Republic', email: 'hairrepublic@uniday.com', phone: '64567890' },
-    biz: { name: 'Hair Republic', category: 'Hair', address: '200 Victoria Street, #03-22, Bugis Junction, Singapore 188021' },
+    biz: { name: 'Hair Republic', category: 'Hair', address: '200 Victoria Street, #03-22, Bugis Junction, Singapore 188021', image: '/images/merchants/hair-republic.jpg' },
     services: [
       { name: 'Haircut & Blowdry', desc: 'Precision cut + professional blowdry', price: 55, dur: 60 },
       { name: 'Hair Colouring', desc: 'Single-process colour with treatment', price: 120, dur: 120 },
@@ -53,7 +53,7 @@ const MERCHANTS = [
   },
   {
     user: { name: 'Glow Skin Clinic', email: 'glow@uniday.com', phone: '65678901' },
-    biz: { name: 'Glow Skin Clinic', category: 'Facial', address: '4 Tampines Central 5, #04-09, Tampines Mall, Singapore 529510' },
+    biz: { name: 'Glow Skin Clinic', category: 'Facial', address: '4 Tampines Central 5, #04-09, Tampines Mall, Singapore 529510', image: '/images/merchants/glow-skin-clinic.jpg' },
     services: [
       { name: 'Hydra Facial', desc: 'HydraFacial MD — cleanse, exfoliate & hydrate', price: 158, dur: 75 },
       { name: 'LED Light Therapy', desc: 'Anti-aging & acne-fighting LED phototherapy', price: 68, dur: 30 },
@@ -66,7 +66,7 @@ const MERCHANTS = [
   },
   {
     user: { name: 'Zen Wellness Studio', email: 'zen@uniday.com', phone: '66789012' },
-    biz: { name: 'Zen Wellness Studio', category: 'Wellness', address: '238 Thomson Road, #01-01, Novena Square, Singapore 307683' },
+    biz: { name: 'Zen Wellness Studio', category: 'Wellness', address: '238 Thomson Road, #01-01, Novena Square, Singapore 307683', image: '/images/merchants/zen-wellness-studio.jpg' },
     services: [
       { name: 'Yoga Class (60 min)', desc: 'All-levels hatha yoga — mat provided', price: 35, dur: 60 },
       { name: 'Pilates Class', desc: 'Reformer pilates for core strength & posture', price: 45, dur: 60 },
@@ -168,15 +168,16 @@ async function seed() {
       await db.execute(
         `UPDATE merchant
          SET verification_status = 'approved',
+             profile_image = COALESCE(profile_image, ?),
              verified_at = COALESCE(verified_at, NOW())
          WHERE merchant_id = ?`,
-        [merchantId]
+        [m.biz.image || null, merchantId]
       );
     } else {
       const [mr] = await db.execute(
         `INSERT INTO merchant 
-          (user_id, merchant_name, email, description, category, address, business_uen, contact_no, is_featured, is_active, verification_status, verified_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', NOW())`,
+          (user_id, merchant_name, email, description, category, address, business_uen, contact_no, profile_image, is_featured, is_active, verification_status, verified_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', NOW())`,
         [
           userId,
           m.biz.name,
@@ -186,6 +187,7 @@ async function seed() {
           m.biz.address,
           null,
           m.user.phone,
+          m.biz.image || null,
           1,
           1,
         ]

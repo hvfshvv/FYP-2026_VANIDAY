@@ -5,3 +5,4 @@ CLAUDE.md
 .agents/
 skills-lock.json
 public/images/qr/*.png
+public/images/merchants/merchant_*
