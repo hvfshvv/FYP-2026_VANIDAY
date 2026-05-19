@@ -26,11 +26,11 @@ async function createUser(full_name, email, passwordHash, phone, role) {
   return result.insertId;
 }
 
-async function createCustomerProfile(userId, fullName, email, phone) {
+async function createCustomerProfile(userId, fullName, email, phone, dateOfBirth = null) {
   await db.query(
-    `INSERT INTO customer (customer_id, user_id, full_name, email, phone)
-     VALUES (?, ?, ?, ?, ?)`,
-    [userId, userId, fullName, email, phone]
+    `INSERT INTO customer (customer_id, user_id, full_name, email, phone, date_of_birth)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [userId, userId, fullName, email, phone, dateOfBirth]
   );
 }
 

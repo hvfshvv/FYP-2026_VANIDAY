@@ -548,6 +548,7 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
          u.full_name,
          u.email,
          u.phone,
+         c.date_of_birth,
          u.status,
          u.created_at,
          COALESCE(lw.points_balance, 0) AS points_balance,
@@ -558,11 +559,12 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
          COUNT(DISTINCT f.favourite_id) AS favourites
        FROM users u
        LEFT JOIN loyalty_wallet lw ON lw.customer_id = u.user_id
+       LEFT JOIN customer c ON c.user_id = u.user_id
        LEFT JOIN booking b ON b.customer_id = u.user_id AND ${bookingDateFilter}
        LEFT JOIN payment p ON p.booking_id = b.booking_id
        LEFT JOIN favourite f ON f.customer_id = u.user_id
        WHERE u.role = 'customer'
-       GROUP BY u.user_id, u.full_name, u.email, u.phone, u.status, u.created_at,
+       GROUP BY u.user_id, u.full_name, u.email, u.phone, c.date_of_birth, u.status, u.created_at,
                 lw.points_balance, lw.lifetime_points_earned, lw.lifetime_points_redeemed
        ORDER BY total_spent DESC, bookings DESC
        LIMIT 10`,

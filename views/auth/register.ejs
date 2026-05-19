@@ -42,6 +42,10 @@
               </div>
             </div>
             <div class="mb-3">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Birthday</label>
+              <input type="date" name="date_of_birth" class="form-control rounded-xl" max="<%= new Date().toISOString().slice(0, 10) %>" />
+            </div>
+            <div class="mb-3">
               <label class="form-label" style="font-weight:600;font-size:.875rem;">Password</label>
               <input type="password" name="password" class="form-control rounded-xl" placeholder="Min. 6 characters" minlength="6" required />
             </div>

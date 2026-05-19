@@ -156,6 +156,7 @@ async function register(req, res) {
     email,
     password,
     phone,
+    date_of_birth,
     role,
     merchant_name,
     business_uen,
@@ -165,6 +166,10 @@ async function register(req, res) {
 
   const normalizedPhone = phone && phone.trim()
     ? phone.trim()
+    : null;
+
+  const birthday = date_of_birth && date_of_birth.trim()
+    ? date_of_birth.trim()
     : null;
 
   const safeRole = ALLOWED_ROLES.includes(role)
@@ -196,6 +201,13 @@ async function register(req, res) {
       });
     }
 
+    if (safeRole === 'customer' && birthday && !isValidBirthday(birthday)) {
+      return res.render(registerView, {
+        title: registerTitle,
+        error: 'Please enter a valid birthday.'
+      });
+    }
+
     const hash = await bcrypt.hash(password, 10);
 
     const userId = await authModel.createUser(
@@ -211,7 +223,8 @@ async function register(req, res) {
         userId,
         full_name,
         email,
-        normalizedPhone
+        normalizedPhone,
+        birthday
       );
     }
 
@@ -256,6 +269,18 @@ async function register(req, res) {
       error: 'Registration failed. Please try again.'
     });
   }
+}
+
+function isValidBirthday(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+
+  const birthday = new Date(value + 'T00:00:00');
+  if (Number.isNaN(birthday.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return birthday <= today;
 }
 
 function logout(req, res) {

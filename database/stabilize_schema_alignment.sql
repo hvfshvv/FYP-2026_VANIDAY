@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS customer (
   full_name VARCHAR(100) NOT NULL,
   email VARCHAR(150) NOT NULL,
   phone VARCHAR(20) NULL,
+  date_of_birth DATE NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (customer_id) REFERENCES users(user_id),
   FOREIGN KEY (user_id) REFERENCES users(user_id)
@@ -18,6 +19,23 @@ FROM users
 WHERE role = 'customer';
 
 SET @db_name = DATABASE();
+
+SET @has_customer_birthday = (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = @db_name
+    AND TABLE_NAME = 'customer'
+    AND COLUMN_NAME = 'date_of_birth'
+);
+
+SET @sql = IF(
+  @has_customer_birthday = 0,
+  'ALTER TABLE customer ADD COLUMN date_of_birth DATE NULL AFTER phone',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 SET @has_favourite_service_id = (
   SELECT COUNT(*)

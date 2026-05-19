@@ -205,7 +205,7 @@
             <h6 class="customer-title mb-3">Profile Information &amp; Membership Status</h6>
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
-                <thead style="background:var(--accent-light);"><tr><th>Customer</th><th>Contact</th><th>Points</th><th>Bookings</th><th>Spent</th><th>Favourites</th></tr></thead>
+                <thead style="background:var(--accent-light);"><tr><th>Customer</th><th>Contact</th><th>Birthday</th><th>Points</th><th>Bookings</th><th>Spent</th><th>Favourites</th></tr></thead>
                 <tbody>
                   <% (a.accountProfiles || []).forEach(customer => { %>
                     <tr>
@@ -217,6 +217,7 @@
                         <p style="margin:0;"><%= customer.email || '-' %></p>
                         <p style="color:var(--muted);margin:0;font-size:.75rem;"><%= customer.phone || 'No phone' %></p>
                       </td>
+                      <td><%= customer.date_of_birth ? dateLabel(customer.date_of_birth) : '-' %></td>
                       <td><%= number(customer.points_balance) %></td>
                       <td><%= number(customer.bookings) %></td>
                       <td style="font-family:var(--font-mono);font-weight:700;"><%= money(customer.total_spent) %></td>
