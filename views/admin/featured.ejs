@@ -1,0 +1,112 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+      <p class="section-label">Admin Control</p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Featured Merchants</h2>
+      <p style="color:var(--muted);margin-bottom:0;">Manage which merchant cards appear in the marketplace featured section.</p>
+    </div>
+    <a href="/admin/merchants#leaderboard" class="btn btn-primary btn-pill" style="font-weight:800;">
+      <i class="bi bi-trophy me-1"></i>View Leaderboard
+    </a>
+  </div>
+
+  <% if (error || query.error) { %>
+    <div class="alert alert-danger d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-circle"></i>
+      <span><%= error || 'Could not update featured merchants.' %></span>
+    </div>
+  <% } %>
+  <% if (query.updated) { %>
+    <div class="alert alert-success d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle"></i>
+      <span>Featured listing visibility updated.</span>
+    </div>
+  <% } %>
+  <% if (query.removed) { %>
+    <div class="alert alert-success d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle"></i>
+      <span>Featured listing removed.</span>
+    </div>
+  <% } %>
+
+  <% if (!listings.length) { %>
+    <div class="card border-0 text-center py-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="icon-circle-lg mx-auto mb-3">
+        <i class="bi bi-star" style="font-size:2rem;color:var(--accent);"></i>
+      </div>
+      <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">No featured merchants yet</h6>
+      <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">Use the merchant leaderboard to feature top-performing businesses.</p>
+      <a href="/admin/merchants#leaderboard" class="btn btn-primary btn-pill btn-sm">Open Leaderboard</a>
+    </div>
+  <% } else { %>
+    <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+          <thead style="background:var(--accent-light);">
+            <tr>
+              <th>Merchant</th>
+              <th>Category</th>
+              <th>Bookings</th>
+              <th>Revenue</th>
+              <th>Rating</th>
+              <th>Status</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% listings.forEach(listing => { %>
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center gap-3">
+                    <% if (listing.image_path) { %>
+                      <img src="<%= listing.image_path %>" alt="<%= listing.merchant_name %>" style="width:52px;height:52px;object-fit:cover;border-radius:var(--r-lg);border:1px solid var(--border);">
+                    <% } else { %>
+                      <div style="width:52px;height:52px;border-radius:var(--r-lg);background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;">
+                        <i class="bi bi-shop"></i>
+                      </div>
+                    <% } %>
+                    <div>
+                      <p style="font-weight:800;color:var(--ink);margin-bottom:.15rem;"><%= listing.merchant_name %></p>
+                      <p style="color:var(--muted);margin-bottom:0;"><%= listing.description || listing.title %></p>
+                    </div>
+                  </div>
+                </td>
+                <td><%= listing.category %></td>
+                <td><%= Number(listing.bookings || 0).toLocaleString('en-SG') %></td>
+                <td style="font-family:var(--font-mono);font-weight:700;">S$<%= Number(listing.revenue || 0).toFixed(2) %></td>
+                <td><%= Number(listing.rating || 0).toFixed(1) %></td>
+                <td>
+                  <% if (Number(listing.is_visible || 0)) { %>
+                    <span class="badge" style="background:var(--success-bg);color:var(--success);">Visible</span>
+                  <% } else { %>
+                    <span class="badge" style="background:var(--neutral-bg);color:var(--muted);">Hidden</span>
+                  <% } %>
+                </td>
+                <td>
+                  <div class="d-flex justify-content-end gap-2">
+                    <form action="/admin/featured/<%= listing.listing_id %>/toggle" method="POST" class="m-0">
+                      <button type="submit" class="btn btn-sm btn-outline-secondary btn-pill">
+                        <i class="bi bi-<%= Number(listing.is_visible || 0) ? 'eye-slash' : 'eye' %> me-1"></i>
+                        <%= Number(listing.is_visible || 0) ? 'Hide' : 'Show' %>
+                      </button>
+                    </form>
+                    <form action="/admin/featured/<%= listing.listing_id %>/remove" method="POST" class="m-0" onsubmit="return confirm('Remove this merchant from featured listings?');">
+                      <button type="submit" class="btn btn-sm btn-outline-danger btn-pill">
+                        <i class="bi bi-trash me-1"></i>Remove
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

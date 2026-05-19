@@ -8,6 +8,9 @@ router.use(requireLogin, requireAdmin);
 router.get('/dashboard', adminController.showDashboard);
 router.get('/merchants', adminController.showMerchants);
 router.post('/merchants/:merchantId/feature', adminController.featureMerchantFromDashboard);
+router.get('/featured', adminController.showFeaturedMerchants);
+router.post('/featured/:listingId/toggle', adminController.toggleFeaturedMerchant);
+router.post('/featured/:listingId/remove', adminController.removeFeaturedMerchant);
 router.get('/customers', adminController.showCustomers);
 router.get('/user-management', adminController.showUserManagementHome);
 router.get('/user-management/customers', adminController.showManagedCustomers);
@@ -22,6 +25,6 @@ router.post('/merchant-validations/:merchantId/reject', adminController.rejectMe
 router.get('/campaigns', adminController.showCampaigns);
 router.post('/campaigns/create', adminController.createCampaign);
 router.post('/campaigns/:voucherId/toggle', adminController.toggleCampaign);
-router.get('/:page(validation|featured)', adminController.showComingSoon);
+router.get('/:page(validation)', adminController.showComingSoon);
 
 module.exports = router;

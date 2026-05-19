@@ -709,7 +709,7 @@
                   <td><%= rating(merchant.rating) %></td>
                   <td>
                     <% if (Number(merchant.is_featured || 0)) { %>
-                      <span class="badge" style="background:var(--success-bg);color:var(--success);">Featured</span>
+                      <a href="/admin/featured" class="badge text-decoration-none" style="background:var(--success-bg);color:var(--success);">Featured</a>
                     <% } else { %>
                       <form action="/admin/merchants/<%= merchant.merchant_id %>/feature" method="POST" class="m-0">
                         <button type="submit" class="btn btn-primary btn-sm btn-pill">

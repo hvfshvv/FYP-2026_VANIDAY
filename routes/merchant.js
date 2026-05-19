@@ -5,7 +5,6 @@ const { requireLogin, requireMerchant } = require('../middleware/auth');
 
 const qrCtrl    = require('../controllers/qrController');
 const promoCtrl = require('../controllers/promotionController');
-const featCtrl  = require('../controllers/featuredController');
 const svcCtrl   = require('../controllers/serviceController');
 const merchantProfileCtrl = require('../controllers/merchantProfileController');
 
@@ -109,11 +108,6 @@ router.get('/promotions', promoCtrl.showPromotions);
 router.post('/promotions/create', promoCtrl.createPromotion);
 router.post('/promotions/:promoId/toggle', promoCtrl.togglePromotion);
 router.post('/promotions/:promoId/delete', promoCtrl.deletePromotion);
-
-// Featured Listing
-router.get('/featured', featCtrl.showFeaturedPage);
-router.post('/featured/save', featCtrl.upload.single('image'), featCtrl.saveFeaturedListing);
-router.post('/featured/toggle', featCtrl.toggleVisibility);
 
 // Services
 router.get('/services', svcCtrl.showServices);

@@ -271,6 +271,47 @@ async function featureMerchantFromDashboard(req, res) {
   }
 }
 
+async function showFeaturedMerchants(req, res) {
+  try {
+    const listings = await adminModel.getFeaturedMerchantListings();
+
+    res.render('admin/featured', {
+      title: 'Featured Merchants',
+      listings,
+      query: req.query,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/featured', {
+      title: 'Featured Merchants',
+      listings: [],
+      query: req.query,
+      error: 'Failed to load featured merchants.',
+    });
+  }
+}
+
+async function toggleFeaturedMerchant(req, res) {
+  try {
+    await adminModel.toggleFeaturedMerchantVisibility(req.params.listingId);
+    res.redirect('/admin/featured?updated=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/featured?error=update');
+  }
+}
+
+async function removeFeaturedMerchant(req, res) {
+  try {
+    await adminModel.removeFeaturedMerchantListing(req.params.listingId);
+    res.redirect('/admin/featured?removed=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/featured?error=remove');
+  }
+}
+
 function isDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
 }
@@ -501,6 +542,9 @@ module.exports = {
   showMerchants,
   showCustomers,
   featureMerchantFromDashboard,
+  showFeaturedMerchants,
+  toggleFeaturedMerchant,
+  removeFeaturedMerchant,
   showUserManagementHome,
   showManagedCustomers,
   showManagedMerchants,

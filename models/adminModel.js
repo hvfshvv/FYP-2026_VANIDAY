@@ -494,6 +494,59 @@ async function addMerchantToFeatured(merchantId) {
   return result.insertId;
 }
 
+async function getFeaturedMerchantListings() {
+  const [rows] = await db.query(
+    `SELECT
+       fl.listing_id,
+       fl.merchant_id,
+       fl.title,
+       fl.description,
+       fl.display_order,
+       fl.is_visible,
+       fl.created_at,
+       m.merchant_name,
+       COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
+       m.profile_image AS image_path,
+       COUNT(DISTINCT b.booking_id) AS bookings,
+       COUNT(DISTINCT b.customer_id) AS customers,
+       COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS revenue,
+       COALESCE(AVG(r.rating), 0) AS rating
+     FROM featured_listing fl
+     JOIN merchant m ON m.merchant_id = fl.merchant_id
+     LEFT JOIN booking b ON b.merchant_id = m.merchant_id
+     LEFT JOIN payment p ON p.booking_id = b.booking_id
+     LEFT JOIN merchant_review r ON r.booking_id = b.booking_id
+     GROUP BY
+       fl.listing_id,
+       fl.merchant_id,
+       fl.title,
+       fl.description,
+       fl.display_order,
+       fl.is_visible,
+       fl.created_at,
+       m.merchant_name,
+       m.category,
+       m.profile_image
+     ORDER BY fl.is_visible DESC, fl.display_order ASC, revenue DESC, fl.created_at DESC`
+  );
+
+  return rows;
+}
+
+async function toggleFeaturedMerchantVisibility(listingId) {
+  await db.query(
+    'UPDATE featured_listing SET is_visible = NOT is_visible WHERE listing_id = ?',
+    [listingId]
+  );
+}
+
+async function removeFeaturedMerchantListing(listingId) {
+  await db.query(
+    'DELETE FROM featured_listing WHERE listing_id = ?',
+    [listingId]
+  );
+}
+
 async function getCustomerAnalytics({ startDate, endDate } = {}) {
   const rangeParams = [startDate, endDate];
   const bookingDateFilter = 'DATE(b.created_at) BETWEEN ? AND ?';
@@ -1130,6 +1183,9 @@ module.exports = {
   getRecentValidationErrors,
   getMerchantAnalytics,
   addMerchantToFeatured,
+  getFeaturedMerchantListings,
+  toggleFeaturedMerchantVisibility,
+  removeFeaturedMerchantListing,
   getCustomerAnalytics,
   getPendingMerchantApplications,
   getRecentMerchantValidationDecisions,
