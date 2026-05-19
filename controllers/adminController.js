@@ -51,6 +51,139 @@ function showComingSoon(req, res) {
   });
 }
 
+async function showMerchants(req, res) {
+  const today = new Date();
+  const defaultStart = new Date(today);
+  defaultStart.setDate(defaultStart.getDate() - 29);
+
+  const range = {
+    startDate: isDate(req.query.startDate) ? req.query.startDate : toDateInput(defaultStart),
+    endDate: isDate(req.query.endDate) ? req.query.endDate : toDateInput(today),
+  };
+
+  if (new Date(range.endDate) < new Date(range.startDate)) {
+    range.endDate = range.startDate;
+  }
+
+  try {
+    const analytics = await adminModel.getMerchantAnalytics(range);
+
+    res.render('admin/merchants', {
+      title: 'Merchant Analytics',
+      analytics,
+      range,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/merchants', {
+      title: 'Merchant Analytics',
+      analytics: emptyMerchantAnalytics(),
+      range,
+      error: 'Failed to load merchant analytics data.',
+    });
+  }
+}
+
+async function showCustomers(req, res) {
+  const today = new Date();
+  const defaultStart = new Date(today);
+  defaultStart.setDate(defaultStart.getDate() - 29);
+
+  const range = {
+    startDate: isDate(req.query.startDate) ? req.query.startDate : toDateInput(defaultStart),
+    endDate: isDate(req.query.endDate) ? req.query.endDate : toDateInput(today),
+  };
+
+  if (new Date(range.endDate) < new Date(range.startDate)) {
+    range.endDate = range.startDate;
+  }
+
+  try {
+    const analytics = await adminModel.getCustomerAnalytics(range);
+
+    res.render('admin/customers', {
+      title: 'Customer Analytics',
+      analytics,
+      range,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/customers', {
+      title: 'Customer Analytics',
+      analytics: emptyCustomerAnalytics(),
+      range,
+      error: 'Failed to load customer analytics data.',
+    });
+  }
+}
+
+function isDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+}
+
+function toDateInput(value) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function emptyMerchantAnalytics() {
+  return {
+    overview: {},
+    revenueTrend: [],
+    topServices: [],
+    revenueByCategory: [],
+    peakSalesPeriods: [],
+    paymentBreakdown: [],
+    promotionPerformance: [],
+    bookingStatus: [],
+    peakBookingTimes: [],
+    serviceUtilization: [],
+    leadTime: {},
+    customerSegments: {},
+    topCustomers: [],
+    loyaltyUsage: [],
+    reviewSummary: {},
+    campaignPerformance: [],
+    qrAnalytics: [],
+    listingPerformance: [],
+    staffPerformance: [],
+    financial: {},
+    topMerchants: [],
+  };
+}
+
+function emptyCustomerAnalytics() {
+  return {
+    overview: {},
+    accountProfiles: [],
+    upcomingBookings: [],
+    pastBookings: [],
+    bookingStatus: [],
+    loyaltySummary: {},
+    loyaltyTransactions: [],
+    availableVouchers: [],
+    spendingTrend: [],
+    spendingCategories: [],
+    mostVisitedMerchants: [],
+    favouriteServices: [],
+    bookingFrequency: [],
+    recommendedMerchants: [],
+    suggestedServices: [],
+    behaviourPromotions: [],
+    reviewSummary: {},
+    recentReviews: [],
+    platformFeedback: [],
+    security: {},
+    reminders: [],
+    qrAccess: [],
+    paymentMethods: [],
+  };
+}
+
 async function showMerchantValidations(req, res) {
   try {
     const [pendingMerchants, recentDecisions, statusSummary, applicationTrend] = await Promise.all([
@@ -213,6 +346,8 @@ async function toggleCampaign(req, res) {
 module.exports = {
   showDashboard,
   showComingSoon,
+  showMerchants,
+  showCustomers,
   showMerchantValidations,
   approveMerchant,
   rejectMerchant,

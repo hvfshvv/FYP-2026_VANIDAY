@@ -20,6 +20,11 @@
             <i class="bi bi-check-circle me-2"></i>Account created! Please sign in.
           </div>
           <% } %>
+          <% if (typeof query !== 'undefined' && query && query.reason === 'member_email') { %>
+          <div class="rounded-xl mb-3 p-3" style="background:var(--warn-bg);color:var(--warn);font-size:.875rem;">
+            <i class="bi bi-exclamation-circle me-2"></i>This email is already registered. Please log in to continue and earn loyalty points.
+          </div>
+          <% } %>
           <% if (error) { %>
           <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
             <i class="bi bi-exclamation-circle me-2"></i><%= error %>

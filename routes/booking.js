@@ -1,9 +1,12 @@
 const express = require('express');
 const router  = express.Router();
 const ctrl    = require('../controllers/bookingController');
-const { requireLogin } = require('../middleware/auth');
+const { requireLogin, blockMerchantBookingAccess } = require('../middleware/auth');
+
+router.use(blockMerchantBookingAccess);
 
 router.get('/api/slots', ctrl.getAvailableSlots);
+router.get('/api/email-member', ctrl.checkEmailMember);
 
 router.get('/viewBookings', requireLogin, ctrl.viewCustomerBookings);
 router.post('/:bookingId/cancel', requireLogin, ctrl.cancelCustomerBooking);

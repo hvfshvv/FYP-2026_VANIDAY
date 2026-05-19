@@ -1,0 +1,556 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const a = analytics || {};
+  const overview = a.overview || {};
+  const money = value => 'S$' + Number(value || 0).toFixed(2);
+  const number = value => Number(value || 0).toLocaleString('en-SG');
+  const percent = value => Number(value || 0).toFixed(1) + '%';
+  const rating = value => Number(value || 0).toFixed(1) + '/5';
+  const dateLabel = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }) : '-';
+  const maxOf = (items, key) => Math.max(1, ...items.map(item => Number(item[key] || 0)));
+  const barWidth = (value, max) => Math.max(6, Math.round((Number(value || 0) / max) * 100));
+  const avgLeadDays = Number(a.leadTime?.avg_lead_hours || 0) / 24;
+  const returning = Number(a.customerSegments?.returning_customers || 0);
+  const totalCustomers = Number(a.customerSegments?.total_customers || 0);
+  const retentionRate = totalCustomers ? (returning / totalCustomers) * 100 : 0;
+  const grossRevenue = Number(a.financial?.gross_revenue || 0);
+  const refundedAmount = Number(a.financial?.refunded_amount || 0);
+  const profitMargin = grossRevenue ? ((grossRevenue - refundedAmount) / grossRevenue) * 100 : 0;
+%>
+
+<style>
+  .merchant-analytics[data-theme="dark"] {
+    --canvas:#111827;
+    --surface:#182235;
+    --ink:#F8FAFC;
+    --muted:#CBD5E1;
+    --ghost:#94A3B8;
+    --border:rgba(148,163,184,.24);
+    --accent-light:rgba(225,29,72,.16);
+    --neutral-bg:rgba(148,163,184,.16);
+    --success-bg:rgba(16,185,129,.16);
+    --danger-bg:rgba(239,68,68,.16);
+    --warn-bg:rgba(217,119,6,.16);
+    background:var(--canvas);
+  }
+  .analytics-card {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--r-lg);
+    box-shadow:var(--shadow-sm);
+    padding:1.25rem;
+    height:100%;
+  }
+  .analytics-title {
+    color:var(--ink);
+    font-weight:800;
+    letter-spacing:-.02em;
+    margin:0;
+  }
+  .mini-bar {
+    height:10px;
+    background:var(--neutral-bg);
+    border-radius:999px;
+    overflow:hidden;
+  }
+  .mini-bar span {
+    display:block;
+    height:100%;
+    background:var(--accent);
+    border-radius:999px;
+  }
+  .metric-list {
+    display:flex;
+    flex-direction:column;
+    gap:.875rem;
+  }
+  .metric-row {
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    gap:.75rem;
+    align-items:center;
+  }
+  .metric-row p {
+    margin:0;
+    color:var(--ink);
+    font-weight:700;
+    font-size:.875rem;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .metric-row small {
+    color:var(--muted);
+    font-family:var(--font-mono);
+  }
+  .section-anchor {
+    scroll-margin-top:7rem;
+  }
+  .dashboard-tabs {
+    display:flex;
+    gap:.5rem;
+    overflow-x:auto;
+    padding-bottom:.25rem;
+  }
+  .dashboard-tabs a {
+    flex:0 0 auto;
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--muted);
+    border-radius:999px;
+    padding:.5rem .8rem;
+    font-size:.8125rem;
+    font-weight:700;
+  }
+  .dashboard-tabs a:hover {
+    color:var(--ink);
+    border-color:rgba(225,29,72,.35);
+  }
+</style>
+
+<main class="merchant-analytics" id="merchantAnalytics" style="background:var(--canvas);min-height:80vh;padding:2.5rem 1rem;">
+  <div class="container" style="max-width:1400px;">
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+      <div>
+        <p class="section-label mb-2">Admin View</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Dashboard</h2>
+        <p style="color:var(--muted);margin-bottom:0;">Performance, booking, customer, marketing, operational, and financial analytics.</p>
+      </div>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <form method="GET" action="/admin/merchants" class="d-flex flex-wrap gap-2 align-items-center">
+          <input type="date" name="startDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.startDate %>" />
+          <input type="date" name="endDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.endDate %>" />
+          <button type="submit" class="btn btn-primary btn-pill">
+            <i class="bi bi-funnel me-1"></i>Filter
+          </button>
+        </form>
+        <button type="button" class="btn btn-outline-secondary btn-pill" id="themeToggle">
+          <i class="bi bi-moon-stars me-1"></i>Theme
+        </button>
+      </div>
+    </div>
+
+    <% if (error) { %>
+      <div class="alert alert-warning mb-4">
+        <i class="bi bi-exclamation-triangle"></i>
+        <span><%= error %></span>
+      </div>
+    <% } %>
+
+    <div class="dashboard-tabs mb-4">
+      <a href="#overview">Overview</a>
+      <a href="#sales">Sales</a>
+      <a href="#bookings">Bookings</a>
+      <a href="#customers">Customers</a>
+      <a href="#marketing">Marketing</a>
+      <a href="#operations">Operations</a>
+      <a href="#finance">Finance</a>
+      <a href="#insights">AI Insights</a>
+    </div>
+
+    <section id="overview" class="section-anchor mb-5">
+      <div class="row g-3">
+        <% [
+          { label:'Total bookings', value:number(overview.total_bookings), icon:'bi-calendar-check', color:'#1D4ED8' },
+          { label:'Revenue generated', value:money(overview.revenue_generated), icon:'bi-cash-stack', color:'var(--success)' },
+          { label:'Customers', value:number(overview.number_of_customers), icon:'bi-people', color:'var(--accent)' },
+          { label:'Average order value', value:money(overview.average_order_value), icon:'bi-bag-check', color:'var(--ink)' },
+          { label:'Booking conversion', value:percent(overview.booking_conversion_rate), icon:'bi-graph-up-arrow', color:'var(--success)' },
+          { label:'Cancel/no-show rate', value:percent(overview.cancellation_no_show_rate), icon:'bi-calendar-x', color:'var(--danger)' },
+          { label:'Satisfaction rating', value:rating(overview.customer_satisfaction_rating), icon:'bi-star', color:'var(--warn)' },
+          { label:'Retention rate', value:percent(retentionRate), icon:'bi-arrow-repeat', color:'var(--accent)' },
+        ].forEach(stat => { %>
+          <div class="col-6 col-lg-3">
+            <div class="stat-card h-100">
+              <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                  <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.45rem;"><%= stat.label %></p>
+                  <p class="stat-value" style="color:<%= stat.color %>;font-size:1.55rem;"><%= stat.value %></p>
+                </div>
+                <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+                  <i class="bi <%= stat.icon %>"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+
+    <section id="sales" class="section-anchor mb-5">
+      <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+        <div>
+          <p class="section-label mb-1">Sales &amp; Revenue</p>
+          <h4 class="analytics-title">Revenue Analytics</h4>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Daily Revenue Trend</h6>
+            <% const revenueMax = maxOf(a.revenueTrend || [], 'total'); %>
+            <div class="metric-list">
+              <% (a.revenueTrend || []).forEach(row => { %>
+                <div>
+                  <div class="metric-row mb-1">
+                    <p><%= dateLabel(row.period_label) %></p>
+                    <small><%= money(row.total) %></small>
+                  </div>
+                  <div class="mini-bar"><span style="width:<%= barWidth(row.total, revenueMax) %>%;"></span></div>
+                </div>
+              <% }) %>
+              <% if (!(a.revenueTrend || []).length) { %><p style="color:var(--muted);margin:0;">No paid revenue in this range.</p><% } %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Revenue by Category</h6>
+            <% const categoryMax = maxOf(a.revenueByCategory || [], 'revenue'); %>
+            <div class="metric-list">
+              <% (a.revenueByCategory || []).forEach(row => { %>
+                <div>
+                  <div class="metric-row mb-1"><p><%= row.category %></p><small><%= money(row.revenue) %></small></div>
+                  <div class="mini-bar"><span style="width:<%= barWidth(row.revenue, categoryMax) %>%;"></span></div>
+                </div>
+              <% }) %>
+              <% if (!(a.revenueByCategory || []).length) { %><p style="color:var(--muted);margin:0;">No category revenue yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Top-Selling Services</h6>
+            <% const serviceMax = maxOf(a.topServices || [], 'bookings'); %>
+            <div class="metric-list">
+              <% (a.topServices || []).forEach(row => { %>
+                <div>
+                  <div class="metric-row mb-1"><p><%= row.service_name %></p><small><%= row.bookings %></small></div>
+                  <div class="mini-bar"><span style="width:<%= barWidth(row.bookings, serviceMax) %>%;"></span></div>
+                </div>
+              <% }) %>
+              <% if (!(a.topServices || []).length) { %><p style="color:var(--muted);margin:0;">No service sales yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Payment Methods</h6>
+            <% const paymentMax = maxOf(a.paymentBreakdown || [], 'revenue'); %>
+            <div class="metric-list">
+              <% (a.paymentBreakdown || []).forEach(row => { %>
+                <div>
+                  <div class="metric-row mb-1"><p><%= row.payment_method || 'Unknown' %></p><small><%= money(row.revenue) %></small></div>
+                  <div class="mini-bar"><span style="width:<%= barWidth(row.revenue, paymentMax) %>%;"></span></div>
+                </div>
+              <% }) %>
+              <% if (!(a.paymentBreakdown || []).length) { %><p style="color:var(--muted);margin:0;">No payment method data yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Promotion Performance</h6>
+            <div class="metric-list">
+              <% (a.promotionPerformance || []).forEach(row => { %>
+                <div class="metric-row">
+                  <p><%= row.campaign_name || row.voucher_code || 'Voucher' %></p>
+                  <small><%= number(row.redemptions) %> redemptions</small>
+                </div>
+              <% }) %>
+              <% if (!(a.promotionPerformance || []).length) { %><p style="color:var(--muted);margin:0;">No promo redemptions yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="bookings" class="section-anchor mb-5">
+      <p class="section-label mb-1">Booking Analytics</p>
+      <h4 class="analytics-title mb-3">Demand &amp; Utilization</h4>
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Confirmed vs Cancelled</h6>
+            <div class="metric-list">
+              <% (a.bookingStatus || []).forEach(row => { %>
+                <div class="metric-row"><p><%= String(row.status || 'unknown').replace('_', ' ') %></p><small><%= number(row.total) %></small></div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Peak Booking Hours &amp; Days</h6>
+            <div class="metric-list">
+              <% (a.peakBookingTimes || []).forEach(row => { %>
+                <div class="metric-row"><p><%= row.day_label %>, <%= String(row.hour_label).padStart(2, '0') %>:00</p><small><%= number(row.bookings) %></small></div>
+              <% }) %>
+              <% if (!(a.peakBookingTimes || []).length) { %><p style="color:var(--muted);margin:0;">No booking heatmap data yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Booking Lead Time</h6>
+            <p class="stat-value" style="font-size:2rem;color:var(--accent);"><%= avgLeadDays.toFixed(1) %> days</p>
+            <p style="color:var(--muted);margin:0;">Average time between booking creation and appointment slot.</p>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Staff / Service Utilization Rate</h6>
+            <div class="row g-3">
+              <% (a.serviceUtilization || []).forEach(row => {
+                const utilization = Number(row.total_slots || 0) ? (Number(row.booked_slots || 0) / Number(row.total_slots || 1)) * 100 : 0;
+              %>
+                <div class="col-md-6 col-xl-3">
+                  <div class="metric-row mb-1"><p><%= row.service_name %></p><small><%= percent(utilization) %></small></div>
+                  <div class="mini-bar"><span style="width:<%= barWidth(utilization, 100) %>%;"></span></div>
+                </div>
+              <% }) %>
+              <% if (!(a.serviceUtilization || []).length) { %><p style="color:var(--muted);margin:0;">No utilization data yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="customers" class="section-anchor mb-5">
+      <p class="section-label mb-1">Customer Insights</p>
+      <h4 class="analytics-title mb-3">Retention &amp; Loyalty</h4>
+      <div class="row g-3">
+        <div class="col-lg-3">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">New vs Returning</h6>
+            <p style="color:var(--muted);margin-bottom:.35rem;">New customers</p>
+            <p class="stat-value mb-3"><%= number(a.customerSegments?.new_customers) %></p>
+            <p style="color:var(--muted);margin-bottom:.35rem;">Returning customers</p>
+            <p class="stat-value" style="color:var(--accent);"><%= number(a.customerSegments?.returning_customers) %></p>
+          </div>
+        </div>
+        <div class="col-lg-3">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">CLV &amp; Sentiment</h6>
+            <p style="color:var(--muted);margin-bottom:.35rem;">Average rating</p>
+            <p class="stat-value mb-3" style="color:var(--warn);"><%= rating(a.reviewSummary?.average_rating) %></p>
+            <p style="color:var(--muted);margin-bottom:.35rem;">Reviews</p>
+            <p class="stat-value"><%= number(a.reviewSummary?.review_count) %></p>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Most Loyal Customers</h6>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+                <thead style="background:var(--accent-light);"><tr><th>Customer</th><th>Bookings</th><th>CLV</th></tr></thead>
+                <tbody>
+                  <% (a.topCustomers || []).forEach(customer => { %>
+                    <tr><td><%= customer.full_name %></td><td><%= number(customer.bookings) %></td><td><%= money(customer.lifetime_value) %></td></tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <% if (!(a.topCustomers || []).length) { %><p style="color:var(--muted);margin:0;">No repeat customer data yet.</p><% } %>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Loyalty Points Usage &amp; Demographics</h6>
+            <div class="row g-3">
+              <% (a.loyaltyUsage || []).forEach(row => { %>
+                <div class="col-md-4">
+                  <p style="color:var(--muted);margin-bottom:.25rem;"><%= String(row.transaction_type || '').replace('_', ' ') %></p>
+                  <p class="stat-value" style="font-size:1.35rem;"><%= number(row.points) %> pts</p>
+                </div>
+              <% }) %>
+              <div class="col-md-4">
+                <p style="color:var(--muted);margin-bottom:.25rem;">Demographics</p>
+                <p style="margin:0;color:var(--ink);font-weight:700;">No age or gender fields configured</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="marketing" class="section-anchor mb-5">
+      <p class="section-label mb-1">Marketing Performance</p>
+      <h4 class="analytics-title mb-3">Campaigns, QR &amp; Marketplace</h4>
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Campaign Performance</h6>
+            <div class="metric-list">
+              <% (a.campaignPerformance || []).forEach(row => { %>
+                <div class="metric-row"><p><%= row.campaign_name || row.voucher_code %></p><small><%= row.is_active ? 'Active' : 'Inactive' %></small></div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">QR Scan Analytics</h6>
+            <div class="metric-list">
+              <% (a.qrAnalytics || []).forEach(row => { %>
+                <div class="metric-row"><p><%= row.qr_type || 'General' %></p><small><%= number(row.active_total) %>/<%= number(row.total) %> active</small></div>
+              <% }) %>
+              <div class="metric-row"><p>Click-through sources</p><small>Not connected</small></div>
+              <div class="metric-row"><p>Social media traffic</p><small>Not connected</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Marketplace Listing Performance</h6>
+            <div class="metric-list">
+              <% (a.listingPerformance || []).forEach(row => { %>
+                <div class="metric-row"><p><%= row.merchant_name %></p><small><%= number(row.visible_listings) %> visible</small></div>
+              <% }) %>
+              <% if (!(a.listingPerformance || []).length) { %><p style="color:var(--muted);margin:0;">No featured listings yet.</p><% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="operations" class="section-anchor mb-5">
+      <p class="section-label mb-1">Operational Analytics</p>
+      <h4 class="analytics-title mb-3">Staff, Services &amp; Resources</h4>
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Staff Performance Metrics</h6>
+            <div class="metric-list">
+              <% (a.staffPerformance || []).forEach(row => { %>
+                <div class="metric-row"><p><%= row.staff_name %></p><small><%= number(row.bookings) %> bookings · <%= money(row.revenue) %></small></div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="analytics-card">
+            <h6 class="analytics-title mb-3">Service &amp; Queue Operations</h6>
+            <div class="metric-list">
+              <div class="metric-row"><p>Service duration averages</p><small>Tracked by service setup</small></div>
+              <div class="metric-row"><p>Queue / waiting time</p><small>Arrival timestamps needed</small></div>
+              <div class="metric-row"><p>Resource utilization</p><small><%= percent(overview.booking_conversion_rate) %></small></div>
+              <div class="metric-row"><p>Inventory alerts</p><small>Inventory module not configured</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="finance" class="section-anchor mb-5">
+      <p class="section-label mb-1">Financial Reports</p>
+      <h4 class="analytics-title mb-3">Margins, Refunds &amp; Reports</h4>
+      <div class="row g-3">
+        <% [
+          { label:'Profit margin', value:percent(profitMargin), icon:'bi-percent' },
+          { label:'Refund amount', value:money(a.financial?.refunded_amount), icon:'bi-arrow-counterclockwise' },
+          { label:'Refund count', value:number(a.financial?.refund_count), icon:'bi-receipt-cutoff' },
+          { label:'Estimated tax', value:money(a.financial?.estimated_tax), icon:'bi-file-earmark-text' },
+        ].forEach(item => { %>
+          <div class="col-6 col-lg-3">
+            <div class="analytics-card">
+              <div class="icon-circle mb-3" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+                <i class="bi <%= item.icon %>"></i>
+              </div>
+              <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;"><%= item.label %></p>
+              <p class="stat-value" style="font-size:1.45rem;"><%= item.value %></p>
+            </div>
+          </div>
+        <% }) %>
+        <div class="col-12">
+          <div class="analytics-card">
+            <div class="d-flex flex-wrap justify-content-between gap-2 align-items-center">
+              <div>
+                <h6 class="analytics-title mb-1">Payout History, Expenses &amp; Downloadable Reports</h6>
+                <p style="color:var(--muted);margin:0;">Payout and expense tables are not configured yet. Payment receipts remain available from booking/payment records.</p>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-pill" onclick="window.print()">
+                <i class="bi bi-download me-1"></i>Export View
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="insights" class="section-anchor mb-5">
+      <p class="section-label mb-1">Predictive / AI Insights</p>
+      <h4 class="analytics-title mb-3">Planning Signals</h4>
+      <div class="row g-3">
+        <% const bestHour = (a.peakBookingTimes || [])[0]; const bestCategory = (a.revenueByCategory || [])[0]; const topService = (a.topServices || [])[0]; %>
+        <% [
+          { title:'Sales forecasting', body: grossRevenue > 0 ? `Current filtered gross revenue is ${money(grossRevenue)}.` : 'More paid payment history is needed for forecasting.' },
+          { title:'Demand prediction', body: bestHour ? `Demand is strongest on ${bestHour.day_label} around ${String(bestHour.hour_label).padStart(2, '0')}:00.` : 'More bookings are needed to detect demand patterns.' },
+          { title:'Recommended promotions', body: bestCategory ? `Prioritise ${bestCategory.category} campaigns; it leads category revenue.` : 'Category revenue is not available yet.' },
+          { title:'Customer churn prediction', body: retentionRate ? `Retention is ${percent(retentionRate)}; low-repeat segments should receive win-back offers.` : 'Repeat booking data is not available yet.' },
+          { title:'Suggested peak staffing hours', body: bestHour ? `Schedule stronger coverage for ${bestHour.day_label} ${String(bestHour.hour_label).padStart(2, '0')}:00.` : 'Staffing recommendation needs booking heatmap data.' },
+          { title:'Trend anomaly detection', body: topService ? `${topService.service_name} is the current service benchmark.` : 'No abnormal trend detected from available data.' },
+        ].forEach(card => { %>
+          <div class="col-md-6 col-xl-4">
+            <div class="analytics-card">
+              <h6 class="analytics-title mb-2"><%= card.title %></h6>
+              <p style="color:var(--muted);margin:0;"><%= card.body %></p>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="mb-3">
+      <p class="section-label mb-1">Merchant Leaderboard</p>
+      <h4 class="analytics-title mb-3">Top Merchants</h4>
+      <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+            <thead style="background:var(--accent-light);">
+              <tr>
+                <th>Merchant</th>
+                <th>Category</th>
+                <th>Bookings</th>
+                <th>Customers</th>
+                <th>Revenue</th>
+                <th>Rating</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% (a.topMerchants || []).forEach(merchant => { %>
+                <tr>
+                  <td style="font-weight:700;"><%= merchant.merchant_name %></td>
+                  <td><%= merchant.category %></td>
+                  <td><%= number(merchant.bookings) %></td>
+                  <td><%= number(merchant.customers) %></td>
+                  <td style="font-family:var(--font-mono);font-weight:700;"><%= money(merchant.revenue) %></td>
+                  <td><%= rating(merchant.rating) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+  (function () {
+    const dashboard = document.getElementById('merchantAnalytics');
+    const toggle = document.getElementById('themeToggle');
+    const storedTheme = localStorage.getItem('adminMerchantTheme') || 'light';
+    dashboard.dataset.theme = storedTheme;
+
+    toggle.addEventListener('click', function () {
+      const nextTheme = dashboard.dataset.theme === 'dark' ? 'light' : 'dark';
+      dashboard.dataset.theme = nextTheme;
+      localStorage.setItem('adminMerchantTheme', nextTheme);
+    });
+  })();
+</script>
+
+<%- include('../partials/footer') %>
