@@ -1,6 +1,16 @@
 <% locals.hideCatNav = true %>
 <%- include('../partials/header') %>
 
+<%
+  const formatDate = value => value ? new Date(value).toISOString().slice(0,10) : '-';
+  const statusStyle = status => {
+    if (status === 'approved') return 'background:var(--success-bg);color:var(--success);';
+    if (status === 'rejected') return 'background:var(--danger-bg);color:var(--danger);';
+    return 'background:#EFF6FF;color:#1D4ED8;';
+  };
+  const formValues = typeof form !== 'undefined' && form ? form : {};
+%>
+
 <div class="container py-5">
   <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
     <i class="bi bi-arrow-left me-1"></i>Dashboard
@@ -11,95 +21,125 @@
     </div>
     <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;">My Promotions</h2>
   </div>
-  <p style="color:var(--muted);margin-bottom:1.5rem;margin-left:52px;">Create discounts that appear on the public Uniday marketplace.</p>
+  <p style="color:var(--muted);margin-bottom:1.5rem;margin-left:52px;">Submit promotion requests for admin approval before they appear on the marketplace.</p>
 
   <% if (error) { %>
   <div class="rounded-xl p-3 mb-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
     <i class="bi bi-exclamation-circle me-2"></i><%= error %>
   </div>
   <% } %>
-  <% if (typeof success !== 'undefined' && success) { %>
+  <% if (success) { %>
   <div class="rounded-xl p-3 mb-4" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i>Promotion created successfully!
+    <i class="bi bi-check-circle me-2"></i><%= success %>
   </div>
   <% } %>
 
   <div class="row g-4">
-    <!-- Create Form -->
     <div class="col-lg-5">
       <div class="card border-0 p-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);position:sticky;top:80px;">
         <h6 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">
-          <i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i>New Promotion
+          <i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i>New Promotion Request
         </h6>
-        <form action="/merchant/promotions/create" method="POST">
+        <form action="/merchant/promotions/create" method="POST" enctype="multipart/form-data">
           <div class="mb-3">
             <label class="form-label" style="font-size:.875rem;font-weight:600;">Promotion Title</label>
-            <input type="text" name="title" class="form-control rounded-xl" placeholder="e.g. 20% Off Facials This May" required />
+            <input type="text" name="title" class="form-control rounded-xl" value="<%= formValues.title || '' %>" placeholder="e.g. 20% Off Facials This May" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.875rem;font-weight:600;">Offer Text</label>
+            <input type="text" name="offer_text" class="form-control rounded-xl" value="<%= formValues.offer_text || '' %>" placeholder="e.g. 20% off selected facials" required />
           </div>
           <div class="mb-3">
             <label class="form-label" style="font-size:.875rem;font-weight:600;">Description <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
-            <textarea name="description" class="form-control rounded-xl" rows="2" placeholder="Short details about the promo..."></textarea>
+            <textarea name="description" class="form-control rounded-xl" rows="2" placeholder="Short details about the promo..."><%= formValues.description || '' %></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.875rem;font-weight:600;">Related Service <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <select name="service_id" class="form-select rounded-xl">
+              <option value="">All services</option>
+              <% services.forEach(service => { %>
+              <option value="<%= service.service_id %>" <%= String(formValues.service_id || '') === String(service.service_id) ? 'selected' : '' %>><%= service.service_name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.875rem;font-weight:600;">Banner Image <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <input type="file" name="image" class="form-control rounded-xl" accept="image/*" />
           </div>
           <div class="mb-3">
             <label class="form-label" style="font-size:.875rem;font-weight:600;">Discount Percentage</label>
             <div class="input-group">
-              <input type="number" name="discount_pct" class="form-control" min="1" max="100" step="0.01" placeholder="e.g. 20" required />
+              <input type="number" name="discount_pct" class="form-control" min="1" max="100" step="0.01" value="<%= formValues.discount_pct || '' %>" placeholder="e.g. 20" required />
               <span class="input-group-text fw-700">%</span>
             </div>
           </div>
           <div class="row g-2 mb-4">
             <div class="col">
               <label class="form-label" style="font-size:.875rem;font-weight:600;">Start Date</label>
-              <input type="date" name="start_date" class="form-control rounded-xl" required />
+              <input type="date" name="start_date" class="form-control rounded-xl" value="<%= formValues.start_date || '' %>" required />
             </div>
             <div class="col">
               <label class="form-label" style="font-size:.875rem;font-weight:600;">End Date</label>
-              <input type="date" name="end_date" class="form-control rounded-xl" required />
+              <input type="date" name="end_date" class="form-control rounded-xl" value="<%= formValues.end_date || '' %>" required />
             </div>
           </div>
           <button type="submit" class="btn btn-primary w-100 btn-pill" style="font-weight:700;">
-            <i class="bi bi-plus-circle me-1"></i>Create Promotion
+            <i class="bi bi-send me-1"></i>Submit for Approval
           </button>
         </form>
       </div>
     </div>
 
-    <!-- Promotions List -->
     <div class="col-lg-7">
       <% if (promotions.length === 0) { %>
       <div class="card border-0 text-center py-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
         <div class="icon-circle-lg mx-auto mb-3">
           <i class="bi bi-tag" style="font-size:2rem;color:var(--accent);"></i>
         </div>
-        <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No promotions yet</h6>
-        <p style="color:var(--muted);font-size:.875rem;">Create your first promotion to attract more customers!</p>
+        <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No promotion requests yet</h6>
+        <p style="color:var(--muted);font-size:.875rem;">Submit your first promotion request for admin review.</p>
       </div>
       <% } else { %>
       <div class="d-flex flex-column gap-3">
         <% promotions.forEach(p => { %>
         <div class="promo-card">
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            <div class="flex-grow-1 me-3">
-              <div class="d-flex align-items-center gap-2 mb-1">
+          <div class="d-flex justify-content-between align-items-start mb-2 gap-3">
+            <% if (p.image_path) { %>
+            <img src="<%= p.image_path %>" alt="" style="width:96px;height:72px;object-fit:cover;border-radius:var(--r);border:1px solid var(--border);" />
+            <% } %>
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                 <p class="promo-title mb-0"><%= p.title %></p>
+                <span class="badge text-capitalize" style="<%= statusStyle(p.approval_status) %>;"><%= p.approval_status || 'approved' %></span>
+                <% if (p.approval_status === 'approved') { %>
                 <span class="badge" style="background:<%= p.is_active ? 'var(--success-bg)' : 'var(--neutral-bg)' %>;color:<%= p.is_active ? 'var(--success)' : 'var(--muted)' %>;">
                   <%= p.is_active ? 'Live' : 'Paused' %>
                 </span>
+                <% } %>
               </div>
               <p class="small text-muted mb-1"><%= p.description || '' %></p>
-              <p class="promo-date mb-0"><i class="bi bi-calendar3 me-1"></i><%= p.start_date.toISOString().slice(0,10) %> – <%= p.end_date.toISOString().slice(0,10) %></p>
+              <% if (p.service_name) { %>
+              <p class="small mb-1" style="color:var(--accent);font-weight:700;"><i class="bi bi-scissors me-1"></i><%= p.service_name %></p>
+              <% } %>
+              <% if (p.approval_status === 'rejected' && p.rejection_reason) { %>
+              <p class="small mb-1" style="color:var(--danger);"><i class="bi bi-exclamation-circle me-1"></i><%= p.rejection_reason %></p>
+              <% } %>
+              <p class="promo-date mb-0"><i class="bi bi-calendar3 me-1"></i><%= formatDate(p.start_date) %> - <%= formatDate(p.end_date) %></p>
             </div>
             <div class="promo-discount flex-shrink-0 text-end">
-              <%= p.discount_pct %>%<br/>
+              <%= Number(p.discount_pct || 0).toFixed(0) %>%<br/>
               <span style="font-size:.7rem;font-weight:700;">off</span>
             </div>
           </div>
+          <p class="small mb-0" style="color:var(--muted);font-weight:700;"><%= p.offer_text || '' %></p>
           <div class="d-flex gap-2 mt-3">
+            <% if (p.approval_status === 'approved') { %>
             <form action="/merchant/promotions/<%= p.promo_id %>/toggle" method="POST" class="m-0">
               <button class="btn btn-sm btn-pill <%= p.is_active ? 'btn-outline-secondary' : 'btn-outline-success' %>">
                 <i class="bi bi-<%= p.is_active ? 'pause' : 'play' %>-circle me-1"></i><%= p.is_active ? 'Pause' : 'Activate' %>
               </button>
             </form>
+            <% } %>
             <form action="/merchant/promotions/<%= p.promo_id %>/delete" method="POST" class="m-0"
               onsubmit="return confirm('Delete this promotion?')">
               <button class="btn btn-sm btn-pill btn-outline-danger">

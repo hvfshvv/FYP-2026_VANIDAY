@@ -30,6 +30,10 @@ async function getFeaturedListings(category = null) {
      JOIN merchant m   ON fl.merchant_id = m.merchant_id
      JOIN users u ON u.user_id = m.user_id
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
+       AND p.approval_status = 'approved'
+       AND p.is_active = 1
+       AND p.start_date <= CURDATE()
+       AND p.end_date >= CURDATE()
      WHERE fl.is_visible = 1
        AND m.is_active = 1
        AND u.status = 'active'
@@ -46,6 +50,10 @@ async function getMerchantListing(merchantId) {
     `SELECT fl.*, p.title AS promo_title
      FROM featured_listing fl
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
+       AND p.approval_status = 'approved'
+       AND p.is_active = 1
+       AND p.start_date <= CURDATE()
+       AND p.end_date >= CURDATE()
      WHERE fl.merchant_id = ?`,
     [merchantId]
   );

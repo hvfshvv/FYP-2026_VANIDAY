@@ -22,6 +22,9 @@ router.post('/user-management/merchants/:merchantId/status', adminController.upd
 router.get('/merchant-validations', adminController.showMerchantValidations);
 router.post('/merchant-validations/:merchantId/approve', adminController.approveMerchant);
 router.post('/merchant-validations/:merchantId/reject', adminController.rejectMerchant);
+router.get('/promotions', adminController.showPromotionApprovals);
+router.post('/promotions/:promoId/approve', adminController.approvePromotion);
+router.post('/promotions/:promoId/reject', adminController.rejectPromotion);
 router.get('/campaigns', adminController.showCampaigns);
 router.post('/campaigns/create', adminController.createCampaign);
 router.post('/campaigns/:voucherId/toggle', adminController.toggleCampaign);

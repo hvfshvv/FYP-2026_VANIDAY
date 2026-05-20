@@ -1,5 +1,6 @@
 const adminModel = require('../models/adminModel');
 const voucherModel = require('../models/voucherModel');
+const promotionModel = require('../models/promotionModel');
 
 async function showDashboard(req, res) {
   try {
@@ -438,6 +439,57 @@ async function rejectMerchant(req, res) {
   }
 }
 
+async function showPromotionApprovals(req, res) {
+  try {
+    const pendingPromotions = await promotionModel.getPendingPromotionRequests();
+
+    res.render('admin/promotionApprovals', {
+      title: 'Promotion Approvals',
+      pendingPromotions,
+      query: req.query,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/promotionApprovals', {
+      title: 'Promotion Approvals',
+      pendingPromotions: [],
+      query: req.query,
+      error: 'Failed to load promotion requests.',
+    });
+  }
+}
+
+async function approvePromotion(req, res) {
+  try {
+    const affectedRows = await promotionModel.approvePromotion(
+      req.params.promoId,
+      req.session.user.user_id
+    );
+
+    res.redirect(`/admin/promotions?${affectedRows ? 'approved=1' : 'unchanged=1'}`);
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/promotions?error=approve');
+  }
+}
+
+async function rejectPromotion(req, res) {
+  try {
+    const reason = String(req.body.rejection_reason || '').trim();
+    const affectedRows = await promotionModel.rejectPromotion(
+      req.params.promoId,
+      req.session.user.user_id,
+      reason
+    );
+
+    res.redirect(`/admin/promotions?${affectedRows ? 'rejected=1' : 'unchanged=1'}`);
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/promotions?error=reject');
+  }
+}
+
 async function showCampaigns(req, res) {
   try {
     const [vouchers, merchants, voucherSummary] = await Promise.all([
@@ -555,6 +607,9 @@ module.exports = {
   showMerchantValidations,
   approveMerchant,
   rejectMerchant,
+  showPromotionApprovals,
+  approvePromotion,
+  rejectPromotion,
   showCampaigns,
   createCampaign,
   toggleCampaign,
