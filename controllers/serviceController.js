@@ -1,5 +1,6 @@
 const serviceModel = require('../models/serviceModel');
 
+// Shows the current merchant's services on the management page.
 async function showServices(req, res) {
   const merchantId = req.session.user.merchant_id;
   try {
@@ -12,6 +13,7 @@ async function showServices(req, res) {
   }
 }
 
+// Creates a new bookable service for the current merchant.
 async function addService(req, res) {
   const merchantId = req.session.user.merchant_id;
   const { service_name, description, price, duration_mins } = req.body;
@@ -25,12 +27,14 @@ async function addService(req, res) {
   }
 }
 
+// Switches a service between active and inactive.
 async function toggleService(req, res) {
   const merchantId = req.session.user.merchant_id;
   await serviceModel.toggleService(req.params.id, merchantId).catch(console.error);
   res.redirect('/merchant/services');
 }
 
+// Deletes a service owned by the current merchant.
 async function deleteService(req, res) {
   const merchantId = req.session.user.merchant_id;
   await serviceModel.deleteService(req.params.id, merchantId).catch(console.error);

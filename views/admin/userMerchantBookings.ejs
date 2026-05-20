@@ -2,11 +2,13 @@
 <%- include('../partials/header') %>
 
 <%
+  // Formatting helpers for booking dates, times and money values.
   const money = value => 'S$' + Number(value || 0).toFixed(2);
   const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
   const formatTime = value => value ? String(value).slice(0, 5) : '-';
 %>
 
+<!-- Admin view of all bookings received by one merchant. -->
 <main class="container py-5">
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
@@ -19,6 +21,7 @@
     </a>
   </div>
 
+  <!-- Booking table joins customer, service and payment details for audit use. -->
   <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">

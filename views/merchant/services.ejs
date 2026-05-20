@@ -1,6 +1,7 @@
 <% locals.hideCatNav = true %>
 <%- include('../partials/header') %>
 
+<!-- Merchant services page: merchants add and manage services customers can book. -->
 <div class="container py-5">
   <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
     <i class="bi bi-arrow-left me-1"></i>Dashboard
@@ -20,6 +21,7 @@
     </span>
   </div>
 
+  <!-- Feedback messages from add service success/error redirects. -->
   <% if (error) { %>
   <div class="rounded-xl p-3 mb-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
     <i class="bi bi-exclamation-circle me-2"></i><%= error %>
@@ -32,7 +34,7 @@
   <% } %>
 
   <div class="row g-4">
-    <!-- Add Service Form -->
+    <!-- Add Service Form: sends new service details to /merchant/services/add. -->
     <div class="col-md-5">
       <div class="card border-0 p-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);position:sticky;top:80px;">
         <h5 style="font-weight:700;color:var(--ink);margin-bottom:1.25rem;">
@@ -72,7 +74,7 @@
       </div>
     </div>
 
-    <!-- Services List -->
+    <!-- Services List: shows current services and action buttons for each one. -->
     <div class="col-md-7">
       <% if (services.length === 0) { %>
       <div class="card border-0 p-5 text-center" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
@@ -103,12 +105,14 @@
               </div>
             </div>
             <div class="d-flex gap-2 flex-shrink-0">
+              <!-- Toggle keeps the service but hides/shows it from booking pages. -->
               <form action="/merchant/services/<%= s.service_id %>/toggle" method="POST">
                 <button type="submit" class="btn btn-sm btn-pill <%= s.is_active ? 'btn-outline-secondary' : 'btn-outline-success' %>"
                   title="<%= s.is_active ? 'Deactivate' : 'Activate' %>">
                   <i class="bi bi-<%= s.is_active ? 'eye-slash' : 'eye' %>"></i>
                 </button>
               </form>
+              <!-- Delete removes the service record for this merchant. -->
               <form action="/merchant/services/<%= s.service_id %>/delete" method="POST"
                 onsubmit="return confirm('Delete <%= s.service_name %>? This cannot be undone.')">
                 <button type="submit" class="btn btn-sm btn-pill btn-outline-danger" title="Delete">

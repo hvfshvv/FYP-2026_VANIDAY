@@ -2,10 +2,12 @@
 <%- include('../partials/header') %>
 
 <%
+  // Formatting helpers used in the merchant account table.
   const money = value => 'S$' + Number(value || 0).toFixed(2);
   const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
 %>
 
+<!-- Admin merchant accounts page: search merchants and control marketplace access. -->
 <main class="container py-5">
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
@@ -23,6 +25,7 @@
     <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i><span><%= query.error || error %></span></div>
   <% } %>
 
+  <!-- Search and verification filter reload this same page. -->
   <form method="GET" action="/admin/user-management/merchants" class="d-flex flex-wrap gap-2 mb-4">
     <input type="search" name="search" value="<%= search %>" class="form-control" placeholder="Search merchants by business, owner, email, or phone" style="max-width:420px;">
     <select name="verification" class="form-select" style="max-width:180px;">
@@ -34,6 +37,7 @@
     <% if (search || verification !== 'all') { %><a href="/admin/user-management/merchants" class="btn btn-outline-secondary btn-pill">Clear</a><% } %>
   </form>
 
+  <!-- Merchant table includes owner details, verification, revenue and actions. -->
   <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
@@ -55,6 +59,7 @@
             <tr><td colspan="9" class="text-center py-5 text-muted">No merchant accounts found.</td></tr>
           <% } %>
           <% merchants.forEach(merchant => {
+            // A merchant is usable only when both the user and merchant records are active.
             const active = merchant.user_status === 'active' && Number(merchant.is_active) === 1;
             const verificationStyle = merchant.verification_status === 'pending'
               ? 'background:var(--warn-bg);color:var(--warn);'
@@ -84,6 +89,7 @@
                 <a href="/admin/user-management/merchants/<%= merchant.merchant_id %>/bookings" class="btn btn-outline-secondary btn-sm btn-pill">
                   <i class="bi bi-calendar-check me-1"></i>View Bookings
                 </a>
+                <!-- Toggle marketplace/account access for this merchant. -->
                 <form method="POST" action="/admin/user-management/merchants/<%= merchant.merchant_id %>/status">
                   <input type="hidden" name="status" value="<%= active ? 'suspended' : 'active' %>">
                   <button class="btn <%= active ? 'btn-outline-danger' : 'btn-outline-success' %> btn-sm btn-pill" type="submit">

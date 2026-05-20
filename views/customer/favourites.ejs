@@ -1,5 +1,6 @@
 <%- include('../partials/header') %>
 
+<!-- Customer favourites page: saved merchants first, then saved services. -->
 <div
   class="section"
   style="padding-top:2.5rem;padding-bottom:2rem;border-bottom:1px solid var(--border);"
@@ -28,7 +29,7 @@
 
 <div class="container" style="padding-top:2.5rem;padding-bottom:4rem;">
 
-  <!-- FAVOURITE MERCHANTS -->
+  <!-- Favourite merchants: full merchant cards saved by the customer. -->
   <div style="margin-bottom:4rem;">
 
     <div class="section-header">
@@ -51,6 +52,7 @@
 
     </div>
 
+    <!-- Empty state shown when the customer has not saved any merchants. -->
     <% if (!merchants || merchants.length === 0) { %>
 
       <div class="text-center py-5">
@@ -153,7 +155,7 @@
 
   </div>
 
-  <!-- FAVOURITE SERVICES -->
+  <!-- Favourite services: individual services saved from merchant details pages. -->
   <div>
 
     <div class="section-header">
@@ -172,7 +174,7 @@
           Services you saved for future bookings.
         </p>
 
-        <!-- CATEGORY FILTER -->
+        <!-- Category filter: reloads this page with ?category=... -->
         <div class="d-flex flex-wrap gap-2 mt-3 mb-4">
 
           <a
@@ -199,6 +201,7 @@
 
     </div>
 
+    <!-- Empty state changes slightly when a category filter is active. -->
     <% if (!services || services.length === 0) { %>
 
       <div class="text-center py-5">
@@ -302,6 +305,7 @@
                   Book now
                 </a>
 
+                <!-- Remove only this saved service from the customer's favourites. -->
                 <form
                   action="/favourite/service/remove/<%= service.service_id %>"
                   method="POST"

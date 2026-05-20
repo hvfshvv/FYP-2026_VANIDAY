@@ -1,5 +1,6 @@
 const db = require('../config/db');
 
+// Higher tiers require higher lifetime spending.
 const TIER_DEFINITIONS = [
   { name: 'Platinum', minSpend: 2000, icon: 'bi-gem' },
   { name: 'Gold', minSpend: 1000, icon: 'bi-trophy' },
@@ -7,6 +8,7 @@ const TIER_DEFINITIONS = [
   { name: 'Bronze', minSpend: 0, icon: 'bi-shield-check' },
 ];
 
+// Rewards are kept here as a simple in-code catalogue.
 const REWARD_CATALOG = [
   {
     id: 'BRONZE5',
@@ -50,14 +52,17 @@ const REWARD_CATALOG = [
   },
 ];
 
+// Customers earn 10% of the paid booking amount as points.
 function calculatePoints(amount) {
   return Math.max(0, Math.floor(Number(amount || 0) * 0.1));
 }
 
+// Converts tier names into numbers so tiers can be compared.
 function getTierRank(tierName) {
   return ['Bronze', 'Silver', 'Gold', 'Platinum'].indexOf(tierName);
 }
 
+// Finds the customer's current tier and the next tier target.
 function resolveTier(lifetimeSpend) {
   const spend = Number(lifetimeSpend || 0);
   const current = TIER_DEFINITIONS.find(tier => spend >= tier.minSpend) || TIER_DEFINITIONS[TIER_DEFINITIONS.length - 1];
@@ -72,6 +77,7 @@ function resolveTier(lifetimeSpend) {
   };
 }
 
+// Adds locked/unlocked fields so the view knows which reward buttons to enable.
 function decorateRewards(tierName, pointsBalance) {
   const tierRank = getTierRank(tierName);
   const balance = Number(pointsBalance || 0);
@@ -90,6 +96,7 @@ function decorateRewards(tierName, pointsBalance) {
   });
 }
 
+// Creates a wallet row if the customer does not have one yet.
 async function ensureWallet(customerId, connection = db) {
   await connection.query(
     `INSERT INTO loyalty_wallet (customer_id, points_balance, lifetime_points_earned)
@@ -108,6 +115,7 @@ async function ensureWallet(customerId, connection = db) {
   return wallet;
 }
 
+// Tier level is based on total paid spending, not current point balance.
 async function getLifetimeSpend(customerId) {
   const [[summary]] = await db.query(
     `SELECT COALESCE(SUM(p.amount), 0) AS lifetime_spend
@@ -121,6 +129,7 @@ async function getLifetimeSpend(customerId) {
   return Number(summary?.lifetime_spend || 0);
 }
 
+// Main wallet loader for the loyalty page.
 async function getWalletSummary(customerId) {
   const wallet = await ensureWallet(customerId);
   const lifetimeSpend = await getLifetimeSpend(customerId);
@@ -145,6 +154,7 @@ async function getWalletSummary(customerId) {
   };
 }
 
+// Redeems a reward in a transaction so points cannot be double-spent.
 async function redeemReward(customerId, rewardId) {
   const reward = REWARD_CATALOG.find(item => item.id === rewardId);
   if (!reward) {
@@ -206,6 +216,7 @@ async function redeemReward(customerId, rewardId) {
   }
 }
 
+// Finds points already awarded for one booking.
 async function getEarnedPointsForBooking(bookingId) {
   const [[transaction]] = await db.query(
     `SELECT lt.points_amount
@@ -219,6 +230,7 @@ async function getEarnedPointsForBooking(bookingId) {
   return transaction ? Number(transaction.points_amount || 0) : 0;
 }
 
+// Awards booking points once, after a paid booking is confirmed/completed.
 async function awardBookingPoints(bookingId) {
   const [[booking]] = await db.query(
     `SELECT booking_id, customer_id, total_amount

@@ -125,6 +125,7 @@ async function showCustomers(req, res) {
 
 async function showUserManagementHome(req, res) {
   try {
+    // Summary counts power the two cards on admin/userManagement.ejs.
     const summary = await adminModel.getUserManagementSummary();
     res.render('admin/userManagement', {
       title: 'User Management',
@@ -144,6 +145,7 @@ async function showUserManagementHome(req, res) {
 
 async function showManagedCustomers(req, res) {
   try {
+    // Optional search is passed straight from the query string.
     const customers = await adminModel.getManagedCustomers(req.query.search);
     res.render('admin/userCustomers', {
       title: 'Customer Accounts',
@@ -165,6 +167,7 @@ async function showManagedCustomers(req, res) {
 
 async function showManagedMerchants(req, res) {
   try {
+    // Only allow known verification filters before passing to the model.
     const verification = ['pending', 'approved'].includes(req.query.verification)
       ? req.query.verification
       : 'all';
@@ -191,6 +194,7 @@ async function showManagedMerchants(req, res) {
 
 async function updateCustomerAccountStatus(req, res) {
   try {
+    // Admin can enable or disable a customer account from the table.
     await adminModel.setUserAccountStatus(
       req.params.customerId,
       req.body.status,
@@ -206,6 +210,7 @@ async function updateCustomerAccountStatus(req, res) {
 
 async function updateMerchantAccountStatus(req, res) {
   try {
+    // Merchant status updates both merchant.is_active and the linked user status.
     await adminModel.setMerchantAccountStatus(
       req.params.merchantId,
       req.body.status === 'active',
@@ -221,6 +226,7 @@ async function updateMerchantAccountStatus(req, res) {
 
 async function showCustomerBookings(req, res) {
   try {
+    // Load the customer profile and their booking history together.
     const [customer, bookings] = await Promise.all([
       adminModel.getCustomerAccount(req.params.customerId),
       adminModel.getCustomerBookingsForAdmin(req.params.customerId),
@@ -243,6 +249,7 @@ async function showCustomerBookings(req, res) {
 
 async function showMerchantBookings(req, res) {
   try {
+    // Load the merchant profile and all bookings under that merchant.
     const [merchant, bookings] = await Promise.all([
       adminModel.getMerchantAccount(req.params.merchantId),
       adminModel.getMerchantBookingsForAdmin(req.params.merchantId),

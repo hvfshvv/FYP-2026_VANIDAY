@@ -2,6 +2,7 @@
 <%- include('../partials/header') %>
 
 <%
+  // Small formatting helpers used inside the customer table.
   const money = value => 'S$' + Number(value || 0).toFixed(2);
   const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
   const maskEmail = email => {
@@ -11,6 +12,7 @@
   };
 %>
 
+<!-- Admin customer accounts page: search customers and enable/disable accounts. -->
 <main class="container py-5">
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
@@ -28,12 +30,14 @@
     <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i><span><%= query.error || error %></span></div>
   <% } %>
 
+  <!-- Search reloads the same page with ?search=... -->
   <form method="GET" action="/admin/user-management/customers" class="d-flex flex-wrap gap-2 mb-4">
     <input type="search" name="search" value="<%= search %>" class="form-control" placeholder="Search customers by name, email, or phone" style="max-width:360px;">
     <button class="btn btn-primary btn-pill" type="submit"><i class="bi bi-search me-1"></i>Search</button>
     <% if (search) { %><a href="/admin/user-management/customers" class="btn btn-outline-secondary btn-pill">Clear</a><% } %>
   </form>
 
+  <!-- Customer table includes account status, spend, loyalty points and actions. -->
   <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
@@ -82,6 +86,7 @@
                 <a href="/admin/user-management/customers/<%= customer.user_id %>/bookings" class="btn btn-outline-secondary btn-sm btn-pill">
                   <i class="bi bi-calendar-check me-1"></i>View Bookings
                 </a>
+                <!-- Toggle between active and suspended user status. -->
                 <form method="POST" action="/admin/user-management/customers/<%= customer.user_id %>/status">
                   <input type="hidden" name="status" value="<%= customer.status === 'active' ? 'suspended' : 'active' %>">
                   <button class="btn <%= customer.status === 'active' ? 'btn-outline-danger' : 'btn-outline-success' %> btn-sm btn-pill" type="submit">

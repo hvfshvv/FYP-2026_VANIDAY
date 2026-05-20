@@ -15,9 +15,10 @@ const bookingModel = require('../models/bookingModel');
 const revenueModel = require('../models/revenueModel');
 const merchantModel = require('../models/merchantModel');
 
+// Every route in this file requires a logged-in, approved merchant account.
 router.use(requireLogin, requireMerchant);
 
-// Dashboard
+// Dashboard: shows recent bookings, revenue summary and marketplace photo settings.
 router.get('/dashboard', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
 
@@ -37,13 +38,14 @@ router.get('/dashboard', async (req, res) => {
   });
 });
 
+// Updates the image used for the merchant card on the marketplace.
 router.post(
   '/marketplace-image',
   merchantProfileCtrl.handleMarketplaceImageUpload,
   merchantProfileCtrl.updateMarketplaceImage
 );
 
-// All merchant bookings
+// All merchant bookings for this merchant account.
 router.get('/bookings', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
   const bookings = await bookingModel.getMerchantBookings(merchantId).catch(() => []);
@@ -56,7 +58,7 @@ router.get('/bookings', async (req, res) => {
   });
 });
 
-// Revenue
+// Revenue report with summary, transactions and monthly chart data.
 router.get('/revenue', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
 
@@ -74,7 +76,7 @@ router.get('/revenue', async (req, res) => {
   });
 });
 
-// Booking status updates
+// Booking status updates are scoped by merchantId so merchants can only update their own bookings.
 router.post('/bookings/:bookingId/arrived', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
   const returnTo = req.body.returnTo === '/merchant/bookings' ? '/merchant/bookings' : '/merchant/dashboard';
@@ -86,6 +88,7 @@ router.post('/bookings/:bookingId/arrived', async (req, res) => {
   res.redirect(returnTo);
 });
 
+// Mark an arrived booking as completed.
 router.post('/bookings/:bookingId/complete', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
   const returnTo = req.body.returnTo === '/merchant/bookings' ? '/merchant/bookings' : '/merchant/dashboard';
@@ -97,32 +100,32 @@ router.post('/bookings/:bookingId/complete', async (req, res) => {
   res.redirect(returnTo);
 });
 
-// QR Code
+// QR Code pages and actions.
 router.get('/qr', qrCtrl.showQRPage);
 router.post('/qr/generate', qrCtrl.generateQRCode);
 router.post('/qr/regenerate', qrCtrl.regenerateQRCode);
 router.post('/qr/arrival/regenerate', qrCtrl.regenerateArrivalQRCode);
 
-// Promotions
+// Promotion management for merchant-created deals.
 router.get('/promotions', promoCtrl.showPromotions);
 router.post('/promotions/create', promoCtrl.handlePromotionUpload, promoCtrl.createPromotion);
 router.post('/promotions/:promoId/toggle', promoCtrl.togglePromotion);
 router.post('/promotions/:promoId/delete', promoCtrl.deletePromotion);
 
-// Services
+// Service management: add, hide/show, and delete bookable services.
 router.get('/services', svcCtrl.showServices);
 router.post('/services/add', svcCtrl.addService);
 router.post('/services/:id/toggle', svcCtrl.toggleService);
 router.post('/services/:id/delete', svcCtrl.deleteService);
 
-// Staff
+// Staff management.
 router.get('/staff', staffCtrl.showStaff);
 router.post('/staff/add', staffCtrl.addStaff);
 router.post('/staff/:id/edit', staffCtrl.editStaff);
 router.post('/staff/:id/toggle', staffCtrl.toggleStaff);
 router.post('/staff/:id/delete', staffCtrl.deleteStaff);
 
-// Merchant Availability
+// Merchant availability and working hours.
 router.get('/availability', availabilityCtrl.showAvailability);
 router.post('/availability/save', availabilityCtrl.saveAvailability);
 router.post('/availability/:id/delete', availabilityCtrl.deleteAvailability);

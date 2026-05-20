@@ -1,5 +1,6 @@
 const db = require('../config/db');
 
+// INSERT IGNORE prevents duplicate favourite rows if the user clicks twice.
 async function addMerchantFavourite(customerId, merchantId) {
   await db.query(
     `INSERT IGNORE INTO favourite (customer_id, merchant_id, service_id)
@@ -8,6 +9,7 @@ async function addMerchantFavourite(customerId, merchantId) {
   );
 }
 
+// Merchant favourites have service_id = NULL, so this only removes the merchant save.
 async function removeMerchantFavourite(customerId, merchantId) {
   await db.query(
     `DELETE FROM favourite
@@ -18,6 +20,7 @@ async function removeMerchantFavourite(customerId, merchantId) {
   );
 }
 
+// Checks if a merchant heart button should appear filled for this customer.
 async function isMerchantFavourite(customerId, merchantId) {
   const [rows] = await db.query(
     `SELECT *
@@ -31,6 +34,7 @@ async function isMerchantFavourite(customerId, merchantId) {
   return rows.length > 0;
 }
 
+// Gets all merchants saved by the customer.
 async function getFavouriteMerchants(customerId) {
   const [rows] = await db.query(
     `SELECT m.*
@@ -45,6 +49,7 @@ async function getFavouriteMerchants(customerId) {
   return rows;
 }
 
+// Service favourites store both merchant_id and service_id.
 async function addServiceFavourite(customerId, merchantId, serviceId) {
   await db.query(
     `INSERT IGNORE INTO favourite (customer_id, merchant_id, service_id)
@@ -53,6 +58,7 @@ async function addServiceFavourite(customerId, merchantId, serviceId) {
   );
 }
 
+// Removes a saved service for this customer only.
 async function removeServiceFavourite(customerId, serviceId) {
   await db.query(
     `DELETE FROM favourite
@@ -62,6 +68,7 @@ async function removeServiceFavourite(customerId, serviceId) {
   );
 }
 
+// Gets saved services, optionally filtered by the merchant's category.
 async function getFavouriteServices(customerId, category = null) {
   const params = [customerId];
 
@@ -98,6 +105,7 @@ async function getFavouriteServices(customerId, category = null) {
   return rows;
 }
 
+// Used on the merchant details page to decide which service hearts are filled.
 async function getFavouriteServiceIds(customerId, merchantId) {
   const [rows] = await db.query(
     `SELECT service_id

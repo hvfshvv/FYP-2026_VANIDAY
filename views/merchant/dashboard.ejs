@@ -1,6 +1,7 @@
 <% locals.hideCatNav = true %>
 <%- include('../partials/header') %>
 
+<!-- Merchant dashboard: overview of revenue, bookings, quick links and marketplace image. -->
 <div class="container py-5">
   <div class="d-flex justify-content-between align-items-start mb-5 flex-wrap gap-3">
     <div>
@@ -20,6 +21,7 @@
     </div>
   </div>
 
+  <!-- Feedback after uploading the marketplace photo. -->
   <% if (imageError) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
     <i class="bi bi-exclamation-circle me-2"></i><%= imageError %>
@@ -31,6 +33,7 @@
   </div>
   <% } %>
 
+  <!-- Marketplace photo card: controls the image shown on public merchant cards. -->
   <div class="card border-0 mb-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
     <div class="row g-0 align-items-stretch">
       <div class="col-md-4">
@@ -59,7 +62,7 @@
     </div>
   </div>
 
-  <!-- Revenue Stats -->
+  <!-- Revenue Stats: summary numbers loaded from revenueModel.getMerchantRevenueSummary. -->
   <div class="row g-3 mb-5">
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
@@ -89,7 +92,7 @@
     </div>
   </div>
 
-  <!-- Quick Actions -->
+  <!-- Quick Actions: shortcuts to the main merchant tools. -->
   <div class="row g-3 mb-5">
     <% [
       { href:'/merchant/services',    icon:'bi-scissors', label:'My Services',sub:'Add & manage'        },
@@ -110,7 +113,7 @@
     <% }) %>
   </div>
 
-  <!-- Recent Bookings -->
+  <!-- Recent Bookings: latest bookings with action buttons for status updates. -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Bookings</h5>
   </div>
@@ -166,6 +169,7 @@
             </td>
             <td>
               <%
+                // Match each booking status to a badge colour.
                 const statusMap = {
                   confirmed: { bg:'var(--success-bg)',  color:'var(--success)'  },
                   completed: { bg:'var(--neutral-bg)',  color:'var(--muted)'    },

@@ -1,6 +1,7 @@
 const favouriteModel = require('../models/favouriteModel');
 
 
+// Adds the selected merchant for the current customer, then returns to the same page.
 async function addMerchantFavourite(req, res) {
   try {
     const customerId = req.session.user.customer_id;
@@ -19,6 +20,7 @@ async function addMerchantFavourite(req, res) {
   }
 }
 
+// Removes the selected merchant favourite for the current customer.
 async function removeMerchantFavourite(req, res) {
   try {
     const customerId = req.session.user.customer_id;
@@ -37,6 +39,7 @@ async function removeMerchantFavourite(req, res) {
   }
 }
 
+// Category buttons shown on the favourites page for filtering saved services.
 const CATEGORIES = [
   'Hair',
   'Nails',
@@ -48,6 +51,7 @@ const CATEGORIES = [
   'Spa'
 ];
 
+// Loads both favourite merchants and favourite services for the customer.
 async function showFavourites(req, res) {
   try {
     const customerId = req.session.user.customer_id;
@@ -73,6 +77,7 @@ async function showFavourites(req, res) {
   }
 }
 
+// Saves a single service favourite. The merchant id is stored too for easy joining later.
 async function addServiceFavourite(req, res) {
   try {
     const customerId = req.session.user.customer_id;
@@ -87,6 +92,7 @@ async function addServiceFavourite(req, res) {
   }
 }
 
+// Deletes one saved service favourite by service id.
 async function removeServiceFavourite(req, res) {
   try {
     const customerId = req.session.user.customer_id;

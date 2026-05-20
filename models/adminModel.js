@@ -918,6 +918,7 @@ function searchClause(search, columns) {
 }
 
 async function getUserManagementSummary() {
+  // Counts shown on the user management landing cards.
   const [rows] = await db.query(`
     SELECT
       (SELECT COUNT(*) FROM users WHERE role = 'customer') AS customers,
@@ -932,6 +933,7 @@ async function getUserManagementSummary() {
 }
 
 async function getManagedCustomers(search = '') {
+  // Search customer accounts and include booking, spending and loyalty totals.
   const filter = searchClause(search, ['u.full_name', 'u.email', 'u.phone']);
   const [rows] = await db.query(
     `SELECT
@@ -978,6 +980,7 @@ async function getManagedCustomers(search = '') {
 }
 
 async function getManagedMerchants(search = '', verification = 'all') {
+  // Search merchant accounts and optionally filter by verification status.
   const filter = searchClause(search, ['u.full_name', 'u.email', 'u.phone', 'm.merchant_name', 'm.email', 'm.contact_no']);
   const safeVerification = ['pending', 'approved'].includes(verification) ? verification : null;
   const verificationClause = safeVerification ? ' AND m.verification_status = ?' : '';
@@ -1022,6 +1025,7 @@ async function getManagedMerchants(search = '', verification = 'all') {
 }
 
 async function setUserAccountStatus(userId, status, adminId) {
+  // Customer enable/disable uses the users.status field.
   const safeStatus = status === 'suspended' ? 'suspended' : 'active';
   const [result] = await db.query(
     `UPDATE users
@@ -1039,6 +1043,7 @@ async function setUserAccountStatus(userId, status, adminId) {
 }
 
 async function setMerchantAccountStatus(merchantId, enabled, adminId) {
+  // Merchant enable/disable must keep merchant and user status in sync.
   const connection = await db.getConnection();
 
   try {
@@ -1083,6 +1088,7 @@ async function setMerchantAccountStatus(merchantId, enabled, adminId) {
 }
 
 async function getCustomerAccount(customerId) {
+  // Basic customer profile for the booking detail page header.
   const [rows] = await db.query(
     `SELECT user_id, full_name, email, phone, status, created_at
      FROM users
@@ -1095,6 +1101,7 @@ async function getCustomerAccount(customerId) {
 }
 
 async function getCustomerBookingsForAdmin(customerId) {
+  // Full booking history for one customer, including merchant, service and payment.
   const [rows] = await db.query(
     `SELECT
        b.booking_id,
@@ -1123,6 +1130,7 @@ async function getCustomerBookingsForAdmin(customerId) {
 }
 
 async function getMerchantAccount(merchantId) {
+  // Basic merchant profile for the booking detail page header.
   const [rows] = await db.query(
     `SELECT
        m.merchant_id,
@@ -1147,6 +1155,7 @@ async function getMerchantAccount(merchantId) {
 }
 
 async function getMerchantBookingsForAdmin(merchantId) {
+  // Full booking history for one merchant, including customer and payment details.
   const [rows] = await db.query(
     `SELECT
        b.booking_id,

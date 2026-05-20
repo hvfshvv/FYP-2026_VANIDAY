@@ -1,5 +1,6 @@
 const loyaltyModel = require('../models/loyaltyModel');
 
+// Only signed-in customers should be able to view or redeem wallet rewards.
 function requireCustomer(req, res) {
   if (!req.session.user) {
     res.redirect('/auth/login?next=' + encodeURIComponent(req.originalUrl));
@@ -14,10 +15,12 @@ function requireCustomer(req, res) {
   return true;
 }
 
+// Customer id is normally stored on the session after login.
 function getCustomerId(req) {
   return req.session.user.customer_id || req.session.user.user_id;
 }
 
+// Loads all wallet data needed by views/customer/loyaltyWallet.ejs.
 async function showWallet(req, res) {
   if (!requireCustomer(req, res)) return;
 
@@ -44,6 +47,7 @@ async function showWallet(req, res) {
   }
 }
 
+// Redeems one reward and sends the user back with a success/error message.
 async function redeemReward(req, res) {
   if (!requireCustomer(req, res)) return;
 

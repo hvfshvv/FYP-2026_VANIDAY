@@ -2,6 +2,7 @@
 <%- include('../partials/header') %>
 
 <%
+  // Prepare display values and helper functions for the wallet page.
   const balance = Number(wallet.points_balance || 0);
   const lifetimeEarned = Number(wallet.lifetime_points_earned || 0);
   const lifetimeRedeemed = Number(wallet.lifetime_points_redeemed || 0);
@@ -20,6 +21,7 @@
   }
 %>
 
+<!-- Loyalty wallet: customer points, tier progress, redeemable rewards and activity. -->
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
   <div class="container" style="max-width:1120px;">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
@@ -33,6 +35,7 @@
       </a>
     </div>
 
+    <!-- Success/error messages after reward redemption attempts. -->
     <% if (error) { %>
       <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
         <i class="bi bi-exclamation-circle me-2"></i><%= error %>
@@ -44,6 +47,7 @@
       </div>
     <% } %>
 
+    <!-- Wallet summary and tier progress. -->
     <section class="row g-3 mb-4">
       <div class="col-lg-5">
         <div class="wallet-panel wallet-panel-lg">
@@ -71,7 +75,8 @@
               <span><%= tier.name %></span>
               <span>S$<%= Number(tier.spendToNextTier || 0).toFixed(2) %> to <%= nextTier.name %></span>
             </div>
-            <div class="progress" style="height:10px;">
+              <!-- Width is applied by the small script at the bottom of the page. -->
+              <div class="progress" style="height:10px;">
               <div class="progress-bar wallet-tier-progress" role="progressbar" data-progress="<%= tierProgress %>" aria-valuenow="<%= tierProgress %>" aria-valuemin="0" aria-valuemax="100"></div>
             </div>
           <% } else { %>
@@ -120,6 +125,7 @@
       </div>
     </section>
 
+    <!-- Reward catalogue and recent point transactions. -->
     <section class="row g-4">
       <div class="col-lg-7">
         <div class="wallet-panel">
@@ -129,6 +135,7 @@
           </div>
 
           <div class="row g-3">
+            <!-- Each reward has flags from loyaltyModel.decorateRewards. -->
             <% rewards.forEach(reward => { %>
               <div class="col-md-6">
                 <div class="wallet-reward-card <%= reward.redeemable ? '' : 'locked' %>">
@@ -167,6 +174,7 @@
       <div class="col-lg-5">
         <div class="wallet-panel">
           <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Recent activity</h5>
+          <!-- Recent point activity, newest first. -->
           <% if (!transactions.length) { %>
             <div class="text-center py-4">
               <div class="wallet-empty-icon">
@@ -204,6 +212,7 @@
 </main>
 
 <script>
+// CSS cannot read data-progress directly, so JS applies the progress width.
 document.querySelectorAll('.wallet-tier-progress').forEach((bar) => {
   bar.style.width = `${bar.dataset.progress || 0}%`;
 });
