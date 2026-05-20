@@ -1,6 +1,89 @@
 <% locals.hideCatNav = true %>
 <%- include('../partials/header') %>
 
+<style>
+  .admin-module-header {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .admin-module-controls {
+    display: flex;
+    gap: .5rem;
+  }
+
+  .admin-module-btn {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--ink);
+    display: inline-flex;
+    height: 40px;
+    justify-content: center;
+    transition: .2s ease;
+    width: 40px;
+  }
+
+  .admin-module-btn:hover {
+    background: var(--accent-light);
+    border-color: var(--accent-light);
+    color: var(--accent);
+  }
+
+  .admin-module-carousel {
+    display: flex;
+    gap: 1.25rem;
+    margin-bottom: 3rem;
+    overflow-x: auto;
+    padding: .25rem .15rem 1rem;
+    scroll-behavior: smooth;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .admin-module-carousel::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .admin-module-carousel::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+  }
+
+  .admin-module-card {
+    flex: 0 0 calc((100% - 5rem) / 5);
+    min-width: 230px;
+    scroll-snap-align: start;
+  }
+
+  .admin-module-card .action-card {
+    min-height: 310px;
+    padding: 1.75rem;
+  }
+
+  @media (max-width: 1199.98px) {
+    .admin-module-card {
+      flex-basis: calc((100% - 2.5rem) / 3);
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .admin-module-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .admin-module-card {
+      flex-basis: 82%;
+      min-width: 260px;
+    }
+  }
+</style>
+
 <%
   const money = value => 'S$' + Number(value || 0).toFixed(2);
   const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -65,7 +148,22 @@
     <% }) %>
   </div>
 
-  <div class="row g-3 mb-5" id="admin-modules">
+  <div class="admin-module-header">
+    <div>
+      <p class="section-label mb-1">Admin Modules</p>
+      <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Platform Tools</h5>
+    </div>
+    <div class="admin-module-controls" aria-label="Module carousel controls">
+      <button type="button" class="admin-module-btn" id="modulePrevBtn" aria-label="Previous modules">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <button type="button" class="admin-module-btn" id="moduleNextBtn" aria-label="Next modules">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="admin-module-carousel" id="admin-modules">
     <% [
       {
         href:'/admin/user-management',
@@ -92,6 +190,12 @@
         sub:'Review pending merchant registrations, verify company details, and approve or reject access to merchant tools.'
       },
       {
+        href:'/admin/promotions',
+        icon:'bi-megaphone',
+        label:'Promotion Review',
+        sub:'Review merchant-submitted promotions, approve valid campaigns, or reject requests with admin feedback.'
+      },
+      {
         href:'/admin/validation',
         icon:'bi-shield-exclamation',
         label:'Validation & Error Logs',
@@ -110,8 +214,8 @@
         sub:'Manage platform vouchers, cashback campaigns, first-time-user offers, seasonal campaigns, and eligibility rules.'
       },
     ].forEach(item => { %>
-    <div class="col-12 col-md-6 col-xl">
-      <a href="<%= item.href %>" class="action-card h-100" style="min-height:220px;">
+    <div class="admin-module-card">
+      <a href="<%= item.href %>" class="action-card h-100">
         <div class="action-icon">
           <i class="bi <%= item.icon %>"></i>
         </div>
@@ -270,5 +374,28 @@
     </div>
   </div>
 </div>
+
+<script>
+  const adminModuleTrack = document.getElementById('admin-modules');
+  const modulePrevBtn = document.getElementById('modulePrevBtn');
+  const moduleNextBtn = document.getElementById('moduleNextBtn');
+
+  function scrollAdminModules(direction) {
+    if (!adminModuleTrack) return;
+    const scrollAmount = Math.max(adminModuleTrack.clientWidth * 0.9, 280);
+    adminModuleTrack.scrollBy({
+      left: direction * scrollAmount,
+      behavior: 'smooth'
+    });
+  }
+
+  if (modulePrevBtn) {
+    modulePrevBtn.addEventListener('click', () => scrollAdminModules(-1));
+  }
+
+  if (moduleNextBtn) {
+    moduleNextBtn.addEventListener('click', () => scrollAdminModules(1));
+  }
+</script>
 
 <%- include('../partials/footer') %>
