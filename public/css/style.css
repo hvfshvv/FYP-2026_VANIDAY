@@ -108,18 +108,25 @@ a:hover { color: var(--accent-dark); }
   height: var(--nav-h);
   display: flex; align-items: center; justify-content: space-between; gap: 2rem;
 }
-.nav-logo {
-  font-size: 2rem; font-weight: 800; letter-spacing: -.05em;
+.uniday-logo {
   color: var(--accent); text-decoration: none; flex-shrink: 0;
   display: inline-flex; align-items: center; flex-direction: row; gap: .45rem;
   white-space: nowrap; line-height: 1;
 }
-.nav-logo:hover { color: var(--accent-dark); }
-.nav-logo-mark {
-  width: 2.25rem; height: 2.25rem;
+.uniday-logo:hover { color: var(--accent-dark); }
+.uniday-logo-mark {
   display: block; object-fit: contain; flex: 0 0 auto;
 }
-.nav-logo-fallback { display: none; }
+.uniday-logo-text {
+  font-weight: 800; letter-spacing: -.05em;
+}
+.uniday-logo-sm .uniday-logo-mark { width: 1.75rem; height: 1.75rem; }
+.uniday-logo-sm .uniday-logo-text { font-size: 1.35rem; }
+.uniday-logo-md .uniday-logo-mark { width: 2.25rem; height: 2.25rem; }
+.uniday-logo-md .uniday-logo-text { font-size: 2rem; }
+.uniday-logo-light { color: #fff; }
+.uniday-logo-light:hover { color: rgba(255,255,255,.75); }
+.nav-logo { color: var(--accent); }
 .nav-links {
   display: flex; align-items: center; gap: 1.75rem;
   list-style: none; margin: 0; padding: 0;
@@ -613,8 +620,7 @@ a:hover { color: var(--accent-dark); }
   gap: 2rem; flex-wrap: wrap;
   padding-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,.07);
 }
-.footer-logo { font-size: 1.25rem; font-weight: 800; letter-spacing: -.04em; color: #fff; text-decoration: none; }
-.footer-logo:hover { color: rgba(255,255,255,.75); }
+.footer-logo { color: #fff; }
 .footer-tagline { font-size: .875rem; color: rgba(255,255,255,.4); margin-top: .35rem; margin-bottom: 0; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 1.25rem; list-style: none; margin: 0; padding: 0; align-items: center; }
 .footer-links a { font-size: .875rem; font-weight: 500; color: rgba(255,255,255,.5); text-decoration: none; transition: color .2s; }

@@ -4,6 +4,14 @@
 <%
   const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
   const discountText = promo => promo.offer_text || `${Number(promo.discount_pct || 0).toFixed(0)}% off`;
+  const dayNames = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+  const dayLabel = value => {
+    const values = String(value || '').split(',').filter(Boolean);
+    if (!values.length || values.length === 7) return 'Every day';
+    if (values.join(',') === 'sat,sun') return 'Weekends only';
+    if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
+    return values.map(day => dayNames[day] || day).join(', ');
+  };
 %>
 
 <div class="container py-5">
@@ -100,6 +108,7 @@
               <%= formatDate(promo.start_date) %>
               <span style="color:var(--muted);">to</span>
               <%= formatDate(promo.end_date) %>
+              <p style="color:var(--muted);margin:.25rem 0 0;"><i class="bi bi-calendar-week me-1"></i><%= dayLabel(promo.applicable_days) %></p>
             </td>
             <td style="min-width:260px;">
               <form action="/admin/promotions/<%= promo.promo_id %>/approve" method="POST" class="d-inline">

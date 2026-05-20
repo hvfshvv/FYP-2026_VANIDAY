@@ -1,6 +1,17 @@
 <% locals.hideCatNav = true %>
 <%- include('partials/header') %>
 
+<%
+  const promoDayNames = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+  const promoDayLabel = value => {
+    const values = String(value || '').split(',').filter(Boolean);
+    if (!values.length || values.length === 7) return 'Every day';
+    if (values.join(',') === 'sat,sun') return 'Weekends only';
+    if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
+    return values.map(day => promoDayNames[day] || day).join(', ');
+  };
+%>
+
 <!-- ═══════ HERO ═══════ -->
 <section class="hero-section">
   <div class="container">
@@ -141,7 +152,7 @@
         { icon:'bi-heart-pulse', label:'Wellness',   desc:'Yoga · Pilates'            },
         { icon:'bi-activity',    label:'Body',       desc:'Waxing · Toning'           },
         { icon:'bi-eye',         label:'Aesthetics', desc:'Lashes · Brows'            },
-        { icon:'bi-flower2',     label:'Spa',        desc:'Luxury packages'           },
+        { icon:'bi-droplet-half', label:'Spa',       desc:'Luxury packages'           },
       ].forEach(c => { %>
       <a href="/marketplace?category=<%= encodeURIComponent(c.label) %>" class="cat-card" aria-label="Browse <%= c.label %> services">
         <div class="cat-icon"><i class="bi <%= c.icon %>"></i></div>
@@ -224,6 +235,7 @@
             </div>
             <p class="small text-muted mb-2"><%= promo.description || '' %></p>
             <p class="promo-date mt-2"><i class="bi bi-calendar3 me-1"></i>Until <%= promo.end_date.toISOString().slice(0,10) %></p>
+            <p class="promo-date mt-1"><i class="bi bi-calendar-week me-1"></i><%= promoDayLabel(promo.applicable_days) %></p>
           </div>
         </div>
         <% }) %>

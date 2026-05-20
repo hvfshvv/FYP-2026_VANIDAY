@@ -1,8 +1,22 @@
 const authModel = require('../models/authModel');
 
 
+function wantsJson(req) {
+  return req.xhr
+    || req.get('X-Requested-With') === 'XMLHttpRequest'
+    || req.get('Accept')?.includes('application/json')
+    || req.is('application/json');
+}
+
 function requireLogin(req, res, next) {
   if (!req.session.user) {
+    if (wantsJson(req)) {
+      return res.status(401).json({
+        error: 'Authentication required. Please log in again.',
+        loginUrl: '/auth/login?next=' + encodeURIComponent(req.originalUrl),
+      });
+    }
+
     return res.redirect(
       '/auth/login?next=' + encodeURIComponent(req.originalUrl)
     );
@@ -13,6 +27,10 @@ function requireLogin(req, res, next) {
 
 async function requireMerchant(req, res, next) {
   if (!req.session.user || req.session.user.role !== 'merchant') {
+    if (wantsJson(req)) {
+      return res.status(403).json({ error: 'Access denied. Merchant account required.' });
+    }
+
     return res.status(403).send('Access denied. Merchant account required.');
   }
 
@@ -25,17 +43,35 @@ async function requireMerchant(req, res, next) {
         req.session.user.verification_status = merchant.verification_status;
       }
 
+      if (wantsJson(req)) {
+        return res.status(403).json({
+          error: 'Merchant account is still pending approval.',
+          redirectUrl: '/auth/merchant-pending',
+        });
+      }
+
       return res.redirect('/auth/merchant-pending');
     }
 
     if (merchant.verification_status === 'rejected') {
       req.session.user.merchant_id = merchant.merchant_id;
       req.session.user.verification_status = merchant.verification_status;
+      if (wantsJson(req)) {
+        return res.status(403).json({
+          error: 'Merchant account has been rejected.',
+          redirectUrl: '/auth/merchant-rejected',
+        });
+      }
+
       return res.redirect('/auth/merchant-rejected');
     }
 
     if (!merchant.is_active) {
       req.session.destroy(() => {});
+      if (wantsJson(req)) {
+        return res.status(403).json({ error: 'This merchant account has been disabled.' });
+      }
+
       return res.status(403).send('This merchant account has been disabled.');
     }
 
@@ -44,12 +80,20 @@ async function requireMerchant(req, res, next) {
     next();
   } catch (err) {
     console.error('Merchant verification check failed:', err);
+    if (wantsJson(req)) {
+      return res.status(500).json({ error: 'Unable to verify merchant account status.' });
+    }
+
     res.status(500).send('Unable to verify merchant account status.');
   }
 }
 
 function requireAdmin(req, res, next) {
   if (!req.session.user || req.session.user.role !== 'admin') {
+    if (wantsJson(req)) {
+      return res.status(403).json({ error: 'Access denied. Admin account required.' });
+    }
+
     return res.status(403).send('Access denied. Admin account required.');
   }
   next();
@@ -74,4 +118,5 @@ module.exports = {
   requireMerchant,
   requireAdmin,
   blockMerchantBookingAccess,
+  wantsJson,
 };

@@ -9,6 +9,20 @@
     return 'background:#EFF6FF;color:#1D4ED8;';
   };
   const formValues = typeof form !== 'undefined' && form ? form : {};
+  const dayList = typeof dayOptions !== 'undefined' ? dayOptions : [];
+  const selectedDays = Array.isArray(formValues.applicable_days)
+    ? formValues.applicable_days
+    : formValues.applicable_days
+      ? [formValues.applicable_days]
+      : [];
+  const dayLabel = value => {
+    if (!value) return 'Every day';
+    const values = String(value).split(',').filter(Boolean);
+    if (!values.length || values.length === 7) return 'Every day';
+    if (values.join(',') === 'sat,sun') return 'Weekends only';
+    if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
+    return values.map(day => (dayList.find(option => option.value === day) || {}).label || day).join(', ');
+  };
 %>
 
 <div class="container py-5">
@@ -40,7 +54,7 @@
         <h6 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">
           <i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i>New Promotion Request
         </h6>
-        <form action="/merchant/promotions/create" method="POST" enctype="multipart/form-data">
+        <form id="promotionRequestForm" action="/merchant/promotions/create" method="POST" enctype="multipart/form-data">
           <div class="mb-3">
             <label class="form-label" style="font-size:.875rem;font-weight:600;">Promotion Title</label>
             <input type="text" name="title" class="form-control rounded-xl" value="<%= formValues.title || '' %>" placeholder="e.g. 20% Off Facials This May" required />
@@ -83,9 +97,20 @@
               <input type="date" name="end_date" class="form-control rounded-xl" value="<%= formValues.end_date || '' %>" required />
             </div>
           </div>
+          <div class="mb-4">
+            <label class="form-label" style="font-size:.875rem;font-weight:600;">Applicable Days <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <div class="d-flex flex-wrap gap-2">
+              <% dayList.forEach(day => { %>
+              <input type="checkbox" class="btn-check" id="promo-day-<%= day.value %>" name="applicable_days" value="<%= day.value %>" <%= selectedDays.includes(day.value) ? 'checked' : '' %> />
+              <label class="btn btn-sm btn-outline-secondary btn-pill" for="promo-day-<%= day.value %>"><%= day.label %></label>
+              <% }) %>
+            </div>
+            <p class="small mb-0 mt-2" style="color:var(--muted);">Leave blank if this promotion applies every day.</p>
+          </div>
           <button type="submit" class="btn btn-primary w-100 btn-pill" style="font-weight:700;">
             <i class="bi bi-send me-1"></i>Submit for Approval
           </button>
+          <div id="promotionSubmitMessage" class="small mt-3" style="display:none;"></div>
         </form>
       </div>
     </div>
@@ -125,6 +150,7 @@
               <p class="small mb-1" style="color:var(--danger);"><i class="bi bi-exclamation-circle me-1"></i><%= p.rejection_reason %></p>
               <% } %>
               <p class="promo-date mb-0"><i class="bi bi-calendar3 me-1"></i><%= formatDate(p.start_date) %> - <%= formatDate(p.end_date) %></p>
+              <p class="small mb-0" style="color:var(--muted);"><i class="bi bi-calendar-week me-1"></i><%= dayLabel(p.applicable_days) %></p>
             </div>
             <div class="promo-discount flex-shrink-0 text-end">
               <%= Number(p.discount_pct || 0).toFixed(0) %>%<br/>
@@ -154,5 +180,56 @@
     </div>
   </div>
 </div>
+
+<script>
+  const promotionForm = document.getElementById('promotionRequestForm');
+  const promotionMessage = document.getElementById('promotionSubmitMessage');
+
+  if (promotionForm) {
+    promotionForm.addEventListener('submit', async event => {
+      event.preventDefault();
+
+      const submitButton = promotionForm.querySelector('button[type="submit"]');
+      const originalHtml = submitButton.innerHTML;
+      promotionMessage.style.display = 'none';
+      submitButton.disabled = true;
+      submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Submitting...';
+
+      try {
+        const response = await fetch(promotionForm.action, {
+          method: 'POST',
+          body: new FormData(promotionForm),
+          credentials: 'same-origin',
+          headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        const payload = contentType.includes('application/json')
+          ? await response.json()
+          : { error: 'Unexpected server response. Please refresh and try again.' };
+
+        if (response.status === 401 && payload.loginUrl) {
+          window.location.href = payload.loginUrl;
+          return;
+        }
+
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error || 'Failed to submit promotion request.');
+        }
+
+        window.location.href = payload.redirectUrl || '/merchant/promotions?success=1';
+      } catch (err) {
+        promotionMessage.style.display = 'block';
+        promotionMessage.style.color = 'var(--danger)';
+        promotionMessage.textContent = err.message || 'Failed to submit promotion request.';
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalHtml;
+      }
+    });
+  }
+</script>
 
 <%- include('../partials/footer') %>

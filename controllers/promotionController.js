@@ -3,6 +3,7 @@ const serviceModel = require('../models/serviceModel');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { wantsJson } = require('../middleware/auth');
 
 const uploadDir = path.join(__dirname, '..', 'public', 'images', 'promotions');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -23,12 +24,56 @@ const upload = multer({
   },
 });
 
+function handlePromotionUpload(req, res, next) {
+  upload.single('image')(req, res, err => {
+    if (!err) return next();
+
+    console.error('[promotion] Banner upload failed:', err);
+
+    if (wantsJson(req)) {
+      return res.status(400).json({
+        success: false,
+        error: err.message || 'Failed to upload banner image.',
+      });
+    }
+
+    return renderPromotionsPage(req, res, {
+      error: err.message || 'Failed to upload banner image.',
+      form: req.body,
+    }).catch(next);
+  });
+}
+
+const DAY_OPTIONS = [
+  { value: 'mon', label: 'Mon' },
+  { value: 'tue', label: 'Tue' },
+  { value: 'wed', label: 'Wed' },
+  { value: 'thu', label: 'Thu' },
+  { value: 'fri', label: 'Fri' },
+  { value: 'sat', label: 'Sat' },
+  { value: 'sun', label: 'Sun' },
+];
+
+function normalizeApplicableDays(value) {
+  const selected = Array.isArray(value)
+    ? value
+    : value
+      ? [value]
+      : [];
+  const allowed = DAY_OPTIONS.map(day => day.value);
+  return selected.filter(day => allowed.includes(day));
+}
+
 function normalizePromotionForm(body) {
+  const applicableDays = normalizeApplicableDays(body.applicable_days);
+
   return {
     title: String(body.title || '').trim(),
     description: String(body.description || '').trim(),
     discountPct: Number(body.discount_pct || 0),
     offerText: String(body.offer_text || '').trim(),
+    applicableDays,
+    applicableDaysValue: applicableDays.join(','),
     serviceId: body.service_id ? Number(body.service_id) : null,
     startDate: body.start_date,
     endDate: body.end_date,
@@ -62,6 +107,7 @@ async function renderPromotionsPage(req, res, {
     title: 'My Promotions',
     promotions,
     services,
+    dayOptions: DAY_OPTIONS,
     form,
     error,
     success,
@@ -79,6 +125,7 @@ async function showPromotions(req, res) {
       title: 'My Promotions',
       promotions: [],
       services: [],
+      dayOptions: DAY_OPTIONS,
       form: {},
       error: 'Failed to load promotions.',
       success: null,
@@ -91,6 +138,15 @@ async function createPromotion(req, res) {
   const form = normalizePromotionForm(req.body);
 
   try {
+    console.log('[promotion] Create request received', {
+      merchantId,
+      title: form.title,
+      startDate: form.startDate,
+      endDate: form.endDate,
+      applicableDays: form.applicableDaysValue || 'every day',
+      hasImage: Boolean(req.file),
+    });
+
     validatePromotionForm(form);
 
     if (form.serviceId) {
@@ -101,21 +157,39 @@ async function createPromotion(req, res) {
 
     const imagePath = req.file ? `/images/promotions/${req.file.filename}` : null;
 
-    await promotionModel.createPromotion({
+    const promoId = await promotionModel.createPromotion({
       merchantId,
       serviceId: form.serviceId,
       title: form.title,
       description: form.description,
       discountPct: form.discountPct,
       offerText: form.offerText,
+      applicableDays: form.applicableDaysValue,
       imagePath,
       startDate: form.startDate,
       endDate: form.endDate,
     });
 
+    if (wantsJson(req)) {
+      return res.status(201).json({
+        success: true,
+        promoId,
+        message: 'Promotion request submitted for admin approval.',
+        redirectUrl: '/merchant/promotions?success=1',
+      });
+    }
+
     res.redirect('/merchant/promotions?success=1');
   } catch (err) {
-    console.error(err);
+    console.error('[promotion] Failed to submit promotion request:', err);
+
+    if (wantsJson(req)) {
+      return res.status(400).json({
+        success: false,
+        error: err.message || 'Failed to submit promotion request.',
+      });
+    }
+
     await renderPromotionsPage(req, res, {
       error: err.message || 'Failed to submit promotion request.',
       form: req.body,
@@ -137,4 +211,4 @@ async function deletePromotion(req, res) {
   res.redirect('/merchant/promotions');
 }
 
-module.exports = { showPromotions, createPromotion, togglePromotion, deletePromotion, upload };
+module.exports = { showPromotions, createPromotion, togglePromotion, deletePromotion, upload, handlePromotionUpload };

@@ -1,6 +1,7 @@
 const adminModel = require('../models/adminModel');
 const voucherModel = require('../models/voucherModel');
 const promotionModel = require('../models/promotionModel');
+const { wantsJson } = require('../middleware/auth');
 
 async function showDashboard(req, res) {
   try {
@@ -443,6 +444,10 @@ async function showPromotionApprovals(req, res) {
   try {
     const pendingPromotions = await promotionModel.getPendingPromotionRequests();
 
+    if (wantsJson(req)) {
+      return res.json({ success: true, pendingPromotions });
+    }
+
     res.render('admin/promotionApprovals', {
       title: 'Promotion Approvals',
       pendingPromotions,
@@ -450,12 +455,22 @@ async function showPromotionApprovals(req, res) {
       error: null,
     });
   } catch (err) {
-    console.error(err);
+    console.error('[admin] Failed to load promotion requests:', err);
+
+    if (wantsJson(req)) {
+      return res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to load promotion requests.',
+      });
+    }
+
     res.render('admin/promotionApprovals', {
       title: 'Promotion Approvals',
       pendingPromotions: [],
       query: req.query,
-      error: 'Failed to load promotion requests.',
+      error: err.message
+        ? `Failed to load promotion requests: ${err.message}`
+        : 'Failed to load promotion requests.',
     });
   }
 }

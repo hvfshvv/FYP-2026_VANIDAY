@@ -1,5 +1,16 @@
 <%- include('../partials/header') %>
 
+<%
+  const promoDayNames = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+  const promoDayLabel = value => {
+    const values = String(value || '').split(',').filter(Boolean);
+    if (!values.length || values.length === 7) return 'Every day';
+    if (values.join(',') === 'sat,sun') return 'Weekends only';
+    if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
+    return values.map(day => promoDayNames[day] || day).join(', ');
+  };
+%>
+
 <!-- Page header -->
 <div class="section" style="padding-top:2.5rem;padding-bottom:2rem;border-bottom:1px solid var(--border);">
   <div class="container">
@@ -419,6 +430,10 @@
             Until
             <%= promo.end_date.toISOString().slice(0,10) %>
 
+          </p>
+          <p class="promo-date mt-1">
+            <i class="bi bi-calendar-week me-1"></i>
+            <%= promoDayLabel(promo.applicable_days) %>
           </p>
 
         </div>

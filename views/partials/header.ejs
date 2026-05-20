@@ -18,11 +18,7 @@
 
 <nav class="site-nav" role="navigation" aria-label="Main navigation">
   <div class="nav-inner">
-    <a href="/" class="nav-logo" aria-label="Uniday home">
-      <img src="/images/uniday-logo.png" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';" alt="" class="nav-logo-mark" aria-hidden="true" />
-      <i class="bi bi-stars nav-logo-fallback" aria-hidden="true"></i>
-      <span>uniday</span>
-    </a>
+    <%- include('unidayLogo', { className: 'nav-logo', size: 'md' }) %>
 
     <ul class="nav-links" role="list">
       <% if (!user || user.role === 'customer') { %>
@@ -103,7 +99,7 @@
       { icon:'bi-heart-pulse', label:'Wellness'   },
       { icon:'bi-activity',    label:'Body'       },
       { icon:'bi-eye',         label:'Aesthetics' },
-      { icon:'bi-flower2',     label:'Spa'        },
+      { icon:'bi-droplet-half', label:'Spa'       },
     ].forEach(c => { %>
     <a href="/marketplace?category=<%= encodeURIComponent(c.label) %>" class="cat-strip-link" aria-label="<%= c.label %> services">
       <i class="bi <%= c.icon %>"></i><%= c.label %>

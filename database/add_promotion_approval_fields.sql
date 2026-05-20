@@ -54,6 +54,23 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+SET @has_applicable_days = (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = @db_name
+    AND TABLE_NAME = 'promotion'
+    AND COLUMN_NAME = 'applicable_days'
+);
+
+SET @sql = IF(
+  @has_applicable_days = 0,
+  'ALTER TABLE promotion ADD COLUMN applicable_days VARCHAR(50) NULL AFTER offer_text',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 SET @has_approval_status = (
   SELECT COUNT(*)
   FROM INFORMATION_SCHEMA.COLUMNS

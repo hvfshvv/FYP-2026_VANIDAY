@@ -1,6 +1,9 @@
 const db = require('../config/db');
+const promotionModel = require('./promotionModel');
 
 async function getFeaturedListings(category = null) {
+  await promotionModel.ensurePromotionSchema();
+
   const params = [];
   let categoryFilter = '';
 
@@ -34,6 +37,11 @@ async function getFeaturedListings(category = null) {
        AND p.is_active = 1
        AND p.start_date <= CURDATE()
        AND p.end_date >= CURDATE()
+       AND (
+         p.applicable_days IS NULL
+         OR p.applicable_days = ''
+         OR FIND_IN_SET(LOWER(DATE_FORMAT(CURDATE(), '%a')), p.applicable_days) > 0
+       )
      WHERE fl.is_visible = 1
        AND m.is_active = 1
        AND u.status = 'active'
@@ -46,6 +54,8 @@ async function getFeaturedListings(category = null) {
 }
 
 async function getMerchantListing(merchantId) {
+  await promotionModel.ensurePromotionSchema();
+
   const [rows] = await db.query(
     `SELECT fl.*, p.title AS promo_title
      FROM featured_listing fl
@@ -54,6 +64,11 @@ async function getMerchantListing(merchantId) {
        AND p.is_active = 1
        AND p.start_date <= CURDATE()
        AND p.end_date >= CURDATE()
+       AND (
+         p.applicable_days IS NULL
+         OR p.applicable_days = ''
+         OR FIND_IN_SET(LOWER(DATE_FORMAT(CURDATE(), '%a')), p.applicable_days) > 0
+       )
      WHERE fl.merchant_id = ?`,
     [merchantId]
   );

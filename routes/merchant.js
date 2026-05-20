@@ -105,7 +105,7 @@ router.post('/qr/arrival/regenerate', qrCtrl.regenerateArrivalQRCode);
 
 // Promotions
 router.get('/promotions', promoCtrl.showPromotions);
-router.post('/promotions/create', promoCtrl.upload.single('image'), promoCtrl.createPromotion);
+router.post('/promotions/create', promoCtrl.handlePromotionUpload, promoCtrl.createPromotion);
 router.post('/promotions/:promoId/toggle', promoCtrl.togglePromotion);
 router.post('/promotions/:promoId/delete', promoCtrl.deletePromotion);
 
