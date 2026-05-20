@@ -7,6 +7,7 @@ const TARGET_DB = process.env.DB_NAME || 'SOI-2026-2610-0035-mizyana';
 const MIGRATION_FILE = path.join(__dirname, 'migrate_to_new_schema.sql');
 const STABILIZE_FILE = path.join(__dirname, 'stabilize_schema_alignment.sql');
 const PROMOTION_APPROVAL_FILE = path.join(__dirname, 'add_promotion_approval_fields.sql');
+const PASSWORD_RESET_FILE = path.join(__dirname, 'add_password_reset_tokens.sql');
 
 function currentSchemaSql() {
   const migration = fs.readFileSync(MIGRATION_FILE, 'utf8');
@@ -40,6 +41,8 @@ async function setup() {
   await conn.query(stabilizeSql);
   const promotionApprovalSql = fs.readFileSync(PROMOTION_APPROVAL_FILE, 'utf8');
   await conn.query(promotionApprovalSql);
+  const passwordResetSql = fs.readFileSync(PASSWORD_RESET_FILE, 'utf8');
+  await conn.query(passwordResetSql);
   await conn.query('SET FOREIGN_KEY_CHECKS = 1');
 
   console.log('Stabilization migrations executed successfully.');
