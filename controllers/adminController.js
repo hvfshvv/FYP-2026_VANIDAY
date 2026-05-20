@@ -548,8 +548,8 @@ async function createCampaign(req, res) {
 
   try {
     const voucherCode = String(form.voucher_code || '').trim().toUpperCase();
-    const voucherType = form.voucher_type === 'merchant' ? 'merchant' : 'platform';
-    const merchantId = voucherType === 'merchant' ? form.merchant_id : null;
+    const voucherType = 'platform';
+    const merchantId = null;
     const discountType = form.discount_type === 'fixed_amount' ? 'fixed_amount' : 'percent';
     const discountValue = Number(form.discount_value || 0);
     const minSpend = form.min_spend ? Number(form.min_spend) : null;
@@ -558,7 +558,6 @@ async function createCampaign(req, res) {
 
     if (!voucherCode) throw new Error('Voucher code is required.');
     if (!form.campaign_name || !String(form.campaign_name).trim()) throw new Error('Campaign name is required.');
-    if (voucherType === 'merchant' && !merchantId) throw new Error('Please select a merchant for merchant vouchers.');
     if (!discountValue || discountValue <= 0) throw new Error('Discount value must be more than 0.');
     if (discountType === 'percent' && discountValue > 100) throw new Error('Percent discount cannot be more than 100.');
     if (!form.start_date || !form.end_date) throw new Error('Start and end dates are required.');
