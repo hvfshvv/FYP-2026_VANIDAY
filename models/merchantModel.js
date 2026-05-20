@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { withResolvedMerchantImage } = require('../utils/merchantImages');
 
 async function getMerchantById(merchantId) {
   const [rows] = await db.query(
@@ -12,7 +13,7 @@ async function getMerchantById(merchantId) {
     [merchantId]
   );
 
-  return rows[0] || null;
+  return withResolvedMerchantImage(rows[0] || null);
 }
 
 async function getMerchantServices(merchantId) {
@@ -51,7 +52,7 @@ async function getAllActiveMerchants(category = null) {
     ORDER BY m.merchant_name
   `, params);
 
-  return rows;
+  return rows.map(withResolvedMerchantImage);
 }
 
 async function getMerchantProfile(merchantId) {
@@ -62,7 +63,7 @@ async function getMerchantProfile(merchantId) {
     [merchantId]
   );
 
-  return rows[0] || null;
+  return withResolvedMerchantImage(rows[0] || null);
 }
 
 async function updateMerchantProfileImage(merchantId, imagePath) {

@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const promotionModel = require('./promotionModel');
+const { withResolvedMerchantImage } = require('../utils/merchantImages');
 
 async function getFeaturedListings(category = null) {
   await promotionModel.ensurePromotionSchema();
@@ -50,7 +51,7 @@ async function getFeaturedListings(category = null) {
      ORDER BY fl.display_order ASC, fl.created_at DESC`,
     params
   );
-  return rows;
+  return rows.map(withResolvedMerchantImage);
 }
 
 async function getMerchantListing(merchantId) {

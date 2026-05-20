@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { withResolvedMerchantImage } = require('../utils/merchantImages');
 
 // INSERT IGNORE prevents duplicate favourite rows if the user clicks twice.
 async function addMerchantFavourite(customerId, merchantId) {
@@ -46,7 +47,7 @@ async function getFavouriteMerchants(customerId) {
     [customerId]
   );
 
-  return rows;
+  return rows.map(withResolvedMerchantImage);
 }
 
 // Service favourites store both merchant_id and service_id.
