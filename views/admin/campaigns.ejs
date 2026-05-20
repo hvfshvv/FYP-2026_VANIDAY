@@ -38,7 +38,7 @@
     <div>
       <p class="section-label">Admin Campaigns</p>
       <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Voucher &amp; Campaign Management</h2>
-      <p style="color:var(--muted);margin-bottom:0;">Create platform vouchers, merchant campaigns, and monitor voucher usage.</p>
+      <p style="color:var(--muted);margin-bottom:0;">Create platform-wide vouchers and monitor voucher usage.</p>
     </div>
     <a href="/admin/dashboard" class="btn btn-outline-secondary btn-pill btn-sm">
       <i class="bi bi-arrow-left me-1"></i>Dashboard
@@ -114,22 +114,6 @@
             <div class="col-md-6">
               <label class="form-label" style="font-weight:600;font-size:.875rem;">Voucher Code</label>
               <input type="text" name="voucher_code" class="form-control rounded-xl text-uppercase" value="<%= form.voucher_code || '' %>" placeholder="e.g. BEAUTY20" maxlength="50" required />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Voucher Type</label>
-              <select name="voucher_type" class="form-select rounded-xl" id="voucherTypeSelect">
-                <option value="platform" <%= form.voucher_type === 'platform' ? 'selected' : '' %>>Platform-wide</option>
-                <option value="merchant" <%= form.voucher_type === 'merchant' ? 'selected' : '' %>>Merchant-specific</option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Merchant</label>
-              <select name="merchant_id" class="form-select rounded-xl" id="merchantSelect">
-                <option value="">No merchant selected</option>
-                <% merchants.forEach(merchant => { %>
-                <option value="<%= merchant.merchant_id %>" <%= String(form.merchant_id || '') === String(merchant.merchant_id) ? 'selected' : '' %>><%= merchant.merchant_name %></option>
-                <% }) %>
-              </select>
             </div>
             <div class="col-md-6">
               <label class="form-label" style="font-weight:600;font-size:.875rem;">Discount Type</label>
@@ -253,21 +237,6 @@
 <script>
   const voucherSummary = <%- JSON.stringify(summary) %>;
   const voucherStatusCanvas = document.getElementById('voucherStatusChart');
-  const voucherTypeSelect = document.getElementById('voucherTypeSelect');
-  const merchantSelect = document.getElementById('merchantSelect');
-
-  function syncMerchantSelect() {
-    if (!voucherTypeSelect || !merchantSelect) return;
-    const isMerchantVoucher = voucherTypeSelect.value === 'merchant';
-    merchantSelect.disabled = !isMerchantVoucher;
-    merchantSelect.required = isMerchantVoucher;
-    if (!isMerchantVoucher) merchantSelect.value = '';
-  }
-
-  if (voucherTypeSelect) {
-    voucherTypeSelect.addEventListener('change', syncMerchantSelect);
-    syncMerchantSelect();
-  }
 
   if (voucherStatusCanvas && window.Chart) {
     new Chart(voucherStatusCanvas, {
