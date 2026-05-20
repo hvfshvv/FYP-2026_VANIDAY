@@ -13,11 +13,13 @@ const paymentModel = require('../models/paymentModel');
 const loyaltyModel = require('../models/loyaltyModel');
 
 function hasGuestBookingAccess(req, bookingId) {
+  // Allow guests to pay only for bookings created in their session.
   return Array.isArray(req.session.guestBookingIds)
     && req.session.guestBookingIds.includes(String(bookingId));
 }
 
 function canAccessBooking(req, booking) {
+  // Protect payment pages from unrelated users.
   if (!booking) return false;
 
   const user = req.session.user;
@@ -40,6 +42,7 @@ function canAccessBooking(req, booking) {
 }
 
 async function getAuthorizedBooking(req, res, bookingId, { json = false } = {}) {
+  // Load booking and confirm the current user can access it.
   if (!bookingId) {
     if (json) res.status(400).json({ error: 'Missing booking id' });
     else res.status(400).send('Missing booking id.');
@@ -64,6 +67,7 @@ async function getAuthorizedBooking(req, res, bookingId, { json = false } = {}) 
 }
 
 async function confirmPaidBooking(bookingId) {
+  // Confirm booking only after successful payment.
   await bookingModel.updateBookingStatus(bookingId, 'confirmed');
 
   try {
@@ -76,6 +80,7 @@ async function confirmPaidBooking(bookingId) {
 async function showCheckout(req, res) {
   const { bookingId } = req.params;
   try {
+    // Show checkout only for an authorized booking.
     const booking = await getAuthorizedBooking(req, res, bookingId);
     if (!booking) return;
 
@@ -102,6 +107,7 @@ function getBookingId(req) {
 }
 
 function extractStripePaymentDetails(intent) {
+  // Convert Stripe result into payment fields we store.
   const latestCharge = intent.latest_charge && typeof intent.latest_charge === 'object'
     ? intent.latest_charge
     : null;
@@ -127,6 +133,7 @@ function extractStripePaymentDetails(intent) {
 }
 
 async function persistStripePaymentIntent(intent) {
+  // Save Stripe card payment result and confirm paid bookings.
   const bookingId = intent.metadata && intent.metadata.booking_id;
   if (!bookingId) {
     console.warn('[stripe] PaymentIntent missing booking_id metadata', intent.id);
@@ -155,6 +162,7 @@ async function persistStripePaymentIntent(intent) {
 }
 
 async function persistCheckoutSession(session) {
+  // Save PayNow checkout result after Stripe redirects back.
   const bookingId = session.metadata && session.metadata.booking_id;
   if (!bookingId) {
     console.warn('[stripe] Checkout Session missing booking_id metadata', session.id);
@@ -198,6 +206,7 @@ async function persistCheckoutSession(session) {
 async function createStripeIntent(req, res) {
   const bookingId = getBookingId(req);
   try {
+    // Start card payment for this booking.
     const booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
     if (!booking) return;
 
@@ -222,6 +231,7 @@ async function confirmStripePayment(req, res) {
     if (!booking) return;
 
     let intent = await retrievePaymentIntent(paymentIntentId);
+    // Make sure the Stripe payment belongs to this booking.
     if (String(intent.metadata.booking_id) !== String(bookingId)) {
       return res.status(400).json({ error: 'Payment does not match this booking' });
     }
@@ -243,6 +253,7 @@ async function confirmStripePayment(req, res) {
       return res.status(400).json({ error: 'Payment has not succeeded' });
     }
 
+    // Save successful payment and send customer to success page.
     const amount = Number(booking.payable_amount || booking.total_amount || booking.price);
     await paymentModel.createOrUpdatePayment(bookingId, amount, 'stripe');
     await persistStripePaymentIntent(intent);
@@ -256,6 +267,7 @@ async function confirmStripePayment(req, res) {
 async function createPayNowSession(req, res) {
   const { bookingId } = req.params;
   try {
+    // Start PayNow QR checkout for this booking.
     const booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
     if (!booking) return;
 
@@ -287,6 +299,7 @@ async function createPayNowSession(req, res) {
 async function handleStripeWebhook(req, res) {
   let event;
   try {
+    // Verify Stripe sent this payment update.
     event = constructWebhookEvent(req.body, req.headers['stripe-signature']);
   } catch (err) {
     console.error('[stripe] webhook signature failed:', err.message);
@@ -351,6 +364,7 @@ async function markStripePaymentFailed(req, res) {
 async function paymentSuccess(req, res) {
   const { booking_id, session_id } = req.query;
   try {
+    // Re-check payment before showing the success page.
     const booking = await getAuthorizedBooking(req, res, booking_id);
     if (!booking) return;
 
@@ -383,6 +397,7 @@ async function paymentSuccess(req, res) {
 async function downloadReceipt(req, res) {
   const { bookingId } = req.params;
   try {
+    // Generate receipt only for paid bookings.
     const booking = await getAuthorizedBooking(req, res, bookingId);
     if (!booking) return;
 

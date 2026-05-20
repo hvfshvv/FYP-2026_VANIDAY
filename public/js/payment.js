@@ -29,6 +29,7 @@
   initStripe();
 
   async function initStripe() {
+    // Load Stripe payment form for this booking.
     if (!STRIPE_KEY) {
       showError('Stripe publishable key is missing. Add STRIPE_PUBLISHABLE_KEY to .env.');
       if (stripeButton) stripeButton.disabled = true;
@@ -117,6 +118,7 @@
   }
 
   async function saveStripeResult(paymentIntentId) {
+    // Ask server to save the successful Stripe payment.
     const confirmRes = await fetch(`/payment/confirm-stripe/${BOOKING_ID}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -128,6 +130,7 @@
   }
 
   async function saveStripeFailure(paymentIntentId) {
+    // Save failed payment status when Stripe returns an error.
     if (!paymentIntentId) return;
     await fetch(`/payment/fail-stripe/${BOOKING_ID}`, {
       method: 'POST',
@@ -138,6 +141,7 @@
 
   if (stripeButton) {
     stripeButton.addEventListener('click', async () => {
+      // Customer pays by card without leaving the checkout page.
       setLoading('stripe', true);
       hideError();
 
@@ -179,6 +183,7 @@
 
   if (paynowButton) {
     paynowButton.addEventListener('click', async () => {
+      // Customer continues to Stripe PayNow QR checkout.
       setLoading('paynow', true);
       hideError();
 

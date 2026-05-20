@@ -19,6 +19,7 @@ const app = express();
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Stripe webhook must read the raw request body before JSON parsing.
 app.post('/payment/webhook', express.raw({ type: 'application/json' }), paymentController.handleStripeWebhook);
 
 app.use(express.urlencoded({ extended: true }));
@@ -43,6 +44,7 @@ app.use('/auth',       authRoutes);
 app.use('/merchant',   merchantRoutes);
 app.use('/admin',      adminRoutes);
 app.use('/book',       bookingRoutes);
+// Backward-compatible payment intent endpoint used by checkout JS.
 app.post('/create-payment-intent', paymentController.createStripeIntent);
 app.use('/payment',    paymentRoutes);
 app.use('/whatsapp',   whatsappRoutes);

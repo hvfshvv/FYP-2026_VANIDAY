@@ -25,6 +25,7 @@ const upload = multer({
 });
 
 function handlePromotionUpload(req, res, next) {
+  // Upload optional promotion banner image.
   upload.single('image')(req, res, err => {
     if (!err) return next();
 
@@ -55,6 +56,7 @@ const DAY_OPTIONS = [
 ];
 
 function normalizeApplicableDays(value) {
+  // Keep only valid days selected by merchant.
   const selected = Array.isArray(value)
     ? value
     : value
@@ -65,6 +67,7 @@ function normalizeApplicableDays(value) {
 }
 
 function normalizePromotionForm(body) {
+  // Clean merchant form values before validation.
   const applicableDays = normalizeApplicableDays(body.applicable_days);
 
   return {
@@ -81,6 +84,7 @@ function normalizePromotionForm(body) {
 }
 
 function validatePromotionForm(form) {
+  // Check required promotion fields before saving.
   if (!form.title) throw new Error('Promotion title is required.');
   if (!form.offerText) throw new Error('Offer text is required.');
   if (!form.discountPct || form.discountPct <= 0 || form.discountPct > 100) {
@@ -98,6 +102,7 @@ async function renderPromotionsPage(req, res, {
   form = {},
 } = {}) {
   const merchantId = req.session.user.merchant_id;
+  // Load merchant promotions and services for the form.
   const [promotions, services] = await Promise.all([
     promotionModel.getMerchantPromotions(merchantId).catch(() => []),
     serviceModel.getServicesByMerchant(merchantId).catch(() => []),
@@ -150,6 +155,7 @@ async function createPromotion(req, res) {
     validatePromotionForm(form);
 
     if (form.serviceId) {
+      // Ensure merchant only promotes their own services.
       const services = await serviceModel.getServicesByMerchant(merchantId);
       const ownsService = services.some(service => String(service.service_id) === String(form.serviceId));
       if (!ownsService) throw new Error('Selected service does not belong to this merchant.');
@@ -157,6 +163,7 @@ async function createPromotion(req, res) {
 
     const imagePath = req.file ? `/images/promotions/${req.file.filename}` : null;
 
+    // Submit promotion as pending admin approval.
     const promoId = await promotionModel.createPromotion({
       merchantId,
       serviceId: form.serviceId,
@@ -200,6 +207,7 @@ async function createPromotion(req, res) {
 async function togglePromotion(req, res) {
   const merchantId = req.session.user.merchant_id;
   const { promoId } = req.params;
+  // Merchant can pause or activate approved promotions.
   await promotionModel.togglePromotion(promoId, merchantId).catch(console.error);
   res.redirect('/merchant/promotions');
 }

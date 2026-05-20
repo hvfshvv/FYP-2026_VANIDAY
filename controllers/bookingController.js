@@ -27,6 +27,7 @@ function isMerchantUser(req) {
 }
 
 function redirectMerchantAwayFromBooking(req, res) {
+  // Keep merchant accounts out of customer booking pages.
   if (!isMerchantUser(req)) return false;
 
   if (req.originalUrl && req.originalUrl.startsWith('/book/api/')) {
@@ -49,6 +50,7 @@ function normalizeEmail(email) {
 }
 
 function buildQrNextUrl(token, state = {}) {
+  // Keep the customer's QR booking choices after login or register.
   const params = new URLSearchParams();
   if (state.service_id) params.set('serviceId', state.service_id);
   if (state.booking_date) params.set('bookingDate', state.booking_date);
@@ -71,6 +73,7 @@ function getQrFormState(req) {
 }
 
 function rememberGuestBooking(req, bookingId) {
+  // Remember guest bookings so guests can still reach payment.
   req.session.guestBookingIds = Array.isArray(req.session.guestBookingIds)
     ? req.session.guestBookingIds
     : [];
@@ -89,6 +92,7 @@ async function renderQRBookingPage(req, res, {
   statusCode = 200,
   formState = null,
 } = {}) {
+  // Render the QR booking page with saved form values.
   const state = formState || getQrFormState(req);
   const nextUrl = buildQrNextUrl(token, state);
 
@@ -273,6 +277,7 @@ async function showBookingPage(req, res) {
   const { token } = req.params;
 
   try {
+    // Find the merchant from the scanned booking QR token.
     const qr = await qrModel.getQRByToken(token);
 
     if (!qr) {
@@ -337,10 +342,12 @@ async function confirmBooking(req, res) {
   const { token } = req.params;
   const { service_id, booking_date, booking_time, staff_id, full_name, phone, email, booking_mode } = req.body;
   try {
+    // Validate the scanned QR before creating a booking.
     const qr = await qrModel.getQRByToken(token);
     if (!qr) return res.redirect(`/book/${token}`);
     const services = await merchantModel.getMerchantServices(qr.merchant_id).catch(() => []);
 
+    // Block past QR booking dates and times.
     if (!isCurrentOrFutureSlot(booking_date, booking_time)) {
       return renderQRBookingPage(req, res, {
         token,
@@ -361,6 +368,7 @@ async function confirmBooking(req, res) {
     let guestPhone = null;
 
     if (sessionUser) {
+      // Use the logged-in customer account for member bookings.
       customerId = sessionUser.customer_id;
       if (!customerId) {
         const customer = await authModel.ensureCustomerProfile(
@@ -377,6 +385,7 @@ async function confirmBooking(req, res) {
       const existingUser = await authModel.findUserByEmail(normalizedEmail);
 
       if (existingUser && existingUser.role === 'customer') {
+        // Ask existing members to log in so the booking links to their account.
         const nextUrl = buildQrNextUrl(token, req.body);
         return res.redirect(`/auth/login?reason=member_email&next=${encodeURIComponent(nextUrl)}`);
       }
@@ -392,9 +401,11 @@ async function confirmBooking(req, res) {
       }
 
       if (booking_mode === 'register') {
+        // Let guests create an account before payment if they choose.
         return res.redirect(`/auth/register?next=${encodeURIComponent(buildQrNextUrl(token, req.body))}`);
       }
 
+      // Store guest details for QR bookings without an account.
       guestName = full_name;
       guestEmail = normalizedEmail;
       guestPhone = phone;
@@ -409,6 +420,7 @@ async function confirmBooking(req, res) {
       }
     }
 
+    // Create pending booking before sending customer to payment.
     const bookingId = await bookingModel.createBooking({
       customerId,
       serviceId:   service_id,
@@ -423,6 +435,7 @@ async function confirmBooking(req, res) {
     });
 
     if (!customerId) {
+      // Give guest customers access to their payment page in this session.
       rememberGuestBooking(req, bookingId);
     }
 
@@ -440,6 +453,7 @@ async function confirmBooking(req, res) {
       return res.redirect(`/payment/checkout/${bookingId}?webhookError=${encodeURIComponent('Booking notification failed. Please continue to payment.')}`);
     }
 
+    // Redirect customer to Stripe checkout after booking is saved.
     res.redirect(`/payment/checkout/${bookingId}`);
   } catch (err) {
     console.error(err);
@@ -462,6 +476,7 @@ async function checkEmailMember(req, res) {
   if (redirectMerchantAwayFromBooking(req, res)) return;
 
   try {
+    // Check if a guest email already belongs to a member account.
     const email = normalizeEmail(req.query.email);
     if (!email) return res.status(400).json({ exists: false, error: 'Email is required' });
 
@@ -483,6 +498,7 @@ async function confirmArrivalByQR(req, res) {
   const { token } = req.params;
 
   try {
+    // Validate the scanned arrival QR code.
     const qr = await qrModel.getQRByToken(token, 'check_in');
 
     if (!qr) {
@@ -509,6 +525,7 @@ async function confirmArrivalByQR(req, res) {
       });
     }
 
+    // Mark customer as arrived after QR scan.
     const result = await bookingModel.markCustomerArrivedForMerchant(
       req.session.user.customer_id,
       qr.merchant_id
@@ -562,6 +579,7 @@ async function getAvailableSlots(req, res) {
       bookingDate
     } = req.query;
 
+    // Return only available slots for the selected merchant and service.
     const slots = await bookingModel.getAvailableSlots({
       merchantId,
       serviceId,

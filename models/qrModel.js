@@ -6,6 +6,7 @@ function normalizeQRType(type) {
 
 async function getActiveQRByMerchant(merchantId, type = 'booking') {
   const qrType = normalizeQRType(type);
+  // Get the latest active QR code for this merchant.
   const [rows] = await db.query(
     `SELECT *
      FROM qr_code
@@ -21,6 +22,7 @@ async function getActiveQRByMerchant(merchantId, type = 'booking') {
 
 async function getQRByToken(token, type = 'booking') {
   const qrType = normalizeQRType(type);
+  // Accept scans only from active QR codes owned by approved merchants.
   const [rows] = await db.query(
     `SELECT q.*, m.merchant_name, m.address
      FROM qr_code q
@@ -45,6 +47,7 @@ async function getQRByTokenIncludingInactive(token) {
 
 async function deactivateMerchantQRs(merchantId, type = 'booking') {
   const qrType = normalizeQRType(type);
+  // Turn off old QR codes before a new one goes live.
   await db.query(
     `UPDATE qr_code
      SET is_active = 0
@@ -56,6 +59,7 @@ async function deactivateMerchantQRs(merchantId, type = 'booking') {
 
 async function insertQR(merchantId, token, imagePath, qrUrl, type = 'booking') {
   const qrType = normalizeQRType(type);
+  // Save the generated QR token, URL, and image path.
   const [result] = await db.query(
     'INSERT INTO qr_code (merchant_id, qr_token, qr_url, qr_image_path, qr_type) VALUES (?,?,?,?,?)',
     [merchantId, token, qrUrl, imagePath, qrType]

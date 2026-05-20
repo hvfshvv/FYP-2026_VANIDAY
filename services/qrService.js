@@ -24,6 +24,7 @@ function generateToken() {
 }
 
 async function generateUniqueToken() {
+  // Generate a unique QR token so each scan link is private.
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const token = generateToken();
     const existing = await qrModel.getQRByTokenIncludingInactive(token);
@@ -50,11 +51,13 @@ async function createQRForMerchant(merchantId, type = 'booking', { baseUrl, deac
   const qrType = normalizeQRType(type);
 
   if (deactivateExisting) {
+    // Prevent duplicate active QR codes for the same merchant and QR type.
     await qrModel.deactivateMerchantQRs(merchantId, qrType);
   }
 
   fs.mkdirSync(QR_DIR, { recursive: true });
 
+  // Build the scan URL and save it as a printable QR image.
   const token = await generateUniqueToken();
   const qrUrl = buildQRUrl(qrType, token, baseUrl);
   const fileName = `${merchantId}-${qrType}-${token}.png`;
@@ -96,6 +99,7 @@ async function ensureArrivalQRForMerchant(merchantId, options = {}) {
 }
 
 async function ensureMerchantQRCodes(merchantId, options = {}) {
+  // Make sure every merchant has both booking and arrival QR codes.
   const [bookingQR, arrivalQR] = await Promise.all([
     ensureBookingQRForMerchant(merchantId, options),
     ensureArrivalQRForMerchant(merchantId, options),
