@@ -87,32 +87,68 @@
               <p style="color:var(--muted); margin:0;">No active services are available for this merchant.</p>
             <% } %>
 
-            <% bookingServices.forEach(service => { %>
+            <% if (activeService) { %>
               <label
-                class="d-flex align-items-center justify-content-between gap-3 mb-2 p-3"
-                style="border:1px solid var(--border); border-radius:var(--r); background:var(--surface); cursor:pointer;"
+                class="d-flex align-items-center justify-content-between gap-3 mb-3 p-3"
+                style="border:1px solid var(--accent); border-radius:var(--r); background:var(--accent-light); cursor:pointer;"
               >
                 <span>
                   <input
                     type="radio"
                     name="service_id"
-                    value="<%= service.service_id %>"
-                    data-name="<%= service.service_name %>"
-                    data-price="<%= Number(service.price) %>"
-                    data-duration="<%= service.duration_mins || 60 %>"
-                    <%= activeService && String(service.service_id) === String(activeService.service_id) ? 'checked' : '' %>
+                    value="<%= activeService.service_id %>"
+                    data-name="<%= activeService.service_name %>"
+                    data-price="<%= Number(activeService.price) %>"
+                    data-duration="<%= activeService.duration_mins || 60 %>"
+                    checked
                     required
                   />
-                  <span style="font-weight:700; color:var(--ink); margin-left:.5rem;">
-                    <%= service.service_name %>
+                  <span style="font-weight:800; color:var(--ink); margin-left:.5rem;">
+                    <%= activeService.service_name %>
                   </span>
                 </span>
 
-                <span style="font-family:var(--font-mono); font-weight:700; color:var(--accent);">
-                  S$<%= Number(service.price).toFixed(2) %>
+                <span style="font-family:var(--font-mono); font-weight:800; color:var(--accent);">
+                  S$<%= Number(activeService.price).toFixed(2) %>
                 </span>
               </label>
-            <% }) %>
+
+              <% const otherServices = bookingServices.filter(service => String(service.service_id) !== String(activeService.service_id)); %>
+              <% if (otherServices.length) { %>
+                <details>
+                  <summary style="cursor:pointer; font-weight:800; color:var(--accent); list-style:none;">
+                    <i class="bi bi-chevron-down me-1"></i>View other services
+                  </summary>
+
+                  <div style="margin-top:.75rem;">
+                    <% otherServices.forEach(service => { %>
+                      <label
+                        class="d-flex align-items-center justify-content-between gap-3 mb-2 p-3"
+                        style="border:1px solid var(--border); border-radius:var(--r); background:var(--surface); cursor:pointer;"
+                      >
+                        <span>
+                          <input
+                            type="radio"
+                            name="service_id"
+                            value="<%= service.service_id %>"
+                            data-name="<%= service.service_name %>"
+                            data-price="<%= Number(service.price) %>"
+                            data-duration="<%= service.duration_mins || 60 %>"
+                          />
+                          <span style="font-weight:700; color:var(--ink); margin-left:.5rem;">
+                            <%= service.service_name %>
+                          </span>
+                        </span>
+
+                        <span style="font-family:var(--font-mono); font-weight:700; color:var(--accent);">
+                          S$<%= Number(service.price).toFixed(2) %>
+                        </span>
+                      </label>
+                    <% }) %>
+                  </div>
+                </details>
+              <% } %>
+            <% } %>
           </div>
         </div>
 
@@ -175,6 +211,7 @@
                 <button
                   type="button"
                   class="staff-option selected d-flex flex-column align-items-center justify-content-center text-center h-100 p-3"
+                  data-staff-name="No Preference"
                   onclick="selectStaff(this)"
                   style="border:1px solid var(--accent); border-radius:var(--r); background:var(--accent-light); cursor:pointer; min-height:112px; width:100%;"
                 >
@@ -201,6 +238,7 @@
                   <button
                     type="button"
                     class="staff-option d-flex flex-column align-items-center justify-content-center text-center h-100 p-3"
+                    data-staff-name="<%= member.full_name %>"
                     onclick="selectStaff(this)"
                     style="border:1px solid var(--border); border-radius:var(--r); background:var(--surface); cursor:pointer; min-height:112px; width:100%;"
                   >
@@ -268,6 +306,13 @@
               <p style="color:var(--muted); font-size:.8rem; margin-bottom:.25rem;">Service</p>
               <p id="summaryService" style="font-weight:700; color:var(--ink); margin:0;">
                 <%= activeService ? activeService.service_name : 'No service selected' %>
+              </p>
+            </div>
+
+            <div class="mb-3">
+              <p style="color:var(--muted); font-size:.8rem; margin-bottom:.25rem;">Staff</p>
+              <p id="summaryStaff" style="font-weight:700; color:var(--ink); margin:0;">
+                No Preference
               </p>
             </div>
 
@@ -382,6 +427,20 @@
         Number(service.dataset.price).toFixed(2);
     }
 
+    const selectedStaff = document.querySelector(
+      'input[name="staff_id"]:checked'
+    );
+
+    const selectedStaffOption = selectedStaff
+      ? selectedStaff.closest('.staff-option')
+      : null;
+
+    document.getElementById(
+      'summaryStaff'
+    ).textContent = selectedStaffOption
+      ? selectedStaffOption.dataset.staffName || 'No Preference'
+      : 'No Preference';
+
     document.getElementById(
       'summaryDateTime'
     ).textContent =
@@ -424,6 +483,7 @@
       'input[name="staff_id"]'
     ).checked = true;
 
+    updateSummary();
     loadAvailableSlots();
   }
 
