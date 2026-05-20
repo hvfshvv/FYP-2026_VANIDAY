@@ -41,8 +41,9 @@
       <% } %>
       <% if (user && user.role === 'admin') { %>
       <li><a href="/admin/dashboard">Dashboard</a></li>
-      <li><a href="/admin/merchant-validations">Merchant Validation</a></li>
-      <li><a href="/admin/promotions">Promotion Review</a></li>
+      <li><a href="/admin/user-management">User Management</a></li>
+      <li><a href="/admin/merchant-validations">Merchant Reviews</a></li>
+      <li><a href="/admin/promotions">Promo Reviews</a></li>
       <% } %>
     </ul>
 
@@ -78,8 +79,9 @@
   <% } %>
   <% if (user && user.role === 'admin') { %>
   <a href="/admin/dashboard">Dashboard</a>
-  <a href="/admin/merchant-validations">Merchant Validation</a>
-  <a href="/admin/promotions">Promotion Review</a>
+  <a href="/admin/user-management">User Management</a>
+  <a href="/admin/merchant-validations">Merchant Reviews</a>
+  <a href="/admin/promotions">Promo Reviews</a>
   <% } %>
   <% if (user) { %>
   <a href="/auth/logout">Sign out</a>
