@@ -29,6 +29,7 @@ async function addColumnIfMissing(columnName, ddl) {
 async function ensurePromotionSchema() {
   if (schemaReady) return;
 
+  // Add promotion approval fields if the database is missing them.
   await addColumnIfMissing('service_id', 'service_id INT NULL AFTER merchant_id');
   await addColumnIfMissing('discount_pct', 'discount_pct DECIMAL(5,2) NULL AFTER description');
   await addColumnIfMissing('offer_text', 'offer_text VARCHAR(150) NULL AFTER discount_pct');
@@ -63,6 +64,7 @@ async function createPromotion({
 }) {
   await ensurePromotionSchema();
 
+  // New merchant promotions wait for admin approval first.
   const [result] = await db.query(
     `INSERT INTO promotion
       (merchant_id, service_id, title, description, discount_pct, offer_text, applicable_days, image_path,
@@ -155,6 +157,7 @@ async function getActivePromotions(category = null) {
     params.push(category);
   }
 
+  // Show only approved promotions that are active today.
   const [rows] = await db.query(
     `SELECT p.*, m.merchant_name, m.category, s.service_name
      FROM promotion p
@@ -181,6 +184,7 @@ async function getActivePromotions(category = null) {
 async function togglePromotion(promoId, merchantId) {
   await ensurePromotionSchema();
 
+  // Only approved promotions can be switched live or paused.
   await db.query(
     `UPDATE promotion
      SET is_active = NOT is_active
@@ -203,6 +207,7 @@ async function deletePromotion(promoId, merchantId) {
 async function getPendingPromotionRequests() {
   await ensurePromotionSchema();
 
+  // Load merchant promotion requests waiting for admin review.
   const [rows] = await db.query(
     `SELECT p.*, m.merchant_name, m.email AS merchant_email, s.service_name
      FROM promotion p
@@ -218,6 +223,7 @@ async function getPendingPromotionRequests() {
 async function approvePromotion(promoId, adminId) {
   await ensurePromotionSchema();
 
+  // Approve and publish the merchant promotion.
   const [result] = await db.query(
     `UPDATE promotion
      SET approval_status = 'approved',
@@ -236,6 +242,7 @@ async function approvePromotion(promoId, adminId) {
 async function rejectPromotion(promoId, adminId, reason = null) {
   await ensurePromotionSchema();
 
+  // Reject promotion and keep it hidden from marketplace.
   const [result] = await db.query(
     `UPDATE promotion
      SET approval_status = 'rejected',

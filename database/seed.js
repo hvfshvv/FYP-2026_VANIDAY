@@ -48,7 +48,16 @@ const MERCHANTS = [
       { name: 'Keratin Treatment', desc: 'Brazilian keratin smoothing treatment', price: 280, dur: 180 },
       { name: 'Scalp Treatment', desc: 'Deep scalp detox & nourishment therapy', price: 75, dur: 45 },
     ],
-    promos: [{ title: 'First Visit 20% Off', desc: 'First-timers get 20% off any service!', pct: 20, start: '2026-05-01', end: '2026-08-31' }],
+    promos: [{
+      title: 'Wednesday Hair Republic Deal',
+      desc: 'Wednesday only: 10% off all services.',
+      pct: 10,
+      offer: 'WEDS10 - 10% off all services',
+      days: 'wed',
+      image: '/images/promotions/hairrepublic-promo-weds10.png',
+      start: '2026-05-01',
+      end: '2026-12-31',
+    }],
     featured: { title: 'Hair Republic — Expert Hair Studio ✂️', desc: 'Top hair salon at Bugis Junction. Cuts, colour, balayage & keratin treatments.' },
   },
   {
@@ -221,14 +230,52 @@ async function seed() {
       for (const p of m.promos) {
         const [pr] = await db.execute(
           `INSERT INTO promotion
-            (merchant_id, title, description, discount_pct, start_date, end_date, is_active)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [merchantId, p.title, p.desc, p.pct, p.start, p.end, 1]
+            (merchant_id, title, description, discount_pct, offer_text, applicable_days, image_path,
+             start_date, end_date, is_active, approval_status, submitted_by_merchant, approved_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'approved', 1, NOW())`,
+          [
+            merchantId,
+            p.title,
+            p.desc,
+            p.pct,
+            p.offer || `${p.pct}% off`,
+            p.days || null,
+            p.image || null,
+            p.start,
+            p.end,
+          ]
         );
         promoId = pr.insertId;
       }
     } else {
       promoId = existP[0].promo_id;
+      const p = m.promos[0];
+      await db.execute(
+        `UPDATE promotion
+         SET title = ?,
+             description = ?,
+             discount_pct = ?,
+             offer_text = ?,
+             applicable_days = ?,
+             image_path = COALESCE(?, image_path),
+             start_date = ?,
+             end_date = ?,
+             is_active = 1,
+             approval_status = 'approved',
+             approved_at = COALESCE(approved_at, NOW())
+         WHERE promo_id = ?`,
+        [
+          p.title,
+          p.desc,
+          p.pct,
+          p.offer || `${p.pct}% off`,
+          p.days || null,
+          p.image || null,
+          p.start,
+          p.end,
+          promoId,
+        ]
+      );
     }
 
     const [existF] = await db.execute(

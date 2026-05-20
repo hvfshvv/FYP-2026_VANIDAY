@@ -18,6 +18,7 @@ async function createBooking({
     await connection.beginTransaction();
 
     if (customerId) {
+      // Lock customer row while checking booking conflicts.
       await lockCustomerForBooking(connection, customerId);
     }
 
@@ -51,6 +52,7 @@ async function createBooking({
     }
 
     if (customerId) {
+      // Check if customer already has an overlapping booking.
       await assertNoCustomerBookingConflict(connection, {
         customerId,
         bookingDate,
@@ -75,6 +77,7 @@ async function createBooking({
 
     let slotId;
     if (existing.length) {
+      // Reserve an existing available slot.
       slotId = existing[0].slot_id;
       await connection.query('UPDATE time_slot SET is_available=FALSE WHERE slot_id=?', [slotId]);
     } else {
@@ -96,6 +99,7 @@ async function createBooking({
         throw new Error('That time slot is already booked');
       }
 
+      // Create a new booked slot when no reusable slot exists.
       const [slotResult] = await connection.query(
         `INSERT INTO time_slot (merchant_id, service_id, staff_id, slot_date, start_time, end_time, is_available)
          VALUES (?,?,?,?,?,ADDTIME(?,SEC_TO_TIME(?*60)),FALSE)`,
@@ -109,6 +113,7 @@ async function createBooking({
     const safeSource = allowedSources.includes(mappedSource) ? mappedSource : 'web';
     const mappedBookingType = safeSource === 'qr' ? 'walk_in' : 'advance';
 
+    // Save booking as pending payment until Stripe confirms payment.
     const [result] = await connection.query(
       `INSERT INTO booking
          (customer_id, guest_name, guest_email, guest_phone, merchant_id, service_id, staff_id, slot_id, booking_type, source, status, total_amount)
@@ -156,6 +161,7 @@ async function assertNoCustomerBookingConflict(connection, {
   durationMins,
   excludeBookingId = null,
 }) {
+  // Validate booking slot availability for this customer.
   let query = `
     SELECT b.booking_id, ts.start_time, ts.end_time, s.service_name, m.merchant_name
     FROM booking b
@@ -240,6 +246,7 @@ async function updateMerchantBookingStatus(bookingId, merchantId, status) {
   const params = [status];
 
   if (status === 'arrived') {
+    // Record manual merchant check-in from the dashboard.
     fields.push('checked_in_at = NOW()', "arrival_method = 'manual'");
   }
 
@@ -262,6 +269,7 @@ async function markCustomerArrivedForMerchant(customerId, merchantId) {
   try {
     await connection.beginTransaction();
 
+    // Check if the customer already scanned arrival QR today.
     const [[arrivedBooking]] = await connection.query(
       `SELECT b.booking_id, b.status, ts.slot_date, ts.start_time, s.service_name, m.merchant_name
        FROM booking b
@@ -283,6 +291,7 @@ async function markCustomerArrivedForMerchant(customerId, merchantId) {
       return { status: 'already_arrived', booking: arrivedBooking };
     }
 
+    // Find today's confirmed booking for this merchant.
     const [[booking]] = await connection.query(
       `SELECT b.booking_id, b.status, ts.slot_date, ts.start_time, s.service_name, m.merchant_name
        FROM booking b
@@ -304,6 +313,7 @@ async function markCustomerArrivedForMerchant(customerId, merchantId) {
       return { status: 'no_active_booking', booking: null };
     }
 
+    // Mark customer as arrived after QR scan.
     await connection.query(
       `UPDATE booking
        SET status = 'arrived',
@@ -539,6 +549,7 @@ async function getCustomerBookings(customerId) {
 async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }) {
   if (!merchantId || !serviceId || !bookingDate) return [];
 
+  // Load service duration before building available time slots.
   const [[service]] = await db.query(
     `SELECT duration_mins 
      FROM service 
@@ -551,6 +562,7 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
   const dayOfWeek = new Date(bookingDate + 'T00:00:00')
     .toLocaleDateString('en-US', { weekday: 'long' });
 
+  // Use merchant opening hours for the selected day.
   const [[availability]] = await db.query(
     `SELECT start_time, end_time
      FROM merchant_availability
@@ -578,6 +590,7 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
     bookedParams.push(staffId);
   }
 
+  // Remove time slots that are already booked.
   const [bookedRows] = await db.query(bookedQuery, bookedParams);
   const bookedTimes = bookedRows.map(row => String(row.start_time).slice(0, 5));
 

@@ -449,6 +449,7 @@ async function rejectMerchant(req, res) {
 
 async function showPromotionApprovals(req, res) {
   try {
+    // Show admin the promotion requests waiting for review.
     const pendingPromotions = await promotionModel.getPendingPromotionRequests();
 
     if (wantsJson(req)) {
@@ -484,6 +485,7 @@ async function showPromotionApprovals(req, res) {
 
 async function approvePromotion(req, res) {
   try {
+    // Publish approved merchant promotion to marketplace.
     const affectedRows = await promotionModel.approvePromotion(
       req.params.promoId,
       req.session.user.user_id
@@ -499,6 +501,7 @@ async function approvePromotion(req, res) {
 async function rejectPromotion(req, res) {
   try {
     const reason = String(req.body.rejection_reason || '').trim();
+    // Keep rejected promotion hidden and store the reason.
     const affectedRows = await promotionModel.rejectPromotion(
       req.params.promoId,
       req.session.user.user_id,

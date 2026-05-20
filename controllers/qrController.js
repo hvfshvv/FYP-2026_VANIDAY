@@ -8,6 +8,7 @@ async function showQRPage(req, res) {
   const merchantId = req.session.user.merchant_id;
 
   try {
+    // Create missing QR codes before showing the merchant QR page.
     const { bookingQR, arrivalQR } = await qrService.ensureMerchantQRCodes(merchantId, {
       baseUrl: getRequestBaseUrl(req),
     });
@@ -31,6 +32,7 @@ async function generateQRCode(req, res) {
   const merchantId = req.session.user.merchant_id;
 
   try {
+    // Regenerate the booking QR when the merchant needs a new printout.
     await qrService.createBookingQRForMerchant(merchantId, {
       baseUrl: getRequestBaseUrl(req),
     });
@@ -45,6 +47,7 @@ async function regenerateArrivalQRCode(req, res) {
   const merchantId = req.session.user.merchant_id;
 
   try {
+    // Regenerate the counter QR used for customer arrival check-in.
     await qrService.createArrivalQRForMerchant(merchantId, {
       baseUrl: getRequestBaseUrl(req),
     });

@@ -6,4 +6,5 @@ CLAUDE.md
 skills-lock.json
 public/images/qr/*.png
 public/images/promotions/*.png
+!public/images/promotions/hairrepublic-promo-weds10.png
 public/images/merchants/merchant_*

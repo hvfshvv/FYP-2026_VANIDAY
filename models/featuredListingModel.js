@@ -13,6 +13,7 @@ async function getFeaturedListings(category = null) {
     params.push(category);
   }
 
+  // Feature only approved merchants and approved active promotions.
   const [rows] = await db.query(
     `SELECT
        fl.listing_id,
@@ -57,6 +58,7 @@ async function getFeaturedListings(category = null) {
 async function getMerchantListing(merchantId) {
   await promotionModel.ensurePromotionSchema();
 
+  // Load merchant listing with only approved promotion details.
   const [rows] = await db.query(
     `SELECT fl.*, p.title AS promo_title
      FROM featured_listing fl
