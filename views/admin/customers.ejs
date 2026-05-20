@@ -29,6 +29,19 @@
     min-height:80vh;
     padding:2.5rem 1rem;
   }
+  .customer-admin[data-theme="dark"] {
+    --canvas:#111827;
+    --surface:#182235;
+    --ink:#F8FAFC;
+    --muted:#CBD5E1;
+    --ghost:#94A3B8;
+    --border:rgba(148,163,184,.24);
+    --accent-light:rgba(225,29,72,.16);
+    --neutral-bg:rgba(148,163,184,.16);
+    --success-bg:rgba(16,185,129,.16);
+    --danger-bg:rgba(239,68,68,.16);
+    --warn-bg:rgba(217,119,6,.16);
+  }
   .customer-card {
     background:var(--surface);
     border:1px solid var(--border);
@@ -42,6 +55,30 @@
     font-weight:800;
     letter-spacing:-.02em;
     margin:0;
+  }
+  .customer-admin .form-control {
+    background:var(--surface);
+    color:var(--ink);
+    border-color:var(--border);
+  }
+  .customer-admin .table {
+    --bs-table-bg:var(--surface);
+    --bs-table-color:var(--ink);
+    --bs-table-border-color:var(--border);
+    --bs-table-hover-bg:var(--accent-light);
+    --bs-table-hover-color:var(--ink);
+    color:var(--ink);
+  }
+  .customer-admin .table thead {
+    color:var(--ink);
+  }
+  .customer-admin[data-theme="dark"] .btn-outline-secondary {
+    color:var(--muted);
+    border-color:var(--border);
+  }
+  .customer-admin[data-theme="dark"] .btn-outline-secondary:hover {
+    color:var(--ink);
+    background:var(--neutral-bg);
   }
   .admin-tabs {
     display:flex;
@@ -210,7 +247,7 @@
   }
 </style>
 
-<main class="customer-admin">
+<main class="customer-admin" id="customerAdmin">
   <div class="container" style="max-width:1400px;">
     <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
       <div>
@@ -218,13 +255,18 @@
         <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Customer Dashboard</h2>
         <p style="color:var(--muted);margin-bottom:0;">Account health, bookings, loyalty, spending, recommendations, reviews, and security settings.</p>
       </div>
-      <form method="GET" action="/admin/customers" class="d-flex flex-wrap gap-2 align-items-center">
-        <input type="date" name="startDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.startDate %>" />
-        <input type="date" name="endDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.endDate %>" />
-        <button type="submit" class="btn btn-primary btn-pill">
-          <i class="bi bi-funnel me-1"></i>Filter
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <form method="GET" action="/admin/customers" class="d-flex flex-wrap gap-2 align-items-center">
+          <input type="date" name="startDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.startDate %>" />
+          <input type="date" name="endDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.endDate %>" />
+          <button type="submit" class="btn btn-primary btn-pill">
+            <i class="bi bi-funnel me-1"></i>Filter
+          </button>
+        </form>
+        <button type="button" class="btn btn-outline-secondary btn-pill" id="themeToggle">
+          <i class="bi bi-moon-stars me-1"></i>Theme
         </button>
-      </form>
+      </div>
     </div>
 
     <% if (error) { %>
@@ -646,5 +688,20 @@
     </section>
   </div>
 </main>
+
+<script>
+  (function () {
+    const dashboard = document.getElementById('customerAdmin');
+    const toggle = document.getElementById('themeToggle');
+    const storedTheme = localStorage.getItem('adminCustomerTheme') || 'light';
+    dashboard.dataset.theme = storedTheme;
+
+    toggle.addEventListener('click', function () {
+      const nextTheme = dashboard.dataset.theme === 'dark' ? 'light' : 'dark';
+      dashboard.dataset.theme = nextTheme;
+      localStorage.setItem('adminCustomerTheme', nextTheme);
+    });
+  })();
+</script>
 
 <%- include('../partials/footer') %>

@@ -215,6 +215,30 @@
     padding:.9rem;
     background:var(--canvas);
   }
+  .leaderboard-actions {
+    display:flex;
+    align-items:center;
+    gap:.55rem;
+    flex-wrap:wrap;
+  }
+  .leaderboard-action-btn {
+    border-radius:999px;
+    padding:.5rem 1.05rem;
+    font-weight:800;
+    font-size:.82rem;
+    display:inline-flex;
+    align-items:center;
+    gap:.45rem;
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--muted);
+    white-space:nowrap;
+  }
+  .leaderboard-action-btn.danger {
+    border-color:var(--danger);
+    color:var(--danger);
+    background:var(--surface);
+  }
 </style>
 
 <main class="merchant-analytics" id="merchantAnalytics" style="background:var(--canvas);min-height:80vh;padding:2.5rem 1rem;">
@@ -696,6 +720,7 @@
                 <th>Revenue</th>
                 <th>Rating</th>
                 <th>Featured</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -710,12 +735,33 @@
                   <td>
                     <% if (Number(merchant.is_featured || 0)) { %>
                       <a href="/admin/featured" class="badge text-decoration-none" style="background:var(--success-bg);color:var(--success);">Featured</a>
+                    <% } else if (Number(merchant.has_featured_listing || 0)) { %>
+                      <span class="badge" style="background:var(--neutral-bg);color:var(--muted);">Hidden</span>
                     <% } else { %>
                       <form action="/admin/merchants/<%= merchant.merchant_id %>/feature" method="POST" class="m-0">
                         <button type="submit" class="btn btn-primary btn-sm btn-pill">
                           <i class="bi bi-star me-1"></i>Add Featured
                         </button>
                       </form>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (merchant.featured_listing_id) { %>
+                      <div class="leaderboard-actions">
+                        <form action="/admin/merchants/featured/<%= merchant.featured_listing_id %>/toggle" method="POST" class="m-0">
+                          <button type="submit" class="leaderboard-action-btn">
+                            <i class="bi bi-<%= Number(merchant.is_featured || 0) ? 'eye-slash' : 'eye' %>"></i>
+                            <%= Number(merchant.is_featured || 0) ? 'Hide' : 'Show' %>
+                          </button>
+                        </form>
+                        <form action="/admin/merchants/featured/<%= merchant.featured_listing_id %>/remove" method="POST" class="m-0" onsubmit="return confirm('Remove this merchant from featured listings?');">
+                          <button type="submit" class="leaderboard-action-btn danger">
+                            <i class="bi bi-trash"></i>Remove
+                          </button>
+                        </form>
+                      </div>
+                    <% } else { %>
+                      <span style="color:var(--muted);">-</span>
                     <% } %>
                   </td>
                 </tr>

@@ -280,6 +280,26 @@ async function featureMerchantFromDashboard(req, res) {
   }
 }
 
+async function toggleFeaturedMerchantFromDashboard(req, res) {
+  try {
+    await adminModel.toggleFeaturedMerchantVisibility(req.params.listingId);
+    res.redirect('/admin/merchants?featuredUpdated=1#leaderboard');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/merchants?error=featureUpdate#leaderboard');
+  }
+}
+
+async function removeFeaturedMerchantFromDashboard(req, res) {
+  try {
+    await adminModel.removeFeaturedMerchantListing(req.params.listingId);
+    res.redirect('/admin/merchants?featuredRemoved=1#leaderboard');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/merchants?error=featureRemove#leaderboard');
+  }
+}
+
 async function showFeaturedMerchants(req, res) {
   try {
     const listings = await adminModel.getFeaturedMerchantListings();
@@ -618,6 +638,8 @@ module.exports = {
   showMerchants,
   showCustomers,
   featureMerchantFromDashboard,
+  toggleFeaturedMerchantFromDashboard,
+  removeFeaturedMerchantFromDashboard,
   showFeaturedMerchants,
   toggleFeaturedMerchant,
   removeFeaturedMerchant,

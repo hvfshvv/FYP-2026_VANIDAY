@@ -417,6 +417,8 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
               COUNT(DISTINCT b.customer_id) AS customers,
               COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS revenue,
               COALESCE(AVG(r.rating), 0) AS rating,
+              MAX(fl.listing_id) AS featured_listing_id,
+              MAX(CASE WHEN fl.listing_id IS NOT NULL THEN 1 ELSE 0 END) AS has_featured_listing,
               MAX(CASE WHEN fl.listing_id IS NOT NULL AND fl.is_visible = TRUE THEN 1 ELSE 0 END) AS is_featured
        FROM merchant m
        LEFT JOIN booking b ON b.merchant_id = m.merchant_id AND ${bookingDateFilter}

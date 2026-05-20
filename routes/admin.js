@@ -10,6 +10,8 @@ router.use(requireLogin, requireAdmin);
 router.get('/dashboard', adminController.showDashboard);
 router.get('/merchants', adminController.showMerchants);
 router.post('/merchants/:merchantId/feature', adminController.featureMerchantFromDashboard);
+router.post('/merchants/featured/:listingId/toggle', adminController.toggleFeaturedMerchantFromDashboard);
+router.post('/merchants/featured/:listingId/remove', adminController.removeFeaturedMerchantFromDashboard);
 router.get('/featured', adminController.showFeaturedMerchants);
 router.post('/featured/:listingId/toggle', adminController.toggleFeaturedMerchant);
 router.post('/featured/:listingId/remove', adminController.removeFeaturedMerchant);
