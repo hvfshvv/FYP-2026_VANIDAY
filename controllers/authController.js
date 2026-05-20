@@ -160,7 +160,8 @@ async function register(req, res) {
     role,
     merchant_name,
     business_uen,
-    address
+    address,
+    category
   } = req.body;
   const next = safeNext(req.query.next || req.body.next);
 
@@ -243,13 +244,21 @@ async function register(req, res) {
         });
       }
 
+      if (!category || !category.trim()) {
+        return res.render(registerView, {
+          title: registerTitle,
+          error: 'Please select your business category.'
+        });
+      }
+
       const merchantId = await authModel.createMerchantProfile(
         userId,
         merchant_name.trim(),
         email,
         normalizedPhone,
         address || '',
-        business_uen
+        business_uen,
+        category.trim()
       );
 
       await qrService.ensureMerchantQRCodes(merchantId);

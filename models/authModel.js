@@ -36,12 +36,12 @@ async function createCustomerProfile(userId, fullName, email, phone, dateOfBirth
 }
 
 
-async function createMerchantProfile(userId, merchantName, email, phone, address, businessUen) {
+async function createMerchantProfile(userId, merchantName, email, phone, address, businessUen, category) {
   const [result] = await db.query(
     `INSERT INTO merchant
-      (user_id, merchant_name, email, business_uen, contact_no, address, verification_status)
-     VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-    [userId, merchantName, email, businessUen, phone, address]
+      (user_id, merchant_name, email, business_uen, contact_no, address, category, verification_status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
+    [userId, merchantName, email, businessUen, phone, address, category]
   );
 
   return result.insertId;
