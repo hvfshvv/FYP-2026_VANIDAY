@@ -23,16 +23,10 @@
     <ul class="nav-links" role="list">
       <% if (!user || user.role === 'customer') { %>
       <li><a href="/">Home</a></li>
-      <li><a href="/marketplace">Marketplace</a></li>
+      <li><a href="/#featured-listings" onclick="scrollToMarketplace(event)">Marketplace</a></li>
       <% } %>
       <% if (user && user.role === 'customer') { %>
       <li><a href="/book/viewBookings">View bookings</a></li>
-      <% } %>
-      <% if (user && user.role === 'customer') { %>
-      <li><a href="/favourite">My Favourites</a></li>
-      <% } %>
-      <% if (user && user.role === 'customer') { %>
-      <li><a href="/loyalty"><i class="bi bi-wallet2 me-1"></i>Wallet</a></li>
       <% } %>
       <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
       <li><a href="/merchant/dashboard">Dashboard</a></li>
@@ -49,7 +43,15 @@
 
     <div class="nav-actions">
       <% if (user) { %>
-      <span style="font-size:.875rem;font-weight:500;color:var(--muted);"><i class="bi bi-person-circle me-1"></i><%= user.full_name.split(' ')[0] %></span>
+      <% if (user.role === 'customer') { %>
+      <a href="/favourite" class="nav-icon-action" aria-label="My Favourites" title="My Favourites">
+        <i class="bi bi-heart"></i>
+      </a>
+      <a href="/loyalty" class="nav-icon-action" aria-label="My Wallet" title="My Wallet">
+        <i class="bi bi-wallet2"></i>
+      </a>
+      <% } %>
+      <span class="nav-user-pill"><i class="bi bi-person-circle"></i><%= user.full_name.split(' ')[0] %></span>
       <a href="/auth/logout" class="btn btn-outline-secondary btn-sm btn-pill">Sign out</a>
       <% } else { %>
       <a href="/auth/login" class="btn btn-outline-secondary btn-sm btn-pill">Sign In / Register</a>
@@ -65,7 +67,7 @@
 <div class="nav-mobile" id="mobileNav" role="navigation" aria-label="Mobile navigation">
   <% if (!user || user.role === 'customer') { %>
   <a href="/">Home</a>
-  <a href="/marketplace">Marketplace</a>
+  <a href="/#featured-listings" onclick="scrollToMarketplace(event)">Marketplace</a>
   <% } %>
   <% if (user && user.role === 'customer') { %>
   <a href="/book/viewBookings">View bookings</a>
@@ -103,7 +105,7 @@
       { icon:'bi-eye',         label:'Aesthetics' },
       { icon:'bi-droplet-half', label:'Spa'       },
     ].forEach(c => { %>
-    <a href="/marketplace?category=<%= encodeURIComponent(c.label) %>" class="cat-strip-link" aria-label="<%= c.label %> services">
+    <a href="/?category=<%= encodeURIComponent(c.label) %>" class="cat-strip-link" aria-label="<%= c.label %> services">
       <i class="bi <%= c.icon %>"></i><%= c.label %>
     </a>
     <% }) %>
@@ -120,5 +122,28 @@ function toggleMobileNav() {
   icon.className = open ? 'bi bi-x-lg' : 'bi bi-list';
   btn.setAttribute('aria-expanded', String(open));
   document.body.style.overflow = open ? 'hidden' : '';
+}
+
+function scrollToMarketplace(event) {
+  const marketplace = document.getElementById('featured-listings') || document.getElementById('marketplace');
+
+  if (!marketplace || window.location.pathname !== '/') {
+    return;
+  }
+
+  event.preventDefault();
+  marketplace.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  history.replaceState(null, '', `/#${marketplace.id}`);
+
+  const nav = document.getElementById('mobileNav');
+  const icon = document.getElementById('hamburger-icon');
+  const btn = document.getElementById('hamburgerBtn');
+
+  if (nav && nav.classList.contains('open')) {
+    nav.classList.remove('open');
+    if (icon) icon.className = 'bi bi-list';
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
 }
 </script>

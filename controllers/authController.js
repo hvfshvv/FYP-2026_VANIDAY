@@ -12,7 +12,7 @@ function redirectDashboard(res, user) {
     return res.redirect('/merchant/dashboard');
   }
 
-  return res.redirect('/marketplace');
+  return res.redirect('/');
 }
 
 function safeNext(next) {
@@ -136,7 +136,7 @@ async function login(req, res) {
     res.redirect(
       next
         ? next
-        : '/marketplace'
+        : '/'
     );
 
   } catch (err) {

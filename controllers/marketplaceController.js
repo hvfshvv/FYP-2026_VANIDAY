@@ -57,10 +57,10 @@ async function showMarketplace(req, res) {
       merchantModel.getAllActiveMerchants(selectedCategory)
     ]);
 
-    res.render('marketplace/index', {
+    res.render('index', {
       title: selectedCategory
         ? `${selectedCategory} Marketplace`
-        : 'Marketplace',
+        : 'Uniday Beauty & Wellness Marketplace',
 
       featured,
       promotions,
@@ -73,8 +73,8 @@ async function showMarketplace(req, res) {
   } catch (err) {
     console.error(err);
 
-    res.render('marketplace/index', {
-      title: 'Marketplace',
+    res.render('index', {
+      title: 'Uniday Beauty & Wellness Marketplace',
       featured: [],
       promotions: [],
       merchants: [],
@@ -83,6 +83,14 @@ async function showMarketplace(req, res) {
       favouriteMerchantIds: []
     });
   }
+}
+
+function redirectMarketplaceHome(req, res) {
+  const query = req.originalUrl.includes('?')
+    ? req.originalUrl.slice(req.originalUrl.indexOf('?'))
+    : '';
+
+  res.redirect(`/${query}`);
 }
 
 async function showMerchantDetails(req, res) {
@@ -124,6 +132,7 @@ async function showMerchantDetails(req, res) {
 
 module.exports = {
   showHome,
+  redirectMarketplaceHome,
   showMarketplace,
   showMerchantDetails
 };

@@ -27,7 +27,7 @@
           Discover top salons, spas, and wellness studios. Scan a QR code at the shop, choose your service, pay securely — no app required.
         </p>
         <div class="d-flex flex-wrap gap-2">
-          <a href="#categories" class="btn btn-primary btn-pill btn-lg" onclick="scrollToCategories(event)">
+          <a href="#marketplace" class="btn btn-primary btn-pill btn-lg" onclick="scrollToCategories(event)">
             <i class="bi bi-grid me-1"></i>Browse services
           </a>
           <% if (!user) { %>
@@ -48,15 +48,6 @@
           <img src="https://images.unsplash.com/photo-1560066984-138dadb4c035?w=500&h=460&fit=crop&auto=format" alt="Beauty salon interior" loading="eager" />
           <img src="https://images.unsplash.com/photo-1604654894610-df63bc536371?w=420&h=218&fit=crop&auto=format" alt="Nail treatment" loading="eager" />
           <img src="https://images.unsplash.com/photo-1519823551278-64ac92734fb1?w=420&h=218&fit=crop&auto=format" alt="Spa treatment" loading="lazy" />
-        </div>
-        <div class="hero-pill">
-          <div>
-            <p class="hero-pill-num">1,000+</p>
-            <p class="hero-pill-text">Merchants<br/>on Uniday</p>
-          </div>
-          <div class="icon-circle" style="background:var(--accent-light);color:var(--accent);">
-            <i class="bi bi-shop" style="font-size:1.25rem;"></i>
-          </div>
         </div>
       </div>
 
@@ -132,41 +123,10 @@
   </div>
 </section>
 
-<!-- ═══════ CATEGORIES ═══════ -->
-<section class="section" id="categories" style="scroll-margin-top:var(--nav-h);">
-  <div class="container">
-    <div class="section-header">
-      <div>
-        <p class="section-label">Browse by type</p>
-        <h2 class="section-title">What are you looking for?</h2>
-        <p class="section-sub">Hundreds of services across Singapore — from a quick trim to a full spa day.</p>
-      </div>
-      <a href="/marketplace" class="btn btn-outline-secondary btn-sm btn-pill d-none d-md-inline-flex">View all</a>
-    </div>
-    <div class="cat-grid">
-      <% [
-        { icon:'bi-scissors',    label:'Hair',       desc:'Cuts · Colour · Styling'   },
-        { icon:'bi-brush',       label:'Nails',      desc:'Manicure · Pedicure · Gel' },
-        { icon:'bi-droplet',     label:'Facial',     desc:'Glow · Skin care'          },
-        { icon:'bi-hand-index',  label:'Massage',    desc:'Body · Deep tissue'        },
-        { icon:'bi-heart-pulse', label:'Wellness',   desc:'Yoga · Pilates'            },
-        { icon:'bi-activity',    label:'Body',       desc:'Waxing · Toning'           },
-        { icon:'bi-eye',         label:'Aesthetics', desc:'Lashes · Brows'            },
-        { icon:'bi-droplet-half', label:'Spa',       desc:'Luxury packages'           },
-      ].forEach(c => { %>
-      <a href="/marketplace?category=<%= encodeURIComponent(c.label) %>" class="cat-card" aria-label="Browse <%= c.label %> services">
-        <div class="cat-icon"><i class="bi <%= c.icon %>"></i></div>
-        <p><%= c.label %></p>
-        <p><%= c.desc %></p>
-      </a>
-      <% }) %>
-    </div>
-  </div>
-</section>
 
 <!-- ═══════ FEATURED + DEALS (tabbed) ═══════ -->
 <% if (featured.length > 0 || promotions.length > 0) { %>
-<section class="section" style="background:var(--surface);border-top:1px solid var(--border);">
+<section class="section" id="featured-listings" style="background:var(--surface);border-top:1px solid var(--border);scroll-margin-top:var(--nav-h);">
   <div class="container">
     <div class="section-header">
       <div>
@@ -185,33 +145,38 @@
           <i class="bi bi-tag me-1"></i>Hot deals
         </button>
         <% } %>
-        <a href="/marketplace" class="btn btn-outline-secondary btn-sm btn-pill d-none d-md-inline-flex">View all</a>
+        <a href="#marketplace" class="btn btn-outline-secondary btn-sm btn-pill d-none d-md-inline-flex">View all</a>
       </div>
     </div>
 
     <% if (featured.length > 0) { %>
     <div id="tab-featured">
-      <div class="row g-4">
+      <div class="row g-3">
         <% featured.forEach(listing => { %>
-        <div class="col-md-6 col-lg-4">
-          <a href="/marketplace" class="merchant-card">
+        <div class="col-lg-3 col-md-6">
+          <a href="/marketplace/merchant/<%= listing.merchant_id %>" class="merchant-card featured-merchant-card">
             <% if (listing.image_path) { %>
-            <img src="<%= listing.image_path %>" class="card-img" alt="<%= listing.merchant_name %>" loading="lazy" />
+            <div class="card-img-wrapper">
+              <img src="<%= listing.image_path %>" class="card-img" alt="<%= listing.merchant_name %>" loading="lazy" />
+            </div>
             <% } else { %>
             <div class="card-no-img"><i class="bi bi-shop"></i></div>
             <% } %>
             <div class="card-body">
-              <div class="d-flex justify-content-between align-items-start mb-1">
-                <h6 class="card-title mb-0"><%= listing.merchant_name %></h6>
+              <div class="card-top">
+                <h6 class="card-title"><%= listing.merchant_name %></h6>
                 <span class="featured-badge ms-2"><i class="bi bi-star-fill" style="font-size:.55rem;"></i>Featured</span>
               </div>
-              <p class="card-meta mb-2"><%= listing.description || 'Top-rated beauty salon' %></p>
+              <p class="card-meta"><%= listing.description || 'Top-rated beauty salon' %></p>
               <% if (listing.promo_title) { %>
-              <span class="badge mb-2" style="background:var(--accent-light);color:var(--accent);">
-                <i class="bi bi-tag me-1"></i><%= listing.discount_pct %>% off
-              </span>
+              <div class="discount-pill">
+                <i class="bi bi-tag"></i><%= listing.discount_pct %>% off
+              </div>
               <% } %>
-              <p class="card-meta mb-0"><i class="bi bi-geo-alt me-1"></i><%= listing.address || 'Singapore' %></p>
+              <div class="info-row">
+                <i class="bi bi-geo-alt"></i>
+                <span><%= listing.address || 'Singapore' %></span>
+              </div>
             </div>
           </a>
         </div>
@@ -221,8 +186,8 @@
     <% } %>
 
     <% if (promotions.length > 0) { %>
- <div id="tab-deals" class="<%= featured.length > 0 ? 'd-none' : '' %>"></div>
-        <div class="row g-3">
+    <div id="tab-deals" style="<%= featured.length > 0 ? 'display:none;' : '' %>">
+      <div class="row g-3">
         <% promotions.forEach(promo => { %>
         <div class="col-md-6 col-lg-4">
           <div class="promo-card h-100">
@@ -247,6 +212,115 @@
 <% } %>
 
 <!-- ═══════ MERCHANT CTA ═══════ -->
+<!-- Combined marketplace section: browse merchants on the same page. -->
+<section class="section" id="marketplace" style="background:var(--canvas);border-top:1px solid var(--border);scroll-margin-top:var(--nav-h);">
+  <div class="container">
+    <div class="section-header">
+      <div>
+        <p class="section-label"><%= selectedCategory ? 'Filtered marketplace' : 'Marketplace' %></p>
+        <h2 class="section-title"><%= selectedCategory ? selectedCategory + ' merchants' : 'Browse merchants' %></h2>
+        <p class="section-sub">
+          <%= selectedCategory
+            ? 'Showing approved ' + selectedCategory.toLowerCase() + ' merchants in Singapore.'
+            : 'Explore approved beauty and wellness merchants, then choose a service to book.' %>
+        </p>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <% if (selectedCategory) { %>
+        <a href="/#marketplace" class="btn btn-outline-secondary btn-sm btn-pill" data-category-filter="">
+          <i class="bi bi-x-lg me-1"></i>Clear filter
+        </a>
+        <% } %>
+        <% if (promotions.length > 0) { %>
+        <span class="badge" style="background:var(--accent-light);color:var(--accent);font-size:.8125rem;padding:.45rem .9rem;border-radius:999px;font-weight:600;">
+          <i class="bi bi-fire me-1"></i><%= promotions.length %> active deal<%= promotions.length !== 1 ? 's' : '' %>
+        </span>
+        <% } %>
+      </div>
+    </div>
+
+    <nav class="cat-strip marketplace-category-strip" aria-label="Browse merchants by category">
+      <div class="cat-strip-inner">
+        <% [
+          { icon:'bi-scissors',    label:'Hair'       },
+          { icon:'bi-brush',       label:'Nails'      },
+          { icon:'bi-droplet',     label:'Facial'     },
+          { icon:'bi-hand-index',  label:'Massage'    },
+          { icon:'bi-heart-pulse', label:'Wellness'   },
+          { icon:'bi-activity',    label:'Body'       },
+          { icon:'bi-eye',         label:'Aesthetics' },
+          { icon:'bi-droplet-half', label:'Spa'       },
+        ].forEach(c => { %>
+        <a
+          href="/?category=<%= encodeURIComponent(c.label) %>#marketplace"
+          class="cat-strip-link <%= selectedCategory === c.label ? 'active' : '' %>"
+          data-category-filter="<%= c.label %>"
+          aria-label="<%= c.label %> merchants"
+        >
+          <i class="bi <%= c.icon %>"></i><%= c.label %>
+        </a>
+        <% }) %>
+      </div>
+    </nav>
+
+    <% if (!merchants || merchants.length === 0) { %>
+      <div class="text-center py-5">
+        <div class="icon-circle-lg mx-auto mb-3">
+          <i class="bi bi-shop" style="font-size:2rem;color:var(--accent);"></i>
+        </div>
+        <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">
+          <%= selectedCategory ? 'No ' + selectedCategory.toLowerCase() + ' merchants available' : 'No merchants available' %>
+        </h5>
+        <p style="color:var(--muted);">Please check back again soon.</p>
+      </div>
+    <% } else { %>
+      <div class="row g-3">
+        <% merchants.forEach(merchant => { %>
+          <div class="col-lg-3 col-md-6">
+            <a href="/marketplace/merchant/<%= merchant.merchant_id %>" class="merchant-card" style="position:relative;">
+              <% if (user && user.role === 'customer') { %>
+                <% const isFav = favouriteMerchantIds && favouriteMerchantIds.includes(merchant.merchant_id); %>
+                <form
+                  action="<%= isFav ? '/favourite/merchant/remove/' + merchant.merchant_id : '/favourite/merchant/' + merchant.merchant_id %>"
+                  method="POST"
+                  style="position:absolute;top:12px;right:12px;z-index:5;"
+                  onclick="event.stopPropagation();"
+                >
+                  <button type="submit" style="width:36px;height:36px;border-radius:999px;border:none;background:white;color:var(--accent);box-shadow:var(--shadow);">
+                    <i class="bi <%= isFav ? 'bi-heart-fill' : 'bi-heart' %>"></i>
+                  </button>
+                </form>
+              <% } %>
+
+              <% if (merchant.image_path) { %>
+                <div class="card-img-wrapper">
+                  <img src="<%= merchant.image_path %>" class="card-img" alt="<%= merchant.merchant_name %>" loading="lazy" />
+                </div>
+              <% } else { %>
+                <div class="card-no-img"><i class="bi bi-shop"></i></div>
+              <% } %>
+
+              <div class="card-body">
+                <div class="card-top">
+                  <h6 class="card-title"><%= merchant.merchant_name %></h6>
+                </div>
+                <p class="card-meta"><%= merchant.description || 'Beauty and wellness merchant' %></p>
+                <div class="discount-pill">
+                  <i class="bi bi-grid"></i><%= merchant.category || 'General' %>
+                </div>
+                <div class="info-row">
+                  <i class="bi bi-geo-alt"></i>
+                  <span><%= merchant.address || 'Singapore' %></span>
+                </div>
+              </div>
+            </a>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</section>
+
 <% if (!user || user.role !== 'merchant') { %>
 <section class="section" style="background:var(--ink);border-top:1px solid rgba(255,255,255,.06);">
   <div class="container">
@@ -269,8 +343,52 @@
 <script>
 function scrollToCategories(e) {
   e.preventDefault();
-  document.getElementById('categories').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('marketplace').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const marketplace = document.getElementById('marketplace');
+
+  if (params.has('category') && marketplace) {
+    setTimeout(() => {
+      marketplace.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 250);
+  }
+});
+
+document.addEventListener('click', async (event) => {
+  const link = event.target.closest('[data-category-filter]');
+  if (!link || window.location.pathname !== '/') return;
+
+  event.preventDefault();
+
+  const category = link.dataset.categoryFilter;
+  const url = category
+    ? `/?category=${encodeURIComponent(category)}`
+    : '/';
+
+  try {
+    const response = await fetch(url, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    const html = await response.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const nextMarketplace = doc.getElementById('marketplace');
+    const currentMarketplace = document.getElementById('marketplace');
+
+    if (!nextMarketplace || !currentMarketplace) {
+      window.location.href = link.href;
+      return;
+    }
+
+    currentMarketplace.innerHTML = nextMarketplace.innerHTML;
+    history.pushState(null, '', `${url}#marketplace`);
+    currentMarketplace.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    window.location.href = link.href;
+  }
+});
 
 function switchTab(tab) {
   const featuredPanel = document.getElementById('tab-featured');

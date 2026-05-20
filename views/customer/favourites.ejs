@@ -1,3 +1,4 @@
+<% locals.hideCatNav = true %>
 <%- include('../partials/header') %>
 
 <!-- Customer favourites page: saved merchants first, then saved services. -->
@@ -156,7 +157,7 @@
   </div>
 
   <!-- Favourite services: individual services saved from merchant details pages. -->
-  <div>
+  <div id="favourite-services" style="scroll-margin-top:var(--nav-h);">
 
     <div class="section-header">
 
@@ -178,7 +179,7 @@
         <div class="d-flex flex-wrap gap-2 mt-3 mb-4">
 
           <a
-            href="/favourite"
+            href="/favourite#favourite-services"
             class="btn btn-sm btn-pill <%= !selectedCategory ? 'btn-primary' : 'btn-outline-secondary' %>"
           >
             All
@@ -187,7 +188,7 @@
           <% categories.forEach(category => { %>
 
             <a
-              href="/favourite?category=<%= category %>"
+              href="/favourite?category=<%= category %>#favourite-services"
               class="btn btn-sm btn-pill <%= selectedCategory === category ? 'btn-primary' : 'btn-outline-secondary' %>"
             >
               <%= category %>
@@ -335,5 +336,18 @@
   </div>
 
 </div>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const servicesSection = document.getElementById('favourite-services');
+
+  if (params.has('category') && servicesSection) {
+    setTimeout(() => {
+      servicesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+  }
+});
+</script>
 
 <%- include('../partials/footer') %>
