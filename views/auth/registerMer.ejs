@@ -1,104 +1,338 @@
-﻿<% locals.hideCatNav = true %>
+<% locals.hideCatNav = true %>
 <%- include('../partials/header') %>
 
-<div style="min-height:80vh;display:flex;align-items:center;padding:3rem 1rem;background:var(--canvas);">
-  <div class="container">
-    <div class="row justify-content-center">
-      <div class="col-md-6 col-lg-5">
-        <div class="text-center mb-5">
-          <%- include('../partials/unidayLogo', { className: 'justify-content-center', size: 'sm' }) %>
-          <p style="color:var(--muted);margin-top:.5rem;margin-bottom:0;font-size:.875rem;">Create your merchant account today.</p>
-        </div>
+<style>
+  .merchant-register-page {
+    min-height: calc(100vh - var(--nav-h));
+    padding: 2.25rem 1rem 3rem;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(225,29,72,.08), transparent 30%),
+      radial-gradient(circle at 88% 8%, rgba(255,232,237,.9), transparent 34%),
+      var(--canvas);
+  }
 
-        <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:2rem;">
-          <% if (typeof query !== 'undefined' && query && query.registered) { %>
-          <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-            <i class="bi bi-check-circle me-2"></i>Account created! Please sign in.
-          </div>
-          <% } %>
-          <% if (error) { %>
-          <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
-            <i class="bi bi-exclamation-circle me-2"></i><%= error %>
-          </div>
-          <% } %>
+  .merchant-register-shell {
+    width: min(100%, 920px);
+    margin: 0 auto;
+  }
 
-          <form action="/auth/register" method="POST">
-            <input type="hidden" name="role" value="merchant" />
-            <div class="mb-3">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Full Name</label>
-              <input type="text" name="full_name" class="form-control rounded-xl" placeholder="e.g. Sarah Lim" required autofocus />
-            </div>
-            <div class="mb-3">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Business Name</label>
-              <input type="text" name="merchant_name" class="form-control rounded-xl" placeholder="e.g. Glow Studio" required />
-            </div>
-            <div class="mb-3">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Business UEN</label>
-              <input
-                type="text"
-                name="business_uen"
-                class="form-control rounded-xl"
-                placeholder="e.g. 123456789"
-                minlength="9"
-                maxlength="10"
-                pattern="[A-Za-z0-9]{9,10}"
-                inputmode="numeric"
-                title="Business UEN must be 9 to 10 letters or numbers."
-                required
-              />
-            </div>
-            <div class="mb-3">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Business Location</label>
-              <input type="text" name="address" class="form-control rounded-xl" placeholder="e.g. 23 Orchard Centre, Singapore 676767" required />
-            </div>
-            <div class="mb-3">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Email Address</label>
-              <input type="email" name="email" class="form-control rounded-xl" placeholder="you@example.com" required />
-            </div>
-            <div class="mb-3">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Business Contact</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-telephone me-1"></i>+65</span>
-                <input type="text" name="phone" class="form-control" placeholder="9XXXXXXX" />
-              </div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Password</label>
-              <input type="password" name="password" class="form-control rounded-xl" placeholder="Min. 6 characters" minlength="6" required />
-            </div>
-            <div class="mb-4">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Business Category</label>
-              <select name="category" class="form-select rounded-xl" required>
-                <option value="" selected disabled>Select a category</option>
-                <option value="Hair">Hair</option>
-                <option value="Nails">Nails</option>
-                <option value="Facial">Facial</option>
-                <option value="Massage">Massage</option>
-                <option value="Wellness">Wellness</option>
-                <option value="BodyAestheitcs">Body</option>
-                <option value="BodyAestheitcs">Aestheitcs</option>
-                <option value="Spa">Spa</option>
-              </select>
-            </div>
-            <button type="submit" class="btn btn-primary w-100 py-2 btn-pill" style="font-weight:700;">
-              <i class="bi bi-shop me-2"></i>Create Merchant Account
-            </button>
-          </form>
+  .merchant-register-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.2rem;
+  }
 
-          <div style="border-top:1px solid var(--border);margin:1.25rem 0;"></div>
-          <p class="text-center small mb-0" style="color:var(--muted);">
-            Already have an account?
-            <a href="/auth/login" style="font-weight:700;color:var(--accent);">Sign in</a>
-          </p>
-        </div>
+  .merchant-register-logo .uniday-logo {
+    flex-direction: column;
+    gap: .15rem;
+    align-items: center;
+  }
 
-        <p class="text-center small mt-3 mb-0" style="color:var(--ghost);">
-          <i class="bi bi-shield-check me-1" style="color:var(--success);"></i>
-          Your data is safe with Uniday
-        </p>
+  .merchant-register-logo .uniday-logo-mark {
+    display: none;
+  }
+
+  .merchant-register-logo .uniday-logo-text {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -.035em;
+    line-height: .95;
+    text-transform: lowercase;
+  }
+
+  .merchant-register-logo .uniday-logo::after {
+    content: 'BEAUTY & WELLNESS BOOKINGS';
+    color: var(--accent);
+    font-size: .55rem;
+    font-weight: 800;
+    letter-spacing: .18em;
+    line-height: 1;
+  }
+
+  .merchant-register-card {
+    width: min(100%, 760px);
+    margin: 0 auto;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(255,255,255,.78);
+    border-radius: 1.5rem;
+    box-shadow: 0 24px 60px rgba(35, 22, 26, .12);
+    padding: clamp(1.35rem, 4vw, 3rem);
+  }
+
+  .merchant-register-form {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .merchant-register-form .form-label {
+    font-size: 1rem;
+    font-weight: 800;
+    margin-bottom: .45rem;
+  }
+
+  .merchant-register-form .form-control,
+  .merchant-register-form .form-select,
+  .merchant-register-form .input-group-text {
+    min-height: 3rem;
+    border-radius: .8rem;
+    border-color: rgba(212, 201, 205, .9);
+    background-color: #fff;
+    font-size: 1rem;
+  }
+
+  .merchant-register-form .input-group-text {
+    gap: .4rem;
+    background: linear-gradient(135deg, #ffe8ed, #fff3f5);
+    color: var(--muted);
+    border-radius: .8rem 0 0 .8rem;
+    padding-inline: 1rem;
+  }
+
+  .merchant-register-form .input-group .form-control {
+    border-radius: 0 .8rem .8rem 0;
+  }
+
+  .merchant-upload {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-height: 5.25rem;
+    padding: 1rem 1.25rem;
+    border: 1.5px dashed rgba(225,29,72,.45);
+    border-radius: .9rem;
+    background: rgba(255,245,247,.45);
+    cursor: pointer;
+    transition: border-color .2s, background .2s, box-shadow .2s;
+  }
+
+  .merchant-upload:hover,
+  .merchant-upload:focus-within {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    box-shadow: 0 0 0 3px var(--accent-mid);
+  }
+
+  .merchant-upload input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .merchant-upload-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: .65rem;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.45rem;
+    flex: 0 0 auto;
+  }
+
+  .merchant-upload-title {
+    margin: 0;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.25;
+  }
+
+  .merchant-upload-note,
+  .merchant-help {
+    margin: .35rem 0 0;
+    color: var(--muted);
+    font-size: .875rem;
+    line-height: 1.45;
+  }
+
+  .merchant-password-wrap {
+    position: relative;
+  }
+
+  .merchant-password-wrap .form-control {
+    padding-right: 3rem;
+  }
+
+  .merchant-password-toggle {
+    position: absolute;
+    right: .85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .merchant-submit {
+    min-height: 3.25rem;
+    border-radius: .95rem !important;
+    font-size: 1rem;
+    justify-content: center;
+    margin-top: .1rem;
+  }
+
+  .merchant-register-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 1.05rem 0 1.1rem;
+  }
+
+  @media (max-width: 575px) {
+    .merchant-register-page {
+      padding: 1.5rem .75rem 2.25rem;
+    }
+
+    .merchant-register-card {
+      border-radius: 1.2rem;
+    }
+
+    .merchant-upload {
+      align-items: flex-start;
+      padding: .9rem;
+    }
+  }
+</style>
+
+<main class="merchant-register-page">
+  <div class="merchant-register-shell">
+    <div class="merchant-register-logo">
+      <%- include('../partials/unidayLogo', { className: 'justify-content-center', size: 'sm' }) %>
+    </div>
+
+    <div class="merchant-register-card">
+      <% if (typeof query !== 'undefined' && query && query.registered) { %>
+      <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+        <i class="bi bi-check-circle me-2"></i>Account created! Please sign in.
       </div>
+      <% } %>
+      <% if (error) { %>
+      <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+        <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+      </div>
+      <% } %>
+
+      <form action="/auth/register" method="POST" class="merchant-register-form">
+        <input type="hidden" name="role" value="merchant" />
+
+        <div>
+          <label class="form-label">Full Name</label>
+          <input type="text" name="full_name" class="form-control" placeholder="e.g. Sarah Lim" required autofocus />
+        </div>
+
+        <div>
+          <label class="form-label">Business Name</label>
+          <input type="text" name="merchant_name" class="form-control" placeholder="e.g. Glow Studio" required />
+        </div>
+
+        <div>
+          <label class="form-label">Outlet / Branch Name</label>
+          <input type="text" name="branch_name" class="form-control" placeholder="e.g. Main Outlet / Orchard Branch" />
+        </div>
+
+        <div>
+          <label class="form-label">Business UEN</label>
+          <input
+            type="text"
+            name="business_uen"
+            class="form-control"
+            placeholder="e.g. 202312345A"
+            minlength="9"
+            maxlength="10"
+            pattern="[A-Za-z0-9]{9,10}"
+            title="Business UEN must be 9 to 10 letters or numbers."
+            required
+          />
+        </div>
+
+        <div>
+          <label class="form-label">Upload ACRA Business Profile</label>
+          <label class="merchant-upload">
+            <input type="file" name="acra_profile" accept="application/pdf" />
+            <span class="merchant-upload-icon" aria-hidden="true"><i class="bi bi-file-earmark-arrow-up"></i></span>
+            <span>
+              <span class="merchant-upload-title d-block">Click to upload or drag and drop</span>
+              <span class="merchant-upload-note d-block">PDF (max. 10MB)</span>
+            </span>
+          </label>
+          <p class="merchant-help">Upload your latest ACRA Business Profile PDF for verification.</p>
+        </div>
+
+        <div>
+          <label class="form-label">Business Location</label>
+          <input type="text" name="address" class="form-control" placeholder="e.g. 23 Orchard Centre, Singapore 676767" required />
+        </div>
+
+        <div>
+          <label class="form-label">Email Address</label>
+          <input type="email" name="email" class="form-control" placeholder="you@example.com" required />
+        </div>
+
+        <div>
+          <label class="form-label">Business Contact</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-telephone"></i>+65 <i class="bi bi-chevron-down" style="font-size:.75rem;"></i></span>
+            <input type="text" name="phone" class="form-control" placeholder="9XXXXXXXX" />
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label">Password</label>
+          <div class="merchant-password-wrap">
+            <input type="password" name="password" id="merchantPassword" class="form-control" placeholder="Min. 6 characters" minlength="6" required />
+            <button type="button" class="merchant-password-toggle" aria-label="Show password" onclick="toggleMerchantPassword()">
+              <i class="bi bi-eye" id="merchantPasswordIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label">Business Category</label>
+          <select name="category" class="form-select" required>
+            <option value="Facial" selected>Facial</option>
+            <option value="Hair">Hair</option>
+            <option value="Nails">Nails</option>
+            <option value="Massage">Massage</option>
+            <option value="Wellness">Wellness</option>
+            <option value="BodyAestheitcs">Body</option>
+            <option value="BodyAestheitcs">Aestheitcs</option>
+            <option value="Spa">Spa</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 merchant-submit" style="font-weight:800;">
+          <i class="bi bi-shop"></i>Create Merchant Account
+        </button>
+      </form>
+
+      <div class="merchant-register-divider"></div>
+      <p class="text-center small mb-0" style="color:var(--muted);">
+        Already have an account?
+        <a href="/auth/login" style="font-weight:800;color:var(--accent);">Sign in</a>
+      </p>
     </div>
   </div>
-</div>
+</main>
+
+<script>
+function toggleMerchantPassword() {
+  const password = document.getElementById('merchantPassword');
+  const icon = document.getElementById('merchantPasswordIcon');
+
+  if (!password || !icon) return;
+
+  const isPassword = password.type === 'password';
+  password.type = isPassword ? 'text' : 'password';
+  icon.className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+}
+</script>
 
 <%- include('../partials/footer') %>
