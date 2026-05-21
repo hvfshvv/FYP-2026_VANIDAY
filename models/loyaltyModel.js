@@ -233,7 +233,8 @@ async function getEarnedPointsForBooking(bookingId) {
 // Awards booking points once, after a paid booking is confirmed/completed.
 async function awardBookingPoints(bookingId) {
   const [[booking]] = await db.query(
-    `SELECT booking_id, customer_id, total_amount
+    `SELECT booking_id, customer_id,
+            COALESCE(total_amount, 0) - COALESCE(discount_amount, 0) AS payable_amount
      FROM booking
      WHERE booking_id = ?`,
     [bookingId]
@@ -243,7 +244,7 @@ async function awardBookingPoints(bookingId) {
     return { awarded: false, reason: 'guest_booking' };
   }
 
-  const points = calculatePoints(booking.total_amount);
+  const points = calculatePoints(booking.payable_amount);
   if (!points) {
     return { awarded: false, reason: 'no_points' };
   }

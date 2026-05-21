@@ -1,4 +1,37 @@
 const db = require('../config/db');
+const voucherModel = require('./voucherModel');
+
+let bookingPromoSchemaReady = false;
+
+async function ensureBookingPromoSchema() {
+  if (bookingPromoSchemaReady) return;
+
+  const hasCol = async (col) => {
+    const [rows] = await db.query(
+      `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'booking' AND COLUMN_NAME = ?`,
+      [col]
+    );
+    return Number(rows[0]?.cnt) > 0;
+  };
+
+  const alterations = [
+    ['applied_promo_id',        'ALTER TABLE booking ADD COLUMN applied_promo_id INT NULL'],
+    ['discount_amount',         'ALTER TABLE booking ADD COLUMN discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00'],
+    ['applied_cv_id',           'ALTER TABLE booking ADD COLUMN applied_cv_id INT NULL'],
+    ['voucher_discount_amount', 'ALTER TABLE booking ADD COLUMN voucher_discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00'],
+  ];
+
+  for (const [col, sql] of alterations) {
+    if (!(await hasCol(col))) {
+      try { await db.query(sql); }
+      catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+    }
+  }
+
+  await voucherModel.ensureCustomerVoucherSchema();
+  bookingPromoSchemaReady = true;
+}
 
 async function createBooking({
   customerId = null,
@@ -195,12 +228,22 @@ async function assertNoCustomerBookingConflict(connection, {
 }
 
 async function getBookingById(bookingId) {
+  await ensureBookingPromoSchema();
   const [rows] = await db.query(
     `SELECT b.*,
             ts.slot_date  AS booking_date,
             ts.start_time AS booking_time,
             s.service_name, s.price, s.duration_mins,
-            COALESCE(b.total_amount, s.price) AS payable_amount,
+            COALESCE(b.total_amount, s.price)
+              - COALESCE(b.discount_amount, 0)
+              - COALESCE(b.voucher_discount_amount, 0) AS payable_amount,
+            COALESCE(b.discount_amount, 0) AS discount_amount,
+            COALESCE(b.voucher_discount_amount, 0) AS voucher_discount_amount,
+            b.applied_promo_id,
+            b.applied_cv_id,
+            pr.title        AS promo_title,
+            pr.discount_pct AS promo_discount_pct,
+            COALESCE(vch_applied.campaign_name, vch_applied.voucher_code) AS voucher_name,
             m.merchant_name,
             COALESCE(c.full_name, b.guest_name) AS customer_name,
             COALESCE(c.email, b.guest_email) AS customer_email,
@@ -210,6 +253,9 @@ async function getBookingById(bookingId) {
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
      LEFT JOIN customer c ON b.customer_id = c.customer_id
+     LEFT JOIN promotion pr ON pr.promo_id = b.applied_promo_id
+     LEFT JOIN customer_voucher cv_applied ON cv_applied.cv_id = b.applied_cv_id
+     LEFT JOIN voucher vch_applied ON vch_applied.voucher_id = cv_applied.voucher_id
      WHERE b.booking_id = ?`,
     [bookingId]
   );
@@ -522,13 +568,18 @@ async function getMerchantBookings(merchantId) {
 }
 
 async function getCustomerBookings(customerId) {
+  await ensureBookingPromoSchema();
   const [rows] = await db.query(
     `SELECT b.*,
             ts.slot_date  AS booking_date,
             ts.start_time AS booking_time,
             s.service_name,
             s.duration_mins,
-            COALESCE(b.total_amount, s.price) AS payable_amount,
+            COALESCE(b.total_amount, s.price)
+              - COALESCE(b.discount_amount, 0)
+              - COALESCE(b.voucher_discount_amount, 0) AS payable_amount,
+            COALESCE(b.discount_amount, 0) AS discount_amount,
+            COALESCE(b.voucher_discount_amount, 0) AS voucher_discount_amount,
             m.merchant_name,
             m.address AS merchant_address,
             p.payment_status,
@@ -547,6 +598,8 @@ async function getCustomerBookings(customerId) {
 }
 
 async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }) {
+  await expirePendingPaymentBookings();
+
   if (!merchantId || !serviceId || !bookingDate) return [];
 
   // Load service duration before building available time slots.
@@ -622,6 +675,82 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
   return slots;
 }
 
+async function applyPromotion(bookingId, promoId, discountAmount) {
+  await ensureBookingPromoSchema();
+  await db.query(
+    'UPDATE booking SET applied_promo_id = ?, discount_amount = ? WHERE booking_id = ?',
+    [promoId || null, discountAmount || 0, bookingId]
+  );
+}
+
+async function applyVoucher(bookingId, cvId, voucherDiscountAmount) {
+  await ensureBookingPromoSchema();
+  await db.query(
+    'UPDATE booking SET applied_cv_id = ?, voucher_discount_amount = ? WHERE booking_id = ?',
+    [cvId || null, voucherDiscountAmount || 0, bookingId]
+  );
+}
+
+async function expirePendingPaymentBookings(ttlMinutes = 5) {
+  await ensureBookingPromoSchema();
+
+  const safeTtl = Number.isFinite(Number(ttlMinutes)) && Number(ttlMinutes) > 0
+    ? Number(ttlMinutes)
+    : 5;
+
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [expired] = await connection.query(
+      `SELECT b.booking_id, b.slot_id
+       FROM booking b
+       LEFT JOIN payment p ON p.booking_id = b.booking_id
+        AND p.payment_status = 'paid'
+       WHERE b.status = 'pending_payment'
+         AND b.created_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)
+         AND p.payment_id IS NULL
+       FOR UPDATE`,
+      [safeTtl]
+    );
+
+    if (!expired.length) {
+      await connection.commit();
+      return 0;
+    }
+
+    const bookingIds = expired.map(row => row.booking_id);
+    const slotIds = expired.map(row => row.slot_id).filter(Boolean);
+
+    await connection.query(
+      `UPDATE booking
+       SET status = 'cancelled',
+           applied_cv_id = NULL,
+           voucher_discount_amount = 0
+       WHERE booking_id IN (?)`,
+      [bookingIds]
+    );
+
+    if (slotIds.length) {
+      await connection.query(
+        `UPDATE time_slot
+         SET is_available = TRUE
+         WHERE slot_id IN (?)`,
+        [slotIds]
+      );
+    }
+
+    await connection.commit();
+    return expired.length;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   createBooking,
   getBookingById,
@@ -633,5 +762,8 @@ module.exports = {
   rescheduleCustomerBooking,
   getMerchantBookings,
   getCustomerBookings,
-  getAvailableSlots
+  getAvailableSlots,
+  applyPromotion,
+  applyVoucher,
+  expirePendingPaymentBookings,
 };

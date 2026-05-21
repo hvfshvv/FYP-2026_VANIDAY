@@ -13,6 +13,7 @@ const marketplaceRoutes = require('./routes/marketplace');
 const whatsappRoutes    = require('./routes/whatsapp');
 const favouriteRoutes   = require('./routes/favourite');
 const loyaltyRoutes     = require('./routes/loyalty');
+const bookingModel      = require('./models/bookingModel');
 
 const app = express();
 
@@ -51,6 +52,19 @@ app.use('/whatsapp',   whatsappRoutes);
 app.use('/favourite', favouriteRoutes);
 app.use('/loyalty',    loyaltyRoutes);
 
+async function releaseExpiredPendingPayments() {
+  try {
+    const released = await bookingModel.expirePendingPaymentBookings();
+    if (released) {
+      console.log(`[booking] Released ${released} expired pending payment slot(s).`);
+    }
+  } catch (err) {
+    console.error('[booking] Failed to release expired pending payment slots:', err.message);
+  }
+}
+
+releaseExpiredPendingPayments();
+setInterval(releaseExpiredPendingPayments, 60 * 1000);
 
 app.use((req, res) => {
   res.status(404).render('404', { title: 'Page Not Found' });

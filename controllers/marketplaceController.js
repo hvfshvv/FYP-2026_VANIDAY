@@ -105,8 +105,6 @@ async function showMerchantDetails(req, res) {
       });
     }
 
-    const services = await merchantModel.getMerchantServices(merchantId);
-
     let favouriteServiceIds = [];
 
     if (req.session.user && req.session.user.role === 'customer') {
@@ -117,10 +115,16 @@ async function showMerchantDetails(req, res) {
         );
     }
 
+    const [services, merchantPromotions] = await Promise.all([
+      merchantModel.getMerchantServices(merchantId),
+      promotionModel.getMerchantApprovedPromotions(merchantId),
+    ]);
+
     res.render('marketplace/merchantDetails', {
       title: merchant.merchant_name,
       merchant,
       services,
+      merchantPromotions,
       favouriteServiceIds
     });
 

@@ -11,6 +11,8 @@ const { buildReceiptPdf } = require('../services/receiptPdfService');
 const bookingModel = require('../models/bookingModel');
 const paymentModel = require('../models/paymentModel');
 const loyaltyModel = require('../models/loyaltyModel');
+const promotionModel = require('../models/promotionModel');
+const voucherModel = require('../models/voucherModel');
 
 function hasGuestBookingAccess(req, bookingId) {
   // Allow guests to pay only for bookings created in their session.
@@ -39,6 +41,17 @@ function canAccessBooking(req, booking) {
   }
 
   return false;
+}
+
+function formatDateOnly(value) {
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  return String(value || '').slice(0, 10);
 }
 
 async function getAuthorizedBooking(req, res, bookingId, { json = false } = {}) {
@@ -75,22 +88,94 @@ async function confirmPaidBooking(bookingId) {
   } catch (err) {
     console.error('loyalty award failed:', err);
   }
+
+  try {
+    const booking = await bookingModel.getBookingById(bookingId);
+    // Only customer bookings can have vouchers; guest bookings have no customer_id.
+    if (booking && booking.applied_cv_id && booking.customer_id) {
+      const marked = await voucherModel.markVoucherUsed(booking.applied_cv_id, booking.customer_id);
+      if (!marked) {
+        // Already used (duplicate confirm call) or ownership mismatch; safe to continue.
+        console.warn('[voucher] cv_id %d not marked used for booking %d (already used or wrong owner)', booking.applied_cv_id, bookingId);
+      }
+    }
+  } catch (err) {
+    console.error('voucher mark-used failed:', err);
+  }
 }
 
 async function showCheckout(req, res) {
   const { bookingId } = req.params;
   try {
+    await bookingModel.expirePendingPaymentBookings();
+
     // Show checkout only for an authorized booking.
-    const booking = await getAuthorizedBooking(req, res, bookingId);
+    let booking = await getAuthorizedBooking(req, res, bookingId);
     if (!booking) return;
 
-    const payment  = await paymentModel.getPaymentByBooking(bookingId);
+    if (booking.status !== 'pending_payment') {
+      const message = 'This payment session has expired or is no longer payable. Please make a new booking.';
+      if (req.session.user && req.session.user.role === 'customer') {
+        return res.redirect('/book/viewBookings?error=' + encodeURIComponent(message));
+      }
+      return res.status(410).send(message);
+    }
+
+    // Auto-detect the best promotion for this booking's merchant, service, and date.
+    const bookingDate = formatDateOnly(booking.booking_date);
+    const baseAmount = Number(booking.total_amount || booking.price);
+
+    const promo = await promotionModel.getApplicablePromotionForBooking({
+      merchantId:  booking.merchant_id,
+      serviceId:   booking.service_id,
+      bookingDate,
+      baseAmount,
+    });
+
+    if (promo) {
+      const discountAmount = parseFloat((baseAmount * promo.discount_pct / 100).toFixed(2));
+      const promoChanged = String(booking.applied_promo_id) !== String(promo.promo_id)
+        || Number(booking.discount_amount) !== discountAmount;
+      if (promoChanged) {
+        await bookingModel.applyPromotion(bookingId, promo.promo_id, discountAmount);
+        booking = await bookingModel.getBookingById(bookingId);
+      }
+    } else if (booking.applied_promo_id) {
+      // Clear a stale promotion that no longer qualifies.
+      await bookingModel.applyPromotion(bookingId, null, 0);
+      booking = await bookingModel.getBookingById(bookingId);
+    }
+
+    const payment = await paymentModel.getPaymentByBooking(bookingId);
+
+    const user = req.session.user;
+    const eligibleVouchers = (user && user.role === 'customer')
+      ? await voucherModel.getEligibleCustomerVouchers(
+          user.customer_id || user.user_id,
+          booking.merchant_id
+        )
+      : [];
+
+    let appliedVoucher = booking.applied_cv_id
+      ? (eligibleVouchers.find(v => Number(v.cv_id) === Number(booking.applied_cv_id)) || null)
+      : null;
+
+    if (booking.applied_cv_id && !appliedVoucher) {
+      await bookingModel.applyVoucher(bookingId, null, 0);
+      booking = await bookingModel.getBookingById(bookingId);
+      appliedVoucher = null;
+    }
+
     res.render('payment/checkout', {
       title: 'Checkout',
       booking,
       payment,
+      appliedPromotion: promo || null,
+      eligibleVouchers,
+      appliedVoucher,
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
       webhookError: req.query.webhookError || null,
+      voucherError: req.query.voucherError || null,
     });
   } catch (err) {
     console.error('showCheckout error:', err);
@@ -394,6 +479,64 @@ async function paymentSuccess(req, res) {
   }
 }
 
+async function applyVoucher(req, res) {
+  const { bookingId } = req.params;
+  const cvId = req.body.cvId ? parseInt(req.body.cvId, 10) : null;
+
+  try {
+    await bookingModel.expirePendingPaymentBookings();
+
+    const booking = await getAuthorizedBooking(req, res, bookingId);
+    if (!booking) return;
+
+    if (booking.status !== 'pending_payment') {
+      return res.redirect('/book/viewBookings?error=' + encodeURIComponent('This payment session is no longer payable.'));
+    }
+
+    const user = req.session.user;
+    if (!user || user.role !== 'customer') {
+      return res.redirect(`/payment/checkout/${bookingId}`);
+    }
+
+    // Remove voucher when no cvId supplied.
+    if (!cvId) {
+      await bookingModel.applyVoucher(bookingId, null, 0);
+      return res.redirect(`/payment/checkout/${bookingId}`);
+    }
+
+    const customerId = user.customer_id || user.user_id;
+    const eligible = await voucherModel.getEligibleCustomerVouchers(customerId, booking.merchant_id);
+    const voucher = eligible.find(v => Number(v.cv_id) === cvId);
+
+    if (!voucher) {
+      return res.redirect(`/payment/checkout/${bookingId}?voucherError=` + encodeURIComponent('This voucher is not available for this booking.'));
+    }
+
+    // Base after promotion discount, before any voucher discount.
+    const base = Number(booking.total_amount || booking.price);
+    const promoDiscount = Number(booking.discount_amount || 0);
+    const afterPromo = base - promoDiscount;
+
+    if (voucher.min_spend && afterPromo < Number(voucher.min_spend)) {
+      return res.redirect(`/payment/checkout/${bookingId}?voucherError=` + encodeURIComponent(`Minimum spend of S$${Number(voucher.min_spend).toFixed(2)} required.`));
+    }
+
+    let voucherDiscount;
+    if (voucher.discount_type === 'percent') {
+      voucherDiscount = parseFloat((afterPromo * Number(voucher.discount_value) / 100).toFixed(2));
+    } else {
+      voucherDiscount = Math.min(Number(voucher.discount_value), afterPromo);
+    }
+    voucherDiscount = parseFloat(Math.min(voucherDiscount, afterPromo).toFixed(2));
+
+    await bookingModel.applyVoucher(bookingId, cvId, voucherDiscount);
+    return res.redirect(`/payment/checkout/${bookingId}`);
+  } catch (err) {
+    console.error('applyVoucher error:', err);
+    return res.redirect(`/payment/checkout/${bookingId}`);
+  }
+}
+
 async function downloadReceipt(req, res) {
   const { bookingId } = req.params;
   try {
@@ -427,5 +570,6 @@ module.exports = {
   handleStripeWebhook,
   paymentSuccess,
   downloadReceipt,
+  applyVoucher,
 };
 

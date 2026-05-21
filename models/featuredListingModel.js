@@ -30,13 +30,15 @@ async function getFeaturedListings(category = null) {
        m.merchant_name,
        m.address,
        m.category,
-       p.title AS promo_title
+       p.title AS promo_title,
+       p.discount_pct
      FROM featured_listing fl
      JOIN merchant m   ON fl.merchant_id = m.merchant_id
      JOIN users u ON u.user_id = m.user_id
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
        AND p.approval_status = 'approved'
        AND p.is_active = 1
+       AND p.discount_pct > 0
        AND p.start_date <= CURDATE()
        AND p.end_date >= CURDATE()
        AND (
@@ -65,6 +67,7 @@ async function getMerchantListing(merchantId) {
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
        AND p.approval_status = 'approved'
        AND p.is_active = 1
+       AND p.discount_pct > 0
        AND p.start_date <= CURDATE()
        AND p.end_date >= CURDATE()
        AND (
