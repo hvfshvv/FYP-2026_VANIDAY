@@ -1,4 +1,5 @@
 const favouriteModel = require('../models/favouriteModel');
+const { SERVICE_CATEGORIES, normalizeServiceCategory } = require('../utils/serviceCategories');
 
 
 // Adds the selected merchant for the current customer, then returns to the same page.
@@ -39,23 +40,11 @@ async function removeMerchantFavourite(req, res) {
   }
 }
 
-// Category buttons shown on the favourites page for filtering saved services.
-const CATEGORIES = [
-  'Hair',
-  'Nails',
-  'Facial',
-  'Massage',
-  'Wellness',
-  'Body',
-  'Aesthetics',
-  'Spa'
-];
-
 // Loads both favourite merchants and favourite services for the customer.
 async function showFavourites(req, res) {
   try {
     const customerId = req.session.user.customer_id;
-    const selectedCategory = req.query.category || null;
+    const selectedCategory = normalizeServiceCategory(req.query.category);
 
     const merchants = await favouriteModel.getFavouriteMerchants(customerId);
     const services = await favouriteModel.getFavouriteServices(
@@ -67,7 +56,7 @@ async function showFavourites(req, res) {
       title: 'My Favourites',
       merchants,
       services,
-      categories: CATEGORIES,
+      categories: SERVICE_CATEGORIES,
       selectedCategory
     });
 

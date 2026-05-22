@@ -258,8 +258,8 @@ async function seed() {
     if (!existS.length) {
       for (const s of m.services) {
         await db.execute(
-          'INSERT INTO service (merchant_id, service_name, description, price, duration_mins, is_active) VALUES (?, ?, ?, ?, ?, ?)',
-          [merchantId, s.name, s.desc, s.price, s.dur, 1]
+          'INSERT INTO service (merchant_id, service_name, description, category, price, duration_mins, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [merchantId, s.name, s.desc, s.category || m.biz.category, s.price, s.dur, 1]
         );
       }
     }

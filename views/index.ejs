@@ -147,7 +147,7 @@
       <div class="row g-3">
         <% featured.forEach(listing => { %>
         <div class="col-lg-3 col-md-6">
-          <a href="/marketplace/merchant/<%= listing.merchant_id %>" class="merchant-card featured-merchant-card">
+          <a href="/marketplace/merchant/<%= listing.merchant_id %><%= selectedCategory ? '?category=' + encodeURIComponent(selectedCategory) : '' %>" class="merchant-card featured-merchant-card">
             <% if (listing.image_path) { %>
             <div class="card-img-wrapper">
               <img src="<%= listing.image_path %>" class="card-img" alt="<%= listing.merchant_name %>" loading="lazy" />
@@ -243,7 +243,7 @@
       <div class="row g-3">
         <% merchants.forEach(merchant => { %>
           <div class="col-lg-3 col-md-6">
-            <a href="/marketplace/merchant/<%= merchant.merchant_id %>" class="merchant-card" style="position:relative;">
+            <a href="/marketplace/merchant/<%= merchant.merchant_id %><%= selectedCategory ? '?category=' + encodeURIComponent(selectedCategory) : '' %>" class="merchant-card" style="position:relative;">
               <% if (user && user.role === 'customer') { %>
                 <% const isFav = favouriteMerchantIds && favouriteMerchantIds.includes(merchant.merchant_id); %>
                 <form
@@ -272,7 +272,7 @@
                 </div>
                 <p class="card-meta"><%= merchant.description || 'Beauty and wellness merchant' %></p>
                 <div class="discount-pill">
-                  <i class="bi bi-grid"></i><%= merchant.category || 'General' %>
+                  <i class="bi bi-grid"></i><%= merchant.service_categories || merchant.category || 'General' %>
                 </div>
                 <div class="info-row">
                   <i class="bi bi-geo-alt"></i>

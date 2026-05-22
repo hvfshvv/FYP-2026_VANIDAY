@@ -2,15 +2,10 @@ const featuredListingModel = require('../models/featuredListingModel');
 const promotionModel = require('../models/promotionModel');
 const merchantModel = require('../models/merchantModel');
 const favouriteModel = require('../models/favouriteModel');
-
-const MARKETPLACE_CATEGORIES = ['Hair', 'Nails', 'Facial', 'Massage', 'Wellness', 'Body', 'Aesthetics', 'Spa'];
+const { SERVICE_CATEGORIES, normalizeServiceCategory } = require('../utils/serviceCategories');
 
 function getSelectedCategory(req) {
-  const requested = String(req.query.category || '').trim();
-
-  return MARKETPLACE_CATEGORIES.find(
-    category => category.toLowerCase() === requested.toLowerCase()
-  ) || null;
+  return normalizeServiceCategory(req.query.category);
 }
 
 async function showHome(req, res) {
@@ -66,7 +61,7 @@ async function showMarketplace(req, res) {
       promotions,
       merchants,
       selectedCategory,
-      categories: MARKETPLACE_CATEGORIES,
+      categories: SERVICE_CATEGORIES,
       favouriteMerchantIds
     });
 
@@ -79,7 +74,7 @@ async function showMarketplace(req, res) {
       promotions: [],
       merchants: [],
       selectedCategory: null,
-      categories: MARKETPLACE_CATEGORIES,
+      categories: SERVICE_CATEGORIES,
       favouriteMerchantIds: []
     });
   }
@@ -115,16 +110,28 @@ async function showMerchantDetails(req, res) {
         );
     }
 
-    const [services, merchantPromotions] = await Promise.all([
+    const [merchantServices, merchantPromotions] = await Promise.all([
       merchantModel.getMerchantServices(merchantId),
       promotionModel.getMerchantApprovedPromotions(merchantId),
     ]);
+    const services = merchantServices.map(service => ({
+      ...service,
+      category: normalizeServiceCategory(service.category) || service.category,
+    }));
+    const selectedServiceCategory = getSelectedCategory(req);
+    const serviceCategories = [...new Set(
+      services
+        .map(service => normalizeServiceCategory(service.category))
+        .filter(Boolean)
+    )];
 
     res.render('marketplace/merchantDetails', {
       title: merchant.merchant_name,
       merchant,
       services,
       merchantPromotions,
+      serviceCategories,
+      selectedServiceCategory,
       favouriteServiceIds
     });
 

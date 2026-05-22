@@ -248,12 +248,13 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
       rangeParams
     ).then(([rows]) => rows),
     db.query(
-      `SELECT COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category, COALESCE(SUM(p.amount), 0) AS revenue
+      `SELECT COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category, COALESCE(SUM(p.amount), 0) AS revenue
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
+       JOIN service s ON s.service_id = b.service_id
        JOIN merchant m ON m.merchant_id = b.merchant_id
        WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
-       GROUP BY COALESCE(NULLIF(m.category, ''), 'Uncategorised')
+       GROUP BY COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised')
        ORDER BY revenue DESC`,
       rangeParams
     ).then(([rows]) => rows),
@@ -699,13 +700,14 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
       rangeParams
     ).then(([rows]) => rows),
     db.query(
-      `SELECT COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category, COALESCE(SUM(p.amount), 0) AS total
+      `SELECT COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category, COALESCE(SUM(p.amount), 0) AS total
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
+       JOIN service s ON s.service_id = b.service_id
        JOIN merchant m ON m.merchant_id = b.merchant_id
        JOIN users u ON u.user_id = b.customer_id
        WHERE u.role = 'customer' AND p.payment_status = 'paid' AND ${paymentDateFilter}
-       GROUP BY COALESCE(NULLIF(m.category, ''), 'Uncategorised')
+       GROUP BY COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised')
        ORDER BY total DESC`,
       rangeParams
     ).then(([rows]) => rows),
@@ -722,14 +724,14 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
       rangeParams
     ).then(([rows]) => rows),
     db.query(
-      `SELECT s.service_name, COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
+      `SELECT s.service_name, COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category,
               COUNT(*) AS bookings, COALESCE(SUM(b.total_amount), 0) AS spent
        FROM booking b
        JOIN users u ON u.user_id = b.customer_id
        JOIN service s ON s.service_id = b.service_id
        JOIN merchant m ON m.merchant_id = b.merchant_id
        WHERE u.role = 'customer' AND ${bookingDateFilter}
-       GROUP BY s.service_id, s.service_name, m.category
+       GROUP BY s.service_id, s.service_name, s.category, m.category
        ORDER BY bookings DESC, spent DESC
        LIMIT 8`,
       rangeParams
@@ -755,13 +757,13 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
        LIMIT 8`
     ).then(([rows]) => rows),
     db.query(
-      `SELECT s.service_name, m.merchant_name, COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
+      `SELECT s.service_name, m.merchant_name, COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category,
               COUNT(b.booking_id) AS bookings
        FROM service s
        JOIN merchant m ON m.merchant_id = s.merchant_id
        LEFT JOIN booking b ON b.service_id = s.service_id
        WHERE s.is_active = TRUE
-       GROUP BY s.service_id, s.service_name, m.merchant_name, m.category
+       GROUP BY s.service_id, s.service_name, s.category, m.merchant_name, m.category
        ORDER BY bookings DESC
        LIMIT 8`
     ).then(([rows]) => rows),

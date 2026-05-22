@@ -18,7 +18,7 @@
 
   <p>
     <strong>Category:</strong>
-    <%= merchant.category || 'General' %>
+    <%= merchant.service_categories || merchant.category || 'General' %>
   </p>
 
   <p>
@@ -54,12 +54,38 @@
     </p>
 
   <% } else { %>
+    <% if (serviceCategories && serviceCategories.length > 1) { %>
+    <nav class="service-filter-panel mb-4" aria-label="Filter services by category">
+      <div class="service-filter-inner">
+        <button
+          type="button"
+          class="service-filter-link <%= !selectedServiceCategory ? 'active' : '' %>"
+          data-service-category=""
+        >
+          <i class="bi bi-grid-3x3-gap"></i>All
+        </button>
+        <% serviceCategories.forEach(category => { %>
+        <button
+          type="button"
+          class="service-filter-link <%= selectedServiceCategory === category ? 'active' : '' %>"
+          data-service-category="<%= category %>"
+        >
+          <i class="bi bi-tag"></i><%= category %>
+        </button>
+        <% }) %>
+      </div>
+    </nav>
+    <% } %>
 
-    <div class="row g-3">
+    <div class="row g-3" id="merchant-service-list">
 
       <% services.forEach(service => { %>
 
-        <div class="col-md-6 col-lg-4">
+        <div
+          class="col-md-6 col-lg-4 merchant-service-item"
+          data-service-category="<%= service.category || '' %>"
+          style="<%= selectedServiceCategory && selectedServiceCategory !== service.category ? 'display:none;' : '' %>"
+        >
 
           <div class="promo-card h-100" style="position:relative;">
 
@@ -103,6 +129,9 @@
             <p class="small text-muted">
               <%= service.description || 'No description available.' %>
             </p>
+            <p class="small mb-2" style="color:var(--accent);font-weight:700;">
+              <i class="bi bi-grid me-1"></i><%= service.category || merchant.category || 'General' %>
+            </p>
 
             <p>
               <strong>
@@ -128,6 +157,13 @@
       <% }) %>
 
     </div>
+
+    <p
+      id="empty-service-filter-message"
+      style="color:var(--muted);display:<%= selectedServiceCategory && !services.some(service => service.category === selectedServiceCategory) ? 'block' : 'none' %>;"
+    >
+      No services found for this category.
+    </p>
 
   <% } %>
 
@@ -197,5 +233,31 @@
   <% } %>
 
 </div>
+
+<script>
+document.addEventListener('click', event => {
+  const button = event.target.closest('[data-service-category]');
+  if (!button) return;
+
+  const category = button.dataset.serviceCategory || '';
+  const items = Array.from(document.querySelectorAll('.merchant-service-item'));
+  const emptyMessage = document.getElementById('empty-service-filter-message');
+  let visibleCount = 0;
+
+  document.querySelectorAll('.service-filter-link').forEach(link => {
+    link.classList.toggle('active', link === button);
+  });
+
+  items.forEach(item => {
+    const matches = !category || item.dataset.serviceCategory === category;
+    item.style.display = matches ? '' : 'none';
+    if (matches) visibleCount += 1;
+  });
+
+  if (emptyMessage) {
+    emptyMessage.style.display = visibleCount ? 'none' : 'block';
+  }
+});
+</script>
 
 <%- include('../partials/footer') %>

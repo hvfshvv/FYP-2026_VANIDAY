@@ -3,7 +3,14 @@ const { withResolvedMerchantImage } = require('../utils/merchantImages');
 
 async function getMerchantById(merchantId) {
   const [rows] = await db.query(
-    `SELECT m.*
+    `SELECT
+       m.*,
+       COALESCE((
+         SELECT GROUP_CONCAT(DISTINCT NULLIF(s.category, '') ORDER BY s.category SEPARATOR ', ')
+         FROM service s
+         WHERE s.merchant_id = m.merchant_id
+           AND s.is_active = 1
+       ), NULLIF(m.category, '')) AS service_categories
      FROM merchant m
      JOIN users u ON u.user_id = m.user_id
      WHERE m.merchant_id = ?
@@ -30,7 +37,13 @@ async function getAllActiveMerchants(category = null) {
   let categoryFilter = '';
 
   if (category) {
-    categoryFilter = ' AND LOWER(m.category) = LOWER(?)';
+    categoryFilter = `AND EXISTS (
+      SELECT 1
+      FROM service sf
+      WHERE sf.merchant_id = m.merchant_id
+        AND sf.is_active = 1
+        AND LOWER(sf.category) = LOWER(?)
+    )`;
     params.push(category);
   }
 
@@ -40,15 +53,28 @@ async function getAllActiveMerchants(category = null) {
       m.merchant_name,
       m.description,
       m.category,
+      COALESCE(
+        GROUP_CONCAT(DISTINCT NULLIF(s.category, '') ORDER BY s.category SEPARATOR ', '),
+        NULLIF(m.category, '')
+      ) AS service_categories,
       m.address,
       m.contact_no,
       m.profile_image AS image_path
     FROM merchant m
     JOIN users u ON u.user_id = m.user_id
+    LEFT JOIN service s ON s.merchant_id = m.merchant_id AND s.is_active = 1
     WHERE m.is_active = 1
       AND u.status = 'active'
       AND m.verification_status = 'approved'
       ${categoryFilter}
+    GROUP BY
+      m.merchant_id,
+      m.merchant_name,
+      m.description,
+      m.category,
+      m.address,
+      m.contact_no,
+      m.profile_image
     ORDER BY m.merchant_name
   `, params);
 

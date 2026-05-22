@@ -9,7 +9,13 @@ async function getFeaturedListings(category = null) {
   let categoryFilter = '';
 
   if (category) {
-    categoryFilter = ' AND LOWER(m.category) = LOWER(?)';
+    categoryFilter = `AND EXISTS (
+      SELECT 1
+      FROM service sf
+      WHERE sf.merchant_id = m.merchant_id
+        AND sf.is_active = 1
+        AND LOWER(sf.category) = LOWER(?)
+    )`;
     params.push(category);
   }
 
@@ -30,11 +36,16 @@ async function getFeaturedListings(category = null) {
        m.merchant_name,
        m.address,
        m.category,
+       COALESCE(
+         GROUP_CONCAT(DISTINCT NULLIF(svc.category, '') ORDER BY svc.category SEPARATOR ', '),
+         NULLIF(m.category, '')
+       ) AS service_categories,
        p.title AS promo_title,
        p.discount_pct
      FROM featured_listing fl
      JOIN merchant m   ON fl.merchant_id = m.merchant_id
      JOIN users u ON u.user_id = m.user_id
+     LEFT JOIN service svc ON svc.merchant_id = m.merchant_id AND svc.is_active = 1
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
        AND p.approval_status = 'approved'
        AND p.is_active = 1
@@ -51,6 +62,23 @@ async function getFeaturedListings(category = null) {
        AND u.status = 'active'
        AND m.verification_status = 'approved'
        ${categoryFilter}
+     GROUP BY
+       fl.listing_id,
+       fl.merchant_id,
+       fl.promo_id,
+       fl.title,
+       fl.description,
+       fl.display_order,
+       fl.is_visible,
+       fl.start_date,
+       fl.end_date,
+       fl.created_at,
+       m.profile_image,
+       m.merchant_name,
+       m.address,
+       m.category,
+       p.title,
+       p.discount_pct
      ORDER BY fl.display_order ASC, fl.created_at DESC`,
     params
   );

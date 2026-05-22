@@ -235,6 +235,64 @@ a:hover { color: var(--accent-dark); }
 }
 @media (max-width: 768px) { .cat-strip-inner { padding: 0 1rem; } }
 
+.service-filter-panel {
+  display: inline-flex;
+  max-width: 100%;
+  padding: .35rem;
+  background: rgba(255,255,255,.82);
+  border: 1px solid rgba(226,214,218,.9);
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(35,22,26,.06);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.service-filter-panel::-webkit-scrollbar { display: none; }
+.service-filter-inner {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+.service-filter-link {
+  min-height: 2.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  padding: .55rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .16s, color .16s, border-color .16s, box-shadow .16s;
+}
+.service-filter-link i { font-size: .9rem; }
+.service-filter-link:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.service-filter-link.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(225,29,72,.2);
+}
+.service-filter-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (max-width: 575px) {
+  .service-filter-panel {
+    display: flex;
+    border-radius: 1rem;
+  }
+}
+
 /* ─── 6. BUTTONS ─────────────────────────────── */
 .btn {
   font-family: var(--font-sans); font-size: .9375rem; font-weight: 600;

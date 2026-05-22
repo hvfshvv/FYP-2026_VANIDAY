@@ -158,13 +158,29 @@ async function getActivePromotions(category = null) {
   let categoryFilter = '';
 
   if (category) {
-    categoryFilter = ' AND LOWER(m.category) = LOWER(?)';
-    params.push(category);
+    categoryFilter = `AND (
+         (p.service_id IS NOT NULL AND LOWER(COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''))) = LOWER(?))
+         OR (
+           p.service_id IS NULL
+           AND EXISTS (
+             SELECT 1
+             FROM service sf
+             WHERE sf.merchant_id = m.merchant_id
+               AND sf.is_active = 1
+               AND LOWER(sf.category) = LOWER(?)
+           )
+         )
+       )`;
+    params.push(category, category);
   }
 
   // Show only approved promotions that are active today.
   const [rows] = await db.query(
-    `SELECT p.*, m.merchant_name, m.category, s.service_name
+    `SELECT
+       p.*,
+       m.merchant_name,
+       COALESCE(NULLIF(s.category, ''), NULLIF(m.category, '')) AS category,
+       s.service_name
      FROM promotion p
      JOIN merchant m ON p.merchant_id = m.merchant_id
      LEFT JOIN service s ON p.service_id = s.service_id
