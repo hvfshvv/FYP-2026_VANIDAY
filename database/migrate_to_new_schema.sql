@@ -116,8 +116,8 @@ CREATE TABLE IF NOT EXISTS time_slot (
 CREATE TABLE IF NOT EXISTS cancellation_policy (
     policy_id INT AUTO_INCREMENT PRIMARY KEY,
     merchant_id INT NOT NULL UNIQUE,
-    min_cancel_hours INT NOT NULL DEFAULT 24,
-    refund_percentage DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    min_cancel_hours INT NOT NULL DEFAULT 6,
+    refund_percentage DECIMAL(5,2) NOT NULL DEFAULT 100.00,
     allow_reschedule BOOLEAN DEFAULT TRUE,
     is_active BOOLEAN DEFAULT TRUE,
     FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)

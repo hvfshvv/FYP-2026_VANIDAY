@@ -13,6 +13,7 @@ const paymentModel = require('../models/paymentModel');
 const loyaltyModel = require('../models/loyaltyModel');
 const promotionModel = require('../models/promotionModel');
 const voucherModel = require('../models/voucherModel');
+const cancellationPolicyModel = require('../models/cancellationPolicyModel');
 
 function hasGuestBookingAccess(req, bookingId) {
   // Allow guests to pay only for bookings created in their session.
@@ -300,6 +301,7 @@ async function showCheckout(req, res) {
     const appliedPromotion = promoSync.appliedPromotion;
 
     const payment = await paymentModel.getPaymentByBooking(bookingId);
+    const cancellationPolicy = await cancellationPolicyModel.getPolicyByMerchantId(booking.merchant_id);
 
     const user = req.session.user;
     let voucherOptions = [];
@@ -321,6 +323,8 @@ async function showCheckout(req, res) {
       booking,
       payment,
       appliedPromotion,
+      cancellationPolicy,
+      cancellationPolicySummary: cancellationPolicyModel.getPolicySummary(cancellationPolicy),
       eligibleVouchers: voucherOptions,
       voucherOptions,
       appliedVoucher,

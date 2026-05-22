@@ -30,6 +30,27 @@
     return new Date(createdAt.getTime() + 5 * 60 * 1000).toISOString();
   }
 
+  function bookingStartDate(booking) {
+    const rawDate = new Date(booking.booking_date);
+    if (Number.isNaN(rawDate.getTime())) return null;
+    const year = rawDate.getFullYear();
+    const month = String(rawDate.getMonth() + 1).padStart(2, '0');
+    const day = String(rawDate.getDate()).padStart(2, '0');
+    return new Date(`${year}-${month}-${day}T${formatTime(booking.booking_time)}:00`);
+  }
+
+  function cancellationDeadlineIso(booking) {
+    const startsAt = bookingStartDate(booking);
+    if (!startsAt || Number.isNaN(startsAt.getTime())) return '';
+    const hours = Number(booking.min_cancel_hours || 6);
+    return new Date(startsAt.getTime() - hours * 60 * 60 * 1000).toISOString();
+  }
+
+  function canCancelByPolicy(booking) {
+    const deadline = new Date(cancellationDeadlineIso(booking));
+    return !Number.isNaN(deadline.getTime()) && Date.now() <= deadline.getTime();
+  }
+
   const isUpcomingBooking = booking => new Date(booking.booking_date) >= new Date(new Date().toDateString());
   const currentBookings = bookingList.filter(booking =>
     booking.status === 'pending_payment'
@@ -92,7 +113,7 @@
             <p class="section-label mb-2 mt-4">History</p>
             <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
           <% } %>
-          <div class="p-4" style="<%= sectionIndex ? 'border-top:1px solid var(--border);' : '' %>">
+          <div class="p-4 booking-entry" style="<%= sectionIndex ? 'border-top:1px solid var(--border);' : '' %>">
             <div class="d-flex flex-wrap justify-content-between gap-3">
               <div>
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -119,6 +140,22 @@
                   <span><i class="bi bi-person-badge me-1" style="color:var(--accent);"></i><%= booking.staff_name || 'Any Available Staff' %></span>
                   <span><i class="bi bi-hourglass-split me-1" style="color:var(--accent);"></i><%= booking.duration_mins || 60 %> mins</span>
                 </div>
+                <% if (canManage) { %>
+                <div class="mt-3 rounded-xl p-3" style="background:var(--canvas);border:1px solid var(--border);">
+                  <p style="color:var(--muted);font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem;">Cancellation Policy</p>
+                  <p style="color:var(--ink);font-size:.875rem;font-weight:700;margin-bottom:.35rem;">
+                    Cancel at least <%= booking.min_cancel_hours || 6 %> hours before your appointment for <%= Number(booking.refund_percentage || 100).toFixed(0) %>% refund.
+                  </p>
+                  <span
+                    class="badge rounded-pill cancellation-policy-timer"
+                    data-deadline-at="<%= cancellationDeadlineIso(booking) %>"
+                    style="background:<%= canCancelByPolicy(booking) ? 'var(--accent-light)' : 'var(--danger-bg)' %>;color:<%= canCancelByPolicy(booking) ? 'var(--accent)' : 'var(--danger)' %>;"
+                  >
+                    <i class="bi bi-hourglass-split me-1"></i>
+                    <span data-cancel-countdown><%= canCancelByPolicy(booking) ? 'Cancel window open' : 'Cancellation window closed' %></span>
+                  </span>
+                </div>
+                <% } %>
               </div>
 
               <div class="text-md-end">
@@ -137,11 +174,13 @@
                 <% } %>
                 <% if (canManage) { %>
                   <div class="d-flex flex-wrap gap-2 justify-content-md-end mt-2">
+                    <% if (Number(booking.allow_reschedule) === 1) { %>
                     <a href="/book/<%= booking.booking_id %>/reschedule" class="btn btn-outline-secondary btn-sm btn-pill">
                       <i class="bi bi-calendar-event me-1"></i>Reschedule
                     </a>
+                    <% } %>
                     <form action="/book/<%= booking.booking_id %>/cancel" method="POST" onsubmit="return confirm('Cancel this booking?');">
-                      <button type="submit" class="btn btn-outline-danger btn-sm btn-pill">
+                      <button type="submit" class="btn btn-outline-danger btn-sm btn-pill" data-cancel-button <%= canCancelByPolicy(booking) ? '' : 'disabled' %>>
                         <i class="bi bi-x-circle me-1"></i>Cancel
                       </button>
                     </form>
@@ -196,6 +235,46 @@
 
     render();
     setInterval(render, 1000);
+  })();
+
+  (() => {
+    const timers = Array.from(document.querySelectorAll('.cancellation-policy-timer'));
+    if (!timers.length) return;
+
+    const renderDuration = milliseconds => {
+      const totalMinutes = Math.max(0, Math.ceil(milliseconds / 60000));
+      const days = Math.floor(totalMinutes / 1440);
+      const hours = Math.floor((totalMinutes % 1440) / 60);
+      const minutes = totalMinutes % 60;
+
+      if (days > 0) return `${days}d ${hours}h left to cancel`;
+      if (hours > 0) return `${hours}h ${minutes}m left to cancel`;
+      return `${minutes}m left to cancel`;
+    };
+
+    const render = () => {
+      timers.forEach(timer => {
+        const output = timer.querySelector('[data-cancel-countdown]');
+        const deadline = new Date(timer.dataset.deadlineAt || '').getTime();
+        const remaining = deadline - Date.now();
+        const entry = timer.closest('.booking-entry');
+        const cancelButton = entry ? entry.querySelector('[data-cancel-button]') : null;
+
+        if (Number.isNaN(deadline) || remaining <= 0) {
+          if (output) output.textContent = 'Cancellation window closed';
+          timer.style.background = 'var(--danger-bg)';
+          timer.style.color = 'var(--danger)';
+          if (cancelButton) cancelButton.disabled = true;
+          return;
+        }
+
+        if (output) output.textContent = renderDuration(remaining);
+        if (cancelButton) cancelButton.disabled = false;
+      });
+    };
+
+    render();
+    setInterval(render, 60000);
   })();
 </script>
 

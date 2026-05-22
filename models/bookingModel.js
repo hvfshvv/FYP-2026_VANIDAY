@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const voucherModel = require('./voucherModel');
+const cancellationPolicyModel = require('./cancellationPolicyModel');
 
 let bookingPromoSchemaReady = false;
 
@@ -532,7 +533,7 @@ async function cancelCustomerBooking(bookingId, customerId) {
     await lockCustomerForBooking(connection, customerId);
 
     const [[booking]] = await connection.query(
-      `SELECT b.booking_id, b.slot_id, b.status, ts.slot_date, ts.start_time
+      `SELECT b.booking_id, b.slot_id, b.status, b.merchant_id, ts.slot_date, ts.start_time
        FROM booking b
        JOIN time_slot ts ON b.slot_id = ts.slot_id
        WHERE b.booking_id = ? AND b.customer_id = ?
@@ -553,6 +554,14 @@ async function cancelCustomerBooking(bookingId, customerId) {
 
     if (slotDateTime < new Date()) {
       throw new Error('Past bookings cannot be cancelled');
+    }
+
+    const policy = await cancellationPolicyModel.getPolicyByMerchantId(booking.merchant_id, connection);
+    if (policy.is_active) {
+      const cancelDeadline = new Date(slotDateTime.getTime() - policy.min_cancel_hours * 60 * 60 * 1000);
+      if (new Date() > cancelDeadline) {
+        throw new Error(`This booking can only be cancelled at least ${policy.min_cancel_hours} hours before the appointment.`);
+      }
     }
 
     await connection.query('UPDATE booking SET status = ? WHERE booking_id = ?', ['cancelled', bookingId]);
@@ -589,6 +598,11 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
 
     if (['cancelled', 'payment_failed', 'completed', 'no_show'].includes(booking.status)) {
       throw new Error('This booking cannot be rescheduled');
+    }
+
+    const policy = await cancellationPolicyModel.getPolicyByMerchantId(booking.merchant_id, connection);
+    if (policy.is_active && !policy.allow_reschedule) {
+      throw new Error('This merchant does not allow rescheduling through the platform.');
     }
 
     const requestedSlot = new Date(`${bookingDate}T${String(bookingTime).slice(0, 5)}:00`);
@@ -735,6 +749,10 @@ async function getCustomerBookings(customerId) {
             p.payment_status,
             p.payment_ref,
             p.transaction_ref,
+            COALESCE(CASE WHEN cp.is_active = 1 THEN cp.min_cancel_hours END, 6) AS min_cancel_hours,
+            COALESCE(CASE WHEN cp.is_active = 1 THEN cp.refund_percentage END, 100.00) AS refund_percentage,
+            COALESCE(CASE WHEN cp.is_active = 1 THEN cp.allow_reschedule END, 1) AS allow_reschedule,
+            COALESCE(cp.is_active, 1) AS cancellation_policy_active,
             mr.review_id AS merchant_review_id,
             pf.feedback_id AS platform_feedback_id
      FROM booking b
@@ -743,6 +761,7 @@ async function getCustomerBookings(customerId) {
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
      LEFT JOIN staff st ON st.staff_id = b.staff_id
      LEFT JOIN payment p ON p.booking_id = b.booking_id
+     LEFT JOIN cancellation_policy cp ON cp.merchant_id = b.merchant_id
      LEFT JOIN merchant_review mr ON mr.booking_id = b.booking_id
      LEFT JOIN platform_feedback pf ON pf.booking_id = b.booking_id
      WHERE b.customer_id = ?

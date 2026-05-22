@@ -48,6 +48,15 @@
     <%= merchant.contact_no || 'Not provided' %>
   </p>
 
+  <% if (typeof cancellationPolicySummary !== 'undefined' && cancellationPolicySummary) { %>
+  <div class="rounded-xl p-3 mt-4" style="background:var(--accent-light);border:1px solid rgba(225,29,72,.12);">
+    <p class="section-label mb-2">Cancellation Policy</p>
+    <p style="color:var(--ink);font-weight:700;margin:0;">
+      <i class="bi bi-hourglass-split me-2" style="color:var(--accent);"></i><%= cancellationPolicySummary %>
+    </p>
+  </div>
+  <% } %>
+
   <hr style="margin:2rem 0;">
 
   <div class="section-header">

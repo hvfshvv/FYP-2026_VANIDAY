@@ -71,6 +71,15 @@
       </div>
     <% } %>
 
+    <% if (typeof cancellationPolicySummary !== 'undefined' && cancellationPolicySummary) { %>
+      <div class="rounded-xl p-3 mb-4" style="background:#fff;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+        <p class="section-label mb-2">Cancellation Policy</p>
+        <p style="color:var(--ink);font-weight:700;margin:0;">
+          <i class="bi bi-hourglass-split me-2" style="color:var(--accent);"></i><%= cancellationPolicySummary %>
+        </p>
+      </div>
+    <% } %>
+
     <form action="/book/confirm" method="POST" class="row g-4">
       <input type="hidden" name="merchant_id" value="<%= merchant ? merchant.merchant_id : '' %>" />
 

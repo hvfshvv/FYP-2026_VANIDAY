@@ -11,6 +11,7 @@ const merchantProfileCtrl = require('../controllers/merchantProfileController');
 const staffCtrl = require('../controllers/staffController');
 const availabilityCtrl = require('../controllers/availabilityController');
 const reviewCtrl = require('../controllers/reviewController');
+const cancellationPolicyCtrl = require('../controllers/cancellationPolicyController');
 
 const bookingModel = require('../models/bookingModel');
 const revenueModel = require('../models/revenueModel');
@@ -116,6 +117,10 @@ router.post('/promotions/:promoId/delete', promoCtrl.deletePromotion);
 // Customer reviews for this merchant.
 router.get('/reviews', reviewCtrl.showMerchantReviews);
 router.post('/reviews/:reviewId/reply', reviewCtrl.replyToReview);
+
+// Merchant cancellation policy.
+router.get('/cancellation-policy', cancellationPolicyCtrl.showPolicy);
+router.post('/cancellation-policy', cancellationPolicyCtrl.updatePolicy);
 
 // Service management: add, hide/show, and delete bookable services.
 router.get('/services', svcCtrl.showServices);
