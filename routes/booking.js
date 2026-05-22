@@ -6,6 +6,7 @@ const { requireLogin, blockMerchantBookingAccess } = require('../middleware/auth
 router.use(blockMerchantBookingAccess);
 
 router.get('/api/slots', ctrl.getAvailableSlots);
+router.get('/api/staff', ctrl.getAvailableStaff);
 router.get('/api/email-member', ctrl.checkEmailMember);
 
 router.get('/viewBookings', requireLogin, ctrl.viewCustomerBookings);

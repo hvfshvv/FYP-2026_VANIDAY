@@ -596,6 +596,31 @@ async function getAvailableSlots(req, res) {
   }
 }
 
+async function getAvailableStaff(req, res) {
+  if (redirectMerchantAwayFromBooking(req, res)) return;
+
+  try {
+    const {
+      merchantId,
+      serviceId,
+      bookingDate,
+      bookingTime,
+    } = req.query;
+
+    const staff = await bookingModel.getAvailableStaffForSlot({
+      merchantId,
+      serviceId,
+      bookingDate,
+      bookingTime,
+    });
+
+    res.json(staff);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json([]);
+  }
+}
+
 module.exports = {
   showBookingPage,
   showPortalBookingPage,
@@ -608,5 +633,6 @@ module.exports = {
   showRescheduleBooking,
   rescheduleCustomerBooking,
   confirmArrival,
-  getAvailableSlots
+  getAvailableSlots,
+  getAvailableStaff
 };

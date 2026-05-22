@@ -79,26 +79,6 @@ async function createBooking({
       throw new Error('Selected service is not available for this merchant');
     }
 
-    const safeStaffId = staffId ? Number(staffId) : null;
-
-    if (safeStaffId) {
-      const [[staff]] = await connection.query(
-        `SELECT s.staff_id
-         FROM staff s
-         JOIN staff_service ss ON ss.staff_id = s.staff_id
-         WHERE s.staff_id = ?
-           AND s.merchant_id = ?
-           AND ss.service_id = ?
-           AND s.is_active = 1
-         LIMIT 1`,
-        [safeStaffId, merchantId, serviceId]
-      );
-
-      if (!staff) {
-        throw new Error('Selected staff member is not available for this service');
-      }
-    }
-
     if (customerId) {
       // Check if customer already has an overlapping booking.
       await assertNoCustomerBookingConflict(connection, {
@@ -109,18 +89,24 @@ async function createBooking({
       });
     }
 
-    // Find an existing available slot or create one.
-    const availableStaffSql = safeStaffId ? 'AND staff_id = ?' : 'AND staff_id IS NULL';
-    const availableParams = [merchantId, serviceId, bookingDate, bookingTime];
-    if (safeStaffId) availableParams.push(safeStaffId);
+    const assignedStaff = await resolveAvailableStaffForBooking(connection, {
+      merchantId,
+      serviceId,
+      bookingDate,
+      bookingTime,
+      durationMins: svc.duration_mins,
+      staffId,
+    });
+    const safeStaffId = assignedStaff.staff_id;
 
+    // Find an existing available slot or create one.
     const [existing] = await connection.query(
       `SELECT slot_id FROM time_slot
        WHERE merchant_id=? AND service_id=? AND slot_date=? AND start_time=? AND is_available=TRUE
-       ${availableStaffSql}
+       AND staff_id = ?
        LIMIT 1
        FOR UPDATE`,
-      availableParams
+      [merchantId, serviceId, bookingDate, bookingTime, safeStaffId]
     );
 
     let slotId;
@@ -129,18 +115,17 @@ async function createBooking({
       slotId = existing[0].slot_id;
       await connection.query('UPDATE time_slot SET is_available=FALSE WHERE slot_id=?', [slotId]);
     } else {
-      const conflictingStaffSql = safeStaffId ? 'AND staff_id = ?' : '';
-      const conflictingParams = [merchantId, serviceId, bookingDate, bookingTime];
-      if (safeStaffId) conflictingParams.push(safeStaffId);
-
       const [conflicting] = await connection.query(
         `SELECT slot_id
-         FROM time_slot
-         WHERE merchant_id = ? AND service_id = ? AND slot_date = ? AND start_time = ? AND is_available = FALSE
-         ${conflictingStaffSql}
+         FROM time_slot ts
+         WHERE ts.staff_id = ?
+           AND ts.slot_date = ?
+           AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
+           AND ts.end_time > ?
+           AND ts.is_available = FALSE
          LIMIT 1
          FOR UPDATE`,
-        conflictingParams
+        [safeStaffId, bookingDate, bookingTime, svc.duration_mins, bookingTime]
       );
 
       if (conflicting.length) {
@@ -200,6 +185,141 @@ async function lockCustomerForBooking(connection, customerId) {
   if (!customer) {
     throw new Error('Customer account not found');
   }
+}
+
+async function getAvailableStaffForSlot({
+  merchantId,
+  serviceId,
+  bookingDate,
+  bookingTime,
+  durationMins = null,
+  staffId = null,
+  excludeBookingId = null,
+  connection = db,
+}) {
+  if (!merchantId || !serviceId || !bookingDate || !bookingTime) return [];
+
+  let safeDuration = Number(durationMins);
+  if (!Number.isFinite(safeDuration) || safeDuration <= 0) {
+    const [[service]] = await connection.query(
+      `SELECT duration_mins
+       FROM service
+       WHERE service_id = ? AND merchant_id = ? AND is_active = 1`,
+      [serviceId, merchantId]
+    );
+    if (!service) return [];
+    safeDuration = Number(service.duration_mins || 0);
+  }
+
+  const params = [
+    merchantId,
+    serviceId,
+    bookingDate,
+    bookingTime,
+    safeDuration,
+    bookingTime,
+  ];
+
+  let excludeBookingFilter = '';
+  if (excludeBookingId) {
+    excludeBookingFilter = 'AND b.booking_id <> ?';
+    params.push(excludeBookingId);
+  }
+
+  let staffFilter = '';
+  if (staffId) {
+    staffFilter = 'AND st.staff_id = ?';
+    params.push(Number(staffId));
+  }
+
+  const [rows] = await connection.query(
+    `SELECT DISTINCT st.staff_id, st.full_name, st.role, st.bio, st.experience_years
+     FROM staff st
+     JOIN staff_service ss ON ss.staff_id = st.staff_id
+     WHERE st.merchant_id = ?
+       AND ss.service_id = ?
+       AND st.is_active = 1
+       AND NOT EXISTS (
+         SELECT 1
+         FROM booking b
+         JOIN time_slot ts ON ts.slot_id = b.slot_id
+         WHERE b.staff_id = st.staff_id
+           AND ts.slot_date = ?
+           AND (
+             b.status IN ('confirmed', 'arrived')
+             OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
+           )
+           AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
+           AND ts.end_time > ?
+           ${excludeBookingFilter}
+       )
+       ${staffFilter}
+     ORDER BY st.full_name ASC`,
+    params
+  );
+
+  const [legacyRows] = await connection.query(
+    `SELECT COUNT(*) AS legacy_count
+     FROM booking b
+     JOIN time_slot ts ON ts.slot_id = b.slot_id
+     WHERE b.merchant_id = ?
+       AND b.service_id = ?
+       AND b.staff_id IS NULL
+       AND ts.slot_date = ?
+       AND (
+         b.status IN ('confirmed', 'arrived')
+         OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
+       )
+       AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
+       AND ts.end_time > ?
+       ${excludeBookingId ? 'AND b.booking_id <> ?' : ''}`,
+    excludeBookingId
+      ? [merchantId, serviceId, bookingDate, bookingTime, safeDuration, bookingTime, excludeBookingId]
+      : [merchantId, serviceId, bookingDate, bookingTime, safeDuration, bookingTime]
+  );
+
+  const legacyHoldCount = Number(legacyRows[0]?.legacy_count || 0);
+  if (!legacyHoldCount) return rows;
+
+  if (staffId) {
+    return rows;
+  }
+
+  return rows.slice(legacyHoldCount);
+}
+
+async function resolveAvailableStaffForBooking(connection, {
+  merchantId,
+  serviceId,
+  bookingDate,
+  bookingTime,
+  durationMins,
+  staffId = null,
+  excludeBookingId = null,
+}) {
+  const availableStaff = await getAvailableStaffForSlot({
+    merchantId,
+    serviceId,
+    bookingDate,
+    bookingTime,
+    durationMins,
+    staffId,
+    excludeBookingId,
+    connection,
+  });
+
+  if (staffId) {
+    if (!availableStaff.length) {
+      throw new Error('Selected staff member is no longer available for this time.');
+    }
+    return availableStaff[0];
+  }
+
+  if (!availableStaff.length) {
+    throw new Error('No staff are available for this service at the selected time.');
+  }
+
+  return availableStaff[0];
 }
 
 async function assertNoCustomerBookingConflict(connection, {
@@ -493,19 +613,25 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
       excludeBookingId: bookingId,
     });
 
-    const safeStaffId = booking.staff_id || null;
-    const availableStaffSql = safeStaffId ? 'AND staff_id = ?' : 'AND staff_id IS NULL';
-    const availableParams = [booking.merchant_id, booking.service_id, bookingDate, bookingTime];
-    if (safeStaffId) availableParams.push(safeStaffId);
+    const assignedStaff = await resolveAvailableStaffForBooking(connection, {
+      merchantId: booking.merchant_id,
+      serviceId: booking.service_id,
+      bookingDate,
+      bookingTime,
+      durationMins: booking.duration_mins,
+      staffId: booking.staff_id || null,
+      excludeBookingId: bookingId,
+    });
+    const safeStaffId = assignedStaff.staff_id;
 
     const [existing] = await connection.query(
       `SELECT slot_id, is_available
        FROM time_slot
        WHERE merchant_id = ? AND service_id = ? AND slot_date = ? AND start_time = ? AND is_available = TRUE
-       ${availableStaffSql}
+       AND staff_id = ?
        LIMIT 1
        FOR UPDATE`,
-      availableParams
+      [booking.merchant_id, booking.service_id, bookingDate, bookingTime, safeStaffId]
     );
 
     let newSlotId;
@@ -513,17 +639,16 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
       newSlotId = existing[0].slot_id;
       await connection.query('UPDATE time_slot SET is_available = FALSE WHERE slot_id = ?', [newSlotId]);
     } else {
-      const conflictingStaffSql = safeStaffId ? 'AND staff_id = ?' : '';
-      const conflictingParams = [booking.merchant_id, booking.service_id, bookingDate, bookingTime];
-      if (safeStaffId) conflictingParams.push(safeStaffId);
-
       const [conflicting] = await connection.query(
         `SELECT slot_id
          FROM time_slot
-         WHERE merchant_id = ? AND service_id = ? AND slot_date = ? AND start_time = ? AND is_available = FALSE
-         ${conflictingStaffSql}
+         WHERE staff_id = ?
+           AND slot_date = ?
+           AND start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
+           AND end_time > ?
+           AND is_available = FALSE
          LIMIT 1`,
-        conflictingParams
+        [safeStaffId, bookingDate, bookingTime, booking.duration_mins, bookingTime]
       );
 
       if (conflicting.length) {
@@ -547,7 +672,7 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
     }
 
     await connection.query('UPDATE time_slot SET is_available = TRUE WHERE slot_id = ?', [booking.slot_id]);
-    await connection.query('UPDATE booking SET slot_id = ? WHERE booking_id = ?', [newSlotId, bookingId]);
+    await connection.query('UPDATE booking SET slot_id = ?, staff_id = ? WHERE booking_id = ?', [newSlotId, safeStaffId, bookingId]);
 
     await connection.commit();
   } catch (err) {
@@ -654,34 +779,6 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
 
   if (!availability) return [];
 
-  let bookedQuery = `
-    SELECT ts.start_time
-    FROM time_slot ts
-    WHERE ts.merchant_id = ?
-    AND ts.slot_date = ?
-    AND ts.is_available = 0
-    AND EXISTS (
-      SELECT 1
-      FROM booking b
-      WHERE b.slot_id = ts.slot_id
-        AND (
-          b.status IN ('confirmed', 'arrived')
-          OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
-        )
-    )
-  `;
-
-  const bookedParams = [merchantId, bookingDate];
-
-  if (staffId) {
-    bookedQuery += ` AND ts.staff_id = ?`;
-    bookedParams.push(staffId);
-  }
-
-  // Remove time slots that are already booked.
-  const [bookedRows] = await db.query(bookedQuery, bookedParams);
-  const bookedTimes = bookedRows.map(row => String(row.start_time).slice(0, 5));
-
   const slots = [];
 
   const start = String(availability.start_time).slice(0, 5);
@@ -695,11 +792,20 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
 
     if (slotEnd <= closing && current >= new Date()) {
       const timeValue = current.toTimeString().slice(0, 5);
+      const availableStaff = await getAvailableStaffForSlot({
+        merchantId,
+        serviceId,
+        bookingDate,
+        bookingTime: timeValue,
+        durationMins: service.duration_mins,
+        staffId,
+      });
 
-      if (!bookedTimes.includes(timeValue)) {
+      if (availableStaff.length) {
         slots.push({
           start_time: timeValue + ':00',
-          label: timeValue
+          label: timeValue,
+          available_staff_count: availableStaff.length,
         });
       }
     }
@@ -822,4 +928,5 @@ module.exports = {
   applyVoucher,
   expirePendingPaymentBookings,
   countActivePendingPaymentBookings,
+  getAvailableStaffForSlot,
 };
