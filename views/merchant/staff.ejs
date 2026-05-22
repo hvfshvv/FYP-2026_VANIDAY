@@ -179,6 +179,7 @@
                 <tr>
                   <th>Name</th>
                   <th>Role</th>
+                  <th>Services</th>
                   <th>Experience</th>
                   <th>Status</th>
                   <th style="width:180px;">Action</th>
@@ -205,6 +206,21 @@
 
                     <td>
                       <%= s.role || '-' %>
+                    </td>
+
+                    <td style="max-width:220px;">
+                      <% const assignedServices = services.filter(service => (s.service_id_list || []).includes(Number(service.service_id))); %>
+                      <% if (assignedServices.length) { %>
+                        <div class="d-flex flex-wrap gap-1">
+                          <% assignedServices.forEach(service => { %>
+                            <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);font-size:.7rem;">
+                              <%= service.service_name %>
+                            </span>
+                          <% }) %>
+                        </div>
+                      <% } else { %>
+                        <span style="color:var(--muted);font-size:.75rem;">No services assigned</span>
+                      <% } %>
                     </td>
 
                     <td>
@@ -243,6 +259,7 @@
                           data-role="<%= s.role || '' %>"
                           data-bio="<%= s.bio || '' %>"
                           data-exp="<%= s.experience_years || '' %>"
+                          data-services="<%= (s.service_id_list || []).join(',') %>"
                         >
                           Edit
                         </button>
@@ -298,6 +315,7 @@
   const staffExperience = document.getElementById('staffExperience');
   const staffSubmitText = document.getElementById('staffSubmitText');
   const staffSubmitIcon = document.getElementById('staffSubmitIcon');
+  const serviceCheckboxes = Array.from(document.querySelectorAll('input[name="service_ids"]'));
 
   document.querySelectorAll('.edit-staff-btn').forEach(button => {
     button.addEventListener('click', () => {
@@ -309,6 +327,13 @@
       staffRole.value = button.dataset.role || '';
       staffBio.value = button.dataset.bio || '';
       staffExperience.value = button.dataset.exp || '';
+      const assignedServices = (button.dataset.services || '')
+        .split(',')
+        .filter(Boolean);
+
+      serviceCheckboxes.forEach(checkbox => {
+        checkbox.checked = assignedServices.includes(checkbox.value);
+      });
 
       staffSubmitText.textContent = 'Save Changes';
       staffSubmitIcon.className = 'bi bi-check2 me-1';

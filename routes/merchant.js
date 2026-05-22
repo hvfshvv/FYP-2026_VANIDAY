@@ -125,6 +125,7 @@ router.post('/cancellation-policy', cancellationPolicyCtrl.updatePolicy);
 // Service management: add, hide/show, and delete bookable services.
 router.get('/services', svcCtrl.showServices);
 router.post('/services/add', svcCtrl.addService);
+router.post('/services/:id/edit', svcCtrl.editService);
 router.post('/services/:id/toggle', svcCtrl.toggleService);
 router.post('/services/:id/delete', svcCtrl.deleteService);
 

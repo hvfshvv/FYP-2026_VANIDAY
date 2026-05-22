@@ -52,7 +52,8 @@ async function editStaff(req, res) {
       full_name,
       role,
       bio,
-      experience_years
+      experience_years,
+      service_ids
     } = req.body;
 
     await staffModel.updateStaff(
@@ -61,7 +62,8 @@ async function editStaff(req, res) {
       full_name,
       role,
       bio,
-      experience_years
+      experience_years,
+      service_ids
     );
 
     res.redirect('/merchant/staff');
