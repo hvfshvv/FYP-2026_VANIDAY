@@ -136,6 +136,25 @@ a:hover { color: var(--accent-dark); }
   text-decoration: none; transition: color .2s;
 }
 .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+.nav-bookings-link {
+  display: inline-flex !important;
+  align-items: center;
+  gap: .4rem;
+}
+.nav-pending-badge {
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 .4rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 800;
+  box-shadow: 0 0 0 3px rgba(225,29,72,.14);
+}
 .nav-actions { display: flex; align-items: center; gap: .625rem; }
 .nav-icon-action {
   width: 2.25rem;

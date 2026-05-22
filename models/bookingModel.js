@@ -29,6 +29,19 @@ async function ensureBookingPromoSchema() {
     }
   }
 
+  const [[statusCol]] = await db.query(
+    `SELECT COLUMN_TYPE AS columnType
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'booking' AND COLUMN_NAME = 'status'`
+  );
+  if (statusCol?.columnType && !String(statusCol.columnType).includes('payment_failed')) {
+    await db.query(
+      `ALTER TABLE booking
+       MODIFY status ENUM('pending_payment','confirmed','arrived','completed','cancelled','payment_failed','no_show')
+       DEFAULT 'pending_payment'`
+    );
+  }
+
   await voucherModel.ensureCustomerVoucherSchema();
   bookingPromoSchemaReady = true;
 }
@@ -45,6 +58,8 @@ async function createBooking({
   guestEmail = null,
   guestPhone = null,
 }) {
+  await expirePendingPaymentBookings();
+
   const connection = await db.getConnection();
 
   try {
@@ -202,7 +217,10 @@ async function assertNoCustomerBookingConflict(connection, {
     JOIN service s ON b.service_id = s.service_id
     JOIN merchant m ON b.merchant_id = m.merchant_id
     WHERE b.customer_id = ?
-      AND b.status IN ('pending_payment', 'confirmed', 'arrived')
+      AND (
+        b.status IN ('confirmed', 'arrived')
+        OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
+      )
       AND ts.slot_date = ?
       AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
       AND ts.end_time > ?
@@ -234,7 +252,8 @@ async function getBookingById(bookingId) {
             ts.slot_date  AS booking_date,
             ts.start_time AS booking_time,
             s.service_name, s.price, s.duration_mins,
-            COALESCE(b.total_amount, s.price)
+            COALESCE(st.full_name, 'Any Available Staff') AS staff_name,
+            COALESCE(NULLIF(b.total_amount, 0), s.price)
               - COALESCE(b.discount_amount, 0)
               - COALESCE(b.voucher_discount_amount, 0) AS payable_amount,
             COALESCE(b.discount_amount, 0) AS discount_amount,
@@ -252,6 +271,7 @@ async function getBookingById(bookingId) {
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
+     LEFT JOIN staff st ON st.staff_id = b.staff_id
      LEFT JOIN customer c ON b.customer_id = c.customer_id
      LEFT JOIN promotion pr ON pr.promo_id = b.applied_promo_id
      LEFT JOIN customer_voucher cv_applied ON cv_applied.cv_id = b.applied_cv_id
@@ -268,7 +288,8 @@ async function getCustomerBookingById(bookingId, customerId) {
             ts.slot_date  AS booking_date,
             ts.start_time AS booking_time,
             s.service_name, s.price, s.duration_mins,
-            COALESCE(b.total_amount, s.price) AS payable_amount,
+            COALESCE(st.full_name, 'Any Available Staff') AS staff_name,
+            COALESCE(NULLIF(b.total_amount, 0), s.price) AS payable_amount,
             m.merchant_name,
             m.address AS merchant_address,
             p.payment_status
@@ -276,6 +297,7 @@ async function getCustomerBookingById(bookingId, customerId) {
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
+     LEFT JOIN staff st ON st.staff_id = b.staff_id
      LEFT JOIN payment p ON p.booking_id = b.booking_id
      WHERE b.booking_id = ? AND b.customer_id = ?`,
     [bookingId, customerId]
@@ -402,7 +424,7 @@ async function cancelCustomerBooking(bookingId, customerId) {
       throw new Error('Booking not found');
     }
 
-    if (['cancelled', 'completed', 'no_show'].includes(booking.status)) {
+    if (['cancelled', 'payment_failed', 'completed', 'no_show'].includes(booking.status)) {
       throw new Error('This booking cannot be cancelled');
     }
 
@@ -445,7 +467,7 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
       throw new Error('Booking not found');
     }
 
-    if (['cancelled', 'completed', 'no_show'].includes(booking.status)) {
+    if (['cancelled', 'payment_failed', 'completed', 'no_show'].includes(booking.status)) {
       throw new Error('This booking cannot be rescheduled');
     }
 
@@ -569,13 +591,16 @@ async function getMerchantBookings(merchantId) {
 
 async function getCustomerBookings(customerId) {
   await ensureBookingPromoSchema();
+  await expirePendingPaymentBookings();
+
   const [rows] = await db.query(
     `SELECT b.*,
             ts.slot_date  AS booking_date,
             ts.start_time AS booking_time,
             s.service_name,
             s.duration_mins,
-            COALESCE(b.total_amount, s.price)
+            COALESCE(st.full_name, 'Any Available Staff') AS staff_name,
+            COALESCE(NULLIF(b.total_amount, 0), s.price)
               - COALESCE(b.discount_amount, 0)
               - COALESCE(b.voucher_discount_amount, 0) AS payable_amount,
             COALESCE(b.discount_amount, 0) AS discount_amount,
@@ -589,6 +614,7 @@ async function getCustomerBookings(customerId) {
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
+     LEFT JOIN staff st ON st.staff_id = b.staff_id
      LEFT JOIN payment p ON p.booking_id = b.booking_id
      WHERE b.customer_id = ?
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
@@ -629,17 +655,26 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
   if (!availability) return [];
 
   let bookedQuery = `
-    SELECT start_time
-    FROM time_slot
-    WHERE merchant_id = ?
-    AND slot_date = ?
-    AND is_available = 0
+    SELECT ts.start_time
+    FROM time_slot ts
+    WHERE ts.merchant_id = ?
+    AND ts.slot_date = ?
+    AND ts.is_available = 0
+    AND EXISTS (
+      SELECT 1
+      FROM booking b
+      WHERE b.slot_id = ts.slot_id
+        AND (
+          b.status IN ('confirmed', 'arrived')
+          OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
+        )
+    )
   `;
 
   const bookedParams = [merchantId, bookingDate];
 
   if (staffId) {
-    bookedQuery += ` AND staff_id = ?`;
+    bookedQuery += ` AND ts.staff_id = ?`;
     bookedParams.push(staffId);
   }
 
@@ -725,7 +760,7 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
 
     await connection.query(
       `UPDATE booking
-       SET status = 'cancelled',
+       SET status = 'payment_failed',
            applied_cv_id = NULL,
            voucher_discount_amount = 0
        WHERE booking_id IN (?)`,
@@ -751,6 +786,26 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
   }
 }
 
+async function countActivePendingPaymentBookings(customerId, ttlMinutes = 5) {
+  await ensureBookingPromoSchema();
+  await expirePendingPaymentBookings(ttlMinutes);
+
+  const safeTtl = Number.isFinite(Number(ttlMinutes)) && Number(ttlMinutes) > 0
+    ? Number(ttlMinutes)
+    : 5;
+
+  const [[row]] = await db.query(
+    `SELECT COUNT(*) AS count
+     FROM booking
+     WHERE customer_id = ?
+       AND status = 'pending_payment'
+       AND created_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
+    [customerId, safeTtl]
+  );
+
+  return Number(row?.count || 0);
+}
+
 module.exports = {
   createBooking,
   getBookingById,
@@ -766,4 +821,5 @@ module.exports = {
   applyPromotion,
   applyVoucher,
   expirePendingPaymentBookings,
+  countActivePendingPaymentBookings,
 };

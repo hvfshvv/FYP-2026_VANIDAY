@@ -54,6 +54,172 @@ function formatDateOnly(value) {
   return String(value || '').slice(0, 10);
 }
 
+function getBookingBaseAmount(booking) {
+  const totalAmount = Number(booking.total_amount);
+  if (Number.isFinite(totalAmount) && totalAmount > 0) return totalAmount;
+
+  const servicePrice = Number(booking.price);
+  return Number.isFinite(servicePrice) && servicePrice > 0 ? servicePrice : 0;
+}
+
+function getBookingPayableAmount(booking) {
+  const payableAmount = Number(booking.payable_amount);
+  if (Number.isFinite(payableAmount) && payableAmount > 0) return payableAmount;
+
+  const base = getBookingBaseAmount(booking);
+  const promoDiscount = Number(booking.discount_amount || 0);
+  const voucherDiscount = Number(booking.voucher_discount_amount || 0);
+  return parseFloat(Math.max(base - promoDiscount - voucherDiscount, 0).toFixed(2));
+}
+
+function getVoucherPricingContext(booking) {
+  const base = getBookingBaseAmount(booking);
+  const promoDiscount = Number(booking.discount_amount || 0);
+  return {
+    qualificationAmount: parseFloat(Math.max(base, 0).toFixed(2)),
+    discountBase: parseFloat(Math.max(base - promoDiscount, 0).toFixed(2)),
+  };
+}
+
+function calculateVoucherDiscount(voucher, discountBase) {
+  const discountValue = Number(voucher.discount_value || 0);
+  const rawDiscount = voucher.discount_type === 'percent'
+    ? discountBase * discountValue / 100
+    : discountValue;
+
+  return parseFloat(Math.min(Math.max(rawDiscount, 0), discountBase).toFixed(2));
+}
+
+function buildVoucherOptions(vouchers, pricingContext, appliedCvId = null) {
+  const { qualificationAmount, discountBase } = pricingContext;
+
+  const options = vouchers.map(voucher => {
+    const minSpend = Number(voucher.min_spend || 0);
+    // Voucher min spend is checked before promotion discount so promos and vouchers can stack.
+    const meetsMinSpend = !minSpend || qualificationAmount >= minSpend;
+    const discountAmount = meetsMinSpend ? calculateVoucherDiscount(voucher, discountBase) : 0;
+    const isUsable = meetsMinSpend && discountAmount > 0;
+
+    return {
+      ...voucher,
+      discountAmount,
+      isUsable,
+      isApplied: String(voucher.cv_id) === String(appliedCvId || ''),
+      unavailableReason: !meetsMinSpend
+        ? `Minimum spend S$${minSpend.toFixed(2)} required`
+        : discountAmount <= 0
+          ? 'Not usable for this booking'
+          : null,
+    };
+  });
+
+  const best = options
+    .filter(voucher => voucher.isUsable)
+    .sort((a, b) => {
+      const discountDiff = Number(b.discountAmount) - Number(a.discountAmount);
+      if (discountDiff) return discountDiff;
+      return (Date.parse(a.voucher_expiry) || 0) - (Date.parse(b.voucher_expiry) || 0);
+    })[0];
+
+  if (best) best.isBestValue = true;
+  return options;
+}
+
+function getBestVoucherOption(options) {
+  return options.find(voucher => voucher.isBestValue) || null;
+}
+
+async function syncBestPromotion(booking) {
+  const bookingDate = formatDateOnly(booking.booking_date);
+  const baseAmount = getBookingBaseAmount(booking);
+
+  const promo = await promotionModel.getApplicablePromotionForBooking({
+    merchantId: booking.merchant_id,
+    serviceId: booking.service_id,
+    bookingDate,
+    baseAmount,
+  });
+
+  let currentBooking = booking;
+  if (promo) {
+    const discountAmount = parseFloat((baseAmount * Number(promo.discount_pct || 0) / 100).toFixed(2));
+    const promoChanged = String(currentBooking.applied_promo_id || '') !== String(promo.promo_id)
+      || Number(currentBooking.discount_amount || 0) !== discountAmount;
+
+    if (promoChanged) {
+      await bookingModel.applyPromotion(currentBooking.booking_id, promo.promo_id, discountAmount);
+      currentBooking = await bookingModel.getBookingById(currentBooking.booking_id);
+    }
+  } else if (currentBooking.applied_promo_id || Number(currentBooking.discount_amount || 0) > 0) {
+    await bookingModel.applyPromotion(currentBooking.booking_id, null, 0);
+    currentBooking = await bookingModel.getBookingById(currentBooking.booking_id);
+  }
+
+  return { booking: currentBooking, appliedPromotion: promo || null };
+}
+
+async function syncCheckoutVoucher(booking, customerId, { autoSelectBest = true } = {}) {
+  let currentBooking = booking;
+  let vouchers = await voucherModel.getEligibleCustomerVouchers(customerId, currentBooking.merchant_id);
+  let voucherOptions = buildVoucherOptions(vouchers, getVoucherPricingContext(currentBooking), currentBooking.applied_cv_id);
+  let appliedVoucher = currentBooking.applied_cv_id
+    ? voucherOptions.find(voucher => Number(voucher.cv_id) === Number(currentBooking.applied_cv_id)) || null
+    : null;
+
+  if (currentBooking.applied_cv_id && (!appliedVoucher || !appliedVoucher.isUsable)) {
+    await bookingModel.applyVoucher(currentBooking.booking_id, null, 0);
+    currentBooking = await bookingModel.getBookingById(currentBooking.booking_id);
+    voucherOptions = buildVoucherOptions(vouchers, getVoucherPricingContext(currentBooking));
+    appliedVoucher = null;
+  }
+
+  const bestVoucher = getBestVoucherOption(voucherOptions);
+  if (!appliedVoucher && autoSelectBest && bestVoucher) {
+    await bookingModel.applyVoucher(currentBooking.booking_id, bestVoucher.cv_id, bestVoucher.discountAmount);
+    currentBooking = await bookingModel.getBookingById(currentBooking.booking_id);
+    voucherOptions = buildVoucherOptions(vouchers, getVoucherPricingContext(currentBooking), bestVoucher.cv_id);
+    appliedVoucher = voucherOptions.find(voucher => Number(voucher.cv_id) === Number(bestVoucher.cv_id)) || null;
+  } else if (
+    appliedVoucher
+    && Number(currentBooking.voucher_discount_amount || 0) !== Number(appliedVoucher.discountAmount || 0)
+  ) {
+    await bookingModel.applyVoucher(currentBooking.booking_id, appliedVoucher.cv_id, appliedVoucher.discountAmount);
+    currentBooking = await bookingModel.getBookingById(currentBooking.booking_id);
+    voucherOptions = buildVoucherOptions(vouchers, getVoucherPricingContext(currentBooking), appliedVoucher.cv_id);
+    appliedVoucher = voucherOptions.find(voucher => Number(voucher.cv_id) === Number(appliedVoucher.cv_id)) || null;
+  }
+
+  return { booking: currentBooking, voucherOptions, appliedVoucher };
+}
+
+async function revalidateAppliedVoucherForPayment(booking) {
+  if (!booking.applied_cv_id || !booking.customer_id) return booking;
+
+  const vouchers = await voucherModel.getEligibleCustomerVouchers(booking.customer_id, booking.merchant_id);
+  const voucherOptions = buildVoucherOptions(vouchers, getVoucherPricingContext(booking), booking.applied_cv_id);
+  const appliedVoucher = voucherOptions.find(voucher => Number(voucher.cv_id) === Number(booking.applied_cv_id));
+
+  if (!appliedVoucher || !appliedVoucher.isUsable) {
+    await bookingModel.applyVoucher(booking.booking_id, null, 0);
+    const err = new Error('Selected voucher is no longer eligible. Please refresh checkout.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (Number(booking.voucher_discount_amount || 0) !== Number(appliedVoucher.discountAmount || 0)) {
+    await bookingModel.applyVoucher(booking.booking_id, appliedVoucher.cv_id, appliedVoucher.discountAmount);
+    return bookingModel.getBookingById(booking.booking_id);
+  }
+
+  return booking;
+}
+
+async function revalidateCheckoutDiscountsForPayment(booking) {
+  const promoSync = await syncBestPromotion(booking);
+  const currentBooking = await revalidateAppliedVoucherForPayment(promoSync.booking);
+  return { booking: currentBooking, appliedPromotion: promoSync.appliedPromotion };
+}
+
 async function getAuthorizedBooking(req, res, bookingId, { json = false } = {}) {
   // Load booking and confirm the current user can access it.
   if (!bookingId) {
@@ -80,6 +246,14 @@ async function getAuthorizedBooking(req, res, bookingId, { json = false } = {}) 
 }
 
 async function confirmPaidBooking(bookingId) {
+  await bookingModel.expirePendingPaymentBookings();
+  const current = await bookingModel.getBookingById(bookingId);
+  if (!current || current.status === 'confirmed') return;
+  if (current.status !== 'pending_payment') {
+    console.warn('[payment] Refusing to confirm expired/non-payable booking %s with status %s', bookingId, current.status);
+    return;
+  }
+
   // Confirm booking only after successful payment.
   await bookingModel.updateBookingStatus(bookingId, 'confirmed');
 
@@ -121,57 +295,34 @@ async function showCheckout(req, res) {
       return res.status(410).send(message);
     }
 
-    // Auto-detect the best promotion for this booking's merchant, service, and date.
-    const bookingDate = formatDateOnly(booking.booking_date);
-    const baseAmount = Number(booking.total_amount || booking.price);
-
-    const promo = await promotionModel.getApplicablePromotionForBooking({
-      merchantId:  booking.merchant_id,
-      serviceId:   booking.service_id,
-      bookingDate,
-      baseAmount,
-    });
-
-    if (promo) {
-      const discountAmount = parseFloat((baseAmount * promo.discount_pct / 100).toFixed(2));
-      const promoChanged = String(booking.applied_promo_id) !== String(promo.promo_id)
-        || Number(booking.discount_amount) !== discountAmount;
-      if (promoChanged) {
-        await bookingModel.applyPromotion(bookingId, promo.promo_id, discountAmount);
-        booking = await bookingModel.getBookingById(bookingId);
-      }
-    } else if (booking.applied_promo_id) {
-      // Clear a stale promotion that no longer qualifies.
-      await bookingModel.applyPromotion(bookingId, null, 0);
-      booking = await bookingModel.getBookingById(bookingId);
-    }
+    const promoSync = await syncBestPromotion(booking);
+    booking = promoSync.booking;
+    const appliedPromotion = promoSync.appliedPromotion;
 
     const payment = await paymentModel.getPaymentByBooking(bookingId);
 
     const user = req.session.user;
-    const eligibleVouchers = (user && user.role === 'customer')
-      ? await voucherModel.getEligibleCustomerVouchers(
-          user.customer_id || user.user_id,
-          booking.merchant_id
-        )
-      : [];
+    let voucherOptions = [];
+    let appliedVoucher = null;
 
-    let appliedVoucher = booking.applied_cv_id
-      ? (eligibleVouchers.find(v => Number(v.cv_id) === Number(booking.applied_cv_id)) || null)
-      : null;
-
-    if (booking.applied_cv_id && !appliedVoucher) {
-      await bookingModel.applyVoucher(bookingId, null, 0);
-      booking = await bookingModel.getBookingById(bookingId);
-      appliedVoucher = null;
+    if (user && user.role === 'customer') {
+      const synced = await syncCheckoutVoucher(
+        booking,
+        user.customer_id || user.user_id,
+        { autoSelectBest: req.query.manualVoucher !== 'none' }
+      );
+      booking = synced.booking;
+      voucherOptions = synced.voucherOptions;
+      appliedVoucher = synced.appliedVoucher;
     }
 
     res.render('payment/checkout', {
       title: 'Checkout',
       booking,
       payment,
-      appliedPromotion: promo || null,
-      eligibleVouchers,
+      appliedPromotion,
+      eligibleVouchers: voucherOptions,
+      voucherOptions,
       appliedVoucher,
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
       webhookError: req.query.webhookError || null,
@@ -291,18 +442,23 @@ async function persistCheckoutSession(session) {
 async function createStripeIntent(req, res) {
   const bookingId = getBookingId(req);
   try {
+    await bookingModel.expirePendingPaymentBookings();
     // Start card payment for this booking.
-    const booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
+    let booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
     if (!booking) return;
+    if (booking.status !== 'pending_payment') {
+      return res.status(410).json({ error: 'This payment session has expired. Please make a new booking.' });
+    }
 
-    const amount = Number(booking.payable_amount || booking.total_amount || booking.price);
+    ({ booking } = await revalidateCheckoutDiscountsForPayment(booking));
+    const amount = getBookingPayableAmount(booking);
     const intent = await createPaymentIntent(amount, booking);
 
     await paymentModel.createOrUpdatePayment(bookingId, amount, 'stripe');
     res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id });
   } catch (err) {
     console.error('createStripeIntent error:', err);
-    res.status(500).json({ error: 'Failed to initialise payment' });
+    res.status(err.statusCode || 500).json({ error: err.statusCode ? err.message : 'Failed to initialise payment' });
   }
 }
 
@@ -312,8 +468,12 @@ async function confirmStripePayment(req, res) {
   try {
     if (!paymentIntentId) return res.status(400).json({ error: 'Missing paymentIntentId' });
 
-    const booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
+    await bookingModel.expirePendingPaymentBookings();
+    let booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
     if (!booking) return;
+    if (booking.status !== 'pending_payment') {
+      return res.status(410).json({ error: 'This payment session has expired. Please make a new booking.' });
+    }
 
     let intent = await retrievePaymentIntent(paymentIntentId);
     // Make sure the Stripe payment belongs to this booking.
@@ -338,8 +498,15 @@ async function confirmStripePayment(req, res) {
       return res.status(400).json({ error: 'Payment has not succeeded' });
     }
 
+    ({ booking } = await revalidateCheckoutDiscountsForPayment(booking));
+    const expectedAmount = getBookingPayableAmount(booking);
+    const paidAmount = Number(intent.amount_received || intent.amount || 0) / 100;
+    if (Math.abs(paidAmount - expectedAmount) > 0.01) {
+      return res.status(400).json({ error: 'Payment amount no longer matches checkout total.' });
+    }
+
     // Save successful payment and send customer to success page.
-    const amount = Number(booking.payable_amount || booking.total_amount || booking.price);
+    const amount = getBookingPayableAmount(booking);
     await paymentModel.createOrUpdatePayment(bookingId, amount, 'stripe');
     await persistStripePaymentIntent(intent);
     res.json({ success: true, redirectUrl: `/payment/success?booking_id=${bookingId}` });
@@ -352,11 +519,16 @@ async function confirmStripePayment(req, res) {
 async function createPayNowSession(req, res) {
   const { bookingId } = req.params;
   try {
+    await bookingModel.expirePendingPaymentBookings();
     // Start PayNow QR checkout for this booking.
-    const booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
+    let booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
     if (!booking) return;
+    if (booking.status !== 'pending_payment') {
+      return res.status(410).json({ error: 'This payment session has expired. Please make a new booking.' });
+    }
 
-    const amount = Number(booking.payable_amount || booking.total_amount || booking.price);
+    ({ booking } = await revalidateCheckoutDiscountsForPayment(booking));
+    const amount = getBookingPayableAmount(booking);
     const baseUrl = getBaseUrl(req);
     const session = await createPayNowCheckoutSession({
       booking,
@@ -377,7 +549,7 @@ async function createPayNowSession(req, res) {
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
     console.error('createPayNowSession error:', err);
-    res.status(500).json({ error: 'Failed to initialise PayNow payment' });
+    res.status(err.statusCode || 500).json({ error: err.statusCode ? err.message : 'Failed to initialise PayNow payment' });
   }
 }
 
@@ -438,6 +610,7 @@ async function markStripePaymentFailed(req, res) {
       return res.status(400).json({ error: 'Payment does not match this booking' });
     }
 
+    // Failed/cancelled attempts do not release the hold early; expiry owns that.
     await paymentModel.updatePaymentStatus(bookingId, 'failed', intent.id);
     res.json({ success: true });
   } catch (err) {
@@ -486,7 +659,7 @@ async function applyVoucher(req, res) {
   try {
     await bookingModel.expirePendingPaymentBookings();
 
-    const booking = await getAuthorizedBooking(req, res, bookingId);
+    let booking = await getAuthorizedBooking(req, res, bookingId);
     if (!booking) return;
 
     if (booking.status !== 'pending_payment') {
@@ -498,38 +671,28 @@ async function applyVoucher(req, res) {
       return res.redirect(`/payment/checkout/${bookingId}`);
     }
 
+    ({ booking } = await syncBestPromotion(booking));
+
     // Remove voucher when no cvId supplied.
     if (!cvId) {
       await bookingModel.applyVoucher(bookingId, null, 0);
-      return res.redirect(`/payment/checkout/${bookingId}`);
+      return res.redirect(`/payment/checkout/${bookingId}?manualVoucher=none`);
     }
 
     const customerId = user.customer_id || user.user_id;
-    const eligible = await voucherModel.getEligibleCustomerVouchers(customerId, booking.merchant_id);
-    const voucher = eligible.find(v => Number(v.cv_id) === cvId);
+    const vouchers = await voucherModel.getEligibleCustomerVouchers(customerId, booking.merchant_id);
+    const voucherOptions = buildVoucherOptions(vouchers, getVoucherPricingContext(booking), booking.applied_cv_id);
+    const voucher = voucherOptions.find(v => Number(v.cv_id) === cvId);
 
     if (!voucher) {
       return res.redirect(`/payment/checkout/${bookingId}?voucherError=` + encodeURIComponent('This voucher is not available for this booking.'));
     }
 
-    // Base after promotion discount, before any voucher discount.
-    const base = Number(booking.total_amount || booking.price);
-    const promoDiscount = Number(booking.discount_amount || 0);
-    const afterPromo = base - promoDiscount;
-
-    if (voucher.min_spend && afterPromo < Number(voucher.min_spend)) {
-      return res.redirect(`/payment/checkout/${bookingId}?voucherError=` + encodeURIComponent(`Minimum spend of S$${Number(voucher.min_spend).toFixed(2)} required.`));
+    if (!voucher.isUsable) {
+      return res.redirect(`/payment/checkout/${bookingId}?voucherError=` + encodeURIComponent(voucher.unavailableReason || 'This voucher is not eligible for this booking.'));
     }
 
-    let voucherDiscount;
-    if (voucher.discount_type === 'percent') {
-      voucherDiscount = parseFloat((afterPromo * Number(voucher.discount_value) / 100).toFixed(2));
-    } else {
-      voucherDiscount = Math.min(Number(voucher.discount_value), afterPromo);
-    }
-    voucherDiscount = parseFloat(Math.min(voucherDiscount, afterPromo).toFixed(2));
-
-    await bookingModel.applyVoucher(bookingId, cvId, voucherDiscount);
+    await bookingModel.applyVoucher(bookingId, cvId, voucher.discountAmount);
     return res.redirect(`/payment/checkout/${bookingId}`);
   } catch (err) {
     console.error('applyVoucher error:', err);

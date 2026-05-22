@@ -198,7 +198,8 @@ async function confirmPortalBooking(req, res) {
 
 async function viewCustomerBookings(req, res) {
   try {
-    const bookings = await bookingModel.getCustomerBookings(req.session.user.customer_id);
+    const customerId = req.session.user.customer_id || req.session.user.user_id;
+    const bookings = await bookingModel.getCustomerBookings(customerId);
     res.render('booking/viewBookings', {
       title: 'My Bookings',
       bookings,

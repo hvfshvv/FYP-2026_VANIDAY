@@ -40,6 +40,21 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(async (req, res, next) => {
+  res.locals.pendingPaymentCount = 0;
+  const user = req.session.user;
+  if (!user || user.role !== 'customer') return next();
+
+  try {
+    res.locals.pendingPaymentCount = await bookingModel.countActivePendingPaymentBookings(
+      user.customer_id || user.user_id
+    );
+  } catch (err) {
+    console.error('[booking] Failed to count pending payment bookings:', err.message);
+  }
+  next();
+});
+
 app.use('/',           marketplaceRoutes);
 app.use('/auth',       authRoutes);
 app.use('/merchant',   merchantRoutes);

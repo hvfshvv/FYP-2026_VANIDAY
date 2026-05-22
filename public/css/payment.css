@@ -24,6 +24,151 @@
   color: var(--ink);
 }
 
+.voucher-list {
+  display: flex;
+  flex-direction: column;
+  gap: .625rem;
+}
+
+.voucher-option-form {
+  margin: 0;
+}
+
+.voucher-option-card {
+  width: 100%;
+  display: block;
+  text-align: left;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: .75rem .85rem;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, box-shadow .15s, transform .1s;
+}
+
+.voucher-option-card:hover {
+  border-color: rgba(225,29,72,.38);
+  box-shadow: var(--shadow-sm);
+}
+
+.voucher-option-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.voucher-option-card.best:not(.selected) {
+  border-color: rgba(16,185,129,.55);
+  background: var(--success-bg);
+}
+
+.voucher-option-card.unavailable {
+  background: #f8fafc;
+  color: var(--ghost);
+  cursor: not-allowed;
+  opacity: .78;
+}
+
+.voucher-option-card.unavailable:hover {
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.voucher-option-top,
+.voucher-option-main,
+.voucher-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.voucher-option-top {
+  margin-bottom: .45rem;
+}
+
+.voucher-option-main {
+  align-items: flex-start;
+}
+
+.voucher-option-labels {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .35rem;
+}
+
+.voucher-discount-pill,
+.voucher-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: .35rem .55rem;
+}
+
+.voucher-discount-pill {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.voucher-state-pill.selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+.voucher-state-pill.best {
+  background: var(--success);
+  color: #fff;
+}
+
+.voucher-name {
+  font-size: .9rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.voucher-expiry,
+.voucher-meta {
+  font-size: .78rem;
+  color: var(--muted);
+}
+
+.voucher-expiry {
+  white-space: nowrap;
+}
+
+.voucher-meta {
+  margin-top: .3rem;
+}
+
+.voucher-reason {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.voucher-empty {
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+@media (max-width: 575px) {
+  .voucher-option-top,
+  .voucher-option-main,
+  .voucher-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .35rem;
+  }
+
+  .voucher-option-labels {
+    justify-content: flex-start;
+  }
+}
+
 /* Stripe card element container */
 #card-element-wrap {
   padding: .75rem 1rem;

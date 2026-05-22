@@ -26,7 +26,14 @@
       <li><a href="/#featured-listings" onclick="scrollToMarketplace(event)">Marketplace</a></li>
       <% } %>
       <% if (user && user.role === 'customer') { %>
-      <li><a href="/book/viewBookings">View bookings</a></li>
+      <li>
+        <a href="/book/viewBookings" class="nav-bookings-link">
+          View bookings
+          <% if (Number(locals.pendingPaymentCount || 0) > 0) { %>
+          <span class="nav-pending-badge"><%= pendingPaymentCount %></span>
+          <% } %>
+        </a>
+      </li>
       <% } %>
       <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
       <li><a href="/merchant/dashboard">Dashboard</a></li>
@@ -71,7 +78,12 @@
   <a href="/#featured-listings" onclick="scrollToMarketplace(event)">Marketplace</a>
   <% } %>
   <% if (user && user.role === 'customer') { %>
-  <a href="/book/viewBookings">View bookings</a>
+  <a href="/book/viewBookings" class="nav-bookings-link">
+    View bookings
+    <% if (Number(locals.pendingPaymentCount || 0) > 0) { %>
+    <span class="nav-pending-badge"><%= pendingPaymentCount %></span>
+    <% } %>
+  </a>
   <a href="/favourite">My Favourites</a>
   <a href="/loyalty">Wallet</a>
   <% } %>

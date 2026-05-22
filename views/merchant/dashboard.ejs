@@ -175,12 +175,16 @@
                   completed: { bg:'var(--neutral-bg)',  color:'var(--muted)'    },
                   arrived:   { bg:'#EFF6FF',            color:'#1D4ED8'         },
                   cancelled: { bg:'var(--danger-bg)',   color:'var(--danger)'   },
+                  payment_failed: { bg:'var(--danger-bg)', color:'var(--danger)' },
                   pending:   { bg:'var(--warn-bg)',     color:'var(--warn)'     },
                 };
                 const st = statusMap[b.status] || statusMap.pending;
+                const statusLabel = b.status === 'payment_failed'
+                  ? 'Payment Failed'
+                  : b.status.charAt(0).toUpperCase() + b.status.slice(1).replace('_', ' ');
               %>
               <span class="badge" style="background:<%= st.bg %>;color:<%= st.color %>">
-                <%= b.status.charAt(0).toUpperCase() + b.status.slice(1) %>
+                <%= statusLabel %>
               </span>
             </td>
             <td>

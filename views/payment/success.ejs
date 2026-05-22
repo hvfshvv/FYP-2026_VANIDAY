@@ -24,6 +24,7 @@
           <div class="text-start p-3 rounded-xl mb-4" style="background:var(--surface);border:1.5px solid var(--border);">
             <div class="summary-row"><span class="lbl">Merchant</span><span class="val"><%= booking.merchant_name %></span></div>
             <div class="summary-row"><span class="lbl">Service</span><span class="val"><%= booking.service_name %></span></div>
+            <div class="summary-row"><span class="lbl">Staff</span><span class="val"><%= booking.staff_name || 'Any Available Staff' %></span></div>
             <div class="summary-row"><span class="lbl">Date</span><span class="val"><%= new Date(booking.booking_date).toLocaleDateString('en-SG',{weekday:'short',day:'numeric',month:'long',year:'numeric'}) %></span></div>
             <div class="summary-row"><span class="lbl">Time</span><span class="val"><%= String(booking.booking_time).slice(0,5) %></span></div>
             <div class="summary-row">

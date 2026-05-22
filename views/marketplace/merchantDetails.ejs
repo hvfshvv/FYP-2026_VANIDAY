@@ -131,6 +131,12 @@
 
   <% } %>
 
+  <div style="margin-top:2.5rem;">
+    <a href="/marketplace">
+      ← Back to Marketplace
+    </a>
+  </div>
+
   <% if (typeof merchantPromotions !== 'undefined' && merchantPromotions && merchantPromotions.length > 0) { %>
   <%
     const promoDay = value => {
@@ -146,9 +152,9 @@
   <hr style="margin:2.5rem 0;">
   <div class="section-header mb-3">
     <div>
-      <p class="section-label">Deals</p>
-      <h2 class="section-title">Active promotions</h2>
-      <p class="section-sub">These deals apply automatically when you book — no code needed.</p>
+      <p class="section-label">Current deals</p>
+      <h2 class="section-title">Current Deals</h2>
+      <p class="section-sub">These merchant deals apply automatically when you book.</p>
     </div>
   </div>
 
@@ -189,12 +195,6 @@
     </button>
   </div>
   <% } %>
-
-  <div style="margin-top:2.5rem;">
-    <a href="/marketplace">
-      ← Back to Marketplace
-    </a>
-  </div>
 
 </div>
 
