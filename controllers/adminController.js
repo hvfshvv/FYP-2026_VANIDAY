@@ -157,6 +157,38 @@ async function showRevenueReport(req, res) {
   }
 }
 
+async function showPlatformFeedback(req, res) {
+  const filters = {
+    type: req.query.type || 'all',
+    rating: req.query.rating || 'all',
+    search: req.query.search || '',
+  };
+
+  try {
+    const [feedback, summary] = await Promise.all([
+      adminModel.getPlatformFeedback(filters),
+      adminModel.getPlatformFeedbackSummary(),
+    ]);
+
+    res.render('admin/platformFeedback', {
+      title: 'Uniday Feedback',
+      feedback,
+      summary,
+      filters,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/platformFeedback', {
+      title: 'Uniday Feedback',
+      feedback: [],
+      summary: {},
+      filters,
+      error: 'Failed to load Uniday feedback.',
+    });
+  }
+}
+
 async function showUserManagementHome(req, res) {
   try {
     // Summary counts power the two cards on admin/userManagement.ejs.
@@ -684,6 +716,7 @@ module.exports = {
   showMerchants,
   showCustomers,
   showRevenueReport,
+  showPlatformFeedback,
   featureMerchantFromDashboard,
   toggleFeaturedMerchantFromDashboard,
   removeFeaturedMerchantFromDashboard,

@@ -2,6 +2,7 @@ const featuredListingModel = require('../models/featuredListingModel');
 const promotionModel = require('../models/promotionModel');
 const merchantModel = require('../models/merchantModel');
 const favouriteModel = require('../models/favouriteModel');
+const reviewModel = require('../models/reviewModel');
 const { SERVICE_CATEGORIES, normalizeServiceCategory } = require('../utils/serviceCategories');
 
 function getSelectedCategory(req) {
@@ -110,9 +111,10 @@ async function showMerchantDetails(req, res) {
         );
     }
 
-    const [merchantServices, merchantPromotions] = await Promise.all([
+    const [merchantServices, merchantPromotions, merchantReviews] = await Promise.all([
       merchantModel.getMerchantServices(merchantId),
       promotionModel.getMerchantApprovedPromotions(merchantId),
+      reviewModel.getRecentMerchantReviews(merchantId, 8),
     ]);
     const services = merchantServices.map(service => ({
       ...service,
@@ -130,6 +132,7 @@ async function showMerchantDetails(req, res) {
       merchant,
       services,
       merchantPromotions,
+      merchantReviews,
       serviceCategories,
       selectedServiceCategory,
       favouriteServiceIds
