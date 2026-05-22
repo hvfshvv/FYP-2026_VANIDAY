@@ -17,6 +17,142 @@ async function getDashboardSummary() {
   return rows[0] || {};
 }
 
+async function getPlatformRevenueReport({ startDate, endDate } = {}) {
+  const paymentDateFilter = 'DATE(COALESCE(p.paid_at, b.created_at)) BETWEEN ? AND ?';
+  const rangeParams = [startDate, endDate];
+
+  const [
+    [overviewRows],
+    monthly,
+    categoryBreakdown,
+    topMerchants,
+    paymentStatus,
+    bookingSource,
+    recentTransactions,
+  ] = await Promise.all([
+    db.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS gross_revenue,
+         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount * 0.20 ELSE 0 END), 0) AS platform_commission,
+         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount * 0.80 ELSE 0 END), 0) AS merchant_payout,
+         COUNT(DISTINCT CASE WHEN p.payment_status = 'paid' THEN b.booking_id END) AS paid_bookings,
+         COUNT(DISTINCT b.merchant_id) AS merchants_with_payments,
+         COALESCE(AVG(CASE WHEN p.payment_status = 'paid' THEN p.amount END), 0) AS average_order_value,
+         SUM(CASE WHEN p.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_payments,
+         SUM(CASE WHEN p.payment_status IN ('failed', 'payment_failed') THEN 1 ELSE 0 END) AS failed_payments
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE ${paymentDateFilter}`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         DATE_FORMAT(COALESCE(p.paid_at, b.created_at), '%Y-%m') AS month,
+         COUNT(DISTINCT b.booking_id) AS paid_bookings,
+         COALESCE(SUM(p.amount), 0) AS gross_revenue,
+         COALESCE(SUM(p.amount * 0.20), 0) AS platform_commission,
+         COALESCE(SUM(p.amount * 0.80), 0) AS merchant_payout
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY DATE_FORMAT(COALESCE(p.paid_at, b.created_at), '%Y-%m')
+       ORDER BY month DESC
+       LIMIT 6`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category,
+         COUNT(DISTINCT b.booking_id) AS paid_bookings,
+         COALESCE(SUM(p.amount), 0) AS gross_revenue,
+         COALESCE(SUM(p.amount * 0.20), 0) AS platform_commission
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       JOIN merchant m ON m.merchant_id = b.merchant_id
+       JOIN service s ON s.service_id = b.service_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised')
+       ORDER BY gross_revenue DESC`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         m.merchant_id,
+         m.merchant_name,
+         COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
+         COUNT(DISTINCT b.booking_id) AS paid_bookings,
+         COALESCE(SUM(p.amount), 0) AS gross_revenue,
+         COALESCE(SUM(p.amount * 0.20), 0) AS platform_commission,
+         COALESCE(SUM(p.amount * 0.80), 0) AS merchant_payout
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       JOIN merchant m ON m.merchant_id = b.merchant_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY m.merchant_id, m.merchant_name, m.category
+       ORDER BY gross_revenue DESC
+       LIMIT 10`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         COALESCE(p.payment_status, 'unknown') AS payment_status,
+         COUNT(*) AS total,
+         COALESCE(SUM(p.amount), 0) AS amount
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE ${paymentDateFilter}
+       GROUP BY COALESCE(p.payment_status, 'unknown')
+       ORDER BY total DESC`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         COALESCE(NULLIF(b.source, ''), 'web') AS source,
+         COUNT(DISTINCT b.booking_id) AS paid_bookings,
+         COALESCE(SUM(p.amount), 0) AS gross_revenue
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY COALESCE(NULLIF(b.source, ''), 'web')
+       ORDER BY gross_revenue DESC`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         p.payment_id,
+         p.booking_id,
+         p.amount,
+         p.payment_status,
+         p.payment_method,
+         p.transaction_ref,
+         p.paid_at,
+         b.source,
+         COALESCE(u.full_name, b.guest_name, 'Guest') AS customer_name,
+         m.merchant_name,
+         s.service_name
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       JOIN merchant m ON m.merchant_id = b.merchant_id
+       JOIN service s ON s.service_id = b.service_id
+       LEFT JOIN users u ON u.user_id = b.customer_id
+       WHERE ${paymentDateFilter}
+       ORDER BY COALESCE(p.paid_at, b.created_at) DESC, p.payment_id DESC
+       LIMIT 12`,
+      rangeParams
+    ),
+  ]);
+
+  return {
+    overview: overviewRows[0] || {},
+    monthly,
+    categoryBreakdown,
+    topMerchants,
+    paymentStatus,
+    bookingSource,
+    recentTransactions,
+  };
+}
+
 async function getRecentBookings(limit = 8) {
   const [rows] = await db.query(
     `SELECT
@@ -1191,6 +1327,7 @@ async function getMerchantBookingsForAdmin(merchantId) {
 
 module.exports = {
   getDashboardSummary,
+  getPlatformRevenueReport,
   getRecentBookings,
   getRecentPayments,
   getRecentValidationErrors,

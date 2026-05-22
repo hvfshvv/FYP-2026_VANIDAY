@@ -1,0 +1,320 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const r = report || {};
+  const overview = r.overview || {};
+  const money = value => 'S$' + Number(value || 0).toFixed(2);
+  const number = value => Number(value || 0).toLocaleString('en-SG');
+  const percent = (value, total) => {
+    const base = Number(total || 0);
+    return base ? ((Number(value || 0) / base) * 100).toFixed(1) + '%' : '0.0%';
+  };
+  const dateTime = value => value ? new Date(value).toLocaleString('en-SG', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
+  const maxOf = (items, key) => Math.max(1, ...items.map(item => Number(item[key] || 0)));
+  const barWidth = (value, max) => Math.max(4, Math.round((Number(value || 0) / max) * 100));
+  const grossRevenue = Number(overview.gross_revenue || 0);
+%>
+
+<style>
+  .revenue-card {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--r-lg);
+    box-shadow:var(--shadow-sm);
+    padding:1.4rem;
+    height:100%;
+  }
+  .revenue-panel {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--r-xl);
+    box-shadow:var(--shadow);
+    padding:1.5rem;
+  }
+  .revenue-row {
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    gap:1rem;
+    align-items:center;
+  }
+  .revenue-row p {
+    color:var(--ink);
+    font-weight:800;
+    margin:0 0 .25rem;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .revenue-row small {
+    color:var(--muted);
+  }
+  .revenue-bar {
+    background:var(--neutral-bg);
+    border-radius:999px;
+    height:10px;
+    overflow:hidden;
+  }
+  .revenue-bar span {
+    background:var(--accent);
+    border-radius:999px;
+    display:block;
+    height:100%;
+  }
+  .split-box {
+    border:1px solid var(--border);
+    border-radius:var(--r);
+    padding:1rem;
+    background:var(--canvas);
+  }
+</style>
+
+<div class="container py-5">
+  <a href="/admin/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
+    <i class="bi bi-arrow-left me-1"></i>Dashboard
+  </a>
+
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div class="d-flex align-items-center gap-3">
+      <div class="icon-circle flex-shrink-0" style="background:var(--accent-light);width:42px;height:42px;">
+        <i class="bi bi-graph-up-arrow" style="color:var(--accent);"></i>
+      </div>
+      <div>
+        <p class="section-label mb-1">Admin Finance</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.15rem;">Revenue Report</h2>
+        <p style="color:var(--muted);margin-bottom:0;">Platform gross revenue, Uniday commission, merchant payouts, and payment health.</p>
+      </div>
+    </div>
+
+    <form method="GET" action="/admin/revenue" class="d-flex flex-wrap gap-2 align-items-center">
+      <input type="date" name="startDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.startDate %>" />
+      <input type="date" name="endDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.endDate %>" />
+      <button type="submit" class="btn btn-primary btn-pill">
+        <i class="bi bi-funnel me-1"></i>Filter
+      </button>
+    </form>
+  </div>
+
+  <% if (error) { %>
+    <div class="alert alert-warning mb-4">
+      <i class="bi bi-exclamation-triangle"></i>
+      <span><%= error %></span>
+    </div>
+  <% } %>
+
+  <div class="row g-3 mb-5">
+    <% [
+      { label:'Gross Revenue', value:money(overview.gross_revenue), sub:'Successful customer payments', icon:'bi-cash-stack', color:'var(--accent)' },
+      { label:'Uniday Commission', value:money(overview.platform_commission), sub:'20% platform share', icon:'bi-percent', color:'var(--success)' },
+      { label:'Merchant Payouts', value:money(overview.merchant_payout), sub:'80% payable to merchants', icon:'bi-bank', color:'var(--ink)' },
+      { label:'Avg. Order Value', value:money(overview.average_order_value), sub:'Per paid booking', icon:'bi-bag-check', color:'#1D4ED8' },
+      { label:'Paid Bookings', value:number(overview.paid_bookings), sub:'Bookings with paid payments', icon:'bi-calendar-check', color:'var(--success)' },
+      { label:'Paid Payments', value:number(overview.paid_payments), sub:'Successful payment records', icon:'bi-receipt', color:'var(--accent)' },
+      { label:'Failed Payments', value:number(overview.failed_payments), sub:'Needs payment-flow attention', icon:'bi-exclamation-triangle', color:'var(--danger)' },
+      { label:'Active Revenue Merchants', value:number(overview.merchants_with_payments), sub:'Merchants with payments', icon:'bi-shop', color:'var(--ink)' },
+    ].forEach(stat => { %>
+      <div class="col-6 col-lg-3">
+        <div class="stat-card h-100">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+              <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.45rem;"><%= stat.label %></p>
+              <p class="stat-value" style="color:<%= stat.color %>;font-size:1.55rem;"><%= stat.value %></p>
+              <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= stat.sub %></p>
+            </div>
+            <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+              <i class="bi <%= stat.icon %>"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+
+  <div class="revenue-panel mb-5">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+      <div>
+        <p class="section-label mb-1">Commission Model</p>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:0;">Platform Revenue Split</h5>
+      </div>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">20% Uniday / 80% Merchant</span>
+    </div>
+    <div class="row g-3 align-items-center">
+      <div class="col-lg-7">
+        <div class="d-flex justify-content-between mb-1">
+          <strong style="color:var(--success);">Merchant payout pool</strong>
+          <span class="mono"><%= money(overview.merchant_payout) %> (<%= percent(overview.merchant_payout, grossRevenue) %>)</span>
+        </div>
+        <div class="revenue-bar mb-3"><span style="width:80%;background:var(--success);"></span></div>
+        <div class="d-flex justify-content-between mb-1">
+          <strong style="color:var(--accent);">Uniday commission earned</strong>
+          <span class="mono"><%= money(overview.platform_commission) %> (<%= percent(overview.platform_commission, grossRevenue) %>)</span>
+        </div>
+        <div class="revenue-bar"><span style="width:20%;"></span></div>
+      </div>
+      <div class="col-lg-5">
+        <div class="split-box">
+          <p style="font-weight:800;color:var(--ink);margin-bottom:.4rem;"><i class="bi bi-info-circle me-1" style="color:var(--accent);"></i>Admin use</p>
+          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Use this page to check platform gross sales, expected Uniday commission, merchant payout exposure, failed payment volume, and which merchants or categories are driving revenue.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-5">
+    <div class="col-lg-6">
+      <div class="revenue-panel h-100">
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Top Revenue Merchants</h5>
+        <% const merchantMax = maxOf(r.topMerchants || [], 'gross_revenue'); %>
+        <div class="d-flex flex-column gap-3">
+          <% (r.topMerchants || []).forEach(row => { %>
+            <div>
+              <div class="revenue-row mb-2">
+                <div>
+                  <p><%= row.merchant_name %></p>
+                  <small><%= row.category %> · <%= number(row.paid_bookings) %> paid bookings</small>
+                </div>
+                <strong class="mono"><%= money(row.gross_revenue) %></strong>
+              </div>
+              <div class="revenue-bar"><span style="width:<%= barWidth(row.gross_revenue, merchantMax) %>%;"></span></div>
+            </div>
+          <% }) %>
+          <% if (!(r.topMerchants || []).length) { %><p style="color:var(--muted);margin:0;">No paid merchant revenue in this range.</p><% } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="revenue-panel h-100">
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Revenue by Category</h5>
+        <% const categoryMax = maxOf(r.categoryBreakdown || [], 'gross_revenue'); %>
+        <div class="d-flex flex-column gap-3">
+          <% (r.categoryBreakdown || []).forEach(row => { %>
+            <div>
+              <div class="revenue-row mb-2">
+                <div>
+                  <p><%= row.category %></p>
+                  <small><%= number(row.paid_bookings) %> paid bookings · commission <%= money(row.platform_commission) %></small>
+                </div>
+                <strong class="mono"><%= money(row.gross_revenue) %></strong>
+              </div>
+              <div class="revenue-bar"><span style="width:<%= barWidth(row.gross_revenue, categoryMax) %>%;"></span></div>
+            </div>
+          <% }) %>
+          <% if (!(r.categoryBreakdown || []).length) { %><p style="color:var(--muted);margin:0;">No category revenue in this range.</p><% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-5">
+    <div class="col-lg-7">
+      <div class="revenue-panel h-100">
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Monthly Revenue</h5>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0" style="font-size:.85rem;">
+            <thead style="background:var(--accent-light);">
+              <tr>
+                <th>Month</th>
+                <th>Paid Bookings</th>
+                <th>Gross</th>
+                <th>Commission</th>
+                <th>Merchant Payout</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% (r.monthly || []).forEach(row => { %>
+                <tr>
+                  <td style="font-weight:800;"><%= row.month %></td>
+                  <td><%= number(row.paid_bookings) %></td>
+                  <td class="mono"><%= money(row.gross_revenue) %></td>
+                  <td class="mono" style="color:var(--success);"><%= money(row.platform_commission) %></td>
+                  <td class="mono"><%= money(row.merchant_payout) %></td>
+                </tr>
+              <% }) %>
+              <% if (!(r.monthly || []).length) { %>
+                <tr><td colspan="5" style="color:var(--muted);">No monthly revenue in this range.</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="revenue-panel h-100">
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Payment Health</h5>
+        <div class="row g-3">
+          <div class="col-md-6 col-lg-12">
+            <div class="split-box">
+              <p style="font-weight:800;margin-bottom:.75rem;">Status Breakdown</p>
+              <% (r.paymentStatus || []).forEach(row => { %>
+                <div class="d-flex justify-content-between mb-2">
+                  <span style="color:var(--muted);"><%= row.payment_status %></span>
+                  <strong><%= number(row.total) %></strong>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-12">
+            <div class="split-box">
+              <p style="font-weight:800;margin-bottom:.75rem;">Revenue Source</p>
+              <% (r.bookingSource || []).forEach(row => { %>
+                <div class="d-flex justify-content-between mb-2">
+                  <span style="color:var(--muted);"><%= row.source %> · <%= number(row.paid_bookings) %></span>
+                  <strong class="mono"><%= money(row.gross_revenue) %></strong>
+                </div>
+              <% }) %>
+              <% if (!(r.bookingSource || []).length) { %><p style="color:var(--muted);margin:0;">No paid sources in this range.</p><% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="revenue-panel">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <h5 style="font-weight:800;color:var(--ink);margin-bottom:0;">Recent Payment Records</h5>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">Latest 12</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+        <thead style="background:var(--accent-light);">
+          <tr>
+            <th>Payment</th>
+            <th>Booking</th>
+            <th>Customer</th>
+            <th>Merchant</th>
+            <th>Service</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Paid At</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% (r.recentTransactions || []).forEach(row => { %>
+            <tr>
+              <td class="mono">#<%= row.payment_id %></td>
+              <td class="mono">#<%= row.booking_id %></td>
+              <td><%= row.customer_name %></td>
+              <td><%= row.merchant_name %></td>
+              <td><%= row.service_name %></td>
+              <td class="mono"><%= money(row.amount) %></td>
+              <td>
+                <span class="badge" style="background:<%= row.payment_status === 'paid' ? 'var(--success-bg)' : 'var(--danger-bg)' %>;color:<%= row.payment_status === 'paid' ? 'var(--success)' : 'var(--danger)' %>;">
+                  <%= row.payment_status %>
+                </span>
+              </td>
+              <td><%= dateTime(row.paid_at) %></td>
+            </tr>
+          <% }) %>
+          <% if (!(r.recentTransactions || []).length) { %>
+            <tr><td colspan="8" style="color:var(--muted);">No payment records in this range.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

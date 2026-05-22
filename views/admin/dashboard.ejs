@@ -65,6 +65,26 @@
     padding: 1.75rem;
   }
 
+  .stat-card.is-alert {
+    background: #fee2e2;
+    border-color: rgba(239, 68, 68, .35);
+    box-shadow: 0 16px 40px rgba(239, 68, 68, .14);
+  }
+
+  .stat-card.is-alert:hover {
+    border-color: rgba(239, 68, 68, .55);
+    box-shadow: 0 18px 46px rgba(239, 68, 68, .22);
+  }
+
+  .stat-card.is-alert .stat-alert-label {
+    color: #991b1b !important;
+  }
+
+  .stat-card.is-alert .icon-circle {
+    background: #fff1f2 !important;
+    color: #dc2626 !important;
+  }
+
   @media (max-width: 1199.98px) {
     .admin-module-card {
       flex-basis: calc((100% - 2.5rem) / 3);
@@ -112,6 +132,9 @@
       <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Admin Dashboard</h2>
       <p style="color:var(--muted);margin-bottom:0;">Welcome back, <strong><%= user.full_name %></strong></p>
     </div>
+    <a href="/admin/revenue" class="btn btn-outline-secondary btn-pill" style="font-weight:800;">
+      <i class="bi bi-graph-up me-1"></i>Revenue Report
+    </a>
   </div>
 
   <% if (typeof error !== 'undefined' && error) { %>
@@ -126,25 +149,27 @@
       { label:'Customers', value:summary.total_customers || 0, icon:'bi-people', color:'var(--accent)' },
       { label:'Merchants', value:summary.total_merchants || 0, icon:'bi-shop', color:'var(--ink)' },
       { label:'Bookings', value:summary.total_bookings || 0, icon:'bi-calendar-check', color:'#1D4ED8' },
-      { label:'Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)' },
+      { label:'Gross Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)', href:'/admin/revenue' },
       { label:'Payments', value:summary.total_payments || 0, icon:'bi-receipt', color:'var(--accent)' },
       { label:'Services', value:summary.total_services || 0, icon:'bi-scissors', color:'var(--ink)' },
       { label:'Promotions', value:summary.total_promotions || 0, icon:'bi-tag', color:'var(--accent)' },
-      { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)' },
+      { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)', href:'/admin/merchant-validations', alertWhenPositive:true },
       { label:'Validation Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)' },
     ].forEach(stat => { %>
     <div class="col-6 col-lg-3">
-      <div class="stat-card">
+      <% const statTag = stat.href ? 'a' : 'div'; %>
+      <% const isAlert = stat.alertWhenPositive && Number(stat.value) > 0; %>
+      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %>"<%- stat.href ? ` href="${stat.href}"` : '' %>>
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
-            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
-            <p class="stat-value" style="color:<%= stat.color %>;"><%= stat.value %></p>
+            <p class="stat-alert-label" style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
+            <p class="stat-value" style="color:<%= isAlert ? '#b91c1c' : stat.color %>;"><%= stat.value %></p>
           </div>
           <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
             <i class="bi <%= stat.icon %>"></i>
           </div>
         </div>
-      </div>
+      </<%= statTag %>>
     </div>
     <% }) %>
   </div>
@@ -167,28 +192,16 @@
   <div class="admin-module-carousel" id="admin-modules">
     <% [
       {
-        href:'/admin/user-management',
-        icon:'bi-person-gear',
-        label:'User Management',
-        sub:'Enable, disable, delete, and review customer and merchant accounts from one control room.'
-      },
-      {
         href:'/admin/customers',
         icon:'bi-person-lines-fill',
-        label:'Manage Customers',
+        label:'Customer Information',
         sub:'View customer profiles, booking history, loyalty points, vouchers, wallet balances, cancellations, and favourite merchants.'
       },
       {
         href:'/admin/merchants',
         icon:'bi-shop-window',
-        label:'Manage Merchants',
+        label:'Merchant Information',
         sub:'Review merchant business details, services, staff, promotions, cancellation policies, revenue, QR bookings, and performance analytics.'
-      },
-      {
-        href:'/admin/merchant-validations',
-        icon:'bi-patch-check',
-        label:'Merchant Validation',
-        sub:'Review pending merchant registrations, verify company details, and approve or reject access to merchant tools.'
       },
       {
         href:'/admin/promotions',

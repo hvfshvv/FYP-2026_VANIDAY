@@ -8,6 +8,7 @@ router.use(requireLogin, requireAdmin);
 
 // Main admin dashboards and analytics pages.
 router.get('/dashboard', adminController.showDashboard);
+router.get('/revenue', adminController.showRevenueReport);
 router.get('/merchants', adminController.showMerchants);
 router.post('/merchants/:merchantId/feature', adminController.featureMerchantFromDashboard);
 router.post('/merchants/featured/:listingId/toggle', adminController.toggleFeaturedMerchantFromDashboard);

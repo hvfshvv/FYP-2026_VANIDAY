@@ -37,8 +37,8 @@ async function showDashboard(req, res) {
 
 function showComingSoon(req, res) {
   const pages = {
-    customers: 'Manage Customers',
-    merchants: 'Manage Merchants',
+    customers: 'Customer Information',
+    merchants: 'Merchant Information',
     validation: 'Validation & Error Logs',
     featured: 'Featured Merchants',
     campaigns: 'Voucher & Campaign Management',
@@ -119,6 +119,40 @@ async function showCustomers(req, res) {
       analytics: emptyCustomerAnalytics(),
       range,
       error: 'Failed to load customer analytics data.',
+    });
+  }
+}
+
+async function showRevenueReport(req, res) {
+  const today = new Date();
+  const defaultStart = new Date(today);
+  defaultStart.setDate(defaultStart.getDate() - 29);
+
+  const range = {
+    startDate: isDate(req.query.startDate) ? req.query.startDate : toDateInput(defaultStart),
+    endDate: isDate(req.query.endDate) ? req.query.endDate : toDateInput(today),
+  };
+
+  if (new Date(range.endDate) < new Date(range.startDate)) {
+    range.endDate = range.startDate;
+  }
+
+  try {
+    const report = await adminModel.getPlatformRevenueReport(range);
+
+    res.render('admin/revenue', {
+      title: 'Revenue Report',
+      report,
+      range,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/revenue', {
+      title: 'Revenue Report',
+      report: emptyRevenueReport(),
+      range,
+      error: 'Failed to load revenue report.',
     });
   }
 }
@@ -406,6 +440,18 @@ function emptyCustomerAnalytics() {
   };
 }
 
+function emptyRevenueReport() {
+  return {
+    overview: {},
+    monthly: [],
+    categoryBreakdown: [],
+    topMerchants: [],
+    paymentStatus: [],
+    bookingSource: [],
+    recentTransactions: [],
+  };
+}
+
 async function showMerchantValidations(req, res) {
   try {
     const [pendingMerchants, recentDecisions, statusSummary, applicationTrend] = await Promise.all([
@@ -637,6 +683,7 @@ module.exports = {
   showComingSoon,
   showMerchants,
   showCustomers,
+  showRevenueReport,
   featureMerchantFromDashboard,
   toggleFeaturedMerchantFromDashboard,
   removeFeaturedMerchantFromDashboard,
