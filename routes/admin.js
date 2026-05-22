@@ -9,6 +9,7 @@ router.use(requireLogin, requireAdmin);
 // Main admin dashboards and analytics pages.
 router.get('/dashboard', adminController.showDashboard);
 router.get('/merchants', adminController.showMerchants);
+router.get('/platform-feedback', adminController.showPlatformFeedback);
 router.post('/merchants/:merchantId/feature', adminController.featureMerchantFromDashboard);
 router.post('/merchants/featured/:listingId/toggle', adminController.toggleFeaturedMerchantFromDashboard);
 router.post('/merchants/featured/:listingId/remove', adminController.removeFeaturedMerchantFromDashboard);

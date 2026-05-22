@@ -1,4 +1,10 @@
 <%- include('../partials/header') %> 
+<%
+  const reviewList = Array.isArray(typeof merchantReviews !== 'undefined' ? merchantReviews : []) ? merchantReviews : [];
+  const reviewCount = Number(merchant.review_count || 0);
+  const averageRating = Number(merchant.average_rating || 0);
+  const starIcon = index => index <= Math.round(averageRating) ? 'bi-star-fill' : 'bi-star';
+%>
 
 <div class="section" style="padding-top:2.5rem;padding-bottom:2rem;border-bottom:1px solid var(--border);">
   <div class="container">
@@ -19,6 +25,17 @@
   <p>
     <strong>Category:</strong>
     <%= merchant.service_categories || merchant.category || 'General' %>
+  </p>
+  <p>
+    <strong>Rating:</strong>
+    <% if (reviewCount) { %>
+      <span style="color:#f59e0b;">
+        <% [1,2,3,4,5].forEach(i => { %><i class="bi <%= starIcon(i) %>"></i><% }) %>
+      </span>
+      <%= averageRating.toFixed(1) %>/5 (<%= reviewCount %> review<%= reviewCount === 1 ? '' : 's' %>)
+    <% } else { %>
+      New merchant
+    <% } %>
   </p>
 
   <p>
@@ -165,6 +182,44 @@
       No services found for this category.
     </p>
 
+  <% } %>
+
+  <hr style="margin:2.5rem 0;">
+  <div class="section-header mb-3">
+    <div>
+      <p class="section-label">Reviews</p>
+      <h2 class="section-title">Customer Reviews</h2>
+      <p class="section-sub">Verified feedback from completed bookings.</p>
+    </div>
+  </div>
+
+  <% if (!reviewList.length) { %>
+    <p style="color:var(--muted);">No reviews yet.</p>
+  <% } else { %>
+    <div class="row g-3">
+      <% reviewList.forEach(review => { %>
+      <div class="col-md-6">
+        <article class="promo-card h-100">
+          <div class="d-flex justify-content-between gap-2 mb-2">
+            <div>
+              <p style="font-weight:800;color:var(--ink);margin-bottom:.1rem;"><%= review.customer_name %></p>
+              <p class="small text-muted mb-0"><%= review.service_name %></p>
+            </div>
+            <div style="color:#f59e0b;white-space:nowrap;">
+              <% [1,2,3,4,5].forEach(i => { %><i class="bi <%= i <= Number(review.rating || 0) ? 'bi-star-fill' : 'bi-star' %>"></i><% }) %>
+            </div>
+          </div>
+          <p style="color:var(--ink);"><%= review.review_text || 'No written comment.' %></p>
+          <% if (review.merchant_reply) { %>
+          <div class="rounded-xl p-3 mt-3" style="background:var(--accent-light);border:1px solid rgba(225,29,72,.12);">
+            <p class="small mb-1" style="font-weight:800;color:var(--accent);">Merchant reply</p>
+            <p class="small mb-0" style="color:var(--ink);"><%= review.merchant_reply %></p>
+          </div>
+          <% } %>
+        </article>
+      </div>
+      <% }) %>
+    </div>
   <% } %>
 
   <div style="margin-top:2.5rem;">

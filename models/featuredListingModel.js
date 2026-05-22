@@ -40,12 +40,15 @@ async function getFeaturedListings(category = null) {
          GROUP_CONCAT(DISTINCT NULLIF(svc.category, '') ORDER BY svc.category SEPARATOR ', '),
          NULLIF(m.category, '')
        ) AS service_categories,
+       COALESCE(AVG(r.rating), 0) AS average_rating,
+       COUNT(DISTINCT r.review_id) AS review_count,
        p.title AS promo_title,
        p.discount_pct
      FROM featured_listing fl
      JOIN merchant m   ON fl.merchant_id = m.merchant_id
      JOIN users u ON u.user_id = m.user_id
      LEFT JOIN service svc ON svc.merchant_id = m.merchant_id AND svc.is_active = 1
+     LEFT JOIN merchant_review r ON r.merchant_id = m.merchant_id
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
        AND p.approval_status = 'approved'
        AND p.is_active = 1

@@ -1189,6 +1189,89 @@ async function getMerchantBookingsForAdmin(merchantId) {
   return rows;
 }
 
+async function getPlatformFeedback({ type = 'all', rating = 'all', search = '' } = {}) {
+  const params = [];
+  const clauses = [];
+
+  if (type && type !== 'all') {
+    clauses.push('pf.feedback_type = ?');
+    params.push(type);
+  }
+
+  if (rating && rating !== 'all') {
+    clauses.push('pf.rating = ?');
+    params.push(Number(rating));
+  }
+
+  const filter = searchClause(search, [
+    'u.full_name',
+    'u.email',
+    'm.merchant_name',
+    's.service_name',
+    'pf.feedback_text',
+  ]);
+  if (filter.clause) {
+    clauses.push(filter.clause);
+    params.push(...filter.params);
+  }
+
+  const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+  const [rows] = await db.query(
+    `SELECT
+       pf.feedback_id,
+       pf.booking_id,
+       pf.customer_id,
+       pf.rating,
+       pf.feedback_type,
+       pf.feedback_text,
+       pf.created_at,
+       u.full_name AS customer_name,
+       u.email AS customer_email,
+       b.merchant_id,
+       b.service_id,
+       b.status AS booking_status,
+       ts.slot_date AS booking_date,
+       ts.start_time AS booking_time,
+       m.merchant_name,
+       s.service_name
+     FROM platform_feedback pf
+     JOIN users u ON u.user_id = pf.customer_id
+     LEFT JOIN booking b ON b.booking_id = pf.booking_id
+     LEFT JOIN time_slot ts ON ts.slot_id = b.slot_id
+     LEFT JOIN merchant m ON m.merchant_id = b.merchant_id
+     LEFT JOIN service s ON s.service_id = b.service_id
+     ${whereSql}
+     ORDER BY pf.created_at DESC, pf.feedback_id DESC`,
+    params
+  );
+
+  return rows;
+}
+
+async function getPlatformFeedbackSummary() {
+  const [[summary]] = await db.query(
+    `SELECT
+       COUNT(*) AS total_feedback,
+       COALESCE(AVG(rating), 0) AS average_rating,
+       SUM(CASE WHEN rating >= 4 THEN 1 ELSE 0 END) AS positive_count,
+       SUM(CASE WHEN rating <= 2 THEN 1 ELSE 0 END) AS low_rating_count
+     FROM platform_feedback`
+  );
+
+  const [byType] = await db.query(
+    `SELECT feedback_type, COUNT(*) AS total, COALESCE(AVG(rating), 0) AS average_rating
+     FROM platform_feedback
+     GROUP BY feedback_type
+     ORDER BY total DESC, feedback_type ASC`
+  );
+
+  return {
+    ...(summary || {}),
+    byType,
+  };
+}
+
 module.exports = {
   getDashboardSummary,
   getRecentBookings,
@@ -1213,6 +1296,8 @@ module.exports = {
   getCustomerBookingsForAdmin,
   getMerchantAccount,
   getMerchantBookingsForAdmin,
+  getPlatformFeedback,
+  getPlatformFeedbackSummary,
   approveMerchant,
   rejectMerchant,
 };

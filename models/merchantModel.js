@@ -10,13 +10,17 @@ async function getMerchantById(merchantId) {
          FROM service s
          WHERE s.merchant_id = m.merchant_id
            AND s.is_active = 1
-       ), NULLIF(m.category, '')) AS service_categories
+       ), NULLIF(m.category, '')) AS service_categories,
+       COALESCE(AVG(r.rating), 0) AS average_rating,
+       COUNT(DISTINCT r.review_id) AS review_count
      FROM merchant m
      JOIN users u ON u.user_id = m.user_id
+     LEFT JOIN merchant_review r ON r.merchant_id = m.merchant_id
      WHERE m.merchant_id = ?
        AND m.is_active = 1
        AND m.verification_status = 'approved'
-       AND u.status = 'active'`,
+       AND u.status = 'active'
+     GROUP BY m.merchant_id`,
     [merchantId]
   );
 
@@ -57,12 +61,15 @@ async function getAllActiveMerchants(category = null) {
         GROUP_CONCAT(DISTINCT NULLIF(s.category, '') ORDER BY s.category SEPARATOR ', '),
         NULLIF(m.category, '')
       ) AS service_categories,
+      COALESCE(AVG(r.rating), 0) AS average_rating,
+      COUNT(DISTINCT r.review_id) AS review_count,
       m.address,
       m.contact_no,
       m.profile_image AS image_path
     FROM merchant m
     JOIN users u ON u.user_id = m.user_id
     LEFT JOIN service s ON s.merchant_id = m.merchant_id AND s.is_active = 1
+    LEFT JOIN merchant_review r ON r.merchant_id = m.merchant_id
     WHERE m.is_active = 1
       AND u.status = 'active'
       AND m.verification_status = 'approved'

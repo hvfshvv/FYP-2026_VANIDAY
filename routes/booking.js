@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const ctrl    = require('../controllers/bookingController');
+const reviewCtrl = require('../controllers/reviewController');
 const { requireLogin, blockMerchantBookingAccess } = require('../middleware/auth');
 
 router.use(blockMerchantBookingAccess);
@@ -13,6 +14,8 @@ router.get('/viewBookings', requireLogin, ctrl.viewCustomerBookings);
 router.post('/:bookingId/cancel', requireLogin, ctrl.cancelCustomerBooking);
 router.get('/:bookingId/reschedule', requireLogin, ctrl.showRescheduleBooking);
 router.post('/:bookingId/reschedule', requireLogin, ctrl.rescheduleCustomerBooking);
+router.get('/:bookingId/review', requireLogin, reviewCtrl.showBookingReview);
+router.post('/:bookingId/review', requireLogin, reviewCtrl.submitBookingReview);
 
 router.get('/', requireLogin, ctrl.showPortalBookingPage);
 router.post('/confirm', requireLogin, ctrl.confirmPortalBooking);

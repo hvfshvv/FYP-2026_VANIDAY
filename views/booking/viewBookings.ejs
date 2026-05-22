@@ -146,6 +146,18 @@
                       </button>
                     </form>
                   </div>
+                <% } else if (booking.status === 'completed' && !booking.merchant_review_id) { %>
+                  <div class="mt-2">
+                    <a href="/book/<%= booking.booking_id %>/review" class="btn btn-primary btn-sm btn-pill">
+                      <i class="bi bi-star me-1"></i>Leave Review
+                    </a>
+                  </div>
+                <% } else if (booking.status === 'completed' && booking.merchant_review_id) { %>
+                  <div class="mt-2">
+                    <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);">
+                      <i class="bi bi-star-fill me-1"></i>Reviewed
+                    </span>
+                  </div>
                 <% } %>
               </div>
             </div>

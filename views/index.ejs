@@ -10,6 +10,11 @@
     if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
     return values.map(day => promoDayNames[day] || day).join(', ');
   };
+  const ratingText = item => {
+    const count = Number(item.review_count || 0);
+    if (!count) return 'New';
+    return Number(item.average_rating || 0).toFixed(1) + ' (' + count + ')';
+  };
 %>
 
 <!-- ═══════ HERO ═══════ -->
@@ -167,6 +172,10 @@
               </div>
               <% } %>
               <div class="info-row">
+                <i class="bi bi-star-fill" style="color:#f59e0b;"></i>
+                <span><%= ratingText(listing) %></span>
+              </div>
+              <div class="info-row">
                 <i class="bi bi-geo-alt"></i>
                 <span><%= listing.address || 'Singapore' %></span>
               </div>
@@ -273,6 +282,10 @@
                 <p class="card-meta"><%= merchant.description || 'Beauty and wellness merchant' %></p>
                 <div class="discount-pill">
                   <i class="bi bi-grid"></i><%= merchant.service_categories || merchant.category || 'General' %>
+                </div>
+                <div class="info-row">
+                  <i class="bi bi-star-fill" style="color:#f59e0b;"></i>
+                  <span><%= ratingText(merchant) %></span>
                 </div>
                 <div class="info-row">
                   <i class="bi bi-geo-alt"></i>

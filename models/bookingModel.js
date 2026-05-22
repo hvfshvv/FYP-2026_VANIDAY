@@ -734,13 +734,17 @@ async function getCustomerBookings(customerId) {
             m.address AS merchant_address,
             p.payment_status,
             p.payment_ref,
-            p.transaction_ref
+            p.transaction_ref,
+            mr.review_id AS merchant_review_id,
+            pf.feedback_id AS platform_feedback_id
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
      LEFT JOIN staff st ON st.staff_id = b.staff_id
      LEFT JOIN payment p ON p.booking_id = b.booking_id
+     LEFT JOIN merchant_review mr ON mr.booking_id = b.booking_id
+     LEFT JOIN platform_feedback pf ON pf.booking_id = b.booking_id
      WHERE b.customer_id = ?
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [customerId]

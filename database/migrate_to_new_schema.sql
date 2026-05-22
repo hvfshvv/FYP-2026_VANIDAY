@@ -359,6 +359,8 @@ CREATE TABLE IF NOT EXISTS merchant_review (
     staff_id INT NULL,
     rating INT NOT NULL,
     review_text TEXT NULL,
+    merchant_reply TEXT NULL,
+    merchant_replied_at DATETIME NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (booking_id) REFERENCES booking(booking_id),
     FOREIGN KEY (customer_id) REFERENCES users(user_id),
