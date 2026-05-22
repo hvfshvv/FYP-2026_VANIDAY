@@ -149,7 +149,7 @@
                 <% } else if (booking.status === 'completed' && !booking.merchant_review_id) { %>
                   <div class="mt-2">
                     <a href="/book/<%= booking.booking_id %>/review" class="btn btn-primary btn-sm btn-pill">
-                      <i class="bi bi-star me-1"></i>Leave Review
+                      <i class="bi bi-star me-1"></i>Leave Review +2 pts
                     </a>
                   </div>
                 <% } else if (booking.status === 'completed' && booking.merchant_review_id) { %>

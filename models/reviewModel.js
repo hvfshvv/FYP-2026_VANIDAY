@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const loyaltyModel = require('./loyaltyModel');
 
 let schemaReady = false;
 
@@ -131,6 +132,8 @@ async function submitBookingReview({
         ]
       );
     }
+
+    await loyaltyModel.awardReviewBonusPoints(customerId, booking.booking_id, connection);
 
     await connection.commit();
   } catch (err) {

@@ -52,6 +52,8 @@ const REWARD_CATALOG = [
   },
 ];
 
+const REVIEW_BONUS_POINTS = 2;
+
 // Customers earn 10% of the paid booking amount as points.
 function calculatePoints(amount) {
   return Math.max(0, Math.floor(Number(amount || 0) * 0.1));
@@ -234,13 +236,19 @@ async function getEarnedPointsForBooking(bookingId) {
 async function awardBookingPoints(bookingId) {
   const [[booking]] = await db.query(
     `SELECT booking_id, customer_id,
-            COALESCE(total_amount, 0) - COALESCE(discount_amount, 0) AS payable_amount
-     FROM booking
-     WHERE booking_id = ?`,
+            COALESCE(p.amount, 0) AS payable_amount
+     FROM booking b
+     JOIN payment p ON p.booking_id = b.booking_id
+      AND p.payment_status = 'paid'
+     WHERE b.booking_id = ?`,
     [bookingId]
   );
 
-  if (!booking || !booking.customer_id) {
+  if (!booking) {
+    return { awarded: false, reason: 'not_paid' };
+  }
+
+  if (!booking.customer_id) {
     return { awarded: false, reason: 'guest_booking' };
   }
 
@@ -317,9 +325,49 @@ async function awardBookingPoints(bookingId) {
   }
 }
 
+async function awardReviewBonusPoints(customerId, bookingId, connection = db) {
+  if (!customerId || !bookingId) {
+    return { awarded: false, reason: 'missing_customer_or_booking' };
+  }
+
+  await ensureWallet(customerId, connection);
+
+  const [[wallet]] = await connection.query(
+    `SELECT wallet_id
+     FROM loyalty_wallet
+     WHERE customer_id = ?`,
+    [customerId]
+  );
+
+  if (!wallet) {
+    return { awarded: false, reason: 'wallet_not_found' };
+  }
+
+  const description = `Earned ${REVIEW_BONUS_POINTS} points for reviewing booking #${bookingId}`;
+
+  await connection.query(
+    `INSERT INTO loyalty_transaction
+       (wallet_id, transaction_type, points_amount, description)
+     VALUES (?, 'earn_points', ?, ?)`,
+    [wallet.wallet_id, REVIEW_BONUS_POINTS, description]
+  );
+
+  await connection.query(
+    `UPDATE loyalty_wallet
+     SET points_balance = points_balance + ?,
+         lifetime_points_earned = lifetime_points_earned + ?,
+         updated_at = NOW()
+     WHERE wallet_id = ?`,
+    [REVIEW_BONUS_POINTS, REVIEW_BONUS_POINTS, wallet.wallet_id]
+  );
+
+  return { awarded: true, points: REVIEW_BONUS_POINTS };
+}
+
 module.exports = {
   calculatePoints,
   awardBookingPoints,
+  awardReviewBonusPoints,
   getWalletSummary,
   redeemReward,
   getEarnedPointsForBooking,

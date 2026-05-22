@@ -48,7 +48,7 @@ async function submitBookingReview(req, res) {
       platformFeedbackText: String(req.body.platform_feedback_text || '').trim(),
     });
 
-    res.redirect('/book/viewBookings?success=Thanks for sharing your review.');
+    res.redirect('/book/viewBookings?success=Thanks for sharing your review. 2 loyalty points have been added to your wallet.');
   } catch (err) {
     console.error(err);
 
