@@ -3,6 +3,33 @@ const voucherModel = require('../models/voucherModel');
 const promotionModel = require('../models/promotionModel');
 const { wantsJson } = require('../middleware/auth');
 
+const CUSTOMER_DISABLE_REASONS = [
+  'Repeated no-shows',
+  'Payment or refund abuse',
+  'Suspicious account activity',
+  'Verification issue',
+  'Other',
+];
+
+const MERCHANT_DISABLE_REASONS = [
+  'Fake business information or failed verification',
+  'Repeatedly not honouring confirmed bookings',
+  'Fraudulent promotions/vouchers',
+  'Unsafe, abusive, or misleading service listings',
+  'Serious customer complaints with evidence',
+];
+
+function requireDisableReason(status, reason, allowedReasons) {
+  if (status !== 'suspended') return null;
+
+  const safeReason = String(reason || '').trim();
+  if (!allowedReasons.includes(safeReason)) {
+    throw new Error('Please select a valid reason before disabling the account.');
+  }
+
+  return safeReason;
+}
+
 async function showDashboard(req, res) {
   try {
     const [summary, recentErrors] = await Promise.all([
@@ -212,6 +239,7 @@ async function showManagedCustomers(req, res) {
       customers,
       search: req.query.search || '',
       query: req.query,
+      disableReasons: CUSTOMER_DISABLE_REASONS,
     });
   } catch (err) {
     console.error(err);
@@ -220,6 +248,7 @@ async function showManagedCustomers(req, res) {
       customers: [],
       search: req.query.search || '',
       query: req.query,
+      disableReasons: CUSTOMER_DISABLE_REASONS,
       error: 'Failed to load customer accounts.',
     });
   }
@@ -238,6 +267,7 @@ async function showManagedMerchants(req, res) {
       search: req.query.search || '',
       verification,
       query: req.query,
+      disableReasons: MERCHANT_DISABLE_REASONS,
     });
   } catch (err) {
     console.error(err);
@@ -247,6 +277,7 @@ async function showManagedMerchants(req, res) {
       search: req.query.search || '',
       verification: req.query.verification || 'all',
       query: req.query,
+      disableReasons: MERCHANT_DISABLE_REASONS,
       error: 'Failed to load merchant accounts.',
     });
   }
@@ -254,11 +285,13 @@ async function showManagedMerchants(req, res) {
 
 async function updateCustomerAccountStatus(req, res) {
   try {
+    const reason = requireDisableReason(req.body.status, req.body.disable_reason, CUSTOMER_DISABLE_REASONS);
     // Admin can enable or disable a customer account from the table.
     await adminModel.setUserAccountStatus(
       req.params.customerId,
       req.body.status,
-      req.session.user.user_id
+      req.session.user.user_id,
+      reason
     );
 
     res.redirect('/admin/user-management/customers?updated=1');
@@ -270,11 +303,13 @@ async function updateCustomerAccountStatus(req, res) {
 
 async function updateMerchantAccountStatus(req, res) {
   try {
+    const reason = requireDisableReason(req.body.status, req.body.disable_reason, MERCHANT_DISABLE_REASONS);
     // Merchant status updates both merchant.is_active and the linked user status.
     await adminModel.setMerchantAccountStatus(
       req.params.merchantId,
       req.body.status === 'active',
-      req.session.user.user_id
+      req.session.user.user_id,
+      reason
     );
 
     res.redirect('/admin/user-management/merchants?updated=1');

@@ -1164,7 +1164,7 @@ async function getManagedMerchants(search = '', verification = 'all') {
   return rows;
 }
 
-async function setUserAccountStatus(userId, status, adminId) {
+async function setUserAccountStatus(userId, status, adminId, reason = null) {
   // Customer enable/disable uses the users.status field.
   const safeStatus = status === 'suspended' ? 'suspended' : 'active';
   const [result] = await db.query(
@@ -1176,13 +1176,16 @@ async function setUserAccountStatus(userId, status, adminId) {
   );
 
   if (result.affectedRows > 0) {
-    await logAdminAction(adminId, safeStatus === 'active' ? 'ENABLE_USER' : 'DISABLE_USER', 'users', userId, `Set user status to ${safeStatus}.`);
+    const description = safeStatus === 'active'
+      ? 'Enabled user account.'
+      : `Disabled user account. Reason: ${reason || 'Not specified'}.`;
+    await logAdminAction(adminId, safeStatus === 'active' ? 'ENABLE_USER' : 'DISABLE_USER', 'users', userId, description);
   }
 
   return result.affectedRows;
 }
 
-async function setMerchantAccountStatus(merchantId, enabled, adminId) {
+async function setMerchantAccountStatus(merchantId, enabled, adminId, reason = null) {
   // Merchant enable/disable must keep merchant and user status in sync.
   const connection = await db.getConnection();
 
@@ -1217,7 +1220,13 @@ async function setMerchantAccountStatus(merchantId, enabled, adminId) {
     );
 
     await connection.commit();
-    await logAdminAction(adminId, enabled ? 'ENABLE_MERCHANT' : 'DISABLE_MERCHANT', 'merchant', merchantId, enabled ? 'Enabled merchant account.' : 'Disabled merchant account.');
+    await logAdminAction(
+      adminId,
+      enabled ? 'ENABLE_MERCHANT' : 'DISABLE_MERCHANT',
+      'merchant',
+      merchantId,
+      enabled ? 'Enabled merchant account.' : `Disabled merchant account. Reason: ${reason || 'Not specified'}.`
+    );
     return 1;
   } catch (err) {
     await connection.rollback();
