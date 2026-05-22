@@ -106,23 +106,6 @@
 
 <%
   const money = value => 'S$' + Number(value || 0).toFixed(2);
-  const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
-  const formatTime = value => value ? String(value).slice(0, 5) : '';
-  const badgeStyle = status => {
-    const map = {
-      paid: 'background:var(--success-bg);color:var(--success);',
-      confirmed: 'background:var(--success-bg);color:var(--success);',
-      completed: 'background:var(--neutral-bg);color:var(--muted);',
-      pending: 'background:var(--warn-bg);color:var(--warn);',
-      pending_payment: 'background:var(--warn-bg);color:var(--warn);',
-      arrived: 'background:#EFF6FF;color:#1D4ED8;',
-      failed: 'background:var(--danger-bg);color:var(--danger);',
-      payment_failed: 'background:var(--danger-bg);color:var(--danger);',
-      cancelled: 'background:var(--danger-bg);color:var(--danger);',
-      refunded: 'background:var(--neutral-bg);color:var(--muted);',
-    };
-    return map[status] || 'background:var(--accent-light);color:var(--accent);';
-  };
 %>
 
 <div class="container py-5">
@@ -251,101 +234,6 @@
 
   <div class="row g-4">
     <div class="col-12">
-      <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
-        <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
-          <div>
-            <p class="section-label mb-1">Bookings</p>
-            <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Bookings</h5>
-          </div>
-          <span class="badge" style="background:var(--accent-light);color:var(--accent);">Latest <%= recentBookings.length %></span>
-        </div>
-        <% if (recentBookings.length === 0) { %>
-        <div class="text-center py-5">
-          <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
-            <i class="bi bi-calendar-x" style="font-size:2rem;color:var(--accent);"></i>
-          </div>
-          <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No bookings found</h6>
-          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Bookings will appear here once customers reserve services.</p>
-        </div>
-        <% } else { %>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
-            <thead style="background:var(--accent-light);">
-              <tr>
-                <th>ID</th>
-                <th>Customer</th>
-                <th>Merchant</th>
-                <th>Service</th>
-                <th>Date &amp; Time</th>
-                <th>Source</th>
-                <th>Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% recentBookings.forEach(b => { %>
-              <tr>
-                <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= b.booking_id %></td>
-                <td style="font-weight:600;"><%= b.customer_name || '-' %></td>
-                <td><%= b.merchant_name || '-' %></td>
-                <td><%= b.service_name || '-' %></td>
-                <td><%= formatDate(b.slot_date) %> <span style="color:var(--muted);"><%= formatTime(b.start_time) %></span></td>
-                <td><span class="badge bg-secondary"><%= b.source || '-' %></span></td>
-                <td style="font-family:var(--font-mono);"><%= money(b.total_amount) %></td>
-                <td><span class="badge" style="<%= badgeStyle(b.status) %>"><%= (b.status || 'unknown').replace('_', ' ') %></span></td>
-              </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        </div>
-        <% } %>
-      </div>
-    </div>
-
-    <div class="col-lg-6">
-      <div class="card border-0 overflow-hidden h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
-        <div class="p-4" style="border-bottom:1px solid var(--border);">
-          <p class="section-label mb-1">Payments</p>
-          <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Payments</h5>
-        </div>
-        <% if (recentPayments.length === 0) { %>
-        <div class="text-center py-5 px-4">
-          <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
-            <i class="bi bi-receipt" style="font-size:2rem;color:var(--accent);"></i>
-          </div>
-          <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No payments found</h6>
-          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Paid bookings will be listed here.</p>
-        </div>
-        <% } else { %>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
-            <thead style="background:var(--accent-light);">
-              <tr>
-                <th>ID</th>
-                <th>Booking</th>
-                <th>Merchant</th>
-                <th>Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% recentPayments.forEach(p => { %>
-              <tr>
-                <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= p.payment_id %></td>
-                <td>#<%= p.booking_id %></td>
-                <td><%= p.merchant_name || '-' %></td>
-                <td style="font-family:var(--font-mono);font-weight:700;"><%= money(p.amount) %></td>
-                <td><span class="badge" style="<%= badgeStyle(p.payment_status) %>"><%= p.payment_status || 'unknown' %></span></td>
-              </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        </div>
-        <% } %>
-      </div>
-    </div>
-
-    <div class="col-lg-6">
       <div class="card border-0 overflow-hidden h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
         <div class="p-4" style="border-bottom:1px solid var(--border);">
           <p class="section-label mb-1">Validation</p>

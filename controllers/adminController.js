@@ -5,10 +5,8 @@ const { wantsJson } = require('../middleware/auth');
 
 async function showDashboard(req, res) {
   try {
-    const [summary, recentBookings, recentPayments, recentErrors] = await Promise.all([
+    const [summary, recentErrors] = await Promise.all([
       adminModel.getDashboardSummary(),
-      adminModel.getRecentBookings(),
-      adminModel.getRecentPayments(),
       adminModel.getRecentValidationErrors().catch(err => {
         console.error('Failed to load validation logs:', err.message);
         return [];
@@ -18,8 +16,6 @@ async function showDashboard(req, res) {
     res.render('admin/dashboard', {
       title: 'Admin Dashboard',
       summary,
-      recentBookings,
-      recentPayments,
       recentErrors,
     });
   } catch (err) {
@@ -27,8 +23,6 @@ async function showDashboard(req, res) {
     res.render('admin/dashboard', {
       title: 'Admin Dashboard',
       summary: {},
-      recentBookings: [],
-      recentPayments: [],
       recentErrors: [],
       error: 'Failed to load admin dashboard data.',
     });

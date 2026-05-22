@@ -23,12 +23,12 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
 
   const [
     [overviewRows],
-    monthly,
-    categoryBreakdown,
-    topMerchants,
-    paymentStatus,
-    bookingSource,
-    recentTransactions,
+    [monthly],
+    [categoryBreakdown],
+    [topMerchants],
+    [paymentStatus],
+    [bookingSource],
+    [recentTransactions],
   ] = await Promise.all([
     db.query(
       `SELECT
