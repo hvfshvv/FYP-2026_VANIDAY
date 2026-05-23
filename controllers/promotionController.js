@@ -171,7 +171,6 @@ async function createPromotion(req, res) {
       title: form.title,
       description: form.description,
       discountPct: form.discountPct,
-      minSpend: form.minSpend,
       offerText: form.offerText,
       applicableDays: form.applicableDaysValue,
       imagePath,

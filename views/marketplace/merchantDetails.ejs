@@ -1,6 +1,7 @@
 <%- include('../partials/header') %> 
 <%
-  const reviewList = Array.isArray(typeof merchantReviews !== 'undefined' ? merchantReviews : []) ? merchantReviews : [];
+  const rawMerchantReviews = typeof merchantReviews !== 'undefined' ? merchantReviews : [];
+  const reviewList = Array.isArray(rawMerchantReviews) ? rawMerchantReviews : [];
   const reviewCount = Number(merchant.review_count || 0);
   const averageRating = Number(merchant.average_rating || 0);
   const starIcon = index => index <= Math.round(averageRating) ? 'bi-star-fill' : 'bi-star';
