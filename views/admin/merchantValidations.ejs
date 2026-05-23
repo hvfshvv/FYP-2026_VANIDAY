@@ -10,8 +10,7 @@
     if (status === 'rejected') return 'background:var(--danger-bg);color:var(--danger);';
     return 'background:var(--warn-bg);color:var(--warn);';
   };
-  const chartStatusSummary = statusSummary || { pending: 0, approved: 0, rejected: 0 };
-  const chartTrend = applicationTrend || [];
+  const validationSummary = statusSummary || { pending: 0, approved: 0, rejected: 0 };
 %>
 
 <div class="container py-5">
@@ -55,43 +54,26 @@
   <% } %>
 
   <div class="row g-3 mb-4">
-    <div class="col-12 col-lg-4">
-      <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
-        <p class="section-label mb-2">Validation Status</p>
-        <div class="d-grid gap-3">
-          <div class="d-flex justify-content-between align-items-center">
-            <span style="color:var(--muted);font-size:.875rem;">Pending</span>
-            <strong style="color:var(--warn);font-size:1.35rem;"><%= chartStatusSummary.pending || 0 %></strong>
+    <% [
+      { label:'Pending Review', value:validationSummary.pending || 0, icon:'bi-hourglass-split', color:'var(--warn)', sub:'Needs admin decision' },
+      { label:'Approved Merchants', value:validationSummary.approved || 0, icon:'bi-shield-check', color:'var(--success)', sub:'Allowed merchant access' },
+      { label:'Rejected Applications', value:validationSummary.rejected || 0, icon:'bi-shield-x', color:'var(--danger)', sub:'Denied after review' },
+    ].forEach(stat => { %>
+    <div class="col-12 col-md-4">
+      <div class="stat-card h-100">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.45rem;"><%= stat.label %></p>
+            <p class="stat-value" style="color:<%= stat.color %>;font-size:1.65rem;"><%= stat.value %></p>
+            <p style="color:var(--ghost);font-size:.75rem;margin-bottom:0;"><%= stat.sub %></p>
           </div>
-          <div class="d-flex justify-content-between align-items-center">
-            <span style="color:var(--muted);font-size:.875rem;">Approved</span>
-            <strong style="color:var(--success);font-size:1.35rem;"><%= chartStatusSummary.approved || 0 %></strong>
-          </div>
-          <div class="d-flex justify-content-between align-items-center">
-            <span style="color:var(--muted);font-size:.875rem;">Rejected</span>
-            <strong style="color:var(--danger);font-size:1.35rem;"><%= chartStatusSummary.rejected || 0 %></strong>
+          <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+            <i class="bi <%= stat.icon %>"></i>
           </div>
         </div>
       </div>
     </div>
-
-    <div class="col-12 col-lg-4">
-      <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
-        <p class="section-label mb-2">Status Breakdown</p>
-        <div style="height:240px;">
-          <canvas id="merchantStatusChart" aria-label="Merchant validation status chart"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-4">
-      <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
-        <p class="section-label mb-2">Applications Trend</p>
-        <div style="height:240px;">
-          <canvas id="merchantTrendChart" aria-label="Merchant applications trend chart"></canvas>
-        </div>
-      </div>
-    </div>
+    <% }) %>
   </div>
 
   <div class="card border-0 overflow-hidden mb-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
@@ -216,83 +198,5 @@
     <% } %>
   </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<script>
-  const merchantStatusSummary = <%- JSON.stringify(chartStatusSummary) %>;
-  const merchantApplicationTrend = <%- JSON.stringify(chartTrend) %>;
-
-  const statusCanvas = document.getElementById('merchantStatusChart');
-  const trendCanvas = document.getElementById('merchantTrendChart');
-
-  if (statusCanvas && window.Chart) {
-    new Chart(statusCanvas, {
-      type: 'doughnut',
-      data: {
-        labels: ['Pending', 'Approved', 'Rejected'],
-        datasets: [{
-          data: [
-            merchantStatusSummary.pending || 0,
-            merchantStatusSummary.approved || 0,
-            merchantStatusSummary.rejected || 0
-          ],
-          backgroundColor: ['#F59E0B', '#10B981', '#EF4444'],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              boxWidth: 10,
-              usePointStyle: true
-            }
-          }
-        },
-        cutout: '68%'
-      }
-    });
-  }
-
-  if (trendCanvas && window.Chart) {
-    new Chart(trendCanvas, {
-      type: 'bar',
-      data: {
-        labels: merchantApplicationTrend.map(item => {
-          const date = new Date(item.application_date);
-          return date.toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
-        }),
-        datasets: [{
-          label: 'Applications',
-          data: merchantApplicationTrend.map(item => item.total),
-          backgroundColor: '#E91E63',
-          borderRadius: 6,
-          maxBarThickness: 28
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: {
-            grid: { display: false },
-            ticks: { maxRotation: 0, autoSkip: true }
-          },
-          y: {
-            beginAtZero: true,
-            precision: 0,
-            ticks: { stepSize: 1 }
-          }
-        },
-        plugins: {
-          legend: { display: false }
-        }
-      }
-    });
-  }
-</script>
 
 <%- include('../partials/footer') %>
