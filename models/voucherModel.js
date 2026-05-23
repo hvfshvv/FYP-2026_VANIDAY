@@ -170,11 +170,12 @@ async function getAvailableVouchers(customerId) {
        (SELECT COUNT(*) FROM customer_voucher cv2
         WHERE cv2.voucher_id = v.voucher_id) AS total_claim_count
      FROM voucher v
-     LEFT JOIN merchant m ON v.merchant_id = m.merchant_id
-     WHERE v.is_active = 1
-       AND v.start_date <= CURDATE()
-       AND v.end_date   >= CURDATE()
-     ORDER BY v.end_date ASC, v.voucher_id ASC`,
+      LEFT JOIN merchant m ON v.merchant_id = m.merchant_id
+      WHERE v.is_active = 1
+        AND v.start_date <= CURDATE()
+        AND v.end_date   >= CURDATE()
+        AND v.voucher_code NOT LIKE 'LOYALTY\\_%'
+      ORDER BY v.end_date ASC, v.voucher_id ASC`,
     [customerId]
   );
 

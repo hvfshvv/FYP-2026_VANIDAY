@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const authModel = require('../models/authModel');
+const loyaltyModel = require('../models/loyaltyModel');
 const qrService = require('../services/qrService');
 
 const ALLOWED_ROLES = ['customer', 'merchant'];
@@ -227,6 +228,7 @@ async function register(req, res) {
         normalizedPhone,
         birthday
       );
+      await loyaltyModel.createWalletForCustomer(userId);
     }
 
     if (safeRole === 'merchant') {
