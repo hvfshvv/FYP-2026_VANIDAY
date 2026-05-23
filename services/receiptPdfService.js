@@ -26,6 +26,11 @@ function money(value) {
   return `S$${Number(value || 0).toFixed(2)}`;
 }
 
+function shortText(value, maxLength = 58) {
+  const text = String(value || '').trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+}
+
 function hexToRgb(hex) {
   const clean = hex.replace('#', '');
   return [
@@ -133,7 +138,16 @@ function buildLogoImageObject() {
 function buildReceiptPdf({ booking, payment }) {
   const reference = payment?.payment_ref || payment?.transaction_ref || `BK-${booking.booking_id}`;
   const receiptNo = `UNI-${String(booking.booking_id).padStart(6, '0')}`;
-  const amount = Number(payment?.amount || booking.payable_amount || booking.total_amount || booking.price || 0);
+  const subtotal = Number(booking.total_amount || booking.price || 0);
+  const promoDiscount = Number(booking.discount_amount || 0);
+  const voucherDiscount = Number(booking.voucher_discount_amount || 0);
+  const totalPaid = Number(payment?.amount || booking.payable_amount || Math.max(subtotal - promoDiscount - voucherDiscount, 0));
+  const promoLabel = booking.promo_title
+    ? `Promotion discount (${booking.promo_title})`
+    : 'Promotion discount';
+  const voucherLabel = booking.voucher_name
+    ? `Voucher discount (${booking.voucher_name})`
+    : 'Voucher discount';
   const paymentMethod = String(payment?.payment_method || '-').toUpperCase();
   const paidAt = payment?.paid_at ? fmtDate(payment.paid_at) : fmtDate(new Date());
   const accent = hexToRgb('#e11d48');
@@ -186,6 +200,7 @@ function buildReceiptPdf({ booking, payment }) {
   line(312, 704, 523, 704);
   txt(booking.merchant_name || '-', 312, 686, 11, 'F1', ink);
   txt(`${fmtDate(booking.booking_date)} at ${fmtTime(booking.booking_time)}`, 312, 670, 9, 'F1', muted);
+  txt(`Staff: ${booking.staff_name || 'Any Available Staff'}`, 312, 654, 9, 'F1', muted);
 
   txt('Receipt No', 72, 626, 9, 'F2', muted);
   txt(receiptNo, 180, 626, 9, 'F1', ink);
@@ -213,17 +228,30 @@ function buildReceiptPdf({ booking, payment }) {
   txt(booking.service_name || 'Booking service', 88, 535, 10, 'F1', ink);
   txt(`${booking.duration_mins || 60} min`, 88, 521, 8, 'F1', muted);
   txtRight('1', 382, 531, 10, 'F1', ink);
-  txtRight(money(amount), 462, 531, 10, 'F1', ink);
-  txtRight(money(amount), 515, 531, 10, 'F1', ink);
+  txtRight(money(subtotal), 462, 531, 10, 'F1', ink);
+  txtRight(money(subtotal), 515, 531, 10, 'F1', ink);
 
   txtRight('Subtotal', 426, 475, 10, 'F2', ink);
-  txtRight(money(amount), 523, 475, 10, 'F1', ink);
-  txtRight('Tax', 426, 453, 10, 'F2', ink);
-  txtRight(money(0), 523, 453, 10, 'F1', ink);
+  txtRight(money(subtotal), 523, 475, 10, 'F1', ink);
+  let totalsY = 453;
+  if (promoDiscount > 0) {
+    txtRight(shortText(promoLabel, 34), 426, totalsY, 9, 'F2', ink);
+    txtRight(`-${money(promoDiscount)}`, 523, totalsY, 9, 'F1', accent);
+    totalsY -= 20;
+  }
+  if (voucherDiscount > 0) {
+    txtRight(shortText(voucherLabel, 34), 426, totalsY, 9, 'F2', ink);
+    txtRight(`-${money(voucherDiscount)}`, 523, totalsY, 9, 'F1', accent);
+    totalsY -= 20;
+  }
+  txtRight('Tax', 426, totalsY, 10, 'F2', ink);
+  txtRight(money(0), 523, totalsY, 10, 'F1', ink);
+  const totalLineY = totalsY - 15;
+  const totalY = totalLineY - 22;
   setStroke(ink);
-  line(360, 438, 523, 438);
-  txtRight('Total Paid', 426, 416, 13, 'F2', ink);
-  txtRight(money(amount), 523, 416, 13, 'F2', accent);
+  line(360, totalLineY, 523, totalLineY);
+  txtRight('Total Paid', 426, totalY, 13, 'F2', ink);
+  txtRight(money(totalPaid), 523, totalY, 13, 'F2', accent);
 
   setColor(soft);
   rect(72, 340, 451, 54, true);

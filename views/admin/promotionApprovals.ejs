@@ -12,6 +12,7 @@
     if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
     return values.map(day => dayNames[day] || day).join(', ');
   };
+  const pastApprovedList = Array.isArray(pastApprovedPromotions) ? pastApprovedPromotions : [];
 %>
 
 <div class="container py-5">
@@ -122,6 +123,80 @@
                   <button type="submit" class="btn btn-outline-danger">Reject</button>
                 </div>
               </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+
+  <div class="card border-0 overflow-hidden mt-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
+      <div>
+        <p class="section-label mb-1">Approved History</p>
+        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Past Approved Promotions</h5>
+      </div>
+      <span class="badge" style="background:var(--danger-bg);color:var(--danger);"><%= pastApprovedList.length %> expired</span>
+    </div>
+
+    <% if (!pastApprovedList.length) { %>
+    <div class="text-center py-5 px-4">
+      <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
+        <i class="bi bi-calendar-check" style="font-size:2rem;color:var(--muted);"></i>
+      </div>
+      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No past approved promotions</h6>
+      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Approved promotions will appear here after their end date passes.</p>
+    </div>
+    <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+        <thead style="background:var(--canvas);">
+          <tr>
+            <th>Promotion</th>
+            <th>Merchant</th>
+            <th>Offer</th>
+            <th>Campaign Period</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% pastApprovedList.forEach(promo => { %>
+          <tr>
+            <td style="min-width:260px;">
+              <div class="d-flex gap-3 align-items-start">
+                <% if (promo.image_path) { %>
+                <img src="<%= promo.image_path %>" alt="" style="width:72px;height:54px;object-fit:cover;border-radius:var(--r);border:1px solid var(--border);" />
+                <% } %>
+                <div>
+                  <p style="font-weight:700;color:var(--ink);margin-bottom:.15rem;"><%= promo.title %></p>
+                  <p style="color:var(--muted);margin-bottom:.25rem;"><%= promo.description || '' %></p>
+                  <% if (promo.service_name) { %>
+                  <span class="badge" style="background:var(--accent-light);color:var(--accent);"><%= promo.service_name %></span>
+                  <% } %>
+                </div>
+              </div>
+            </td>
+            <td>
+              <p style="font-weight:700;margin-bottom:.15rem;"><%= promo.merchant_name %></p>
+              <p style="color:var(--muted);margin-bottom:0;"><%= promo.merchant_email || '' %></p>
+            </td>
+            <td>
+              <p style="font-weight:700;margin-bottom:.15rem;"><%= discountText(promo) %></p>
+              <p style="color:var(--muted);margin-bottom:0;"><%= Number(promo.discount_pct || 0).toFixed(0) %>% discount</p>
+            </td>
+            <td>
+              <%= formatDate(promo.start_date) %>
+              <span style="color:var(--muted);">to</span>
+              <%= formatDate(promo.end_date) %>
+              <p style="color:var(--muted);margin:.25rem 0 0;"><i class="bi bi-calendar-week me-1"></i><%= dayLabel(promo.applicable_days) %></p>
+            </td>
+            <td>
+              <span class="badge rounded-pill" style="background:var(--danger-bg);color:var(--danger);">
+                <i class="bi bi-calendar-x me-1"></i>Expired
+              </span>
+              <p style="color:var(--muted);margin:.35rem 0 0;">Approved <%= formatDate(promo.approved_at) %></p>
             </td>
           </tr>
           <% }) %>

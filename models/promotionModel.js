@@ -242,6 +242,22 @@ async function getPendingPromotionRequests() {
   return rows;
 }
 
+async function getPastApprovedPromotions() {
+  await ensurePromotionSchema();
+
+  const [rows] = await db.query(
+    `SELECT p.*, m.merchant_name, m.email AS merchant_email, s.service_name
+     FROM promotion p
+     JOIN merchant m ON p.merchant_id = m.merchant_id
+     LEFT JOIN service s ON p.service_id = s.service_id
+     WHERE p.approval_status = 'approved'
+       AND p.end_date < CURDATE()
+     ORDER BY p.end_date DESC, p.approved_at DESC, p.promo_id DESC`
+  );
+
+  return rows;
+}
+
 async function approvePromotion(promoId, adminId) {
   await ensurePromotionSchema();
 
@@ -322,6 +338,7 @@ module.exports = {
   togglePromotion,
   deletePromotion,
   getPendingPromotionRequests,
+  getPastApprovedPromotions,
   approvePromotion,
   rejectPromotion,
   ensurePromotionSchema,

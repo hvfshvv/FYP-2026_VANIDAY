@@ -147,11 +147,12 @@
                   ? Number(v.discount_value).toFixed(0) + '% off'
                   : 'S$' + Number(v.discount_value).toFixed(2) + ' off';
                 const uiVoucher = voucherUiState(v);
+                const shouldHighlightBestValue = v.isBestValue && (!appliedCvId || v.isApplied);
                 const cardClasses = [
                   'voucher-option-card',
                   uiVoucher.isUsable ? '' : 'unavailable',
                   v.isApplied ? 'selected' : '',
-                  v.isBestValue ? 'best' : ''
+                  shouldHighlightBestValue ? 'best' : ''
                 ].filter(Boolean).join(' ');
               %>
               <% if (uiVoucher.isUsable) { %>

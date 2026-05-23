@@ -576,16 +576,20 @@ async function rejectMerchant(req, res) {
 
 async function showPromotionApprovals(req, res) {
   try {
-    // Show admin the promotion requests waiting for review.
-    const pendingPromotions = await promotionModel.getPendingPromotionRequests();
+    // Show admin the promotion requests waiting for review and approved promotions that have ended.
+    const [pendingPromotions, pastApprovedPromotions] = await Promise.all([
+      promotionModel.getPendingPromotionRequests(),
+      promotionModel.getPastApprovedPromotions(),
+    ]);
 
     if (wantsJson(req)) {
-      return res.json({ success: true, pendingPromotions });
+      return res.json({ success: true, pendingPromotions, pastApprovedPromotions });
     }
 
     res.render('admin/promotionApprovals', {
       title: 'Promotion Approvals',
       pendingPromotions,
+      pastApprovedPromotions,
       query: req.query,
       error: null,
     });
@@ -602,6 +606,7 @@ async function showPromotionApprovals(req, res) {
     res.render('admin/promotionApprovals', {
       title: 'Promotion Approvals',
       pendingPromotions: [],
+      pastApprovedPromotions: [],
       query: req.query,
       error: err.message
         ? `Failed to load promotion requests: ${err.message}`

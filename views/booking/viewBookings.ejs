@@ -8,7 +8,7 @@
     arrived:         { label: 'Arrived', bg: 'var(--accent-light)', color: 'var(--accent)' },
     completed:       { label: 'Completed', bg: 'var(--success-bg)', color: 'var(--success)' },
     cancelled:       { label: 'Cancelled', bg: 'var(--danger-bg)', color: 'var(--danger)' },
-    payment_failed:  { label: 'Payment failed', bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    payment_failed:  { label: 'Payment expired', bg: 'var(--danger-bg)', color: 'var(--danger)' },
     no_show:         { label: 'No Show', bg: 'var(--danger-bg)', color: 'var(--danger)' },
   };
 
@@ -28,6 +28,16 @@
     const createdAt = new Date(booking.created_at);
     if (Number.isNaN(createdAt.getTime())) return '';
     return new Date(createdAt.getTime() + 5 * 60 * 1000).toISOString();
+  }
+
+  function isPendingPaymentExpired(booking) {
+    if (booking.status !== 'pending_payment') return false;
+    const expiresAt = new Date(pendingExpiryIso(booking)).getTime();
+    return !Number.isNaN(expiresAt) && Date.now() >= expiresAt;
+  }
+
+  function effectiveStatus(booking) {
+    return isPendingPaymentExpired(booking) ? 'payment_failed' : booking.status;
   }
 
   function bookingStartDate(booking) {
@@ -53,8 +63,8 @@
 
   const isUpcomingBooking = booking => new Date(booking.booking_date) >= new Date(new Date().toDateString());
   const currentBookings = bookingList.filter(booking =>
-    booking.status === 'pending_payment'
-    || ((booking.status === 'confirmed' || booking.status === 'arrived') && isUpcomingBooking(booking))
+    effectiveStatus(booking) === 'pending_payment'
+    || ((effectiveStatus(booking) === 'confirmed' || effectiveStatus(booking) === 'arrived') && isUpcomingBooking(booking))
   );
   const historyBookings = bookingList.filter(booking => !currentBookings.includes(booking));
   const displayBookings = [...currentBookings, ...historyBookings];
@@ -104,22 +114,24 @@
         <% displayBookings.forEach((booking, index) => {
           const startsHistory = index === currentBookings.length;
           const sectionIndex = startsHistory ? 0 : (index < currentBookings.length ? index : index - currentBookings.length);
-          const status = statusStyles[booking.status] || { label: booking.status || 'Booked', bg: 'var(--accent-light)', color: 'var(--accent)' };
+          const bookingStatus = effectiveStatus(booking);
+          const canContinuePayment = bookingStatus === 'pending_payment';
+          const status = statusStyles[bookingStatus] || { label: bookingStatus || 'Booked', bg: 'var(--accent-light)', color: 'var(--accent)' };
           const isPast = new Date(booking.booking_date) < new Date(new Date().toDateString());
-          const canManage = !isPast && !['pending_payment', 'cancelled', 'payment_failed', 'completed', 'no_show'].includes(booking.status);
+          const canManage = !isPast && !['pending_payment', 'cancelled', 'payment_failed', 'completed', 'no_show'].includes(bookingStatus);
         %>
           <% if (startsHistory && historyBookings.length && currentBookings.length) { %>
             </div>
             <p class="section-label mb-2 mt-4">History</p>
             <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
           <% } %>
-          <div class="p-4 booking-entry" style="<%= sectionIndex ? 'border-top:1px solid var(--border);' : '' %>">
+          <div class="p-4 booking-entry" <%= booking.status === 'pending_payment' ? 'data-pending-payment-entry' : '' %> style="<%= sectionIndex ? 'border-top:1px solid var(--border);' : '' %>">
             <div class="d-flex flex-wrap justify-content-between gap-3">
               <div>
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                   <h5 style="font-weight:800;color:var(--ink);margin:0;"><%= booking.service_name %></h5>
-                  <span class="badge rounded-pill" style="background:<%= status.bg %>;color:<%= status.color %>;"><%= status.label %></span>
-                  <% if (booking.status === 'pending_payment') { %>
+                  <span class="badge rounded-pill" data-status-badge style="background:<%= status.bg %>;color:<%= status.color %>;"><%= status.label %></span>
+                  <% if (canContinuePayment) { %>
                     <span class="badge rounded-pill pending-payment-timer" data-expires-at="<%= pendingExpiryIso(booking) %>" style="background:var(--accent-light);color:var(--accent);border:1px solid rgba(225,29,72,.2);">
                       <i class="bi bi-hourglass-split me-1"></i><span data-countdown>--:--</span> left
                     </span>
@@ -161,8 +173,8 @@
               <div class="text-md-end">
                 <p style="color:var(--muted);font-size:.8rem;margin:0;">Total</p>
                 <p style="color:var(--ink);font-weight:800;font-size:1.2rem;margin:0 0 .75rem;">S$<%= Number(booking.payable_amount || booking.total_amount || 0).toFixed(2) %></p>
-                <% if (booking.status === 'pending_payment') { %>
-                  <a href="/payment/checkout/<%= booking.booking_id %>" class="btn btn-primary btn-sm btn-pill">Continue Payment</a>
+                <% if (canContinuePayment) { %>
+                  <a href="/payment/checkout/<%= booking.booking_id %>" class="btn btn-primary btn-sm btn-pill" data-payment-action>Continue Payment</a>
                 <% } else if (booking.payment_status === 'paid') { %>
                   <div class="d-flex flex-column gap-2 align-items-md-end">
                     <a href="/payment/receipt/<%= booking.booking_id %>.pdf" class="btn btn-outline-secondary btn-sm btn-pill" download>
@@ -228,6 +240,16 @@
           timer.style.borderColor = 'rgba(225,29,72,.25)';
         }
         if (!remaining) {
+          const entry = timer.closest('[data-pending-payment-entry]');
+          const statusBadge = entry ? entry.querySelector('[data-status-badge]') : null;
+          const paymentAction = entry ? entry.querySelector('[data-payment-action]') : null;
+
+          if (statusBadge) {
+            statusBadge.textContent = 'Payment expired';
+            statusBadge.style.background = 'var(--danger-bg)';
+            statusBadge.style.color = 'var(--danger)';
+          }
+          if (paymentAction) paymentAction.remove();
           timer.innerHTML = '<i class="bi bi-hourglass-bottom me-1"></i>Expired';
         }
       });
