@@ -93,16 +93,7 @@
   </div>
 
   <div class="row g-4 mb-4">
-    <div class="col-lg-5">
-      <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
-        <p class="section-label mb-2">Campaign Status</p>
-        <div style="height:260px;">
-          <canvas id="voucherStatusChart" aria-label="Voucher status chart"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-7">
+    <div class="col-12">
       <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
         <p class="section-label mb-2">Create Voucher</p>
         <form action="/admin/campaigns/create" method="POST">
@@ -233,44 +224,5 @@
     <% } %>
   </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<script>
-  const voucherSummary = <%- JSON.stringify(summary) %>;
-  const voucherStatusCanvas = document.getElementById('voucherStatusChart');
-
-  if (voucherStatusCanvas && window.Chart) {
-    new Chart(voucherStatusCanvas, {
-      type: 'doughnut',
-      data: {
-        labels: ['Active', 'Upcoming', 'Paused', 'Expired'],
-        datasets: [{
-          data: [
-            voucherSummary.active_count || 0,
-            voucherSummary.upcoming_count || 0,
-            voucherSummary.paused_count || 0,
-            voucherSummary.expired_count || 0
-          ],
-          backgroundColor: ['#10B981', '#1D4ED8', '#6B7280', '#EF4444'],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              boxWidth: 10,
-              usePointStyle: true
-            }
-          }
-        },
-        cutout: '68%'
-      }
-    });
-  }
-</script>
 
 <%- include('../partials/footer') %>
