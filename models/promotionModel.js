@@ -40,6 +40,7 @@ async function ensurePromotionSchema() {
   await addColumnIfMissing('approved_by_admin_id', 'approved_by_admin_id INT NULL AFTER rejection_reason');
   await addColumnIfMissing('approved_at', 'approved_at DATETIME NULL AFTER approved_by_admin_id');
   await addColumnIfMissing('submitted_at', 'submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER approved_at');
+  await addColumnIfMissing('min_spend', 'min_spend DECIMAL(10,2) NULL AFTER discount_pct');
 
   await db.query(
     `UPDATE promotion
@@ -56,6 +57,7 @@ async function createPromotion({
   title,
   description,
   discountPct,
+  minSpend = null,
   offerText,
   applicableDays = null,
   imagePath = null,
@@ -67,15 +69,16 @@ async function createPromotion({
   // New merchant promotions wait for admin approval first.
   const [result] = await db.query(
     `INSERT INTO promotion
-      (merchant_id, service_id, title, description, discount_pct, offer_text, applicable_days, image_path,
+      (merchant_id, service_id, title, description, discount_pct, min_spend, offer_text, applicable_days, image_path,
        start_date, end_date, is_active, approval_status, submitted_by_merchant)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'pending', 1)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'pending', 1)`,
     [
       merchantId,
       serviceId || null,
       title,
       description || null,
       discountPct,
+      minSpend || null,
       offerText || null,
       applicableDays || null,
       imagePath || null,
@@ -110,6 +113,7 @@ async function getMerchantApprovedPromotions(merchantId) {
      WHERE p.merchant_id = ?
        AND p.approval_status = 'approved'
        AND p.is_active = 1
+       AND p.discount_pct > 0
        AND p.start_date <= CURDATE()
        AND p.end_date >= CURDATE()
        AND (
@@ -133,6 +137,7 @@ async function getMerchantApprovedPromotionById(promoId, merchantId) {
        AND merchant_id = ?
        AND approval_status = 'approved'
        AND is_active = 1
+       AND discount_pct > 0
        AND start_date <= CURDATE()
        AND end_date >= CURDATE()
        AND (
@@ -153,18 +158,35 @@ async function getActivePromotions(category = null) {
   let categoryFilter = '';
 
   if (category) {
-    categoryFilter = ' AND LOWER(m.category) = LOWER(?)';
-    params.push(category);
+    categoryFilter = `AND (
+         (p.service_id IS NOT NULL AND LOWER(COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''))) = LOWER(?))
+         OR (
+           p.service_id IS NULL
+           AND EXISTS (
+             SELECT 1
+             FROM service sf
+             WHERE sf.merchant_id = m.merchant_id
+               AND sf.is_active = 1
+               AND LOWER(sf.category) = LOWER(?)
+           )
+         )
+       )`;
+    params.push(category, category);
   }
 
   // Show only approved promotions that are active today.
   const [rows] = await db.query(
-    `SELECT p.*, m.merchant_name, m.category, s.service_name
+    `SELECT
+       p.*,
+       m.merchant_name,
+       COALESCE(NULLIF(s.category, ''), NULLIF(m.category, '')) AS category,
+       s.service_name
      FROM promotion p
      JOIN merchant m ON p.merchant_id = m.merchant_id
      LEFT JOIN service s ON p.service_id = s.service_id
      WHERE p.is_active = 1
        AND p.approval_status = 'approved'
+       AND p.discount_pct > 0
        AND p.start_date <= CURDATE()
        AND p.end_date >= CURDATE()
        AND (
@@ -258,12 +280,45 @@ async function rejectPromotion(promoId, adminId, reason = null) {
   return result.affectedRows;
 }
 
+async function getApplicablePromotionForBooking({ merchantId, serviceId, bookingDate, baseAmount = 0 }) {
+  await ensurePromotionSchema();
+
+  // Derive 3-letter weekday abbreviation from the booking date (e.g. "wed").
+  const dayAbbr = new Date(bookingDate + 'T00:00:00')
+    .toLocaleDateString('en-US', { weekday: 'short' })
+    .toLowerCase();
+
+  const [rows] = await db.query(
+    `SELECT p.*
+     FROM promotion p
+     WHERE p.merchant_id = ?
+       AND p.is_active = 1
+       AND p.approval_status = 'approved'
+       AND p.discount_pct > 0
+       AND p.start_date <= ?
+       AND p.end_date >= ?
+       AND (p.service_id IS NULL OR p.service_id = ?)
+       AND (
+         p.applicable_days IS NULL
+         OR p.applicable_days = ''
+         OR FIND_IN_SET(?, p.applicable_days) > 0
+       )
+       AND (p.min_spend IS NULL OR p.min_spend = 0 OR ? >= p.min_spend)
+     ORDER BY p.discount_pct DESC
+     LIMIT 1`,
+    [merchantId, bookingDate, bookingDate, serviceId || null, dayAbbr, baseAmount]
+  );
+
+  return rows[0] || null;
+}
+
 module.exports = {
   createPromotion,
   getMerchantPromotions,
   getMerchantApprovedPromotions,
   getMerchantApprovedPromotionById,
   getActivePromotions,
+  getApplicablePromotionForBooking,
   togglePromotion,
   deletePromotion,
   getPendingPromotionRequests,

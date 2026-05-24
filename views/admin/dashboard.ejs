@@ -65,6 +65,26 @@
     padding: 1.75rem;
   }
 
+  .stat-card.is-alert {
+    background: #fee2e2;
+    border-color: rgba(239, 68, 68, .35);
+    box-shadow: 0 16px 40px rgba(239, 68, 68, .14);
+  }
+
+  .stat-card.is-alert:hover {
+    border-color: rgba(239, 68, 68, .55);
+    box-shadow: 0 18px 46px rgba(239, 68, 68, .22);
+  }
+
+  .stat-card.is-alert .stat-alert-label {
+    color: #991b1b !important;
+  }
+
+  .stat-card.is-alert .icon-circle {
+    background: #fff1f2 !important;
+    color: #dc2626 !important;
+  }
+
   @media (max-width: 1199.98px) {
     .admin-module-card {
       flex-basis: calc((100% - 2.5rem) / 3);
@@ -86,22 +106,6 @@
 
 <%
   const money = value => 'S$' + Number(value || 0).toFixed(2);
-  const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
-  const formatTime = value => value ? String(value).slice(0, 5) : '';
-  const badgeStyle = status => {
-    const map = {
-      paid: 'background:var(--success-bg);color:var(--success);',
-      confirmed: 'background:var(--success-bg);color:var(--success);',
-      completed: 'background:var(--neutral-bg);color:var(--muted);',
-      pending: 'background:var(--warn-bg);color:var(--warn);',
-      pending_payment: 'background:var(--warn-bg);color:var(--warn);',
-      arrived: 'background:#EFF6FF;color:#1D4ED8;',
-      failed: 'background:var(--danger-bg);color:var(--danger);',
-      cancelled: 'background:var(--danger-bg);color:var(--danger);',
-      refunded: 'background:var(--neutral-bg);color:var(--muted);',
-    };
-    return map[status] || 'background:var(--accent-light);color:var(--accent);';
-  };
 %>
 
 <div class="container py-5">
@@ -111,6 +115,9 @@
       <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Admin Dashboard</h2>
       <p style="color:var(--muted);margin-bottom:0;">Welcome back, <strong><%= user.full_name %></strong></p>
     </div>
+    <a href="/admin/revenue" class="btn btn-outline-secondary btn-pill" style="font-weight:800;">
+      <i class="bi bi-graph-up me-1"></i>Revenue Report
+    </a>
   </div>
 
   <% if (typeof error !== 'undefined' && error) { %>
@@ -125,25 +132,27 @@
       { label:'Customers', value:summary.total_customers || 0, icon:'bi-people', color:'var(--accent)' },
       { label:'Merchants', value:summary.total_merchants || 0, icon:'bi-shop', color:'var(--ink)' },
       { label:'Bookings', value:summary.total_bookings || 0, icon:'bi-calendar-check', color:'#1D4ED8' },
-      { label:'Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)' },
+      { label:'Gross Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)', href:'/admin/revenue' },
       { label:'Payments', value:summary.total_payments || 0, icon:'bi-receipt', color:'var(--accent)' },
       { label:'Services', value:summary.total_services || 0, icon:'bi-scissors', color:'var(--ink)' },
       { label:'Promotions', value:summary.total_promotions || 0, icon:'bi-tag', color:'var(--accent)' },
-      { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)' },
+      { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)', href:'/admin/merchant-validations', alertWhenPositive:true },
       { label:'Validation Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)' },
     ].forEach(stat => { %>
     <div class="col-6 col-lg-3">
-      <div class="stat-card">
+      <% const statTag = stat.href ? 'a' : 'div'; %>
+      <% const isAlert = stat.alertWhenPositive && Number(stat.value) > 0; %>
+      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %>"<%- stat.href ? ` href="${stat.href}"` : '' %>>
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
-            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
-            <p class="stat-value" style="color:<%= stat.color %>;"><%= stat.value %></p>
+            <p class="stat-alert-label" style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
+            <p class="stat-value" style="color:<%= isAlert ? '#b91c1c' : stat.color %>;"><%= stat.value %></p>
           </div>
           <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
             <i class="bi <%= stat.icon %>"></i>
           </div>
         </div>
-      </div>
+      </<%= statTag %>>
     </div>
     <% }) %>
   </div>
@@ -166,34 +175,28 @@
   <div class="admin-module-carousel" id="admin-modules">
     <% [
       {
-        href:'/admin/user-management',
-        icon:'bi-person-gear',
-        label:'User Management',
-        sub:'Enable, disable, delete, and review customer and merchant accounts from one control room.'
-      },
-      {
         href:'/admin/customers',
         icon:'bi-person-lines-fill',
-        label:'Manage Customers',
+        label:'Customer Information',
         sub:'View customer profiles, booking history, loyalty points, vouchers, wallet balances, cancellations, and favourite merchants.'
       },
       {
         href:'/admin/merchants',
         icon:'bi-shop-window',
-        label:'Manage Merchants',
+        label:'Merchant Information',
         sub:'Review merchant business details, services, staff, promotions, cancellation policies, revenue, QR bookings, and performance analytics.'
-      },
-      {
-        href:'/admin/merchant-validations',
-        icon:'bi-patch-check',
-        label:'Merchant Validation',
-        sub:'Review pending merchant registrations, verify company details, and approve or reject access to merchant tools.'
       },
       {
         href:'/admin/promotions',
         icon:'bi-megaphone',
         label:'Promotion Review',
         sub:'Review merchant-submitted promotions, approve valid campaigns, or reject requests with admin feedback.'
+      },
+      {
+        href:'/admin/platform-feedback',
+        icon:'bi-chat-square-heart',
+        label:'Uniday Feedback',
+        sub:'Read customer ratings and comments about booking, payment, QR check-in, WhatsApp, and platform experience.'
       },
       {
         href:'/admin/validation',
@@ -231,101 +234,6 @@
 
   <div class="row g-4">
     <div class="col-12">
-      <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
-        <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
-          <div>
-            <p class="section-label mb-1">Bookings</p>
-            <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Bookings</h5>
-          </div>
-          <span class="badge" style="background:var(--accent-light);color:var(--accent);">Latest <%= recentBookings.length %></span>
-        </div>
-        <% if (recentBookings.length === 0) { %>
-        <div class="text-center py-5">
-          <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
-            <i class="bi bi-calendar-x" style="font-size:2rem;color:var(--accent);"></i>
-          </div>
-          <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No bookings found</h6>
-          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Bookings will appear here once customers reserve services.</p>
-        </div>
-        <% } else { %>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
-            <thead style="background:var(--accent-light);">
-              <tr>
-                <th>ID</th>
-                <th>Customer</th>
-                <th>Merchant</th>
-                <th>Service</th>
-                <th>Date &amp; Time</th>
-                <th>Source</th>
-                <th>Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% recentBookings.forEach(b => { %>
-              <tr>
-                <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= b.booking_id %></td>
-                <td style="font-weight:600;"><%= b.customer_name || '-' %></td>
-                <td><%= b.merchant_name || '-' %></td>
-                <td><%= b.service_name || '-' %></td>
-                <td><%= formatDate(b.slot_date) %> <span style="color:var(--muted);"><%= formatTime(b.start_time) %></span></td>
-                <td><span class="badge bg-secondary"><%= b.source || '-' %></span></td>
-                <td style="font-family:var(--font-mono);"><%= money(b.total_amount) %></td>
-                <td><span class="badge" style="<%= badgeStyle(b.status) %>"><%= (b.status || 'unknown').replace('_', ' ') %></span></td>
-              </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        </div>
-        <% } %>
-      </div>
-    </div>
-
-    <div class="col-lg-6">
-      <div class="card border-0 overflow-hidden h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
-        <div class="p-4" style="border-bottom:1px solid var(--border);">
-          <p class="section-label mb-1">Payments</p>
-          <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Payments</h5>
-        </div>
-        <% if (recentPayments.length === 0) { %>
-        <div class="text-center py-5 px-4">
-          <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
-            <i class="bi bi-receipt" style="font-size:2rem;color:var(--accent);"></i>
-          </div>
-          <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No payments found</h6>
-          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Paid bookings will be listed here.</p>
-        </div>
-        <% } else { %>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
-            <thead style="background:var(--accent-light);">
-              <tr>
-                <th>ID</th>
-                <th>Booking</th>
-                <th>Merchant</th>
-                <th>Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% recentPayments.forEach(p => { %>
-              <tr>
-                <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= p.payment_id %></td>
-                <td>#<%= p.booking_id %></td>
-                <td><%= p.merchant_name || '-' %></td>
-                <td style="font-family:var(--font-mono);font-weight:700;"><%= money(p.amount) %></td>
-                <td><span class="badge" style="<%= badgeStyle(p.payment_status) %>"><%= p.payment_status || 'unknown' %></span></td>
-              </tr>
-              <% }) %>
-            </tbody>
-          </table>
-        </div>
-        <% } %>
-      </div>
-    </div>
-
-    <div class="col-lg-6">
       <div class="card border-0 overflow-hidden h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
         <div class="p-4" style="border-bottom:1px solid var(--border);">
           <p class="section-label mb-1">Validation</p>

@@ -2,15 +2,18 @@ const featuredListingModel = require('../models/featuredListingModel');
 const promotionModel = require('../models/promotionModel');
 const merchantModel = require('../models/merchantModel');
 const favouriteModel = require('../models/favouriteModel');
+const reviewModel = require('../models/reviewModel');
+const cancellationPolicyModel = require('../models/cancellationPolicyModel');
+const { SERVICE_CATEGORIES, normalizeServiceCategory } = require('../utils/serviceCategories');
 
-const MARKETPLACE_CATEGORIES = ['Hair', 'Nails', 'Facial', 'Massage', 'Wellness', 'Body', 'Aesthetics', 'Spa'];
+function getWhatsAppBookingNumber() {
+  return String(process.env.TWILIO_WHATSAPP_NUMBER || '')
+    .replace('whatsapp:', '')
+    .replace(/\D/g, '');
+}
 
 function getSelectedCategory(req) {
-  const requested = String(req.query.category || '').trim();
-
-  return MARKETPLACE_CATEGORIES.find(
-    category => category.toLowerCase() === requested.toLowerCase()
-  ) || null;
+  return normalizeServiceCategory(req.query.category);
 }
 
 async function showHome(req, res) {
@@ -66,7 +69,7 @@ async function showMarketplace(req, res) {
       promotions,
       merchants,
       selectedCategory,
-      categories: MARKETPLACE_CATEGORIES,
+      categories: SERVICE_CATEGORIES,
       favouriteMerchantIds
     });
 
@@ -79,7 +82,7 @@ async function showMarketplace(req, res) {
       promotions: [],
       merchants: [],
       selectedCategory: null,
-      categories: MARKETPLACE_CATEGORIES,
+      categories: SERVICE_CATEGORIES,
       favouriteMerchantIds: []
     });
   }
@@ -105,8 +108,6 @@ async function showMerchantDetails(req, res) {
       });
     }
 
-    const services = await merchantModel.getMerchantServices(merchantId);
-
     let favouriteServiceIds = [];
 
     if (req.session.user && req.session.user.role === 'customer') {
@@ -117,11 +118,35 @@ async function showMerchantDetails(req, res) {
         );
     }
 
+    const [merchantServices, merchantPromotions, merchantReviews, cancellationPolicy] = await Promise.all([
+      merchantModel.getMerchantServices(merchantId),
+      promotionModel.getMerchantApprovedPromotions(merchantId),
+      reviewModel.getRecentMerchantReviews(merchantId, 8),
+      cancellationPolicyModel.getPolicyByMerchantId(merchantId),
+    ]);
+    const services = merchantServices.map(service => ({
+      ...service,
+      category: normalizeServiceCategory(service.category) || service.category,
+    }));
+    const selectedServiceCategory = getSelectedCategory(req);
+    const serviceCategories = [...new Set(
+      services
+        .map(service => normalizeServiceCategory(service.category))
+        .filter(Boolean)
+    )];
+
     res.render('marketplace/merchantDetails', {
       title: merchant.merchant_name,
       merchant,
       services,
-      favouriteServiceIds
+      merchantPromotions,
+      merchantReviews,
+      cancellationPolicy,
+      cancellationPolicySummary: cancellationPolicyModel.getPolicySummary(cancellationPolicy),
+      serviceCategories,
+      selectedServiceCategory,
+      favouriteServiceIds,
+      whatsappBookingNumber: getWhatsAppBookingNumber()
     });
 
   } catch (err) {

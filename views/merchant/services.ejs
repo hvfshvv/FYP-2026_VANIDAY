@@ -32,39 +32,56 @@
     <i class="bi bi-check-circle me-2"></i>Service added successfully!
   </div>
   <% } %>
+  <% if (typeof updated !== 'undefined' && updated) { %>
+  <div class="rounded-xl p-3 mb-4" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+    <i class="bi bi-check-circle me-2"></i>Service updated successfully!
+  </div>
+  <% } %>
 
   <div class="row g-4">
     <!-- Add Service Form: sends new service details to /merchant/services/add. -->
     <div class="col-md-5">
       <div class="card border-0 p-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);position:sticky;top:80px;">
-        <h5 style="font-weight:700;color:var(--ink);margin-bottom:1.25rem;">
+        <h5 id="serviceFormTitle" style="font-weight:700;color:var(--ink);margin-bottom:1.25rem;">
           <i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i>Add New Service
         </h5>
-        <form action="/merchant/services/add" method="POST">
+        <form id="serviceForm" action="/merchant/services/add" method="POST">
           <div class="mb-3">
             <label class="form-label" style="font-size:.875rem;font-weight:600;">Service Name <span style="color:var(--danger);">*</span></label>
-            <input type="text" name="service_name" class="form-control rounded-xl"
+            <input id="serviceName" type="text" name="service_name" class="form-control rounded-xl"
               placeholder="e.g. Gel Manicure" required maxlength="100" />
           </div>
           <div class="mb-3">
             <label class="form-label" style="font-size:.875rem;font-weight:600;">Description <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
-            <textarea name="description" class="form-control rounded-xl" rows="2"
+            <textarea id="serviceDescription" name="description" class="form-control rounded-xl" rows="2"
               placeholder="Brief description of the service..." maxlength="255"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.875rem;font-weight:600;">Category <span style="color:var(--danger);">*</span></label>
+            <select id="serviceCategory" name="category" class="form-select rounded-xl" required>
+              <option value="">Select category</option>
+              <% (categories || []).forEach(category => { %>
+              <option value="<%= category %>"><%= category %></option>
+              <% }) %>
+            </select>
           </div>
           <div class="row g-2 mb-4">
             <div class="col-6">
               <label class="form-label" style="font-size:.875rem;font-weight:600;">Price (S$) <span style="color:var(--danger);">*</span></label>
-              <input type="number" name="price" class="form-control rounded-xl"
+              <input id="servicePrice" type="number" name="price" class="form-control rounded-xl"
                 placeholder="0.00" min="1" max="9999" step="0.01" required />
             </div>
             <div class="col-6">
               <label class="form-label" style="font-size:.875rem;font-weight:600;">Duration (min) <span style="color:var(--danger);">*</span></label>
-              <input type="number" name="duration_mins" class="form-control rounded-xl"
+              <input id="serviceDuration" type="number" name="duration_mins" class="form-control rounded-xl"
                 placeholder="60" min="5" max="480" step="5" required />
             </div>
           </div>
           <button type="submit" class="btn btn-primary btn-pill w-100" style="font-weight:700;">
-            <i class="bi bi-plus-lg me-2"></i>Add Service
+            <i id="serviceSubmitIcon" class="bi bi-plus-lg me-2"></i><span id="serviceSubmitText">Add Service</span>
+          </button>
+          <button id="cancelServiceEdit" type="button" class="btn btn-outline-secondary btn-pill w-100 mt-2" style="font-weight:700;display:none;">
+            Cancel Edit
           </button>
         </form>
         <div class="mt-3 p-3 rounded-xl" style="background:var(--accent-light);">
@@ -100,11 +117,25 @@
               <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= s.description %></p>
               <% } %>
               <div class="d-flex gap-3" style="font-size:.8125rem;">
+                <span style="color:var(--muted);"><i class="bi bi-grid me-1"></i><%= s.category || 'General' %></span>
                 <span style="font-weight:700;color:var(--accent);font-family:var(--font-mono);">S$<%= Number(s.price).toFixed(2) %></span>
                 <span style="color:var(--muted);"><i class="bi bi-clock me-1"></i><%= s.duration_mins %> min</span>
               </div>
             </div>
             <div class="d-flex gap-2 flex-shrink-0">
+              <button
+                type="button"
+                class="btn btn-sm btn-pill btn-outline-secondary edit-service-btn"
+                title="Edit"
+                data-id="<%= s.service_id %>"
+                data-name="<%= s.service_name %>"
+                data-description="<%= s.description || '' %>"
+                data-category="<%= s.category || '' %>"
+                data-price="<%= Number(s.price).toFixed(2) %>"
+                data-duration="<%= s.duration_mins %>"
+              >
+                <i class="bi bi-pencil"></i>
+              </button>
               <!-- Toggle keeps the service but hides/shows it from booking pages. -->
               <form action="/merchant/services/<%= s.service_id %>/toggle" method="POST">
                 <button type="submit" class="btn btn-sm btn-pill <%= s.is_active ? 'btn-outline-secondary' : 'btn-outline-success' %>"
@@ -128,5 +159,45 @@
     </div>
   </div>
 </div>
+
+<script>
+  const serviceForm = document.getElementById('serviceForm');
+  const serviceFormTitle = document.getElementById('serviceFormTitle');
+  const serviceName = document.getElementById('serviceName');
+  const serviceDescription = document.getElementById('serviceDescription');
+  const serviceCategory = document.getElementById('serviceCategory');
+  const servicePrice = document.getElementById('servicePrice');
+  const serviceDuration = document.getElementById('serviceDuration');
+  const serviceSubmitIcon = document.getElementById('serviceSubmitIcon');
+  const serviceSubmitText = document.getElementById('serviceSubmitText');
+  const cancelServiceEdit = document.getElementById('cancelServiceEdit');
+
+  const resetServiceForm = () => {
+    serviceForm.action = '/merchant/services/add';
+    serviceForm.reset();
+    serviceFormTitle.innerHTML = '<i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i>Add New Service';
+    serviceSubmitIcon.className = 'bi bi-plus-lg me-2';
+    serviceSubmitText.textContent = 'Add Service';
+    cancelServiceEdit.style.display = 'none';
+  };
+
+  document.querySelectorAll('.edit-service-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      serviceForm.action = `/merchant/services/${button.dataset.id}/edit`;
+      serviceName.value = button.dataset.name || '';
+      serviceDescription.value = button.dataset.description || '';
+      serviceCategory.value = button.dataset.category || '';
+      servicePrice.value = button.dataset.price || '';
+      serviceDuration.value = button.dataset.duration || '';
+      serviceFormTitle.innerHTML = '<i class="bi bi-pencil-square me-2" style="color:var(--accent);"></i>Edit Service';
+      serviceSubmitIcon.className = 'bi bi-check2 me-2';
+      serviceSubmitText.textContent = 'Save Changes';
+      cancelServiceEdit.style.display = '';
+      serviceForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+
+  cancelServiceEdit.addEventListener('click', resetServiceForm);
+</script>
 
 <%- include('../partials/footer') %>

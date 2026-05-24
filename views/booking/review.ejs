@@ -1,0 +1,139 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const values = typeof formValues !== 'undefined' && formValues ? formValues : {};
+  const selected = (name, value) => String(values[name] || '') === String(value) ? 'checked' : '';
+  const optionSelected = (name, value) => String(values[name] || '') === String(value) ? 'selected' : '';
+  const formatDate = value => new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+  const formatTime = value => String(value || '').slice(0, 5);
+%>
+
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container" style="max-width:820px;">
+    <a href="/book/viewBookings" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
+      <i class="bi bi-arrow-left me-1"></i>Bookings
+    </a>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+      <div>
+        <p class="section-label mb-2">Review</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Share Your Experience</h2>
+        <p style="color:var(--muted);margin:0;">Reviews are only available after completed bookings.</p>
+        <span class="d-inline-flex align-items-center gap-2 mt-3 px-3 py-2 rounded-pill" style="background:var(--accent-light);color:var(--accent);font-weight:800;font-size:.875rem;">
+          <i class="bi bi-plus-circle"></i> Earn 2 loyalty points
+        </span>
+      </div>
+    </div>
+
+    <% if (error) { %>
+    <div class="rounded-xl p-3 mb-4" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+      <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+    </div>
+    <% } %>
+
+    <div class="card border-0 mb-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="card-body p-4">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;">Completed booking</p>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.35rem;"><%= booking.service_name %></h5>
+        <p style="color:var(--muted);margin:0;">
+          <i class="bi bi-shop me-1"></i><%= booking.merchant_name %>
+          <span class="ms-2"><i class="bi bi-calendar3 me-1"></i><%= formatDate(booking.booking_date) %></span>
+          <span class="ms-2"><i class="bi bi-clock me-1"></i><%= formatTime(booking.booking_time) %></span>
+        </p>
+      </div>
+    </div>
+
+    <form action="/book/<%= booking.booking_id %>/review" method="POST">
+      <div class="card border-0 mb-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+        <div class="card-body p-4">
+          <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;">Merchant Review</h5>
+          <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">Rate the service you received from <%= booking.merchant_name %>.</p>
+
+          <div class="rating-choice mb-3" role="radiogroup" aria-label="Merchant rating">
+            <% [5,4,3,2,1].forEach(value => { %>
+            <input type="radio" id="merchant_rating_<%= value %>" name="merchant_rating" value="<%= value %>" <%= selected('merchant_rating', value) %> required>
+            <label for="merchant_rating_<%= value %>" title="<%= value %> stars"><i class="bi bi-star-fill"></i></label>
+            <% }) %>
+          </div>
+
+          <textarea
+            name="merchant_review_text"
+            class="form-control rounded-xl"
+            rows="4"
+            maxlength="1000"
+            placeholder="What stood out about the service?"
+          ><%= values.merchant_review_text || '' %></textarea>
+        </div>
+      </div>
+
+      <div class="card border-0 mb-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+        <div class="card-body p-4">
+          <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;">Uniday Feedback</h5>
+          <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">Optional: tell us how the booking experience felt.</p>
+
+          <div class="rating-choice mb-3" role="radiogroup" aria-label="Platform rating">
+            <% [5,4,3,2,1].forEach(value => { %>
+            <input type="radio" id="platform_rating_<%= value %>" name="platform_rating" value="<%= value %>" <%= selected('platform_rating', value) %>>
+            <label for="platform_rating_<%= value %>" title="<%= value %> stars"><i class="bi bi-star-fill"></i></label>
+            <% }) %>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-5">
+              <select name="platform_feedback_type" class="form-select rounded-xl">
+                <option value="booking_experience" <%= optionSelected('platform_feedback_type', 'booking_experience') %>>Booking experience</option>
+                <option value="payment" <%= optionSelected('platform_feedback_type', 'payment') %>>Payment</option>
+                <option value="qr_checkin" <%= optionSelected('platform_feedback_type', 'qr_checkin') %>>QR check-in</option>
+                <option value="whatsapp" <%= optionSelected('platform_feedback_type', 'whatsapp') %>>WhatsApp</option>
+                <option value="general" <%= optionSelected('platform_feedback_type', 'general') %>>General</option>
+              </select>
+            </div>
+            <div class="col-md-7">
+              <textarea
+                name="platform_feedback_text"
+                class="form-control rounded-xl"
+                rows="3"
+                maxlength="1000"
+                placeholder="How was booking through Uniday?"
+              ><%= values.platform_feedback_text || '' %></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-pill" style="font-weight:800;">
+        <i class="bi bi-star me-1"></i>Submit Review
+      </button>
+    </form>
+  </div>
+</main>
+
+<style>
+  .rating-choice {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    gap: .35rem;
+  }
+  .rating-choice input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .rating-choice label {
+    color: rgba(107, 99, 102, .35);
+    cursor: pointer;
+    font-size: 1.6rem;
+    transition: color .15s, transform .15s;
+  }
+  .rating-choice label:hover,
+  .rating-choice label:hover ~ label,
+  .rating-choice input:checked ~ label {
+    color: #f59e0b;
+  }
+  .rating-choice label:hover {
+    transform: translateY(-1px);
+  }
+</style>
+
+<%- include('../partials/footer') %>

@@ -100,6 +100,8 @@
       { href:'/merchant/staff',        icon:'bi-people',   label:'Staff',        sub:'Manage employees' },
       { href:'/merchant/availability', icon:'bi-clock',    label:'Availability', sub:'Set working hours' },
       { href:'/merchant/promotions',  icon:'bi-tag',      label:'Promotions', sub:'Create deals'        },
+      { href:'/merchant/reviews',      icon:'bi-star',     label:'Reviews',      sub:'View & reply'      },
+      { href:'/merchant/cancellation-policy', icon:'bi-hourglass-split', label:'Policy', sub:'Cancellation rules' },
     ].forEach(a => { %>
     <div class="col-6 col-md-3">
       <a href="<%= a.href %>" class="action-card">
@@ -176,12 +178,16 @@
                   completed: { bg:'var(--neutral-bg)',  color:'var(--muted)'    },
                   arrived:   { bg:'#EFF6FF',            color:'#1D4ED8'         },
                   cancelled: { bg:'var(--danger-bg)',   color:'var(--danger)'   },
+                  payment_failed: { bg:'var(--danger-bg)', color:'var(--danger)' },
                   pending:   { bg:'var(--warn-bg)',     color:'var(--warn)'     },
                 };
                 const st = statusMap[b.status] || statusMap.pending;
+                const statusLabel = b.status === 'payment_failed'
+                  ? 'Payment Failed'
+                  : b.status.charAt(0).toUpperCase() + b.status.slice(1).replace('_', ' ');
               %>
               <span class="badge" style="background:<%= st.bg %>;color:<%= st.color %>">
-                <%= b.status.charAt(0).toUpperCase() + b.status.slice(1) %>
+                <%= statusLabel %>
               </span>
             </td>
             <td>

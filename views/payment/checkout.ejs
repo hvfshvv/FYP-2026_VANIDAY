@@ -1,5 +1,18 @@
 <% locals.hideCatNav = true %>
-<% const payableAmount = Number(booking.payable_amount || booking.total_amount || booking.price); %>
+<%
+  const bookingTotalAmount = Number(booking.total_amount);
+  const bookingServicePrice = Number(booking.price);
+  const checkoutBaseAmount = Number.isFinite(bookingTotalAmount) && bookingTotalAmount > 0
+    ? bookingTotalAmount
+    : (Number.isFinite(bookingServicePrice) && bookingServicePrice > 0 ? bookingServicePrice : 0);
+  const bookingPayableAmount = Number(booking.payable_amount);
+  const payableAmount = Number.isFinite(bookingPayableAmount) && bookingPayableAmount > 0
+    ? bookingPayableAmount
+    : Math.max(
+        checkoutBaseAmount - Number(booking.discount_amount || 0) - Number(booking.voucher_discount_amount || 0),
+        0
+      );
+%>
 <%- include('../partials/header') %>
 
 <script src="https://js.stripe.com/v3/"></script>
@@ -29,14 +42,173 @@
             </p>
             <div class="summary-row"><span class="lbl">Merchant</span> <span class="val"><%= booking.merchant_name %></span></div>
             <div class="summary-row"><span class="lbl">Service</span>  <span class="val"><%= booking.service_name %></span></div>
+            <div class="summary-row"><span class="lbl">Staff</span>    <span class="val"><%= booking.staff_name || 'Any Available Staff' %></span></div>
             <div class="summary-row"><span class="lbl">Duration</span> <span class="val"><%= booking.duration_mins %> min</span></div>
             <div class="summary-row"><span class="lbl">Date</span>     <span class="val"><%= new Date(booking.booking_date).toLocaleDateString('en-SG',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) %></span></div>
             <div class="summary-row"><span class="lbl">Time</span>     <span class="val"><%= String(booking.booking_time).slice(0,5) %></span></div>
+            <%
+              const baseAmt      = checkoutBaseAmount;
+              const discAmt      = Number(booking.discount_amount || 0);
+              const voucherDiscAmt = Number(booking.voucher_discount_amount || 0);
+              const hasPromo     = typeof appliedPromotion !== 'undefined' && appliedPromotion;
+              const hasVoucher   = typeof appliedVoucher !== 'undefined' && appliedVoucher && voucherDiscAmt > 0;
+            %>
+            <div class="summary-row"><span class="lbl">Original price</span><span class="val" style="font-family:var(--font-mono);">S$<%= baseAmt.toFixed(2) %></span></div>
+            <% if (hasPromo) { %>
+            <div class="summary-row">
+              <span class="lbl" style="color:var(--success);font-weight:600;">
+                <i class="bi bi-tag-fill me-1"></i>Promotion discount: <%= appliedPromotion.title %> (<%= Number(appliedPromotion.discount_pct) %>% off)
+              </span>
+              <span class="val" style="color:var(--success);font-family:var(--font-mono);font-weight:700;">-S$<%= discAmt.toFixed(2) %></span>
+            </div>
+            <% } else { %>
+            <div class="summary-row">
+              <span class="lbl">Promotion discount</span>
+              <span class="val" style="font-family:var(--font-mono);">-S$0.00</span>
+            </div>
+            <% } %>
+            <% if (hasVoucher) { %>
+            <div class="summary-row">
+              <span class="lbl" style="color:#0369a1;font-weight:600;">
+                <i class="bi bi-ticket-perforated-fill me-1"></i>Voucher discount: <%= appliedVoucher.campaign_name || appliedVoucher.voucher_code %>
+              </span>
+              <span class="val" style="color:#0369a1;font-family:var(--font-mono);font-weight:700;">-S$<%= voucherDiscAmt.toFixed(2) %></span>
+            </div>
+            <% } else { %>
+            <div class="summary-row">
+              <span class="lbl">Voucher discount</span>
+              <span class="val" style="font-family:var(--font-mono);">-S$0.00</span>
+            </div>
+            <% } %>
             <div class="summary-row total">
-              <span style="font-weight:700;">Total</span>
+              <span style="font-weight:700;">Final total</span>
               <span style="font-weight:700;color:var(--accent);font-size:1.2rem;font-family:var(--font-mono);">S$<%= payableAmount.toFixed(2) %></span>
             </div>
           </div>
+
+          <% if (typeof cancellationPolicySummary !== 'undefined' && cancellationPolicySummary) { %>
+          <div class="p-3 rounded-xl mb-4" style="background:#fff;border:1px solid var(--border);">
+            <p style="font-weight:700;font-size:.8125rem;color:var(--accent);margin-bottom:.5rem;">
+              <i class="bi bi-hourglass-split me-1"></i>Cancellation Policy
+            </p>
+            <p style="color:var(--ink);font-weight:700;margin:0;font-size:.875rem;"><%= cancellationPolicySummary %></p>
+          </div>
+          <% } %>
+
+          <%
+            const checkoutVouchers = (typeof voucherOptions !== 'undefined' && voucherOptions)
+              ? voucherOptions
+              : ((typeof eligibleVouchers !== 'undefined' && eligibleVouchers) ? eligibleVouchers : []);
+            const appliedCvId = (typeof appliedVoucher !== 'undefined' && appliedVoucher) ? appliedVoucher.cv_id : null;
+            const showVoucherSection = typeof user !== 'undefined' && user && user.role === 'customer';
+            const voucherDiscountBase = Math.max(checkoutBaseAmount - Number(booking.discount_amount || 0), 0);
+            const voucherUiState = voucher => {
+              const minSpend = Number(voucher.min_spend || 0);
+              const meetsMinSpend = !minSpend || checkoutBaseAmount >= minSpend;
+              const discountValue = Number(voucher.discount_value || 0);
+              const fallbackDiscount = voucher.discount_type === 'percent'
+                ? voucherDiscountBase * discountValue / 100
+                : discountValue;
+              const discountAmount = Number.isFinite(Number(voucher.discountAmount))
+                ? Number(voucher.discountAmount)
+                : Math.min(Math.max(fallbackDiscount, 0), voucherDiscountBase);
+              const hasServerUsable = typeof voucher.isUsable !== 'undefined';
+              const isUsable = hasServerUsable
+                ? (voucher.isUsable === true || voucher.isUsable === 'true' || voucher.isUsable === 1 || voucher.isUsable === '1')
+                : (meetsMinSpend && discountAmount > 0);
+
+              return {
+                discountAmount,
+                isUsable,
+                unavailableReason: voucher.unavailableReason || (
+                  !meetsMinSpend
+                    ? `Minimum spend S$${minSpend.toFixed(2)} required`
+                    : 'Not usable for this booking'
+                ),
+              };
+            };
+            const hasUsableVoucher = checkoutVouchers.some(v => voucherUiState(v).isUsable);
+          %>
+          <% if (showVoucherSection) { %>
+          <div class="mb-4">
+            <p style="font-weight:700;color:var(--ink);font-size:.875rem;margin-bottom:.5rem;">
+              <i class="bi bi-ticket-perforated me-1" style="color:var(--accent);"></i>Apply Voucher
+            </p>
+
+            <% if (!hasUsableVoucher) { %>
+            <p class="voucher-empty mb-2">No eligible vouchers for this booking</p>
+            <% } %>
+
+            <% if (checkoutVouchers.length > 0) { %>
+            <div class="voucher-list">
+              <% checkoutVouchers.forEach(v => { %>
+              <%
+                const discLabel = v.discount_type === 'percent'
+                  ? Number(v.discount_value).toFixed(0) + '% off'
+                  : 'S$' + Number(v.discount_value).toFixed(2) + ' off';
+                const uiVoucher = voucherUiState(v);
+                const cardClasses = [
+                  'voucher-option-card',
+                  uiVoucher.isUsable ? '' : 'unavailable',
+                  v.isApplied ? 'selected' : '',
+                  v.isBestValue ? 'best' : ''
+                ].filter(Boolean).join(' ');
+              %>
+              <% if (uiVoucher.isUsable) { %>
+              <form action="/payment/apply-voucher/<%= booking.booking_id %>" method="POST" class="voucher-option-form">
+                <input type="hidden" name="cvId" value="<%= v.cv_id %>">
+                <button type="submit" class="<%= cardClasses %>">
+              <% } else { %>
+                <div class="<%= cardClasses %>" aria-disabled="true">
+              <% } %>
+                  <div class="voucher-option-top">
+                    <span class="voucher-discount-pill"><%= discLabel %></span>
+                    <div class="voucher-option-labels">
+                      <% if (v.isApplied) { %>
+                      <span class="voucher-state-pill selected"><i class="bi bi-check2"></i>Applied</span>
+                      <% } %>
+                      <% if (v.isBestValue) { %>
+                      <span class="voucher-state-pill best"><i class="bi bi-stars"></i>Best Value</span>
+                      <% } %>
+                    </div>
+                  </div>
+                  <div class="voucher-option-main">
+                    <span class="voucher-name"><%= v.campaign_name || v.voucher_code %></span>
+                    <span class="voucher-expiry">Exp. <%= new Date(v.voucher_expiry).toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'}) %></span>
+                  </div>
+                  <div class="voucher-meta">
+                    <% if (v.min_spend) { %>
+                    <span>Min. S$<%= Number(v.min_spend).toFixed(2) %></span>
+                    <% } %>
+                    <% if (uiVoucher.isUsable) { %>
+                    <span>Saves S$<%= Number(uiVoucher.discountAmount || 0).toFixed(2) %></span>
+                    <% } else { %>
+                    <span class="voucher-reason"><%= uiVoucher.unavailableReason %></span>
+                    <% } %>
+                  </div>
+              <% if (uiVoucher.isUsable) { %>
+                </button>
+              </form>
+              <% } else { %>
+                </div>
+              <% } %>
+              <% }) %>
+            </div>
+            <% } %>
+
+            <% if (appliedCvId) { %>
+            <form action="/payment/apply-voucher/<%= booking.booking_id %>" method="POST" class="mb-0 mt-2">
+              <button type="submit" class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size:.78rem;">
+                <i class="bi bi-x"></i> Remove voucher
+              </button>
+            </form>
+            <% } %>
+
+            <% if (locals.voucherError) { %>
+            <p class="small mt-2 mb-0" style="color:var(--danger);"><i class="bi bi-exclamation-circle me-1"></i><%= voucherError %></p>
+            <% } %>
+          </div>
+          <% } %>
 
           <div id="payment-error" class="alert alert-danger py-2 d-none mb-3" role="alert" style="font-size:.875rem;"></div>
           <% if (webhookError) { %>

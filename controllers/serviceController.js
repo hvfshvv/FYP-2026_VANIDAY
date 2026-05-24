@@ -1,4 +1,5 @@
 const serviceModel = require('../models/serviceModel');
+const { SERVICE_CATEGORIES, normalizeServiceCategory } = require('../utils/serviceCategories');
 
 // Shows the current merchant's services on the management page.
 async function showServices(req, res) {
@@ -6,10 +7,11 @@ async function showServices(req, res) {
   try {
     const services = await serviceModel.getServicesByMerchant(merchantId);
     const added = req.query.added === '1';
-    res.render('merchant/services', { title: 'My Services', services, error: null, added });
+    const updated = req.query.updated === '1';
+    res.render('merchant/services', { title: 'My Services', services, categories: SERVICE_CATEGORIES, error: null, added, updated });
   } catch (err) {
     console.error(err);
-    res.render('merchant/services', { title: 'My Services', services: [], error: 'Failed to load services.', added: false });
+    res.render('merchant/services', { title: 'My Services', services: [], categories: SERVICE_CATEGORIES, error: 'Failed to load services.', added: false, updated: false });
   }
 }
 
@@ -17,13 +19,47 @@ async function showServices(req, res) {
 async function addService(req, res) {
   const merchantId = req.session.user.merchant_id;
   const { service_name, description, price, duration_mins } = req.body;
+  const category = normalizeServiceCategory(req.body.category);
   try {
-    if (!service_name || !price || !duration_mins) throw new Error('Missing required fields');
-    await serviceModel.addService(merchantId, { service_name, description, price, duration_mins });
+    if (!service_name || !category || !price || !duration_mins) throw new Error('Missing required fields');
+    await serviceModel.addService(merchantId, { service_name, description, category, price, duration_mins });
     res.redirect('/merchant/services?added=1');
   } catch (err) {
     const services = await serviceModel.getServicesByMerchant(merchantId).catch(() => []);
-    res.render('merchant/services', { title: 'My Services', services, error: 'Could not add service. Please fill in all required fields.', added: false });
+    res.render('merchant/services', { title: 'My Services', services, categories: SERVICE_CATEGORIES, error: 'Could not add service. Please fill in all required fields.', added: false, updated: false });
+  }
+}
+
+async function editService(req, res) {
+  const merchantId = req.session.user.merchant_id;
+  const { service_name, description, price, duration_mins } = req.body;
+  const category = normalizeServiceCategory(req.body.category);
+
+  try {
+    if (!service_name || !category || !price || !duration_mins) {
+      throw new Error('Missing required fields');
+    }
+
+    await serviceModel.updateService(req.params.id, merchantId, {
+      service_name,
+      description,
+      category,
+      price,
+      duration_mins,
+    });
+
+    res.redirect('/merchant/services?updated=1');
+  } catch (err) {
+    console.error(err);
+    const services = await serviceModel.getServicesByMerchant(merchantId).catch(() => []);
+    res.render('merchant/services', {
+      title: 'My Services',
+      services,
+      categories: SERVICE_CATEGORIES,
+      error: 'Could not update service. Please fill in all required fields.',
+      added: false,
+      updated: false,
+    });
   }
 }
 
@@ -41,4 +77,4 @@ async function deleteService(req, res) {
   res.redirect('/merchant/services');
 }
 
-module.exports = { showServices, addService, toggleService, deleteService };
+module.exports = { showServices, addService, editService, toggleService, deleteService };

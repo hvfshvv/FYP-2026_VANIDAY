@@ -9,7 +9,13 @@ async function getFeaturedListings(category = null) {
   let categoryFilter = '';
 
   if (category) {
-    categoryFilter = ' AND LOWER(m.category) = LOWER(?)';
+    categoryFilter = `AND EXISTS (
+      SELECT 1
+      FROM service sf
+      WHERE sf.merchant_id = m.merchant_id
+        AND sf.is_active = 1
+        AND LOWER(sf.category) = LOWER(?)
+    )`;
     params.push(category);
   }
 
@@ -30,13 +36,39 @@ async function getFeaturedListings(category = null) {
        m.merchant_name,
        m.address,
        m.category,
-       p.title AS promo_title
+       COALESCE(
+         GROUP_CONCAT(DISTINCT NULLIF(svc.category, '') ORDER BY svc.category SEPARATOR ', '),
+         NULLIF(m.category, '')
+       ) AS service_categories,
+       COALESCE(AVG(r.rating), 0) AS average_rating,
+       COUNT(DISTINCT r.review_id) AS review_count,
+       (
+         SELECT GROUP_CONCAT(
+           CONCAT(
+             LEFT(ma.day_of_week, 3),
+             ' ',
+             TIME_FORMAT(ma.start_time, '%H:%i'),
+             '-',
+             TIME_FORMAT(ma.end_time, '%H:%i')
+           )
+           ORDER BY FIELD(ma.day_of_week, 'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')
+           SEPARATOR ', '
+         )
+         FROM merchant_availability ma
+         WHERE ma.merchant_id = m.merchant_id
+           AND ma.is_active = 1
+       ) AS operating_hours,
+       p.title AS promo_title,
+       p.discount_pct
      FROM featured_listing fl
      JOIN merchant m   ON fl.merchant_id = m.merchant_id
      JOIN users u ON u.user_id = m.user_id
+     LEFT JOIN service svc ON svc.merchant_id = m.merchant_id AND svc.is_active = 1
+     LEFT JOIN merchant_review r ON r.merchant_id = m.merchant_id
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
        AND p.approval_status = 'approved'
        AND p.is_active = 1
+       AND p.discount_pct > 0
        AND p.start_date <= CURDATE()
        AND p.end_date >= CURDATE()
        AND (
@@ -49,6 +81,23 @@ async function getFeaturedListings(category = null) {
        AND u.status = 'active'
        AND m.verification_status = 'approved'
        ${categoryFilter}
+     GROUP BY
+       fl.listing_id,
+       fl.merchant_id,
+       fl.promo_id,
+       fl.title,
+       fl.description,
+       fl.display_order,
+       fl.is_visible,
+       fl.start_date,
+       fl.end_date,
+       fl.created_at,
+       m.profile_image,
+       m.merchant_name,
+       m.address,
+       m.category,
+       p.title,
+       p.discount_pct
      ORDER BY fl.display_order ASC, fl.created_at DESC`,
     params
   );
@@ -65,6 +114,7 @@ async function getMerchantListing(merchantId) {
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
        AND p.approval_status = 'approved'
        AND p.is_active = 1
+       AND p.discount_pct > 0
        AND p.start_date <= CURDATE()
        AND p.end_date >= CURDATE()
        AND (

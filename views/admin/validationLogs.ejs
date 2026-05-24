@@ -1,0 +1,205 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const rows = Array.isArray(logs) ? logs : [];
+  const fmtDateTime = value => value ? new Date(value).toLocaleString('en-SG', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : '-';
+  const label = value => String(value || '-').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const messageLines = value => String(value || '').split('\n').filter(Boolean);
+%>
+
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container" style="max-width:1180px;">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+      <div>
+        <p class="section-label">Admin Support</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Validation & Support Logs</h2>
+        <p style="color:var(--muted);margin-bottom:0;">Monitor WhatsApp support handoffs, validation issues, and backend logs.</p>
+      </div>
+      <a href="/admin/dashboard" class="btn btn-outline-secondary btn-pill btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Dashboard
+      </a>
+    </div>
+
+    <% if (query && query.resolved) { %>
+    <div class="alert alert-success mb-4">
+      <i class="bi bi-check-circle"></i>
+      <span>Log marked as resolved.</span>
+    </div>
+    <% } %>
+
+    <% if (query && query.replySent) { %>
+    <div class="alert alert-success mb-4">
+      <i class="bi bi-whatsapp"></i>
+      <span>WhatsApp reply sent and request marked as resolved.</span>
+    </div>
+    <% } %>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+    <div class="alert alert-warning mb-4">
+      <i class="bi bi-exclamation-triangle"></i>
+      <span><%= error %></span>
+    </div>
+    <% } %>
+
+    <div class="row g-3 mb-4">
+      <% [
+        { label:'Total Logs', value:summary.total_logs || 0, icon:'bi-list-check', color:'var(--ink)' },
+        { label:'Open Logs', value:summary.open_logs || 0, icon:'bi-exclamation-circle', color:'var(--danger)' },
+        { label:'Resolved', value:summary.resolved_logs || 0, icon:'bi-check-circle', color:'var(--success)' },
+        { label:'Open WhatsApp Support', value:summary.open_whatsapp_support || 0, icon:'bi-whatsapp', color:'#16a34a' },
+      ].forEach(stat => { %>
+      <div class="col-6 col-lg-3">
+        <div class="stat-card">
+          <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;"><%= stat.label %></p>
+          <div class="d-flex justify-content-between align-items-center gap-3">
+            <p class="stat-value" style="color:<%= stat.color %>;"><%= stat.value %></p>
+            <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+              <i class="bi <%= stat.icon %>"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+
+    <form method="GET" action="/admin/validation" class="card border-0 mb-4" style="box-shadow:var(--shadow-sm);border-radius:var(--r-lg);">
+      <div class="card-body p-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label" style="font-size:.8rem;font-weight:700;">Search</label>
+            <input type="search" name="search" value="<%= filters.search || '' %>" class="form-control rounded-xl" placeholder="Phone, customer, issue, module">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" style="font-size:.8rem;font-weight:700;">Module</label>
+            <select name="module" class="form-select rounded-xl">
+              <% [
+                ['all', 'All modules'],
+                ['whatsapp_support', 'WhatsApp support'],
+                ['booking', 'Booking'],
+                ['payment', 'Payment'],
+                ['whatsapp', 'WhatsApp/API']
+              ].forEach(option => { %>
+              <option value="<%= option[0] %>" <%= filters.module === option[0] ? 'selected' : '' %>><%= option[1] %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label" style="font-size:.8rem;font-weight:700;">Status</label>
+            <select name="status" class="form-select rounded-xl">
+              <% [
+                ['all', 'All'],
+                ['open', 'Open'],
+                ['resolved', 'Resolved']
+              ].forEach(option => { %>
+              <option value="<%= option[0] %>" <%= filters.status === option[0] ? 'selected' : '' %>><%= option[1] %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-md-3 d-flex gap-2">
+            <button class="btn btn-primary btn-pill flex-fill" style="font-weight:800;">
+              <i class="bi bi-funnel me-1"></i>Filter
+            </button>
+            <a href="/admin/validation" class="btn btn-outline-secondary btn-pill">Clear</a>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <% if (!rows.length) { %>
+    <div class="card border-0 text-center p-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="icon-circle-lg mx-auto mb-3">
+        <i class="bi bi-shield-check" style="font-size:2rem;color:var(--success);"></i>
+      </div>
+      <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">No logs found</h6>
+      <p style="color:var(--muted);margin:0;">WhatsApp support requests and validation logs will appear here.</p>
+    </div>
+    <% } else { %>
+    <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+          <thead style="background:var(--accent-light);">
+            <tr>
+              <th>Log</th>
+              <th>Customer</th>
+              <th>Message</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th style="min-width:320px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% rows.forEach(row => { %>
+            <tr>
+              <td style="min-width:190px;">
+                <p style="font-weight:800;color:var(--ink);margin-bottom:.15rem;">#<%= row.log_id %></p>
+                <span class="badge" style="background:<%= row.module === 'whatsapp_support' ? '#dcfce7' : 'var(--accent-light)' %>;color:<%= row.module === 'whatsapp_support' ? '#15803d' : 'var(--accent)' %>;">
+                  <%= label(row.module) %>
+                </span>
+                <p style="color:var(--muted);margin:.35rem 0 0;"><%= label(row.error_type) %></p>
+              </td>
+              <td style="min-width:190px;">
+                <p style="font-weight:800;color:var(--ink);margin-bottom:.15rem;"><%= row.customer_name || 'Unlinked WhatsApp user' %></p>
+                <p style="color:var(--muted);margin:0;"><%= row.customer_email || '-' %></p>
+                <p style="color:var(--muted);margin:.15rem 0 0;"><%= row.customer_phone || '-' %></p>
+              </td>
+              <td style="min-width:360px;">
+                <% messageLines(row.error_message).forEach(line => { %>
+                <p style="color:<%= line.startsWith('Message:') ? 'var(--ink)' : 'var(--muted)' %>;margin:0 0 .2rem;<%= line.startsWith('Message:') ? 'font-weight:800;' : '' %>"><%= line %></p>
+                <% }) %>
+              </td>
+              <td>
+                <span class="badge" style="<%= row.is_resolved ? 'background:var(--success-bg);color:var(--success);' : 'background:var(--warn-bg);color:var(--warn);' %>">
+                  <%= row.is_resolved ? 'Resolved' : 'Open' %>
+                </span>
+              </td>
+              <td><%= fmtDateTime(row.created_at) %></td>
+              <td>
+                <% if (!row.is_resolved && row.module === 'whatsapp_support') { %>
+                <form method="POST" action="/admin/validation/<%= row.log_id %>/reply" class="d-grid gap-2">
+                  <textarea
+                    name="reply"
+                    class="form-control rounded-xl"
+                    rows="3"
+                    maxlength="1000"
+                    placeholder="Type Uniday support reply..."
+                    required
+                  ></textarea>
+                  <div class="d-flex gap-2 justify-content-end">
+                    <button class="btn btn-primary btn-sm btn-pill" style="font-weight:800;">
+                      <i class="bi bi-whatsapp me-1"></i>Send Reply
+                    </button>
+                  </div>
+                </form>
+                <form method="POST" action="/admin/validation/<%= row.log_id %>/resolve" class="mt-2 text-end">
+                  <button class="btn btn-outline-secondary btn-sm btn-pill" style="font-weight:800;">
+                    <i class="bi bi-check2 me-1"></i>Resolve Without Reply
+                  </button>
+                </form>
+                <% } else if (!row.is_resolved) { %>
+                <form method="POST" action="/admin/validation/<%= row.log_id %>/resolve" class="text-end">
+                  <button class="btn btn-outline-success btn-sm btn-pill" style="font-weight:800;">
+                    <i class="bi bi-check2 me-1"></i>Resolve
+                  </button>
+                </form>
+                <% } else { %>
+                <span style="color:var(--muted);">-</span>
+                <% } %>
+              </td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <% } %>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

@@ -69,14 +69,14 @@ async function removeServiceFavourite(customerId, serviceId) {
   );
 }
 
-// Gets saved services, optionally filtered by the merchant's category.
+// Gets saved services, optionally filtered by the service category.
 async function getFavouriteServices(customerId, category = null) {
   const params = [customerId];
 
   let categoryFilter = '';
 
   if (category) {
-    categoryFilter = ' AND LOWER(m.category) = LOWER(?)';
+    categoryFilter = ' AND LOWER(s.category) = LOWER(?)';
     params.push(category);
   }
 
@@ -88,10 +88,11 @@ async function getFavouriteServices(customerId, category = null) {
        f.service_id,
        s.service_name,
        s.description,
+       s.category,
        s.price,
        s.duration_mins,
        m.merchant_name,
-       m.category,
+       m.category AS merchant_category,
        m.address
      FROM favourite f
      JOIN service s ON f.service_id = s.service_id
@@ -99,7 +100,7 @@ async function getFavouriteServices(customerId, category = null) {
      WHERE f.customer_id = ?
      AND f.service_id IS NOT NULL
      ${categoryFilter}
-     ORDER BY m.category, s.service_name`,
+     ORDER BY s.category, s.service_name`,
     params
   );
 

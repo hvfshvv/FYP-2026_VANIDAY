@@ -9,6 +9,50 @@
     if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
     return values.map(day => promoDayNames[day] || day).join(', ');
   };
+  const ratingText = item => {
+    const count = Number(item.review_count || 0);
+    if (!count) return 'New';
+    return Number(item.average_rating || 0).toFixed(1) + ' (' + count + ')';
+  };
+  const operatingHoursLines = item => {
+    const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const formatTime = value => {
+      const [hourValue, minuteValue] = String(value || '').split(':').map(Number);
+      if (Number.isNaN(hourValue) || Number.isNaN(minuteValue)) return value;
+      const period = hourValue >= 12 ? 'pm' : 'am';
+      const hour = hourValue % 12 || 12;
+      return minuteValue ? `${hour}:${String(minuteValue).padStart(2, '0')}${period}` : `${hour}${period}`;
+    };
+    const slots = String(item.operating_hours || '')
+      .split(', ')
+      .map(entry => {
+        const match = entry.match(/^([A-Za-z]{3})\s+(\d{2}:\d{2})-(\d{2}:\d{2})$/);
+        return match ? { day: match[1], start: match[2], end: match[3] } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day));
+
+    if (!slots.length) return ['Hours not set'];
+
+    const groups = [];
+    slots.forEach(slot => {
+      const last = groups[groups.length - 1];
+      const isNextDay = last && dayOrder.indexOf(slot.day) === dayOrder.indexOf(last.endDay) + 1;
+      const isSameTime = last && slot.start === last.start && slot.end === last.end;
+
+      if (isNextDay && isSameTime) {
+        last.endDay = slot.day;
+      } else {
+        groups.push({ startDay: slot.day, endDay: slot.day, start: slot.start, end: slot.end });
+      }
+    });
+
+    return groups
+      .map(group => {
+        const days = group.startDay === group.endDay ? group.startDay : `${group.startDay} to ${group.endDay}`;
+        return `${days}: ${formatTime(group.start)} - ${formatTime(group.end)}`;
+      });
+  };
 %>
 
 <!-- Page header -->
@@ -93,7 +137,7 @@
 
       <div class="col-lg-3 col-md-6">
 
-        <a href="/marketplace/merchant/<%= listing.merchant_id %>"
+        <a href="/marketplace/merchant/<%= listing.merchant_id %><%= selectedCategory ? '?category=' + encodeURIComponent(selectedCategory) : '' %>"
            class="merchant-card"
            style="position:relative;">
 
@@ -166,6 +210,20 @@
             </div>
 
             <% } %>
+            <div class="info-row">
+              <i class="bi bi-star-fill" style="color:#f59e0b;"></i>
+              <span><%= ratingText(listing) %></span>
+            </div>
+
+            <!-- OPERATING HOURS -->
+            <div class="info-row align-items-start" title="<%= listing.operating_hours || 'Hours not set' %>">
+              <i class="bi bi-clock"></i>
+              <span>
+                <% operatingHoursLines(listing).forEach(line => { %>
+                  <span style="display:block;"><%= line %></span>
+                <% }) %>
+              </span>
+            </div>
 
             <!-- ADDRESS -->
             <div class="info-row">
@@ -242,7 +300,7 @@
 
       <div class="col-lg-3 col-md-6">
 
-        <a href="/marketplace/merchant/<%= merchant.merchant_id %>"
+        <a href="/marketplace/merchant/<%= merchant.merchant_id %><%= selectedCategory ? '?category=' + encodeURIComponent(selectedCategory) : '' %>"
            class="merchant-card"
            style="position:relative;">
 
@@ -305,7 +363,21 @@
             <div class="discount-pill">
               <i class="bi bi-grid"></i>
 
-              <%= merchant.category || 'General' %>
+              <%= merchant.service_categories || merchant.category || 'General' %>
+            </div>
+            <div class="info-row">
+              <i class="bi bi-star-fill" style="color:#f59e0b;"></i>
+              <span><%= ratingText(merchant) %></span>
+            </div>
+
+            <!-- OPERATING HOURS -->
+            <div class="info-row align-items-start" title="<%= merchant.operating_hours || 'Hours not set' %>">
+              <i class="bi bi-clock"></i>
+              <span>
+                <% operatingHoursLines(merchant).forEach(line => { %>
+                  <span style="display:block;"><%= line %></span>
+                <% }) %>
+              </span>
             </div>
 
             <!-- ADDRESS -->
@@ -451,4 +523,3 @@
 </div>
 
 <%- include('../partials/footer') %>
-```

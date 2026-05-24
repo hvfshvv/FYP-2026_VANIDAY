@@ -8,4 +8,10 @@ router.get('/', loyaltyController.showWallet);
 // Spend points on a selected reward voucher.
 router.post('/redeem/:rewardId', loyaltyController.redeemReward);
 
+// Claim a voucher by ID (browse-and-click flow).
+router.post('/voucher/claim/:voucherId', loyaltyController.claimVoucherById);
+
+// Claim a voucher by code (code-entry fallback).
+router.post('/voucher/claim', loyaltyController.claimVoucher);
+
 module.exports = router;

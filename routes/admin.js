@@ -8,7 +8,9 @@ router.use(requireLogin, requireAdmin);
 
 // Main admin dashboards and analytics pages.
 router.get('/dashboard', adminController.showDashboard);
+router.get('/revenue', adminController.showRevenueReport);
 router.get('/merchants', adminController.showMerchants);
+router.get('/platform-feedback', adminController.showPlatformFeedback);
 router.post('/merchants/:merchantId/feature', adminController.featureMerchantFromDashboard);
 router.post('/merchants/featured/:listingId/toggle', adminController.toggleFeaturedMerchantFromDashboard);
 router.post('/merchants/featured/:listingId/remove', adminController.removeFeaturedMerchantFromDashboard);
@@ -16,6 +18,9 @@ router.get('/featured', adminController.showFeaturedMerchants);
 router.post('/featured/:listingId/toggle', adminController.toggleFeaturedMerchant);
 router.post('/featured/:listingId/remove', adminController.removeFeaturedMerchant);
 router.get('/customers', adminController.showCustomers);
+router.get('/validation', adminController.showValidationLogs);
+router.post('/validation/:logId/resolve', adminController.resolveValidationLog);
+router.post('/validation/:logId/reply', adminController.replyToWhatsAppSupport);
 
 // User management pages for customers and merchants.
 router.get('/user-management', adminController.showUserManagementHome);
@@ -38,6 +43,5 @@ router.post('/promotions/:promoId/reject', adminController.rejectPromotion);
 router.get('/campaigns', adminController.showCampaigns);
 router.post('/campaigns/create', adminController.createCampaign);
 router.post('/campaigns/:voucherId/toggle', adminController.toggleCampaign);
-router.get('/:page(validation)', adminController.showComingSoon);
 
 module.exports = router;

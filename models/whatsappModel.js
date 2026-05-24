@@ -20,6 +20,7 @@ async function findCustomerUserByPhone(phone) {
     `SELECT *
      FROM users
      WHERE role = 'customer'
+       AND status = 'active'
        AND (
          phone = ?
          OR phone = ?
@@ -93,6 +94,17 @@ async function findOrCreateCustomerByPhone(phone) {
   return ensureCustomerProfile(newUser);
 }
 
+async function findExistingCustomerByPhone(phone) {
+  const existingUser = await findCustomerUserByPhone(phone);
+
+  if (!existingUser) {
+    return null;
+  }
+
+  return ensureCustomerProfile(existingUser);
+}
+
 module.exports = {
+  findExistingCustomerByPhone,
   findOrCreateCustomerByPhone
 };

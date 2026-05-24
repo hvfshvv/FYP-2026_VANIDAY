@@ -1,4 +1,48 @@
 <%- include('../partials/header') %> 
+<%
+  const reviewList = Array.isArray(typeof merchantReviews !== 'undefined' ? merchantReviews : []) ? merchantReviews : [];
+  const reviewCount = Number(merchant.review_count || 0);
+  const averageRating = Number(merchant.average_rating || 0);
+  const starIcon = index => index <= Math.round(averageRating) ? 'bi-star-fill' : 'bi-star';
+  const operatingHoursLines = item => {
+    const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const formatTime = value => {
+      const [hourValue, minuteValue] = String(value || '').split(':').map(Number);
+      if (Number.isNaN(hourValue) || Number.isNaN(minuteValue)) return value;
+      const period = hourValue >= 12 ? 'pm' : 'am';
+      const hour = hourValue % 12 || 12;
+      return minuteValue ? `${hour}:${String(minuteValue).padStart(2, '0')}${period}` : `${hour}${period}`;
+    };
+    const slots = String(item.operating_hours || '')
+      .split(', ')
+      .map(entry => {
+        const match = entry.match(/^([A-Za-z]{3})\s+(\d{2}:\d{2})-(\d{2}:\d{2})$/);
+        return match ? { day: match[1], start: match[2], end: match[3] } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day));
+
+    if (!slots.length) return ['Operating hours not set'];
+
+    const groups = [];
+    slots.forEach(slot => {
+      const last = groups[groups.length - 1];
+      const isNextDay = last && dayOrder.indexOf(slot.day) === dayOrder.indexOf(last.endDay) + 1;
+      const isSameTime = last && slot.start === last.start && slot.end === last.end;
+
+      if (isNextDay && isSameTime) {
+        last.endDay = slot.day;
+      } else {
+        groups.push({ startDay: slot.day, endDay: slot.day, start: slot.start, end: slot.end });
+      }
+    });
+
+    return groups.map(group => {
+      const days = group.startDay === group.endDay ? group.startDay : `${group.startDay} to ${group.endDay}`;
+      return `${days}: ${formatTime(group.start)} - ${formatTime(group.end)}`;
+    });
+  };
+%>
 
 <div class="section" style="padding-top:2.5rem;padding-bottom:2rem;border-bottom:1px solid var(--border);">
   <div class="container">
@@ -18,7 +62,18 @@
 
   <p>
     <strong>Category:</strong>
-    <%= merchant.category || 'General' %>
+    <%= merchant.service_categories || merchant.category || 'General' %>
+  </p>
+  <p>
+    <strong>Rating:</strong>
+    <% if (reviewCount) { %>
+      <span style="color:#f59e0b;">
+        <% [1,2,3,4,5].forEach(i => { %><i class="bi <%= starIcon(i) %>"></i><% }) %>
+      </span>
+      <%= averageRating.toFixed(1) %>/5 (<%= reviewCount %> review<%= reviewCount === 1 ? '' : 's' %>)
+    <% } else { %>
+      New merchant
+    <% } %>
   </p>
 
   <p>
@@ -26,10 +81,28 @@
     <%= merchant.address || 'Singapore' %>
   </p>
 
+  <div style="margin-bottom:1rem;">
+    <strong>Operating Hours:</strong>
+    <div style="color:var(--muted);margin-top:.25rem;">
+      <% operatingHoursLines(merchant).forEach(line => { %>
+        <div><i class="bi bi-clock me-1"></i><%= line %></div>
+      <% }) %>
+    </div>
+  </div>
+
   <p>
     <strong>Contact:</strong>
     <%= merchant.contact_no || 'Not provided' %>
   </p>
+
+  <% if (typeof cancellationPolicySummary !== 'undefined' && cancellationPolicySummary) { %>
+  <div class="rounded-xl p-3 mt-4" style="background:var(--accent-light);border:1px solid rgba(225,29,72,.12);">
+    <p class="section-label mb-2">Cancellation Policy</p>
+    <p style="color:var(--ink);font-weight:700;margin:0;">
+      <i class="bi bi-hourglass-split me-2" style="color:var(--accent);"></i><%= cancellationPolicySummary %>
+    </p>
+  </div>
+  <% } %>
 
   <hr style="margin:2rem 0;">
 
@@ -54,12 +127,38 @@
     </p>
 
   <% } else { %>
+    <% if (serviceCategories && serviceCategories.length > 1) { %>
+    <nav class="service-filter-panel mb-4" aria-label="Filter services by category">
+      <div class="service-filter-inner">
+        <button
+          type="button"
+          class="service-filter-link <%= !selectedServiceCategory ? 'active' : '' %>"
+          data-service-category=""
+        >
+          <i class="bi bi-grid-3x3-gap"></i>All
+        </button>
+        <% serviceCategories.forEach(category => { %>
+        <button
+          type="button"
+          class="service-filter-link <%= selectedServiceCategory === category ? 'active' : '' %>"
+          data-service-category="<%= category %>"
+        >
+          <i class="bi bi-tag"></i><%= category %>
+        </button>
+        <% }) %>
+      </div>
+    </nav>
+    <% } %>
 
-    <div class="row g-3">
+    <div class="row g-3" id="merchant-service-list">
 
       <% services.forEach(service => { %>
 
-        <div class="col-md-6 col-lg-4">
+        <div
+          class="col-md-6 col-lg-4 merchant-service-item"
+          data-service-category="<%= service.category || '' %>"
+          style="<%= selectedServiceCategory && selectedServiceCategory !== service.category ? 'display:none;' : '' %>"
+        >
 
           <div class="promo-card h-100" style="position:relative;">
 
@@ -103,6 +202,9 @@
             <p class="small text-muted">
               <%= service.description || 'No description available.' %>
             </p>
+            <p class="small mb-2" style="color:var(--accent);font-weight:700;">
+              <i class="bi bi-grid me-1"></i><%= service.category || merchant.category || 'General' %>
+            </p>
 
             <p>
               <strong>
@@ -114,12 +216,32 @@
               <%= service.duration_mins %> mins
             </p>
 
-            <a
-              class="btn btn-primary"
-              href="/book?merchantId=<%= merchant.merchant_id %>&serviceId=<%= service.service_id %>"
-            >
-              Book now
-            </a>
+            <div class="d-flex flex-wrap gap-2 mt-auto">
+              <a
+                class="btn btn-primary"
+                href="/book?merchantId=<%= merchant.merchant_id %>&serviceId=<%= service.service_id %>"
+              >
+                Book now
+              </a>
+
+              <% if (whatsappBookingNumber) { %>
+                <%
+                  const whatsappMessage = [
+                    'Hi, I want to book ' + service.service_name + ' at ' + merchant.merchant_name + '.',
+                    'Ref: M' + merchant.merchant_id + '-S' + service.service_id
+                  ].join(' ');
+                %>
+                <a
+                  class="btn btn-outline-success"
+                  href="https://wa.me/<%= whatsappBookingNumber %>?text=<%= encodeURIComponent(whatsappMessage) %>"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Book <%= service.service_name %> via WhatsApp"
+                >
+                  <i class="bi bi-whatsapp me-1"></i>WhatsApp
+                </a>
+              <% } %>
+            </div>
 
           </div>
 
@@ -129,14 +251,144 @@
 
     </div>
 
+    <p
+      id="empty-service-filter-message"
+      style="color:var(--muted);display:<%= selectedServiceCategory && !services.some(service => service.category === selectedServiceCategory) ? 'block' : 'none' %>;"
+    >
+      No services found for this category.
+    </p>
+
   <% } %>
 
-  <div style="margin-top:2rem;">
+  <hr style="margin:2.5rem 0;">
+  <div class="section-header mb-3">
+    <div>
+      <p class="section-label">Reviews</p>
+      <h2 class="section-title">Customer Reviews</h2>
+      <p class="section-sub">Verified feedback from completed bookings.</p>
+    </div>
+  </div>
+
+  <% if (!reviewList.length) { %>
+    <p style="color:var(--muted);">No reviews yet.</p>
+  <% } else { %>
+    <div class="row g-3">
+      <% reviewList.forEach(review => { %>
+      <div class="col-md-6">
+        <article class="promo-card h-100">
+          <div class="d-flex justify-content-between gap-2 mb-2">
+            <div>
+              <p style="font-weight:800;color:var(--ink);margin-bottom:.1rem;"><%= review.customer_name %></p>
+              <p class="small text-muted mb-0"><%= review.service_name %></p>
+            </div>
+            <div style="color:#f59e0b;white-space:nowrap;">
+              <% [1,2,3,4,5].forEach(i => { %><i class="bi <%= i <= Number(review.rating || 0) ? 'bi-star-fill' : 'bi-star' %>"></i><% }) %>
+            </div>
+          </div>
+          <p style="color:var(--ink);"><%= review.review_text || 'No written comment.' %></p>
+          <% if (review.merchant_reply) { %>
+          <div class="rounded-xl p-3 mt-3" style="background:var(--accent-light);border:1px solid rgba(225,29,72,.12);">
+            <p class="small mb-1" style="font-weight:800;color:var(--accent);">Merchant reply</p>
+            <p class="small mb-0" style="color:var(--ink);"><%= review.merchant_reply %></p>
+          </div>
+          <% } %>
+        </article>
+      </div>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <div style="margin-top:2.5rem;">
     <a href="/marketplace">
       ← Back to Marketplace
     </a>
   </div>
 
+  <% if (typeof merchantPromotions !== 'undefined' && merchantPromotions && merchantPromotions.length > 0) { %>
+  <%
+    const promoDay = value => {
+      if (!value) return 'Every day';
+      const vals = String(value).split(',').filter(Boolean);
+      if (!vals.length || vals.length === 7) return 'Every day';
+      if (vals.join(',') === 'sat,sun') return 'Weekends only';
+      if (vals.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
+      const names = { mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',sun:'Sun' };
+      return vals.map(d => names[d] || d).join(', ');
+    };
+  %>
+  <hr style="margin:2.5rem 0;">
+  <div class="section-header mb-3">
+    <div>
+      <p class="section-label">Current deals</p>
+      <h2 class="section-title">Current Deals</h2>
+      <p class="section-sub">These merchant deals apply automatically when you book.</p>
+    </div>
+  </div>
+
+  <div style="position:relative;">
+    <button class="promo-carousel-nav promo-carousel-prev" onclick="shiftCarousel('promo-carousel-merchant',-1)" aria-label="Previous">
+      <i class="bi bi-chevron-left"></i>
+    </button>
+    <div class="promo-carousel" id="promo-carousel-merchant">
+      <% merchantPromotions.forEach(promo => { %>
+      <div class="promo-carousel-item">
+        <div class="promo-card h-100">
+          <% if (promo.image_path) { %>
+          <div class="promo-img-wrap"><img src="<%= promo.image_path %>" alt="<%= promo.title %>"/></div>
+          <% } %>
+          <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+            <div class="flex-grow-1">
+              <p class="promo-title mb-0"><%= promo.title %></p>
+              <% if (promo.service_name) { %>
+              <p class="small mb-0" style="color:var(--accent);font-weight:600;"><i class="bi bi-scissors me-1"></i><%= promo.service_name %></p>
+              <% } else { %>
+              <p class="small mb-0" style="color:var(--muted);">All services</p>
+              <% } %>
+            </div>
+            <div class="promo-discount flex-shrink-0"><%= Number(promo.discount_pct || 0).toFixed(0) %>%<br/><span style="font-size:.7rem;font-weight:700;">off</span></div>
+          </div>
+          <% if (promo.description) { %><p class="small text-muted mb-2 mt-1"><%= promo.description %></p><% } %>
+          <% if (promo.min_spend) { %>
+          <p class="small mb-1" style="color:var(--muted);"><i class="bi bi-wallet me-1"></i>Min. spend S$<%= Number(promo.min_spend).toFixed(2) %></p>
+          <% } %>
+          <p class="promo-date mt-auto mb-1"><i class="bi bi-calendar3 me-1"></i>Until <%= new Date(promo.end_date).toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'}) %></p>
+          <p class="promo-date mb-0"><i class="bi bi-calendar-week me-1"></i><%= promoDay(promo.applicable_days) %></p>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <button class="promo-carousel-nav promo-carousel-next" onclick="shiftCarousel('promo-carousel-merchant',1)" aria-label="Next">
+      <i class="bi bi-chevron-right"></i>
+    </button>
+  </div>
+  <% } %>
+
 </div>
+
+<script>
+document.addEventListener('click', event => {
+  const button = event.target.closest('[data-service-category]');
+  if (!button) return;
+
+  const category = button.dataset.serviceCategory || '';
+  const items = Array.from(document.querySelectorAll('.merchant-service-item'));
+  const emptyMessage = document.getElementById('empty-service-filter-message');
+  let visibleCount = 0;
+
+  document.querySelectorAll('.service-filter-link').forEach(link => {
+    link.classList.toggle('active', link === button);
+  });
+
+  items.forEach(item => {
+    const matches = !category || item.dataset.serviceCategory === category;
+    item.style.display = matches ? '' : 'none';
+    if (matches) visibleCount += 1;
+  });
+
+  if (emptyMessage) {
+    emptyMessage.style.display = visibleCount ? 'none' : 'block';
+  }
+});
+</script>
 
 <%- include('../partials/footer') %>

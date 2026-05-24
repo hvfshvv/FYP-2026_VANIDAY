@@ -26,18 +26,24 @@
       <li><a href="/#featured-listings" onclick="scrollToMarketplace(event)">Marketplace</a></li>
       <% } %>
       <% if (user && user.role === 'customer') { %>
-      <li><a href="/book/viewBookings">View bookings</a></li>
+      <li>
+        <a href="/book/viewBookings" class="nav-bookings-link">
+          View bookings
+          <% if (Number(locals.pendingPaymentCount || 0) > 0) { %>
+          <span class="nav-pending-badge"><%= pendingPaymentCount %></span>
+          <% } %>
+        </a>
+      </li>
       <% } %>
       <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
       <li><a href="/merchant/dashboard">Dashboard</a></li>
       <li><a href="/merchant/services">Services</a></li>
       <li><a href="/merchant/promotions">Promotions</a></li>
+      <li><a href="/merchant/reviews">Reviews</a></li>
       <% } %>
       <% if (user && user.role === 'admin') { %>
       <li><a href="/admin/dashboard">Dashboard</a></li>
       <li><a href="/admin/user-management">User Management</a></li>
-      <li><a href="/admin/merchant-validations">Merchant Reviews</a></li>
-      <li><a href="/admin/promotions">Promo Reviews</a></li>
       <% } %>
     </ul>
 
@@ -70,7 +76,12 @@
   <a href="/#featured-listings" onclick="scrollToMarketplace(event)">Marketplace</a>
   <% } %>
   <% if (user && user.role === 'customer') { %>
-  <a href="/book/viewBookings">View bookings</a>
+  <a href="/book/viewBookings" class="nav-bookings-link">
+    View bookings
+    <% if (Number(locals.pendingPaymentCount || 0) > 0) { %>
+    <span class="nav-pending-badge"><%= pendingPaymentCount %></span>
+    <% } %>
+  </a>
   <a href="/favourite">My Favourites</a>
   <a href="/loyalty">Wallet</a>
   <% } %>
@@ -78,12 +89,11 @@
   <a href="/merchant/dashboard">Dashboard</a>
   <a href="/merchant/services">Services</a>
   <a href="/merchant/promotions">Promotions</a>
+  <a href="/merchant/reviews">Reviews</a>
   <% } %>
   <% if (user && user.role === 'admin') { %>
   <a href="/admin/dashboard">Dashboard</a>
   <a href="/admin/user-management">User Management</a>
-  <a href="/admin/merchant-validations">Merchant Reviews</a>
-  <a href="/admin/promotions">Promo Reviews</a>
   <% } %>
   <% if (user) { %>
   <a href="/auth/logout">Sign out</a>

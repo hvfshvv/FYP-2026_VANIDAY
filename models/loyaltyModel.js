@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const voucherModel = require('./voucherModel');
 
 // Higher tiers require higher lifetime spending.
 const TIER_DEFINITIONS = [
@@ -17,6 +18,8 @@ const REWARD_CATALOG = [
     pointsCost: 50,
     minTier: 'Bronze',
     valueLabel: 'S$5 off',
+    discountType: 'fixed_amount',
+    discountValue: 5,
   },
   {
     id: 'BRONZE10PCT',
@@ -25,6 +28,8 @@ const REWARD_CATALOG = [
     pointsCost: 80,
     minTier: 'Bronze',
     valueLabel: '10% off',
+    discountType: 'percent',
+    discountValue: 10,
   },
   {
     id: 'SILVER12',
@@ -33,6 +38,8 @@ const REWARD_CATALOG = [
     pointsCost: 110,
     minTier: 'Silver',
     valueLabel: 'S$12 off',
+    discountType: 'fixed_amount',
+    discountValue: 12,
   },
   {
     id: 'GOLD25',
@@ -41,6 +48,8 @@ const REWARD_CATALOG = [
     pointsCost: 220,
     minTier: 'Gold',
     valueLabel: 'S$25 off',
+    discountType: 'fixed_amount',
+    discountValue: 25,
   },
   {
     id: 'PLATINUM40',
@@ -49,8 +58,12 @@ const REWARD_CATALOG = [
     pointsCost: 350,
     minTier: 'Platinum',
     valueLabel: 'S$40 off',
+    discountType: 'fixed_amount',
+    discountValue: 40,
   },
 ];
+
+const REVIEW_BONUS_POINTS = 2;
 
 // Customers earn 10% of the paid booking amount as points.
 function calculatePoints(amount) {
@@ -96,8 +109,28 @@ function decorateRewards(tierName, pointsBalance) {
   });
 }
 
+function generateRewardVoucherCode(customerId, rewardId) {
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).slice(2, 7).toUpperCase();
+  return `LOYALTY_${rewardId}_${customerId}_${timestamp}${random}`.slice(0, 50);
+}
+
 // Creates a wallet row if the customer does not have one yet.
 async function ensureWallet(customerId, connection = db) {
+  const [[customer]] = await connection.query(
+    `SELECT u.user_id
+     FROM users u
+     JOIN customer c ON c.user_id = u.user_id
+     WHERE u.user_id = ?
+       AND u.role = 'customer'
+     LIMIT 1`,
+    [customerId]
+  );
+
+  if (!customer) {
+    throw new Error('Loyalty wallet is only available for registered customers.');
+  }
+
   await connection.query(
     `INSERT INTO loyalty_wallet (customer_id, points_balance, lifetime_points_earned)
      VALUES (?, 0, 0)
@@ -113,6 +146,10 @@ async function ensureWallet(customerId, connection = db) {
   );
 
   return wallet;
+}
+
+async function createWalletForCustomer(customerId) {
+  return ensureWallet(customerId);
 }
 
 // Tier level is based on total paid spending, not current point balance.
@@ -161,6 +198,8 @@ async function redeemReward(customerId, rewardId) {
     throw new Error('Reward not found.');
   }
 
+  await voucherModel.ensureCustomerVoucherSchema();
+
   const connection = await db.getConnection();
 
   try {
@@ -185,6 +224,26 @@ async function redeemReward(customerId, rewardId) {
     if (Number(wallet.points_balance || 0) < reward.pointsCost) {
       throw new Error(`You need ${reward.pointsCost - Number(wallet.points_balance || 0)} more points for this voucher.`);
     }
+
+    const voucherCode = generateRewardVoucherCode(customerId, reward.id);
+    const [voucherResult] = await connection.query(
+      `INSERT INTO voucher
+        (merchant_id, voucher_code, voucher_type, campaign_name, discount_type,
+         discount_value, min_spend, usage_limit, usage_per_customer, start_date, end_date, is_active)
+       VALUES (NULL, ?, 'platform', ?, ?, ?, NULL, 1, 1, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 3 MONTH), 1)`,
+      [
+        voucherCode,
+        reward.title,
+        reward.discountType,
+        reward.discountValue,
+      ]
+    );
+
+    await connection.query(
+      `INSERT INTO customer_voucher (customer_id, voucher_id)
+       VALUES (?, ?)`,
+      [customerId, voucherResult.insertId]
+    );
 
     await connection.query(
       `INSERT INTO loyalty_transaction
@@ -233,17 +292,24 @@ async function getEarnedPointsForBooking(bookingId) {
 // Awards booking points once, after a paid booking is confirmed/completed.
 async function awardBookingPoints(bookingId) {
   const [[booking]] = await db.query(
-    `SELECT booking_id, customer_id, total_amount
-     FROM booking
-     WHERE booking_id = ?`,
+    `SELECT booking_id, customer_id,
+            COALESCE(p.amount, 0) AS payable_amount
+     FROM booking b
+     JOIN payment p ON p.booking_id = b.booking_id
+      AND p.payment_status = 'paid'
+     WHERE b.booking_id = ?`,
     [bookingId]
   );
 
-  if (!booking || !booking.customer_id) {
+  if (!booking) {
+    return { awarded: false, reason: 'not_paid' };
+  }
+
+  if (!booking.customer_id) {
     return { awarded: false, reason: 'guest_booking' };
   }
 
-  const points = calculatePoints(booking.total_amount);
+  const points = calculatePoints(booking.payable_amount);
   if (!points) {
     return { awarded: false, reason: 'no_points' };
   }
@@ -316,10 +382,51 @@ async function awardBookingPoints(bookingId) {
   }
 }
 
+async function awardReviewBonusPoints(customerId, bookingId, connection = db) {
+  if (!customerId || !bookingId) {
+    return { awarded: false, reason: 'missing_customer_or_booking' };
+  }
+
+  await ensureWallet(customerId, connection);
+
+  const [[wallet]] = await connection.query(
+    `SELECT wallet_id
+     FROM loyalty_wallet
+     WHERE customer_id = ?`,
+    [customerId]
+  );
+
+  if (!wallet) {
+    return { awarded: false, reason: 'wallet_not_found' };
+  }
+
+  const description = `Earned ${REVIEW_BONUS_POINTS} points for reviewing booking #${bookingId}`;
+
+  await connection.query(
+    `INSERT INTO loyalty_transaction
+       (wallet_id, transaction_type, points_amount, description)
+     VALUES (?, 'earn_points', ?, ?)`,
+    [wallet.wallet_id, REVIEW_BONUS_POINTS, description]
+  );
+
+  await connection.query(
+    `UPDATE loyalty_wallet
+     SET points_balance = points_balance + ?,
+         lifetime_points_earned = lifetime_points_earned + ?,
+         updated_at = NOW()
+     WHERE wallet_id = ?`,
+    [REVIEW_BONUS_POINTS, REVIEW_BONUS_POINTS, wallet.wallet_id]
+  );
+
+  return { awarded: true, points: REVIEW_BONUS_POINTS };
+}
+
 module.exports = {
   calculatePoints,
   awardBookingPoints,
+  awardReviewBonusPoints,
   getWalletSummary,
   redeemReward,
   getEarnedPointsForBooking,
+  createWalletForCustomer,
 };

@@ -11,6 +11,7 @@ const PASSWORD_RESET_FILE = path.join(__dirname, 'add_password_reset_tokens.sql'
 const EMAIL_NOTIFICATION_FILE = path.join(__dirname, 'add_email_notification_support.sql');
 const EMAIL_VERIFICATION_FILE = path.join(__dirname, 'add_email_verification.sql');
 const RESCHEDULED_BOOKING_STATUS_FILE = path.join(__dirname, 'add_rescheduled_booking_status.sql');
+const VOUCHER_CHECKOUT_FILE = path.join(__dirname, 'add_voucher_checkout_fields.sql');
 
 function currentSchemaSql() {
   const migration = fs.readFileSync(MIGRATION_FILE, 'utf8');
@@ -52,6 +53,8 @@ async function setup() {
   await conn.query(emailVerificationSql);
   const rescheduledBookingStatusSql = fs.readFileSync(RESCHEDULED_BOOKING_STATUS_FILE, 'utf8');
   await conn.query(rescheduledBookingStatusSql);
+  const voucherCheckoutSql = fs.readFileSync(VOUCHER_CHECKOUT_FILE, 'utf8');
+  await conn.query(voucherCheckoutSql);
   await conn.query('SET FOREIGN_KEY_CHECKS = 1');
 
   console.log('Stabilization migrations executed successfully.');

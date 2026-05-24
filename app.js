@@ -14,6 +14,7 @@ const whatsappRoutes    = require('./routes/whatsapp');
 const favouriteRoutes   = require('./routes/favourite');
 const loyaltyRoutes     = require('./routes/loyalty');
 const reminderService   = require('./services/reminderService');
+const bookingModel      = require('./models/bookingModel');
 
 const app = express();
 
@@ -40,6 +41,21 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(async (req, res, next) => {
+  res.locals.pendingPaymentCount = 0;
+  const user = req.session.user;
+  if (!user || user.role !== 'customer') return next();
+
+  try {
+    res.locals.pendingPaymentCount = await bookingModel.countActivePendingPaymentBookings(
+      user.customer_id || user.user_id
+    );
+  } catch (err) {
+    console.error('[booking] Failed to count pending payment bookings:', err.message);
+  }
+  next();
+});
+
 app.use('/',           marketplaceRoutes);
 app.use('/auth',       authRoutes);
 app.use('/merchant',   merchantRoutes);
@@ -52,6 +68,19 @@ app.use('/whatsapp',   whatsappRoutes);
 app.use('/favourite', favouriteRoutes);
 app.use('/loyalty',    loyaltyRoutes);
 
+async function releaseExpiredPendingPayments() {
+  try {
+    const released = await bookingModel.expirePendingPaymentBookings();
+    if (released) {
+      console.log(`[booking] Released ${released} expired pending payment slot(s).`);
+    }
+  } catch (err) {
+    console.error('[booking] Failed to release expired pending payment slots:', err.message);
+  }
+}
+
+releaseExpiredPendingPayments();
+setInterval(releaseExpiredPendingPayments, 60 * 1000);
 
 app.use((req, res) => {
   res.status(404).render('404', { title: 'Page Not Found' });

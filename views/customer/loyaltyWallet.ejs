@@ -2,6 +2,12 @@
 <%- include('../partials/header') %>
 
 <%
+  // Formats a voucher discount value into a readable label.
+  function fmtDiscount(type, value) {
+    if (type === 'percent') return Number(value).toFixed(0) + '% off';
+    return 'S$' + Number(value).toFixed(2) + ' off';
+  }
+
   // Prepare display values and helper functions for the wallet page.
   const balance = Number(wallet.points_balance || 0);
   const lifetimeEarned = Number(wallet.lifetime_points_earned || 0);
@@ -208,6 +214,169 @@
         </div>
       </div>
     </section>
+
+    <!-- Browse and claim available admin-created vouchers. -->
+    <section class="mt-4 mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+          <p class="section-label mb-1">Browse vouchers</p>
+          <h5 style="font-weight:800;color:var(--ink);margin:0;">Available Vouchers</h5>
+        </div>
+        <span class="small" style="color:var(--muted);"><%= (availableVouchers || []).length %> available</span>
+      </div>
+
+      <% if (!availableVouchers || !availableVouchers.length) { %>
+        <div class="wallet-panel text-center py-4">
+          <div class="wallet-empty-icon mx-auto"><i class="bi bi-ticket-perforated"></i></div>
+          <p style="color:var(--muted);margin:.75rem 0 0;">No vouchers available right now. Check back soon.</p>
+        </div>
+      <% } else { %>
+        <div class="row g-3">
+          <% availableVouchers.forEach(v => { %>
+            <div class="col-sm-6 col-lg-4 col-xl-3">
+              <div class="wallet-reward-card h-100 d-flex flex-column <%= (v.already_claimed || v.is_full) ? 'locked' : '' %>">
+
+                <div class="d-flex justify-content-between align-items-start mb-2 gap-2 flex-wrap">
+                  <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);font-size:.8rem;">
+                    <%= fmtDiscount(v.discount_type, v.discount_value) %>
+                  </span>
+                  <span class="badge rounded-pill" style="background:var(--canvas);color:var(--muted);border:1px solid var(--border);font-size:.75rem;">
+                    <i class="bi bi-<%= v.voucher_type === 'platform' ? 'globe' : 'shop' %> me-1"></i><%= v.voucher_type === 'platform' ? 'Platform-wide' : (v.merchant_name || 'Merchant') %>
+                  </span>
+                </div>
+
+                <h6 style="font-weight:800;color:var(--ink);margin-bottom:.35rem;">
+                  <%= v.campaign_name || v.voucher_code %>
+                </h6>
+
+                <% if (v.min_spend) { %>
+                  <p class="small" style="color:var(--muted);margin-bottom:.25rem;">
+                    <i class="bi bi-wallet me-1"></i>Min. spend S$<%= Number(v.min_spend).toFixed(2) %>
+                  </p>
+                <% } %>
+
+                <p class="small" style="color:var(--muted);margin-bottom:auto;padding-bottom:.85rem;">
+                  <i class="bi bi-calendar3 me-1"></i>Expires <%= formatDate(v.end_date) %>
+                </p>
+
+                <% if (v.already_claimed) { %>
+                  <button class="btn btn-outline-secondary btn-sm btn-pill w-100" disabled>
+                    <i class="bi bi-check-circle me-1"></i>Already Claimed
+                  </button>
+                <% } else if (v.is_full) { %>
+                  <button class="btn btn-outline-secondary btn-sm btn-pill w-100" disabled>
+                    <i class="bi bi-x-circle me-1"></i>Fully Claimed
+                  </button>
+                <% } else { %>
+                  <form method="POST" action="/loyalty/voucher/claim/<%= v.voucher_id %>">
+                    <button class="btn btn-primary btn-sm btn-pill w-100" type="submit">
+                      <i class="bi bi-ticket-perforated me-1"></i>Claim
+                    </button>
+                  </form>
+                <% } %>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+
+    <!-- Vouchers the customer has already claimed. -->
+    <section class="mt-2 mb-2">
+      <%
+        const walletVouchers = Array.isArray(claimedVouchers) ? claimedVouchers : [];
+        const voucherCounts = walletVouchers.reduce((acc, voucher) => {
+          const status = voucher.display_status || 'expired';
+          acc[status] = (acc[status] || 0) + 1;
+          acc.all += 1;
+          return acc;
+        }, { active: 0, used: 0, expired: 0, all: 0 });
+      %>
+      <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
+        <div>
+          <p class="section-label mb-1">My wallet</p>
+          <h5 style="font-weight:800;color:var(--ink);margin:0;">My Vouchers</h5>
+        </div>
+        <% if (walletVouchers.length) { %>
+          <div class="d-flex flex-wrap gap-2" role="group" aria-label="Filter my vouchers">
+            <button type="button" class="btn btn-primary btn-sm btn-pill voucher-filter-btn" data-voucher-filter="active">
+              Active (<%= voucherCounts.active %>)
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm btn-pill voucher-filter-btn" data-voucher-filter="used">
+              Used (<%= voucherCounts.used %>)
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm btn-pill voucher-filter-btn" data-voucher-filter="expired">
+              Expired (<%= voucherCounts.expired %>)
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm btn-pill voucher-filter-btn" data-voucher-filter="all">
+              All (<%= voucherCounts.all %>)
+            </button>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="wallet-panel">
+        <% if (!walletVouchers.length) { %>
+          <div class="text-center py-4">
+            <div class="wallet-empty-icon mx-auto"><i class="bi bi-ticket-perforated"></i></div>
+            <p style="color:var(--muted);margin:.75rem 0 0;">No vouchers claimed yet. Browse available vouchers above to get started.</p>
+          </div>
+        <% } else { %>
+          <div class="row g-3" id="walletVoucherGrid">
+            <% walletVouchers.forEach(cv => { %>
+              <%
+                const statusStyles = {
+                  active:  { bg: 'var(--success-bg)', color: 'var(--success)',  label: 'Active'  },
+                  used:    { bg: 'var(--canvas)',      color: 'var(--muted)',    label: 'Used'    },
+                  expired: { bg: 'var(--warn-bg)',     color: 'var(--warn)',     label: 'Expired' },
+                };
+                const st = statusStyles[cv.display_status] || statusStyles.expired;
+              %>
+              <div class="col-md-6 col-lg-4 wallet-voucher-item" data-voucher-status="<%= cv.display_status %>" style="<%= cv.display_status === 'active' ? '' : 'display:none;' %>">
+                <div class="wallet-reward-card <%= cv.display_status !== 'active' ? 'locked' : '' %>">
+                  <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);">
+                      <%= fmtDiscount(cv.discount_type, cv.discount_value) %>
+                    </span>
+                    <span class="badge rounded-pill small" style="background:<%= st.bg %>;color:<%= st.color %>;">
+                      <%= st.label %>
+                    </span>
+                  </div>
+
+                  <h6 style="font-weight:800;color:var(--ink);margin-bottom:.2rem;">
+                    <%= cv.campaign_name || cv.voucher_code %>
+                  </h6>
+
+                  <p class="small mono" style="color:var(--muted);margin-bottom:.5rem;letter-spacing:.04em;">
+                    <%= cv.voucher_code %>
+                  </p>
+
+                  <% if (cv.min_spend) { %>
+                    <p class="small" style="color:var(--muted);margin-bottom:.35rem;">
+                      <i class="bi bi-wallet me-1"></i>Min. spend S$<%= Number(cv.min_spend).toFixed(2) %>
+                    </p>
+                  <% } %>
+
+                  <p class="small" style="color:var(--muted);margin-bottom:.35rem;">
+                    <i class="bi bi-<%= cv.merchant_name ? 'shop' : 'globe' %> me-1"></i>
+                    <%= cv.merchant_name || 'Platform-wide' %>
+                  </p>
+
+                  <p class="small" style="color:var(--muted);margin:0;">
+                    <i class="bi bi-calendar3 me-1"></i>Expires <%= formatDate(cv.voucher_expiry) %>
+                  </p>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+          <div id="walletVoucherEmptyFilter" class="text-center py-4" style="<%= voucherCounts.active ? 'display:none;' : '' %>">
+            <div class="wallet-empty-icon mx-auto"><i class="bi bi-ticket-perforated"></i></div>
+            <p style="color:var(--muted);margin:.75rem 0 0;">No active vouchers right now.</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
   </div>
 </main>
 
@@ -215,6 +384,32 @@
 // CSS cannot read data-progress directly, so JS applies the progress width.
 document.querySelectorAll('.wallet-tier-progress').forEach((bar) => {
   bar.style.width = `${bar.dataset.progress || 0}%`;
+});
+
+document.querySelectorAll('.voucher-filter-btn').forEach((button) => {
+  button.addEventListener('click', () => {
+    const filter = button.dataset.voucherFilter || 'active';
+    let visibleCount = 0;
+
+    document.querySelectorAll('.voucher-filter-btn').forEach((item) => {
+      const active = item === button;
+      item.classList.toggle('btn-primary', active);
+      item.classList.toggle('btn-outline-secondary', !active);
+    });
+
+    document.querySelectorAll('.wallet-voucher-item').forEach((item) => {
+      const visible = filter === 'all' || item.dataset.voucherStatus === filter;
+      item.style.display = visible ? '' : 'none';
+      if (visible) visibleCount += 1;
+    });
+
+    const empty = document.getElementById('walletVoucherEmptyFilter');
+    if (empty) {
+      const label = filter === 'all' ? 'matching' : filter;
+      empty.querySelector('p').textContent = `No ${label} vouchers right now.`;
+      empty.style.display = visibleCount ? 'none' : '';
+    }
+  });
 });
 </script>
 

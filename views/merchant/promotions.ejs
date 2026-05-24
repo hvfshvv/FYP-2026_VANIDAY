@@ -87,6 +87,14 @@
               <span class="input-group-text fw-700">%</span>
             </div>
           </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.875rem;font-weight:600;">Minimum Spend <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <div class="input-group">
+              <span class="input-group-text">S$</span>
+              <input type="number" name="min_spend" class="form-control" min="0" step="0.01" value="<%= formValues.min_spend || '' %>" placeholder="e.g. 50.00" />
+            </div>
+            <p class="small mb-0 mt-1" style="color:var(--muted);">Leave blank if there is no minimum spend requirement.</p>
+          </div>
           <div class="row g-2 mb-4">
             <div class="col">
               <label class="form-label" style="font-size:.875rem;font-weight:600;">Start Date</label>
@@ -151,6 +159,7 @@
               <% } %>
               <p class="promo-date mb-0"><i class="bi bi-calendar3 me-1"></i><%= formatDate(p.start_date) %> - <%= formatDate(p.end_date) %></p>
               <p class="small mb-0" style="color:var(--muted);"><i class="bi bi-calendar-week me-1"></i><%= dayLabel(p.applicable_days) %></p>
+              <% if (p.min_spend) { %><p class="small mb-0" style="color:var(--muted);"><i class="bi bi-wallet me-1"></i>Min. spend S$<%= Number(p.min_spend).toFixed(2) %></p><% } %>
             </div>
             <div class="promo-discount flex-shrink-0 text-end">
               <%= Number(p.discount_pct || 0).toFixed(0) %>%<br/>

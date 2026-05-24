@@ -10,12 +10,36 @@ async function getServicesByMerchant(merchantId) {
 }
 
 // Inserts one service that customers can book.
-async function addService(merchantId, { service_name, description, price, duration_mins }) {
+async function addService(merchantId, { service_name, description, category, price, duration_mins }) {
   const [result] = await db.query(
-    'INSERT INTO service (merchant_id, service_name, description, price, duration_mins) VALUES (?,?,?,?,?)',
-    [merchantId, service_name, description || null, parseFloat(price), parseInt(duration_mins)]
+    'INSERT INTO service (merchant_id, service_name, description, category, price, duration_mins) VALUES (?,?,?,?,?,?)',
+    [merchantId, service_name, description || null, category || null, parseFloat(price), parseInt(duration_mins)]
   );
   return result.insertId;
+}
+
+async function updateService(serviceId, merchantId, { service_name, description, category, price, duration_mins }) {
+  const [result] = await db.query(
+    `UPDATE service
+     SET service_name = ?,
+         description = ?,
+         category = ?,
+         price = ?,
+         duration_mins = ?
+     WHERE service_id = ?
+       AND merchant_id = ?`,
+    [
+      service_name,
+      description || null,
+      category || null,
+      parseFloat(price),
+      parseInt(duration_mins),
+      serviceId,
+      merchantId,
+    ]
+  );
+
+  return result.affectedRows;
 }
 
 // Toggles visibility without deleting the service record.
@@ -34,4 +58,4 @@ async function deleteService(serviceId, merchantId) {
   );
 }
 
-module.exports = { getServicesByMerchant, addService, toggleService, deleteService };
+module.exports = { getServicesByMerchant, addService, updateService, toggleService, deleteService };

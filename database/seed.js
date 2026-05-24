@@ -114,6 +114,51 @@ const MERCHANTS = [
   },
 ];
 
+const PLATFORM_VOUCHERS = [
+  {
+    code: 'WELCOME10',
+    name: 'Uniday Welcome Treat',
+    discountType: 'percent',
+    discountValue: 10,
+    minSpend: 40,
+    usageLimit: 200,
+    usagePerCustomer: 1,
+    startOffsetDays: -7,
+    endOffsetDays: 45,
+  },
+  {
+    code: 'BEAUTY15',
+    name: 'Beauty Week Saver',
+    discountType: 'percent',
+    discountValue: 15,
+    minSpend: 60,
+    usageLimit: 150,
+    usagePerCustomer: 1,
+    startOffsetDays: -7,
+    endOffsetDays: 60,
+  },
+  {
+    code: 'WELLNESS8',
+    name: 'Wellness Weekend Deal',
+    discountType: 'fixed_amount',
+    discountValue: 8,
+    minSpend: 50,
+    usageLimit: 120,
+    usagePerCustomer: 1,
+    startOffsetDays: -7,
+    endOffsetDays: 90,
+  },
+];
+
+function formatSeedDate(offsetDays) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 async function seed() {
   const db = await mysql.createConnection({
     host: process.env.DB_HOST || 'localhost',
@@ -213,8 +258,8 @@ async function seed() {
     if (!existS.length) {
       for (const s of m.services) {
         await db.execute(
-          'INSERT INTO service (merchant_id, service_name, description, price, duration_mins, is_active) VALUES (?, ?, ?, ?, ?, ?)',
-          [merchantId, s.name, s.desc, s.price, s.dur, 1]
+          'INSERT INTO service (merchant_id, service_name, description, category, price, duration_mins, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [merchantId, s.name, s.desc, s.category || m.biz.category, s.price, s.dur, 1]
         );
       }
     }
@@ -295,6 +340,36 @@ async function seed() {
     await qrService.ensureMerchantQRCodes(merchantId);
 
     console.log(`${m.biz.name} (merchant_id: ${merchantId})`);
+  }
+
+  for (const voucher of PLATFORM_VOUCHERS) {
+    await db.execute(
+      `INSERT INTO voucher
+        (merchant_id, voucher_code, voucher_type, campaign_name, discount_type,
+         discount_value, min_spend, usage_limit, usage_per_customer, start_date, end_date, is_active)
+       VALUES (NULL, ?, 'platform', ?, ?, ?, ?, ?, ?, ?, ?, 1)
+       ON DUPLICATE KEY UPDATE
+         campaign_name = VALUES(campaign_name),
+         discount_type = VALUES(discount_type),
+         discount_value = VALUES(discount_value),
+         min_spend = VALUES(min_spend),
+         usage_limit = VALUES(usage_limit),
+         usage_per_customer = VALUES(usage_per_customer),
+         start_date = VALUES(start_date),
+         end_date = VALUES(end_date),
+         is_active = 1`,
+      [
+        voucher.code,
+        voucher.name,
+        voucher.discountType,
+        voucher.discountValue,
+        voucher.minSpend,
+        voucher.usageLimit,
+        voucher.usagePerCustomer,
+        formatSeedDate(voucher.startOffsetDays),
+        formatSeedDate(voucher.endOffsetDays),
+      ]
+    );
   }
 
   await db.end();

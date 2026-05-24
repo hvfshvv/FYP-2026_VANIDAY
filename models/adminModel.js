@@ -17,6 +17,142 @@ async function getDashboardSummary() {
   return rows[0] || {};
 }
 
+async function getPlatformRevenueReport({ startDate, endDate } = {}) {
+  const paymentDateFilter = 'DATE(COALESCE(p.paid_at, b.created_at)) BETWEEN ? AND ?';
+  const rangeParams = [startDate, endDate];
+
+  const [
+    [overviewRows],
+    [monthly],
+    [categoryBreakdown],
+    [topMerchants],
+    [paymentStatus],
+    [bookingSource],
+    [recentTransactions],
+  ] = await Promise.all([
+    db.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS gross_revenue,
+         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount * 0.20 ELSE 0 END), 0) AS platform_commission,
+         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount * 0.80 ELSE 0 END), 0) AS merchant_payout,
+         COUNT(DISTINCT CASE WHEN p.payment_status = 'paid' THEN b.booking_id END) AS paid_bookings,
+         COUNT(DISTINCT b.merchant_id) AS merchants_with_payments,
+         COALESCE(AVG(CASE WHEN p.payment_status = 'paid' THEN p.amount END), 0) AS average_order_value,
+         SUM(CASE WHEN p.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_payments,
+         SUM(CASE WHEN p.payment_status IN ('failed', 'payment_failed') THEN 1 ELSE 0 END) AS failed_payments
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE ${paymentDateFilter}`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         DATE_FORMAT(COALESCE(p.paid_at, b.created_at), '%Y-%m') AS month,
+         COUNT(DISTINCT b.booking_id) AS paid_bookings,
+         COALESCE(SUM(p.amount), 0) AS gross_revenue,
+         COALESCE(SUM(p.amount * 0.20), 0) AS platform_commission,
+         COALESCE(SUM(p.amount * 0.80), 0) AS merchant_payout
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY DATE_FORMAT(COALESCE(p.paid_at, b.created_at), '%Y-%m')
+       ORDER BY month DESC
+       LIMIT 6`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category,
+         COUNT(DISTINCT b.booking_id) AS paid_bookings,
+         COALESCE(SUM(p.amount), 0) AS gross_revenue,
+         COALESCE(SUM(p.amount * 0.20), 0) AS platform_commission
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       JOIN merchant m ON m.merchant_id = b.merchant_id
+       JOIN service s ON s.service_id = b.service_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised')
+       ORDER BY gross_revenue DESC`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         m.merchant_id,
+         m.merchant_name,
+         COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
+         COUNT(DISTINCT b.booking_id) AS paid_bookings,
+         COALESCE(SUM(p.amount), 0) AS gross_revenue,
+         COALESCE(SUM(p.amount * 0.20), 0) AS platform_commission,
+         COALESCE(SUM(p.amount * 0.80), 0) AS merchant_payout
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       JOIN merchant m ON m.merchant_id = b.merchant_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY m.merchant_id, m.merchant_name, m.category
+       ORDER BY gross_revenue DESC
+       LIMIT 10`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         COALESCE(p.payment_status, 'unknown') AS payment_status,
+         COUNT(*) AS total,
+         COALESCE(SUM(p.amount), 0) AS amount
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE ${paymentDateFilter}
+       GROUP BY COALESCE(p.payment_status, 'unknown')
+       ORDER BY total DESC`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         COALESCE(NULLIF(b.source, ''), 'web') AS source,
+         COUNT(DISTINCT b.booking_id) AS paid_bookings,
+         COALESCE(SUM(p.amount), 0) AS gross_revenue
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY COALESCE(NULLIF(b.source, ''), 'web')
+       ORDER BY gross_revenue DESC`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         p.payment_id,
+         p.booking_id,
+         p.amount,
+         p.payment_status,
+         p.payment_method,
+         p.transaction_ref,
+         p.paid_at,
+         b.source,
+         COALESCE(u.full_name, b.guest_name, 'Guest') AS customer_name,
+         m.merchant_name,
+         s.service_name
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       JOIN merchant m ON m.merchant_id = b.merchant_id
+       JOIN service s ON s.service_id = b.service_id
+       LEFT JOIN users u ON u.user_id = b.customer_id
+       WHERE ${paymentDateFilter}
+       ORDER BY COALESCE(p.paid_at, b.created_at) DESC, p.payment_id DESC
+       LIMIT 12`,
+      rangeParams
+    ),
+  ]);
+
+  return {
+    overview: overviewRows[0] || {},
+    monthly,
+    categoryBreakdown,
+    topMerchants,
+    paymentStatus,
+    bookingSource,
+    recentTransactions,
+  };
+}
+
 async function getRecentBookings(limit = 8) {
   const [rows] = await db.query(
     `SELECT
@@ -85,6 +221,112 @@ async function getRecentValidationErrors(limit = 8) {
   );
 
   return rows;
+}
+
+async function getValidationLogs({ module = 'all', status = 'all', search = '' } = {}) {
+  const filters = [];
+  const params = [];
+
+  if (module && module !== 'all') {
+    filters.push('vl.module = ?');
+    params.push(module);
+  }
+
+  if (status === 'open') {
+    filters.push('vl.is_resolved = FALSE');
+  } else if (status === 'resolved') {
+    filters.push('vl.is_resolved = TRUE');
+  }
+
+  const safeSearch = String(search || '').trim();
+  if (safeSearch) {
+    filters.push('(vl.module LIKE ? OR vl.error_type LIKE ? OR vl.error_message LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?)');
+    const like = '%' + safeSearch + '%';
+    params.push(like, like, like, like, like);
+  }
+
+  const where = filters.length ? 'WHERE ' + filters.join(' AND ') : '';
+
+  const [rows] = await db.query(
+    `SELECT
+       vl.log_id,
+       vl.user_id,
+       vl.booking_id,
+       vl.module,
+       vl.error_type,
+       vl.error_message,
+       vl.is_resolved,
+       vl.created_at,
+       u.full_name AS customer_name,
+       u.email AS customer_email,
+       u.phone AS customer_phone
+     FROM validation_log vl
+     LEFT JOIN users u ON u.user_id = vl.user_id
+     ${where}
+     ORDER BY vl.created_at DESC
+     LIMIT 200`,
+    params
+  );
+
+  return rows;
+}
+
+async function getValidationLogSummary() {
+  const [rows] = await db.query(
+    `SELECT
+       COUNT(*) AS total_logs,
+       SUM(CASE WHEN is_resolved = FALSE THEN 1 ELSE 0 END) AS open_logs,
+       SUM(CASE WHEN is_resolved = TRUE THEN 1 ELSE 0 END) AS resolved_logs,
+       SUM(CASE WHEN module = 'whatsapp_support' AND is_resolved = FALSE THEN 1 ELSE 0 END) AS open_whatsapp_support
+     FROM validation_log`
+  );
+
+  return rows[0] || {};
+}
+
+async function markValidationLogResolved(logId) {
+  const [result] = await db.query(
+    'UPDATE validation_log SET is_resolved = TRUE WHERE log_id = ?',
+    [logId]
+  );
+
+  return result.affectedRows;
+}
+
+async function getValidationLogById(logId) {
+  const [rows] = await db.query(
+    `SELECT
+       vl.*,
+       u.full_name AS customer_name,
+       u.email AS customer_email,
+       u.phone AS customer_phone
+     FROM validation_log vl
+     LEFT JOIN users u ON u.user_id = vl.user_id
+     WHERE vl.log_id = ?
+     LIMIT 1`,
+    [logId]
+  );
+
+  return rows[0] || null;
+}
+
+async function appendValidationLogReply(logId, reply, adminName) {
+  const replyBlock = [
+    '',
+    'Admin reply by ' + (adminName || 'Uniday Support') + ':',
+    String(reply || '').trim(),
+    'Reply sent at: ' + new Date().toISOString()
+  ].join('\n');
+
+  const [result] = await db.query(
+    `UPDATE validation_log
+     SET error_message = CONCAT(error_message, ?),
+         is_resolved = TRUE
+     WHERE log_id = ?`,
+    [replyBlock, logId]
+  );
+
+  return result.affectedRows;
 }
 
 async function getPendingMerchantApplications() {
@@ -248,12 +490,13 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
       rangeParams
     ).then(([rows]) => rows),
     db.query(
-      `SELECT COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category, COALESCE(SUM(p.amount), 0) AS revenue
+      `SELECT COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category, COALESCE(SUM(p.amount), 0) AS revenue
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
+       JOIN service s ON s.service_id = b.service_id
        JOIN merchant m ON m.merchant_id = b.merchant_id
        WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
-       GROUP BY COALESCE(NULLIF(m.category, ''), 'Uncategorised')
+       GROUP BY COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised')
        ORDER BY revenue DESC`,
       rangeParams
     ).then(([rows]) => rows),
@@ -699,13 +942,14 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
       rangeParams
     ).then(([rows]) => rows),
     db.query(
-      `SELECT COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category, COALESCE(SUM(p.amount), 0) AS total
+      `SELECT COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category, COALESCE(SUM(p.amount), 0) AS total
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
+       JOIN service s ON s.service_id = b.service_id
        JOIN merchant m ON m.merchant_id = b.merchant_id
        JOIN users u ON u.user_id = b.customer_id
        WHERE u.role = 'customer' AND p.payment_status = 'paid' AND ${paymentDateFilter}
-       GROUP BY COALESCE(NULLIF(m.category, ''), 'Uncategorised')
+       GROUP BY COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised')
        ORDER BY total DESC`,
       rangeParams
     ).then(([rows]) => rows),
@@ -722,14 +966,14 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
       rangeParams
     ).then(([rows]) => rows),
     db.query(
-      `SELECT s.service_name, COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
+      `SELECT s.service_name, COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category,
               COUNT(*) AS bookings, COALESCE(SUM(b.total_amount), 0) AS spent
        FROM booking b
        JOIN users u ON u.user_id = b.customer_id
        JOIN service s ON s.service_id = b.service_id
        JOIN merchant m ON m.merchant_id = b.merchant_id
        WHERE u.role = 'customer' AND ${bookingDateFilter}
-       GROUP BY s.service_id, s.service_name, m.category
+       GROUP BY s.service_id, s.service_name, s.category, m.category
        ORDER BY bookings DESC, spent DESC
        LIMIT 8`,
       rangeParams
@@ -755,13 +999,13 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
        LIMIT 8`
     ).then(([rows]) => rows),
     db.query(
-      `SELECT s.service_name, m.merchant_name, COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
+      `SELECT s.service_name, m.merchant_name, COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category,
               COUNT(b.booking_id) AS bookings
        FROM service s
        JOIN merchant m ON m.merchant_id = s.merchant_id
        LEFT JOIN booking b ON b.service_id = s.service_id
        WHERE s.is_active = TRUE
-       GROUP BY s.service_id, s.service_name, m.merchant_name, m.category
+       GROUP BY s.service_id, s.service_name, s.category, m.merchant_name, m.category
        ORDER BY bookings DESC
        LIMIT 8`
     ).then(([rows]) => rows),
@@ -1026,7 +1270,7 @@ async function getManagedMerchants(search = '', verification = 'all') {
   return rows;
 }
 
-async function setUserAccountStatus(userId, status, adminId) {
+async function setUserAccountStatus(userId, status, adminId, reason = null) {
   // Customer enable/disable uses the users.status field.
   const safeStatus = status === 'suspended' ? 'suspended' : 'active';
   const [result] = await db.query(
@@ -1038,13 +1282,16 @@ async function setUserAccountStatus(userId, status, adminId) {
   );
 
   if (result.affectedRows > 0) {
-    await logAdminAction(adminId, safeStatus === 'active' ? 'ENABLE_USER' : 'DISABLE_USER', 'users', userId, `Set user status to ${safeStatus}.`);
+    const description = safeStatus === 'active'
+      ? 'Enabled user account.'
+      : `Disabled user account. Reason: ${reason || 'Not specified'}.`;
+    await logAdminAction(adminId, safeStatus === 'active' ? 'ENABLE_USER' : 'DISABLE_USER', 'users', userId, description);
   }
 
   return result.affectedRows;
 }
 
-async function setMerchantAccountStatus(merchantId, enabled, adminId) {
+async function setMerchantAccountStatus(merchantId, enabled, adminId, reason = null) {
   // Merchant enable/disable must keep merchant and user status in sync.
   const connection = await db.getConnection();
 
@@ -1079,7 +1326,13 @@ async function setMerchantAccountStatus(merchantId, enabled, adminId) {
     );
 
     await connection.commit();
-    await logAdminAction(adminId, enabled ? 'ENABLE_MERCHANT' : 'DISABLE_MERCHANT', 'merchant', merchantId, enabled ? 'Enabled merchant account.' : 'Disabled merchant account.');
+    await logAdminAction(
+      adminId,
+      enabled ? 'ENABLE_MERCHANT' : 'DISABLE_MERCHANT',
+      'merchant',
+      merchantId,
+      enabled ? 'Enabled merchant account.' : `Disabled merchant account. Reason: ${reason || 'Not specified'}.`
+    );
     return 1;
   } catch (err) {
     await connection.rollback();
@@ -1187,11 +1440,100 @@ async function getMerchantBookingsForAdmin(merchantId) {
   return rows;
 }
 
+async function getPlatformFeedback({ type = 'all', rating = 'all', search = '' } = {}) {
+  const params = [];
+  const clauses = [];
+
+  if (type && type !== 'all') {
+    clauses.push('pf.feedback_type = ?');
+    params.push(type);
+  }
+
+  if (rating && rating !== 'all') {
+    clauses.push('pf.rating = ?');
+    params.push(Number(rating));
+  }
+
+  const filter = searchClause(search, [
+    'u.full_name',
+    'u.email',
+    'm.merchant_name',
+    's.service_name',
+    'pf.feedback_text',
+  ]);
+  if (filter.clause) {
+    clauses.push(filter.clause);
+    params.push(...filter.params);
+  }
+
+  const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+  const [rows] = await db.query(
+    `SELECT
+       pf.feedback_id,
+       pf.booking_id,
+       pf.customer_id,
+       pf.rating,
+       pf.feedback_type,
+       pf.feedback_text,
+       pf.created_at,
+       u.full_name AS customer_name,
+       u.email AS customer_email,
+       b.merchant_id,
+       b.service_id,
+       b.status AS booking_status,
+       ts.slot_date AS booking_date,
+       ts.start_time AS booking_time,
+       m.merchant_name,
+       s.service_name
+     FROM platform_feedback pf
+     JOIN users u ON u.user_id = pf.customer_id
+     LEFT JOIN booking b ON b.booking_id = pf.booking_id
+     LEFT JOIN time_slot ts ON ts.slot_id = b.slot_id
+     LEFT JOIN merchant m ON m.merchant_id = b.merchant_id
+     LEFT JOIN service s ON s.service_id = b.service_id
+     ${whereSql}
+     ORDER BY pf.created_at DESC, pf.feedback_id DESC`,
+    params
+  );
+
+  return rows;
+}
+
+async function getPlatformFeedbackSummary() {
+  const [[summary]] = await db.query(
+    `SELECT
+       COUNT(*) AS total_feedback,
+       COALESCE(AVG(rating), 0) AS average_rating,
+       SUM(CASE WHEN rating >= 4 THEN 1 ELSE 0 END) AS positive_count,
+       SUM(CASE WHEN rating <= 2 THEN 1 ELSE 0 END) AS low_rating_count
+     FROM platform_feedback`
+  );
+
+  const [byType] = await db.query(
+    `SELECT feedback_type, COUNT(*) AS total, COALESCE(AVG(rating), 0) AS average_rating
+     FROM platform_feedback
+     GROUP BY feedback_type
+     ORDER BY total DESC, feedback_type ASC`
+  );
+
+  return {
+    ...(summary || {}),
+    byType,
+  };
+}
+
 module.exports = {
   getDashboardSummary,
+  getPlatformRevenueReport,
   getRecentBookings,
   getRecentPayments,
   getRecentValidationErrors,
+  getValidationLogs,
+  getValidationLogSummary,
+  markValidationLogResolved,
+  getValidationLogById,
+  appendValidationLogReply,
   getMerchantAnalytics,
   addMerchantToFeatured,
   getFeaturedMerchantListings,
@@ -1211,6 +1553,8 @@ module.exports = {
   getCustomerBookingsForAdmin,
   getMerchantAccount,
   getMerchantBookingsForAdmin,
+  getPlatformFeedback,
+  getPlatformFeedbackSummary,
   approveMerchant,
   rejectMerchant,
 };

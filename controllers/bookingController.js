@@ -5,6 +5,7 @@ const authModel     = require('../models/authModel');
 const bookingModel  = require('../models/bookingModel');
 const staffModel = require('../models/staffModel');
 const emailService = require('../services/emailService');
+const cancellationPolicyModel = require('../models/cancellationPolicyModel');
 
 // Power Automate webhook URL: paste your webhook URL here or set POWER_AUTOMATE_WEBHOOK_URL in .env
 const POWER_AUTOMATE_WEBHOOK_URL = process.env.POWER_AUTOMATE_WEBHOOK_URL || 'PASTE_YOUR_POWER_AUTOMATE_WEBHOOK_URL_HERE';
@@ -169,12 +170,19 @@ async function showPortalBookingPage(req, res) {
         merchantId
       )
     : [];
+    const cancellationPolicy = merchant
+      ? await cancellationPolicyModel.getPolicyByMerchantId(merchant.merchant_id)
+      : null;
     res.render('booking/book', {
       title:           'Complete Your Booking',
       merchant,
       serviceList,
       selectedService,
       staff,
+      cancellationPolicy,
+      cancellationPolicySummary: cancellationPolicy
+        ? cancellationPolicyModel.getPolicySummary(cancellationPolicy)
+        : '',
       merchantName:    merchant?.merchant_name || '',
       merchantAddress: merchant?.address || '',
     });
@@ -229,6 +237,9 @@ async function confirmPortalBooking(req, res) {
     const staff = selectedService?.service_id
       ? await staffModel.getStaffByService(selectedService.service_id, merchant_id).catch(() => [])
       : [];
+    const cancellationPolicy = merchant
+      ? await cancellationPolicyModel.getPolicyByMerchantId(merchant.merchant_id).catch(() => null)
+      : null;
 
     res.status(400).render('booking/book', {
       title: 'Complete Your Booking',
@@ -236,6 +247,10 @@ async function confirmPortalBooking(req, res) {
       serviceList,
       selectedService,
       staff,
+      cancellationPolicy,
+      cancellationPolicySummary: cancellationPolicy
+        ? cancellationPolicyModel.getPolicySummary(cancellationPolicy)
+        : '',
       merchantName: merchant?.merchant_name || '',
       merchantAddress: merchant?.address || '',
       error: err.message || 'Booking failed. Please try again.',
@@ -245,7 +260,8 @@ async function confirmPortalBooking(req, res) {
 
 async function viewCustomerBookings(req, res) {
   try {
-    const bookings = await bookingModel.getCustomerBookings(req.session.user.customer_id);
+    const customerId = req.session.user.customer_id || req.session.user.user_id;
+    const bookings = await bookingModel.getCustomerBookings(customerId);
     res.render('booking/viewBookings', {
       title: 'My Bookings',
       bookings,
@@ -647,6 +663,31 @@ async function getAvailableSlots(req, res) {
   }
 }
 
+async function getAvailableStaff(req, res) {
+  if (redirectMerchantAwayFromBooking(req, res)) return;
+
+  try {
+    const {
+      merchantId,
+      serviceId,
+      bookingDate,
+      bookingTime,
+    } = req.query;
+
+    const staff = await bookingModel.getAvailableStaffForSlot({
+      merchantId,
+      serviceId,
+      bookingDate,
+      bookingTime,
+    });
+
+    res.json(staff);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json([]);
+  }
+}
+
 module.exports = {
   showBookingPage,
   showPortalBookingPage,
@@ -659,5 +700,6 @@ module.exports = {
   showRescheduleBooking,
   rescheduleCustomerBooking,
   confirmArrival,
-  getAvailableSlots
+  getAvailableSlots,
+  getAvailableStaff
 };

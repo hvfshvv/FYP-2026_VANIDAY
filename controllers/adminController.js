@@ -1,14 +1,40 @@
 const adminModel = require('../models/adminModel');
 const voucherModel = require('../models/voucherModel');
 const promotionModel = require('../models/promotionModel');
+const whatsappNotificationService = require('../services/whatsappNotificationService');
 const { wantsJson } = require('../middleware/auth');
+
+const CUSTOMER_DISABLE_REASONS = [
+  'Repeated no-shows',
+  'Payment or refund abuse',
+  'Suspicious account activity',
+  'Verification issue',
+  'Other',
+];
+
+const MERCHANT_DISABLE_REASONS = [
+  'Fake business information or failed verification',
+  'Repeatedly not honouring confirmed bookings',
+  'Fraudulent promotions/vouchers',
+  'Unsafe, abusive, or misleading service listings',
+  'Serious customer complaints with evidence',
+];
+
+function requireDisableReason(status, reason, allowedReasons) {
+  if (status !== 'suspended') return null;
+
+  const safeReason = String(reason || '').trim();
+  if (!allowedReasons.includes(safeReason)) {
+    throw new Error('Please select a valid reason before disabling the account.');
+  }
+
+  return safeReason;
+}
 
 async function showDashboard(req, res) {
   try {
-    const [summary, recentBookings, recentPayments, recentErrors] = await Promise.all([
+    const [summary, recentErrors] = await Promise.all([
       adminModel.getDashboardSummary(),
-      adminModel.getRecentBookings(),
-      adminModel.getRecentPayments(),
       adminModel.getRecentValidationErrors().catch(err => {
         console.error('Failed to load validation logs:', err.message);
         return [];
@@ -18,8 +44,6 @@ async function showDashboard(req, res) {
     res.render('admin/dashboard', {
       title: 'Admin Dashboard',
       summary,
-      recentBookings,
-      recentPayments,
       recentErrors,
     });
   } catch (err) {
@@ -27,8 +51,6 @@ async function showDashboard(req, res) {
     res.render('admin/dashboard', {
       title: 'Admin Dashboard',
       summary: {},
-      recentBookings: [],
-      recentPayments: [],
       recentErrors: [],
       error: 'Failed to load admin dashboard data.',
     });
@@ -37,8 +59,8 @@ async function showDashboard(req, res) {
 
 function showComingSoon(req, res) {
   const pages = {
-    customers: 'Manage Customers',
-    merchants: 'Manage Merchants',
+    customers: 'Customer Information',
+    merchants: 'Merchant Information',
     validation: 'Validation & Error Logs',
     featured: 'Featured Merchants',
     campaigns: 'Voucher & Campaign Management',
@@ -51,6 +73,87 @@ function showComingSoon(req, res) {
     title: pageTitle,
     pageTitle,
   });
+}
+
+async function showValidationLogs(req, res) {
+  const filters = {
+    module: req.query.module || 'all',
+    status: req.query.status || 'all',
+    search: req.query.search || '',
+  };
+
+  try {
+    const [logs, summary] = await Promise.all([
+      adminModel.getValidationLogs(filters),
+      adminModel.getValidationLogSummary(),
+    ]);
+
+    res.render('admin/validationLogs', {
+      title: 'Validation & Support Logs',
+      logs,
+      summary,
+      filters,
+      query: req.query,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/validationLogs', {
+      title: 'Validation & Support Logs',
+      logs: [],
+      summary: {},
+      filters,
+      query: req.query,
+      error: 'Failed to load validation logs.',
+    });
+  }
+}
+
+async function resolveValidationLog(req, res) {
+  try {
+    await adminModel.markValidationLogResolved(req.params.logId);
+    res.redirect('/admin/validation?resolved=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/validation?error=resolve');
+  }
+}
+
+function extractSupportPhone(log) {
+  if (log.customer_phone) {
+    return log.customer_phone;
+  }
+
+  const match = String(log.error_message || '').match(/^Phone:\s*(.+)$/m);
+  return match ? match[1].trim() : null;
+}
+
+async function replyToWhatsAppSupport(req, res) {
+  const reply = String(req.body.reply || '').trim();
+
+  try {
+    if (!reply) {
+      return res.redirect('/admin/validation?error=reply');
+    }
+
+    const log = await adminModel.getValidationLogById(req.params.logId);
+
+    if (!log || log.module !== 'whatsapp_support') {
+      return res.redirect('/admin/validation?error=notfound');
+    }
+
+    const phone = extractSupportPhone(log);
+    await whatsappNotificationService.sendSupportReply(phone, reply);
+    await adminModel.appendValidationLogReply(
+      req.params.logId,
+      reply,
+      req.session.user && req.session.user.full_name
+    );
+
+    res.redirect('/admin/validation?replySent=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/validation?error=replySend');
+  }
 }
 
 async function showMerchants(req, res) {
@@ -123,6 +226,72 @@ async function showCustomers(req, res) {
   }
 }
 
+async function showRevenueReport(req, res) {
+  const today = new Date();
+  const defaultStart = new Date(today);
+  defaultStart.setDate(defaultStart.getDate() - 29);
+
+  const range = {
+    startDate: isDate(req.query.startDate) ? req.query.startDate : toDateInput(defaultStart),
+    endDate: isDate(req.query.endDate) ? req.query.endDate : toDateInput(today),
+  };
+
+  if (new Date(range.endDate) < new Date(range.startDate)) {
+    range.endDate = range.startDate;
+  }
+
+  try {
+    const report = await adminModel.getPlatformRevenueReport(range);
+
+    res.render('admin/revenue', {
+      title: 'Revenue Report',
+      report,
+      range,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/revenue', {
+      title: 'Revenue Report',
+      report: emptyRevenueReport(),
+      range,
+      error: 'Failed to load revenue report.',
+    });
+  }
+}
+
+async function showPlatformFeedback(req, res) {
+  const filters = {
+    type: req.query.type || 'all',
+    rating: req.query.rating || 'all',
+    search: req.query.search || '',
+  };
+
+  try {
+    const [feedback, summary] = await Promise.all([
+      adminModel.getPlatformFeedback(filters),
+      adminModel.getPlatformFeedbackSummary(),
+    ]);
+
+    res.render('admin/platformFeedback', {
+      title: 'Uniday Feedback',
+      feedback,
+      summary,
+      filters,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/platformFeedback', {
+      title: 'Uniday Feedback',
+      feedback: [],
+      summary: {},
+      filters,
+      error: 'Failed to load Uniday feedback.',
+    });
+  }
+}
+
 async function showUserManagementHome(req, res) {
   try {
     // Summary counts power the two cards on admin/userManagement.ejs.
@@ -152,6 +321,7 @@ async function showManagedCustomers(req, res) {
       customers,
       search: req.query.search || '',
       query: req.query,
+      disableReasons: CUSTOMER_DISABLE_REASONS,
     });
   } catch (err) {
     console.error(err);
@@ -160,6 +330,7 @@ async function showManagedCustomers(req, res) {
       customers: [],
       search: req.query.search || '',
       query: req.query,
+      disableReasons: CUSTOMER_DISABLE_REASONS,
       error: 'Failed to load customer accounts.',
     });
   }
@@ -178,6 +349,7 @@ async function showManagedMerchants(req, res) {
       search: req.query.search || '',
       verification,
       query: req.query,
+      disableReasons: MERCHANT_DISABLE_REASONS,
     });
   } catch (err) {
     console.error(err);
@@ -187,6 +359,7 @@ async function showManagedMerchants(req, res) {
       search: req.query.search || '',
       verification: req.query.verification || 'all',
       query: req.query,
+      disableReasons: MERCHANT_DISABLE_REASONS,
       error: 'Failed to load merchant accounts.',
     });
   }
@@ -194,11 +367,13 @@ async function showManagedMerchants(req, res) {
 
 async function updateCustomerAccountStatus(req, res) {
   try {
+    const reason = requireDisableReason(req.body.status, req.body.disable_reason, CUSTOMER_DISABLE_REASONS);
     // Admin can enable or disable a customer account from the table.
     await adminModel.setUserAccountStatus(
       req.params.customerId,
       req.body.status,
-      req.session.user.user_id
+      req.session.user.user_id,
+      reason
     );
 
     res.redirect('/admin/user-management/customers?updated=1');
@@ -210,11 +385,13 @@ async function updateCustomerAccountStatus(req, res) {
 
 async function updateMerchantAccountStatus(req, res) {
   try {
+    const reason = requireDisableReason(req.body.status, req.body.disable_reason, MERCHANT_DISABLE_REASONS);
     // Merchant status updates both merchant.is_active and the linked user status.
     await adminModel.setMerchantAccountStatus(
       req.params.merchantId,
       req.body.status === 'active',
-      req.session.user.user_id
+      req.session.user.user_id,
+      reason
     );
 
     res.redirect('/admin/user-management/merchants?updated=1');
@@ -406,13 +583,24 @@ function emptyCustomerAnalytics() {
   };
 }
 
+function emptyRevenueReport() {
+  return {
+    overview: {},
+    monthly: [],
+    categoryBreakdown: [],
+    topMerchants: [],
+    paymentStatus: [],
+    bookingSource: [],
+    recentTransactions: [],
+  };
+}
+
 async function showMerchantValidations(req, res) {
   try {
-    const [pendingMerchants, recentDecisions, statusSummary, applicationTrend] = await Promise.all([
+    const [pendingMerchants, recentDecisions, statusSummary] = await Promise.all([
       adminModel.getPendingMerchantApplications(),
       adminModel.getRecentMerchantValidationDecisions(),
       adminModel.getMerchantValidationStatusSummary(),
-      adminModel.getMerchantApplicationTrend(),
     ]);
 
     res.render('admin/merchantValidations', {
@@ -420,7 +608,6 @@ async function showMerchantValidations(req, res) {
       pendingMerchants,
       recentDecisions,
       statusSummary,
-      applicationTrend,
       query: req.query,
     });
   } catch (err) {
@@ -430,7 +617,6 @@ async function showMerchantValidations(req, res) {
       pendingMerchants: [],
       recentDecisions: [],
       statusSummary: { pending: 0, approved: 0, rejected: 0 },
-      applicationTrend: [],
       query: req.query,
       error: 'Failed to load merchant validation data.',
     });
@@ -635,8 +821,13 @@ async function toggleCampaign(req, res) {
 module.exports = {
   showDashboard,
   showComingSoon,
+  showValidationLogs,
+  resolveValidationLog,
+  replyToWhatsAppSupport,
   showMerchants,
   showCustomers,
+  showRevenueReport,
+  showPlatformFeedback,
   featureMerchantFromDashboard,
   toggleFeaturedMerchantFromDashboard,
   removeFeaturedMerchantFromDashboard,

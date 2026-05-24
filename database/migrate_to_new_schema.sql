@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS service (
     merchant_id INT NOT NULL,
     service_name VARCHAR(150) NOT NULL,
     description TEXT,
+    category VARCHAR(100),
     price DECIMAL(10,2) NOT NULL,
     duration_mins INT NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
@@ -115,8 +116,8 @@ CREATE TABLE IF NOT EXISTS time_slot (
 CREATE TABLE IF NOT EXISTS cancellation_policy (
     policy_id INT AUTO_INCREMENT PRIMARY KEY,
     merchant_id INT NOT NULL UNIQUE,
-    min_cancel_hours INT NOT NULL DEFAULT 24,
-    refund_percentage DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    min_cancel_hours INT NOT NULL DEFAULT 6,
+    refund_percentage DECIMAL(5,2) NOT NULL DEFAULT 100.00,
     allow_reschedule BOOLEAN DEFAULT TRUE,
     is_active BOOLEAN DEFAULT TRUE,
     FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
@@ -358,6 +359,8 @@ CREATE TABLE IF NOT EXISTS merchant_review (
     staff_id INT NULL,
     rating INT NOT NULL,
     review_text TEXT NULL,
+    merchant_reply TEXT NULL,
+    merchant_replied_at DATETIME NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (booking_id) REFERENCES booking(booking_id),
     FOREIGN KEY (customer_id) REFERENCES users(user_id),
@@ -418,10 +421,11 @@ FROM `SOI-2026-0052-mizyana`.MERCHANT;
 
 -- ── service ───────────────────────────────────────────────────
 INSERT IGNORE INTO `SOI-2026-2610-0035-mizyana`.service
-    (service_id, merchant_id, service_name, description, price, duration_mins, is_active)
+    (service_id, merchant_id, service_name, description, category, price, duration_mins, is_active)
 SELECT
-    service_id, merchant_id, service_name, description, price, duration_mins, is_active
-FROM `SOI-2026-0052-mizyana`.SERVICE;
+    s.service_id, s.merchant_id, s.service_name, s.description, m.category, s.price, s.duration_mins, s.is_active
+FROM `SOI-2026-0052-mizyana`.SERVICE s
+LEFT JOIN `SOI-2026-2610-0035-mizyana`.merchant m ON m.merchant_id = s.merchant_id;
 
 -- ── time_slot ─────────────────────────────────────────────────
 -- Changed: slot_time → start_time; end_time calculated from service duration
