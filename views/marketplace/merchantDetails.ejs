@@ -4,6 +4,44 @@
   const reviewCount = Number(merchant.review_count || 0);
   const averageRating = Number(merchant.average_rating || 0);
   const starIcon = index => index <= Math.round(averageRating) ? 'bi-star-fill' : 'bi-star';
+  const operatingHoursLines = item => {
+    const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const formatTime = value => {
+      const [hourValue, minuteValue] = String(value || '').split(':').map(Number);
+      if (Number.isNaN(hourValue) || Number.isNaN(minuteValue)) return value;
+      const period = hourValue >= 12 ? 'pm' : 'am';
+      const hour = hourValue % 12 || 12;
+      return minuteValue ? `${hour}:${String(minuteValue).padStart(2, '0')}${period}` : `${hour}${period}`;
+    };
+    const slots = String(item.operating_hours || '')
+      .split(', ')
+      .map(entry => {
+        const match = entry.match(/^([A-Za-z]{3})\s+(\d{2}:\d{2})-(\d{2}:\d{2})$/);
+        return match ? { day: match[1], start: match[2], end: match[3] } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day));
+
+    if (!slots.length) return ['Operating hours not set'];
+
+    const groups = [];
+    slots.forEach(slot => {
+      const last = groups[groups.length - 1];
+      const isNextDay = last && dayOrder.indexOf(slot.day) === dayOrder.indexOf(last.endDay) + 1;
+      const isSameTime = last && slot.start === last.start && slot.end === last.end;
+
+      if (isNextDay && isSameTime) {
+        last.endDay = slot.day;
+      } else {
+        groups.push({ startDay: slot.day, endDay: slot.day, start: slot.start, end: slot.end });
+      }
+    });
+
+    return groups.map(group => {
+      const days = group.startDay === group.endDay ? group.startDay : `${group.startDay} to ${group.endDay}`;
+      return `${days}: ${formatTime(group.start)} - ${formatTime(group.end)}`;
+    });
+  };
 %>
 
 <div class="section" style="padding-top:2.5rem;padding-bottom:2rem;border-bottom:1px solid var(--border);">
@@ -42,6 +80,15 @@
     <strong>Address:</strong>
     <%= merchant.address || 'Singapore' %>
   </p>
+
+  <div style="margin-bottom:1rem;">
+    <strong>Operating Hours:</strong>
+    <div style="color:var(--muted);margin-top:.25rem;">
+      <% operatingHoursLines(merchant).forEach(line => { %>
+        <div><i class="bi bi-clock me-1"></i><%= line %></div>
+      <% }) %>
+    </div>
+  </div>
 
   <p>
     <strong>Contact:</strong>
