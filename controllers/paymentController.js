@@ -14,6 +14,7 @@ const loyaltyModel = require('../models/loyaltyModel');
 const promotionModel = require('../models/promotionModel');
 const voucherModel = require('../models/voucherModel');
 const cancellationPolicyModel = require('../models/cancellationPolicyModel');
+const whatsappNotificationService = require('../services/whatsappNotificationService');
 
 function hasGuestBookingAccess(req, bookingId) {
   // Allow guests to pay only for bookings created in their session.
@@ -257,6 +258,18 @@ async function confirmPaidBooking(bookingId) {
 
   // Confirm booking only after successful payment.
   await bookingModel.updateBookingStatus(bookingId, 'confirmed');
+
+  if (current.source === 'whatsapp') {
+    try {
+      const confirmedBooking = await bookingModel.getBookingById(bookingId);
+      const result = await whatsappNotificationService.sendBookingConfirmation(confirmedBooking);
+      if (result && result.skipped) {
+        console.warn('[whatsapp] confirmation skipped for booking %s: %s', bookingId, result.reason);
+      }
+    } catch (err) {
+      console.error('[whatsapp] confirmation failed for booking %s:', bookingId, err.message || err);
+    }
+  }
 
   try {
     await loyaltyModel.awardBookingPoints(bookingId);

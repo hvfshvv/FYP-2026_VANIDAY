@@ -223,6 +223,112 @@ async function getRecentValidationErrors(limit = 8) {
   return rows;
 }
 
+async function getValidationLogs({ module = 'all', status = 'all', search = '' } = {}) {
+  const filters = [];
+  const params = [];
+
+  if (module && module !== 'all') {
+    filters.push('vl.module = ?');
+    params.push(module);
+  }
+
+  if (status === 'open') {
+    filters.push('vl.is_resolved = FALSE');
+  } else if (status === 'resolved') {
+    filters.push('vl.is_resolved = TRUE');
+  }
+
+  const safeSearch = String(search || '').trim();
+  if (safeSearch) {
+    filters.push('(vl.module LIKE ? OR vl.error_type LIKE ? OR vl.error_message LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?)');
+    const like = '%' + safeSearch + '%';
+    params.push(like, like, like, like, like);
+  }
+
+  const where = filters.length ? 'WHERE ' + filters.join(' AND ') : '';
+
+  const [rows] = await db.query(
+    `SELECT
+       vl.log_id,
+       vl.user_id,
+       vl.booking_id,
+       vl.module,
+       vl.error_type,
+       vl.error_message,
+       vl.is_resolved,
+       vl.created_at,
+       u.full_name AS customer_name,
+       u.email AS customer_email,
+       u.phone AS customer_phone
+     FROM validation_log vl
+     LEFT JOIN users u ON u.user_id = vl.user_id
+     ${where}
+     ORDER BY vl.created_at DESC
+     LIMIT 200`,
+    params
+  );
+
+  return rows;
+}
+
+async function getValidationLogSummary() {
+  const [rows] = await db.query(
+    `SELECT
+       COUNT(*) AS total_logs,
+       SUM(CASE WHEN is_resolved = FALSE THEN 1 ELSE 0 END) AS open_logs,
+       SUM(CASE WHEN is_resolved = TRUE THEN 1 ELSE 0 END) AS resolved_logs,
+       SUM(CASE WHEN module = 'whatsapp_support' AND is_resolved = FALSE THEN 1 ELSE 0 END) AS open_whatsapp_support
+     FROM validation_log`
+  );
+
+  return rows[0] || {};
+}
+
+async function markValidationLogResolved(logId) {
+  const [result] = await db.query(
+    'UPDATE validation_log SET is_resolved = TRUE WHERE log_id = ?',
+    [logId]
+  );
+
+  return result.affectedRows;
+}
+
+async function getValidationLogById(logId) {
+  const [rows] = await db.query(
+    `SELECT
+       vl.*,
+       u.full_name AS customer_name,
+       u.email AS customer_email,
+       u.phone AS customer_phone
+     FROM validation_log vl
+     LEFT JOIN users u ON u.user_id = vl.user_id
+     WHERE vl.log_id = ?
+     LIMIT 1`,
+    [logId]
+  );
+
+  return rows[0] || null;
+}
+
+async function appendValidationLogReply(logId, reply, adminName) {
+  const replyBlock = [
+    '',
+    'Admin reply by ' + (adminName || 'Uniday Support') + ':',
+    String(reply || '').trim(),
+    'Reply sent at: ' + new Date().toISOString()
+  ].join('\n');
+
+  const [result] = await db.query(
+    `UPDATE validation_log
+     SET error_message = CONCAT(error_message, ?),
+         is_resolved = TRUE
+     WHERE log_id = ?`,
+    [replyBlock, logId]
+  );
+
+  return result.affectedRows;
+}
+
 async function getPendingMerchantApplications() {
   const [rows] = await db.query(
     `SELECT
@@ -1423,6 +1529,11 @@ module.exports = {
   getRecentBookings,
   getRecentPayments,
   getRecentValidationErrors,
+  getValidationLogs,
+  getValidationLogSummary,
+  markValidationLogResolved,
+  getValidationLogById,
+  appendValidationLogReply,
   getMerchantAnalytics,
   addMerchantToFeatured,
   getFeaturedMerchantListings,

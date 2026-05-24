@@ -169,12 +169,32 @@
               <%= service.duration_mins %> mins
             </p>
 
-            <a
-              class="btn btn-primary"
-              href="/book?merchantId=<%= merchant.merchant_id %>&serviceId=<%= service.service_id %>"
-            >
-              Book now
-            </a>
+            <div class="d-flex flex-wrap gap-2 mt-auto">
+              <a
+                class="btn btn-primary"
+                href="/book?merchantId=<%= merchant.merchant_id %>&serviceId=<%= service.service_id %>"
+              >
+                Book now
+              </a>
+
+              <% if (whatsappBookingNumber) { %>
+                <%
+                  const whatsappMessage = [
+                    'Hi, I want to book ' + service.service_name + ' at ' + merchant.merchant_name + '.',
+                    'Ref: M' + merchant.merchant_id + '-S' + service.service_id
+                  ].join(' ');
+                %>
+                <a
+                  class="btn btn-outline-success"
+                  href="https://wa.me/<%= whatsappBookingNumber %>?text=<%= encodeURIComponent(whatsappMessage) %>"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Book <%= service.service_name %> via WhatsApp"
+                >
+                  <i class="bi bi-whatsapp me-1"></i>WhatsApp
+                </a>
+              <% } %>
+            </div>
 
           </div>
 

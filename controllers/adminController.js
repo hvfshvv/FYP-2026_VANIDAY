@@ -1,6 +1,7 @@
 const adminModel = require('../models/adminModel');
 const voucherModel = require('../models/voucherModel');
 const promotionModel = require('../models/promotionModel');
+const whatsappNotificationService = require('../services/whatsappNotificationService');
 const { wantsJson } = require('../middleware/auth');
 
 const CUSTOMER_DISABLE_REASONS = [
@@ -72,6 +73,87 @@ function showComingSoon(req, res) {
     title: pageTitle,
     pageTitle,
   });
+}
+
+async function showValidationLogs(req, res) {
+  const filters = {
+    module: req.query.module || 'all',
+    status: req.query.status || 'all',
+    search: req.query.search || '',
+  };
+
+  try {
+    const [logs, summary] = await Promise.all([
+      adminModel.getValidationLogs(filters),
+      adminModel.getValidationLogSummary(),
+    ]);
+
+    res.render('admin/validationLogs', {
+      title: 'Validation & Support Logs',
+      logs,
+      summary,
+      filters,
+      query: req.query,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/validationLogs', {
+      title: 'Validation & Support Logs',
+      logs: [],
+      summary: {},
+      filters,
+      query: req.query,
+      error: 'Failed to load validation logs.',
+    });
+  }
+}
+
+async function resolveValidationLog(req, res) {
+  try {
+    await adminModel.markValidationLogResolved(req.params.logId);
+    res.redirect('/admin/validation?resolved=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/validation?error=resolve');
+  }
+}
+
+function extractSupportPhone(log) {
+  if (log.customer_phone) {
+    return log.customer_phone;
+  }
+
+  const match = String(log.error_message || '').match(/^Phone:\s*(.+)$/m);
+  return match ? match[1].trim() : null;
+}
+
+async function replyToWhatsAppSupport(req, res) {
+  const reply = String(req.body.reply || '').trim();
+
+  try {
+    if (!reply) {
+      return res.redirect('/admin/validation?error=reply');
+    }
+
+    const log = await adminModel.getValidationLogById(req.params.logId);
+
+    if (!log || log.module !== 'whatsapp_support') {
+      return res.redirect('/admin/validation?error=notfound');
+    }
+
+    const phone = extractSupportPhone(log);
+    await whatsappNotificationService.sendSupportReply(phone, reply);
+    await adminModel.appendValidationLogReply(
+      req.params.logId,
+      reply,
+      req.session.user && req.session.user.full_name
+    );
+
+    res.redirect('/admin/validation?replySent=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/validation?error=replySend');
+  }
 }
 
 async function showMerchants(req, res) {
@@ -739,6 +821,9 @@ async function toggleCampaign(req, res) {
 module.exports = {
   showDashboard,
   showComingSoon,
+  showValidationLogs,
+  resolveValidationLog,
+  replyToWhatsAppSupport,
   showMerchants,
   showCustomers,
   showRevenueReport,

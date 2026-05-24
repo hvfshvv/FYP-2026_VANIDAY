@@ -6,6 +6,12 @@ const reviewModel = require('../models/reviewModel');
 const cancellationPolicyModel = require('../models/cancellationPolicyModel');
 const { SERVICE_CATEGORIES, normalizeServiceCategory } = require('../utils/serviceCategories');
 
+function getWhatsAppBookingNumber() {
+  return String(process.env.TWILIO_WHATSAPP_NUMBER || '')
+    .replace('whatsapp:', '')
+    .replace(/\D/g, '');
+}
+
 function getSelectedCategory(req) {
   return normalizeServiceCategory(req.query.category);
 }
@@ -139,7 +145,8 @@ async function showMerchantDetails(req, res) {
       cancellationPolicySummary: cancellationPolicyModel.getPolicySummary(cancellationPolicy),
       serviceCategories,
       selectedServiceCategory,
-      favouriteServiceIds
+      favouriteServiceIds,
+      whatsappBookingNumber: getWhatsAppBookingNumber()
     });
 
   } catch (err) {
