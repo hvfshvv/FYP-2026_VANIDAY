@@ -42,6 +42,22 @@ async function getFeaturedListings(category = null) {
        ) AS service_categories,
        COALESCE(AVG(r.rating), 0) AS average_rating,
        COUNT(DISTINCT r.review_id) AS review_count,
+       (
+         SELECT GROUP_CONCAT(
+           CONCAT(
+             LEFT(ma.day_of_week, 3),
+             ' ',
+             TIME_FORMAT(ma.start_time, '%H:%i'),
+             '-',
+             TIME_FORMAT(ma.end_time, '%H:%i')
+           )
+           ORDER BY FIELD(ma.day_of_week, 'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')
+           SEPARATOR ', '
+         )
+         FROM merchant_availability ma
+         WHERE ma.merchant_id = m.merchant_id
+           AND ma.is_active = 1
+       ) AS operating_hours,
        p.title AS promo_title,
        p.discount_pct
      FROM featured_listing fl
