@@ -13,6 +13,7 @@ const marketplaceRoutes = require('./routes/marketplace');
 const whatsappRoutes    = require('./routes/whatsapp');
 const favouriteRoutes   = require('./routes/favourite');
 const loyaltyRoutes     = require('./routes/loyalty');
+const reminderService   = require('./services/reminderService');
 
 const app = express();
 
@@ -56,5 +57,28 @@ app.use((req, res) => {
   res.status(404).render('404', { title: 'Page Not Found' });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Uniday running on http://localhost:${PORT}`));
+const DEFAULT_PORT = Number(process.env.PORT) || 3000;
+const MAX_PORT_ATTEMPTS = process.env.PORT ? 1 : 10;
+
+function startServer(port, attemptsLeft = MAX_PORT_ATTEMPTS) {
+  const server = app.listen(port, () => {
+    console.log(`Uniday running on http://localhost:${port}`);
+  });
+
+  server.on('error', (err) => {
+    const canRetry = err.code === 'EADDRINUSE' && attemptsLeft > 1;
+
+    if (!canRetry) {
+      console.error(err);
+      process.exit(1);
+    }
+
+    const nextPort = port + 1;
+    console.warn(`Port ${port} is already in use. Trying http://localhost:${nextPort}`);
+    startServer(nextPort, attemptsLeft - 1);
+  });
+}
+
+startServer(DEFAULT_PORT);
+
+reminderService.startReminderScheduler();

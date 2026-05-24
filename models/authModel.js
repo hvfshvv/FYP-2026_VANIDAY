@@ -79,6 +79,67 @@ function hashResetToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+async function createEmailVerificationToken(userId) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashToken(token);
+
+  await db.query(
+    `INSERT INTO email_verification_token (user_id, token_hash, expires_at)
+     VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))`,
+    [userId, tokenHash]
+  );
+
+  return token;
+}
+
+async function verifyEmailToken(token) {
+  const tokenHash = hashToken(token);
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[verificationToken]] = await connection.query(
+      `SELECT evt.*, u.email, u.full_name
+       FROM email_verification_token evt
+       JOIN users u ON u.user_id = evt.user_id
+       WHERE evt.token_hash = ?
+         AND evt.used_at IS NULL
+         AND evt.expires_at > NOW()
+       LIMIT 1
+       FOR UPDATE`,
+      [tokenHash]
+    );
+
+    if (!verificationToken) {
+      await connection.rollback();
+      return null;
+    }
+
+    await connection.query(
+      'UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()) WHERE user_id = ?',
+      [verificationToken.user_id]
+    );
+
+    await connection.query(
+      'UPDATE email_verification_token SET used_at = NOW() WHERE verification_id = ?',
+      [verificationToken.verification_id]
+    );
+
+    await connection.commit();
+    return verificationToken;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 async function createPasswordResetToken(userId) {
   const token = crypto.randomBytes(32).toString('hex');
   const tokenHash = hashResetToken(token);
@@ -147,6 +208,8 @@ module.exports = {
   getCustomerByUserId,
   ensureCustomerProfile,
   getMerchantByUserId,
+  createEmailVerificationToken,
+  verifyEmailToken,
   createPasswordResetToken,
   getValidPasswordResetToken,
   resetUserPassword,

@@ -4,6 +4,7 @@ const merchantModel = require('../models/merchantModel');
 const authModel     = require('../models/authModel');
 const bookingModel  = require('../models/bookingModel');
 const staffModel = require('../models/staffModel');
+const emailService = require('../services/emailService');
 
 // Power Automate webhook URL: paste your webhook URL here or set POWER_AUTOMATE_WEBHOOK_URL in .env
 const POWER_AUTOMATE_WEBHOOK_URL = process.env.POWER_AUTOMATE_WEBHOOK_URL || 'PASTE_YOUR_POWER_AUTOMATE_WEBHOOK_URL_HERE';
@@ -81,6 +82,52 @@ function rememberGuestBooking(req, bookingId) {
   const safeBookingId = String(bookingId);
   if (!req.session.guestBookingIds.includes(safeBookingId)) {
     req.session.guestBookingIds.push(safeBookingId);
+  }
+}
+
+function bookingRecipients(booking) {
+  return [
+    {
+      kind: 'customer',
+      email: booking.customer_email,
+      name: booking.customer_name,
+    },
+    {
+      kind: 'merchant',
+      email: booking.merchant_email,
+      name: booking.merchant_name,
+    },
+  ].filter(recipient => recipient.email);
+}
+
+async function recordLifecycleEmail(booking, notificationType, recipient, result) {
+  await bookingModel.recordEmailNotification(
+    booking,
+    notificationType,
+    `${notificationType} email to ${recipient.kind} (${recipient.email}) for booking #${booking.booking_id}`,
+    result.sent ? 'sent' : 'failed'
+  );
+}
+
+async function sendCancellationEmails(booking) {
+  for (const recipient of bookingRecipients(booking)) {
+    try {
+      const result = await emailService.sendBookingCancellationEmail(booking, recipient);
+      await recordLifecycleEmail(booking, 'cancellation', recipient, result);
+    } catch (err) {
+      console.error('booking cancellation email failed:', err);
+    }
+  }
+}
+
+async function sendRescheduleEmails(booking, previousBooking) {
+  for (const recipient of bookingRecipients(booking)) {
+    try {
+      const result = await emailService.sendBookingRescheduledEmail(booking, previousBooking, recipient);
+      await recordLifecycleEmail(booking, 'reschedule', recipient, result);
+    } catch (err) {
+      console.error('booking reschedule email failed:', err);
+    }
   }
 }
 
@@ -218,6 +265,8 @@ async function viewCustomerBookings(req, res) {
 async function cancelCustomerBooking(req, res) {
   try {
     await bookingModel.cancelCustomerBooking(req.params.bookingId, req.session.user.customer_id);
+    const booking = await bookingModel.getBookingById(req.params.bookingId);
+    if (booking) await sendCancellationEmails(booking);
     res.redirect('/book/viewBookings?success=Booking cancelled successfully.');
   } catch (err) {
     console.error(err);
@@ -248,12 +297,15 @@ async function rescheduleCustomerBooking(req, res) {
   const { booking_date, booking_time } = req.body;
 
   try {
+    const previousBooking = await bookingModel.getBookingById(req.params.bookingId);
     await bookingModel.rescheduleCustomerBooking(
       req.params.bookingId,
       req.session.user.customer_id,
       booking_date,
       booking_time
     );
+    const booking = await bookingModel.getBookingById(req.params.bookingId);
+    if (booking && previousBooking) await sendRescheduleEmails(booking, previousBooking);
     res.redirect('/book/viewBookings?success=Booking rescheduled successfully.');
   } catch (err) {
     console.error(err);

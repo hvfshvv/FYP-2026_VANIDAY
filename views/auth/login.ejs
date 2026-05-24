@@ -13,7 +13,17 @@
         <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:2rem;">
           <% if (typeof query !== 'undefined' && query && query.registered) { %>
           <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-            <i class="bi bi-check-circle me-2"></i>Account created! Please sign in.
+            <i class="bi bi-check-circle me-2"></i>
+            <% if (query.verify) { %>
+              Account created. Please verify your email before signing in.
+            <% } else { %>
+              Account created! Please sign in.
+            <% } %>
+          </div>
+          <% } %>
+          <% if (typeof query !== 'undefined' && query && query.verified) { %>
+          <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+            <i class="bi bi-check-circle me-2"></i>Email verified. You can sign in now.
           </div>
           <% } %>
           <% if (typeof query !== 'undefined' && query && query.reason === 'member_email') { %>
@@ -26,6 +36,11 @@
             <i class="bi bi-exclamation-circle me-2"></i><%= error %>
           </div>
           <% } %>
+          <% if (typeof verificationLink !== 'undefined' && verificationLink) { %>
+          <a href="<%= verificationLink %>" class="btn btn-outline-secondary w-100 btn-pill mb-3" style="font-weight:700;">
+            <i class="bi bi-envelope-check me-2"></i>Open Verification Link
+          </a>
+          <% } %>
 
           <form action="/auth/login<%= typeof query !== 'undefined' && query && query.next ? ('?next=' + encodeURIComponent(query.next)) : '' %>" method="POST">
             <div class="mb-3">
@@ -33,14 +48,14 @@
               <input type="email" name="email" class="form-control rounded-xl" placeholder="you@example.com" required autofocus />
             </div>
             <div class="mb-4">
-              <div class="d-flex justify-content-between align-items-center gap-2">
-                <label class="form-label" style="font-weight:600;font-size:.875rem;">Password</label>
-                <a href="/auth/forgot-password" style="font-weight:700;color:var(--accent);font-size:.8125rem;">Forgot password?</a>
-              </div>
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Password</label>
               <input type="password" name="password" class="form-control rounded-xl" placeholder="••••••••" required />
             </div>
             <button type="submit" class="btn btn-primary w-100 py-2 btn-pill" style="font-weight:700;">
               <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+            </button>
+            <button type="submit" formaction="/auth/reset-password" formmethod="POST" formnovalidate class="btn btn-outline-secondary w-100 py-2 btn-pill mt-3" style="font-weight:700;">
+              <i class="bi bi-key me-2"></i>Reset Password
             </button>
           </form>
 

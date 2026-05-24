@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const authModel = require('../models/authModel');
 const qrService = require('../services/qrService');
+const emailService = require('../services/emailService');
 
 const ALLOWED_ROLES = ['customer', 'merchant'];
 
@@ -21,6 +22,66 @@ function safeNext(next) {
     : null;
 }
 
+function getBaseUrl(req) {
+  return (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+}
+
+async function sendVerificationEmail(req, user) {
+  const token = await authModel.createEmailVerificationToken(user.user_id);
+  const verificationUrl = `${getBaseUrl(req)}/auth/verify-email/${token}`;
+
+  try {
+    const result = await emailService.sendEmailVerificationEmail(user, verificationUrl);
+    return {
+      ...result,
+      verificationUrl,
+    };
+  } catch (err) {
+    console.error('email verification send failed:', err);
+    console.log(`Email verification link for ${user.email}: ${verificationUrl}`);
+    return { sent: false, verificationUrl };
+  }
+}
+
+async function buildSessionUser(user) {
+  const sessionUser = {
+    user_id: user.user_id,
+    full_name: user.full_name,
+    email: user.email,
+    phone: user.phone || '',
+    role: user.role
+  };
+
+  if (user.role === 'customer') {
+    const customer = await authModel.getCustomerByUserId(user.user_id);
+    sessionUser.customer_id = customer ? customer.customer_id : null;
+  }
+
+  if (user.role === 'merchant') {
+    const merchant = await authModel.getMerchantByUserId(user.user_id);
+    sessionUser.merchant_id = merchant ? merchant.merchant_id : null;
+    sessionUser.verification_status = merchant ? merchant.verification_status : 'pending';
+  }
+
+  return sessionUser;
+}
+
+function finishLogin(req, res, user, next) {
+  req.session.user = user;
+
+  if (user.role === 'merchant') {
+    if (user.verification_status === 'pending') return res.redirect('/auth/merchant-pending');
+    if (user.verification_status === 'rejected') return res.redirect('/auth/merchant-rejected');
+    return res.redirect('/merchant/dashboard');
+  }
+
+  if (user.role === 'admin') {
+    return res.redirect('/admin/dashboard');
+  }
+
+  res.redirect(next ? next : '/');
+}
+
 function showLogin(req, res) {
   const next = safeNext(req.query.next);
   if (req.session.user) {
@@ -31,7 +92,8 @@ function showLogin(req, res) {
   res.render('auth/login', {
     title: 'Login',
     error: null,
-    query: req.query
+    query: req.query,
+    verificationLink: null
   });
 }
 
@@ -69,6 +131,7 @@ function showMerchantRegister(req, res) {
 
 async function login(req, res) {
   const { email, password } = req.body;
+  const next = safeNext(req.query.next || req.body.next);
 
   try {
     const user = await authModel.findUserByEmail(email);
@@ -77,7 +140,8 @@ async function login(req, res) {
       return res.render('auth/login', {
         title: 'Login',
         error: 'Invalid email or password.',
-        query: req.query
+        query: req.query,
+        verificationLink: null
       });
     }
 
@@ -85,59 +149,26 @@ async function login(req, res) {
       return res.render('auth/login', {
         title: 'Login',
         error: 'This account has been disabled. Please contact support.',
-        query: req.query
+        query: req.query,
+        verificationLink: null
       });
     }
 
-    req.session.user = {
-      user_id: user.user_id,
-      full_name: user.full_name,
-      email: user.email,
-      phone: user.phone || '',
-      role: user.role
-    };
+    if (!user.email_verified_at) {
+      const verificationResult = await sendVerificationEmail(req, user);
 
-    if (user.role === 'customer') {
-      const customer = await authModel.getCustomerByUserId(user.user_id);
-
-      req.session.user.customer_id = customer
-        ? customer.customer_id
-        : null;
+      return res.render('auth/login', {
+        title: 'Login',
+        error: verificationResult.sent
+          ? 'Please verify your email before signing in. A new verification link has been sent.'
+          : 'Please verify your email before signing in. Email is not configured, so use the local verification link below.',
+        query: req.query,
+        verificationLink: verificationResult.sent ? null : verificationResult.verificationUrl
+      });
     }
 
-    if (user.role === 'merchant') {
-      const merchant = await authModel.getMerchantByUserId(user.user_id);
-
-      req.session.user.merchant_id = merchant
-        ? merchant.merchant_id
-        : null;
-
-      req.session.user.verification_status = merchant
-        ? merchant.verification_status
-        : 'pending';
-
-      if (!merchant || merchant.verification_status === 'pending') {
-        return res.redirect('/auth/merchant-pending');
-      }
-
-      if (merchant.verification_status === 'rejected') {
-        return res.redirect('/auth/merchant-rejected');
-      }
-
-      return res.redirect('/merchant/dashboard');
-    }
-
-    if (user.role === 'admin') {
-      return res.redirect('/admin/dashboard');
-    }
-
-    const next = safeNext(req.query.next);
-
-    res.redirect(
-      next
-        ? next
-        : '/'
-    );
+    const sessionUser = await buildSessionUser(user);
+    finishLogin(req, res, sessionUser, next);
 
   } catch (err) {
     console.error(err);
@@ -145,7 +176,8 @@ async function login(req, res) {
     res.render('auth/login', {
       title: 'Login',
       error: 'Something went wrong. Please try again.',
-      query: req.query
+      query: req.query,
+      verificationLink: null
     });
   }
 }
@@ -219,6 +251,12 @@ async function register(req, res) {
       safeRole
     );
 
+    const newUser = {
+      user_id: userId,
+      full_name,
+      email,
+    };
+
     if (safeRole === 'customer') {
       await authModel.createCustomerProfile(
         userId,
@@ -264,11 +302,13 @@ async function register(req, res) {
       await qrService.ensureMerchantQRCodes(merchantId);
     }
 
+    await sendVerificationEmail(req, newUser);
+
     if (safeRole === 'merchant') {
-      return res.redirect('/auth/merchant-pending?submitted=1');
+      return res.redirect('/auth/login?registered=1&verify=1');
     }
 
-    res.redirect(`/auth/login?registered=1${next ? '&next=' + encodeURIComponent(next) : ''}`);
+    res.redirect(`/auth/login?registered=1&verify=1${next ? '&next=' + encodeURIComponent(next) : ''}`);
 
   } catch (err) {
     console.error(err);
@@ -287,8 +327,34 @@ function showForgotPassword(req, res) {
     title: 'Forgot Password',
     error: null,
     resetLink: null,
+    resetEmailSent: false,
     submitted: false,
   });
+}
+
+async function verifyEmail(req, res) {
+  try {
+    const verified = await authModel.verifyEmailToken(req.params.token);
+
+    if (!verified) {
+      return res.render('auth/login', {
+        title: 'Login',
+        error: 'This verification link is invalid or expired.',
+        query: req.query,
+        verificationLink: null
+      });
+    }
+
+    res.redirect('/auth/login?verified=1');
+  } catch (err) {
+    console.error(err);
+    res.render('auth/login', {
+      title: 'Login',
+      error: 'Could not verify your email. Please try again.',
+      query: req.query,
+      verificationLink: null
+    });
+  }
 }
 
 async function requestPasswordReset(req, res) {
@@ -296,18 +362,17 @@ async function requestPasswordReset(req, res) {
 
   try {
     const user = email ? await authModel.findUserByEmail(email) : null;
-    let resetLink = null;
 
     if (user) {
       const token = await authModel.createPasswordResetToken(user.user_id);
-      resetLink = `/auth/reset-password/${token}`;
-      console.log(`Password reset link for ${email}: ${req.protocol}://${req.get('host')}${resetLink}`);
+      return res.redirect(`/auth/reset-password/${token}`);
     }
 
     res.render('auth/forgotPassword', {
       title: 'Forgot Password',
       error: null,
-      resetLink,
+      resetLink: null,
+      resetEmailSent: false,
       submitted: true,
     });
   } catch (err) {
@@ -316,7 +381,36 @@ async function requestPasswordReset(req, res) {
       title: 'Forgot Password',
       error: 'Could not create a reset link. Please try again.',
       resetLink: null,
+      resetEmailSent: false,
       submitted: false,
+    });
+  }
+}
+
+async function startPasswordResetFromLogin(req, res) {
+  const email = String(req.body.email || '').trim().toLowerCase();
+
+  try {
+    const user = email ? await authModel.findUserByEmail(email) : null;
+
+    if (!user) {
+      return res.render('auth/login', {
+        title: 'Login',
+        error: 'Enter a registered email address to reset your password.',
+        query: req.query,
+        verificationLink: null
+      });
+    }
+
+    const token = await authModel.createPasswordResetToken(user.user_id);
+    res.redirect(`/auth/reset-password/${token}`);
+  } catch (err) {
+    console.error(err);
+    res.render('auth/login', {
+      title: 'Login',
+      error: 'Could not start password reset. Please try again.',
+      query: req.query,
+      verificationLink: null
     });
   }
 }
@@ -419,6 +513,8 @@ module.exports = {
   showMerchantRegister,
   showForgotPassword,
   requestPasswordReset,
+  startPasswordResetFromLogin,
+  verifyEmail,
   showResetPassword,
   resetPassword,
   showMerchantPending,

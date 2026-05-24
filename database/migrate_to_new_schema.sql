@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS booking (
     original_booking_id INT NULL,
     booking_type ENUM('advance', 'walk_in') DEFAULT 'advance',
     source ENUM('web', 'qr', 'whatsapp') DEFAULT 'web',
-    status ENUM('pending_payment', 'confirmed', 'arrived', 'completed', 'cancelled', 'no_show') DEFAULT 'pending_payment',
+    status ENUM('pending_payment', 'confirmed', 'rescheduled', 'arrived', 'completed', 'cancelled', 'payment_failed', 'no_show') DEFAULT 'pending_payment',
     checked_in_at DATETIME NULL,
     arrival_method ENUM('qr', 'manual', 'whatsapp') NULL,
     notes TEXT NULL,

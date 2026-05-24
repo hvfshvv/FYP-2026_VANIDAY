@@ -11,6 +11,7 @@ const { buildReceiptPdf } = require('../services/receiptPdfService');
 const bookingModel = require('../models/bookingModel');
 const paymentModel = require('../models/paymentModel');
 const loyaltyModel = require('../models/loyaltyModel');
+const emailService = require('../services/emailService');
 
 function hasGuestBookingAccess(req, bookingId) {
   // Allow guests to pay only for bookings created in their session.
@@ -74,6 +75,27 @@ async function confirmPaidBooking(bookingId) {
     await loyaltyModel.awardBookingPoints(bookingId);
   } catch (err) {
     console.error('loyalty award failed:', err);
+  }
+
+  try {
+    const booking = await bookingModel.getBookingById(bookingId);
+    if (!booking || !booking.customer_email) return;
+
+    const alreadySent = await bookingModel.hasSentEmailNotification(bookingId, 'confirmation');
+    if (alreadySent) return;
+
+    const baseUrl = (process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+    const receiptUrl = `${baseUrl}/payment/receipt/${bookingId}.pdf`;
+    const result = await emailService.sendBookingConfirmationEmail(booking, receiptUrl);
+
+    await bookingModel.recordEmailNotification(
+      booking,
+      'confirmation',
+      `Booking confirmation email for booking #${bookingId}`,
+      result.sent ? 'sent' : 'failed'
+    );
+  } catch (err) {
+    console.error('booking confirmation email failed:', err);
   }
 }
 
