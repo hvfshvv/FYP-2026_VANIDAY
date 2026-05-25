@@ -37,6 +37,7 @@ async function getVoucherCampaigns() {
         WHERE cv.voucher_id = v.voucher_id AND cv.status = 'used') AS use_count
      FROM voucher v
      LEFT JOIN merchant m ON v.merchant_id = m.merchant_id
+     WHERE v.voucher_code NOT LIKE 'LOYALTY\\_%'
      ORDER BY v.start_date DESC, v.voucher_id DESC`
   );
 
@@ -105,7 +106,8 @@ async function getVoucherStatusSummary() {
        SUM(CASE WHEN is_active = 1 AND start_date > CURDATE() THEN 1 ELSE 0 END) AS upcoming_count,
        SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) AS paused_count,
        SUM(CASE WHEN end_date < CURDATE() THEN 1 ELSE 0 END) AS expired_count
-     FROM voucher`
+     FROM voucher
+     WHERE voucher_code NOT LIKE 'LOYALTY\\_%'`
   );
 
   return rows[0] || {

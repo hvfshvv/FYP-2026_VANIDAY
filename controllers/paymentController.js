@@ -251,16 +251,18 @@ async function getAuthorizedBooking(req, res, bookingId, { json = false } = {}) 
 async function confirmPaidBooking(bookingId) {
   await bookingModel.expirePendingPaymentBookings();
   const current = await bookingModel.getBookingById(bookingId);
-  if (!current || current.status === 'confirmed') return;
-  if (current.status !== 'pending_payment') {
+  if (!current) return;
+  if (!['pending_payment', 'confirmed'].includes(current.status)) {
     console.warn('[payment] Refusing to confirm expired/non-payable booking %s with status %s', bookingId, current.status);
     return;
   }
 
-  // Confirm booking only after successful payment.
-  await bookingModel.updateBookingStatus(bookingId, 'confirmed');
+  if (current.status === 'pending_payment') {
+    // Confirm booking only after successful payment.
+    await bookingModel.updateBookingStatus(bookingId, 'confirmed');
+  }
 
-  if (current.source === 'whatsapp') {
+  if (current.status === 'pending_payment' && current.source === 'whatsapp') {
     try {
       const confirmedBooking = await bookingModel.getBookingById(bookingId);
       const result = await whatsappNotificationService.sendBookingConfirmation(confirmedBooking);
@@ -677,6 +679,15 @@ async function paymentSuccess(req, res) {
     if (!existing || existing.payment_status !== 'paid') {
       return res.redirect(`/payment/checkout/${booking_id}`);
     }
+
+    if (booking && booking.customer_id) {
+      try {
+        await loyaltyModel.awardBookingPoints(booking_id);
+      } catch (err) {
+        console.error('loyalty award on success page failed:', err);
+      }
+    }
+
     const loyaltyEarned = booking && booking.customer_id
       ? await loyaltyModel.getEarnedPointsForBooking(booking_id).catch(() => 0)
       : 0;

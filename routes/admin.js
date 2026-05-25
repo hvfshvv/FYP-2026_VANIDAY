@@ -41,7 +41,15 @@ router.post('/promotions/:promoId/reject', adminController.rejectPromotion);
 
 // Campaign and voucher management.
 router.get('/campaigns', adminController.showCampaigns);
+router.get('/campaigns/vouchers', adminController.showVoucherCampaigns);
+router.post('/campaigns/vouchers/create', adminController.createCampaign);
 router.post('/campaigns/create', adminController.createCampaign);
+router.post('/campaigns/vouchers/:voucherId/toggle', adminController.toggleCampaign);
 router.post('/campaigns/:voucherId/toggle', adminController.toggleCampaign);
+router.get('/campaigns/loyalty', adminController.showLoyaltyRewards);
+router.post('/campaigns/loyalty/create', adminController.createLoyaltyReward);
+router.get('/campaigns/loyalty/:rewardId/edit', adminController.showEditLoyaltyReward);
+router.post('/campaigns/loyalty/:rewardId/edit', adminController.updateLoyaltyReward);
+router.post('/campaigns/loyalty/:rewardId/toggle', adminController.toggleLoyaltyReward);
 
 module.exports = router;
