@@ -18,6 +18,7 @@
   const grossRevenue = Number(a.financial?.gross_revenue || 0);
   const refundedAmount = Number(a.financial?.refunded_amount || 0);
   const profitMargin = grossRevenue ? ((grossRevenue - refundedAmount) / grossRevenue) * 100 : 0;
+  const chartColors = ['#E11D48', '#FB7185', '#F59E0B', '#10B981', '#0EA5E9', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#64748B'];
 %>
 
 <style>
@@ -108,35 +109,75 @@
     color:var(--ink);
     border-color:rgba(225,29,72,.35);
   }
-  .chart-column-wrap {
-    display:flex;
-    align-items:end;
-    gap:.45rem;
-    min-height:170px;
-    padding-top:.5rem;
-  }
-  .chart-column {
-    flex:1;
-    min-width:22px;
+  .round-chart-wrap {
     display:flex;
     flex-direction:column;
     align-items:center;
-    justify-content:flex-end;
-    gap:.45rem;
+    gap:1.25rem;
+    padding:.75rem 0 .25rem;
   }
-  .chart-column span {
-    width:100%;
-    min-height:8px;
-    border-radius:.45rem .45rem 0 0;
-    background:linear-gradient(180deg, var(--accent), #FB7185);
+  .round-chart {
+    width:min(280px, 72vw);
+    aspect-ratio:1;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    box-shadow:inset 0 0 0 1px var(--border);
   }
-  .chart-column small {
+  .round-chart-center {
+    width:48%;
+    aspect-ratio:1;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    text-align:center;
+    background:var(--surface);
+    border:1px solid var(--border);
+    box-shadow:var(--shadow);
+    padding:.75rem;
+  }
+  .round-chart-center strong {
+    display:block;
+    color:var(--ink);
+    font-family:var(--font-mono);
+    font-size:1rem;
+    line-height:1.15;
+  }
+  .round-chart-center small {
+    display:block;
+    margin-top:.25rem;
     color:var(--muted);
-    font-size:.68rem;
+    font-size:.72rem;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  .round-chart-legend {
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
+    gap:.55rem .85rem;
+  }
+  .round-chart-legend span {
+    display:inline-flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.5rem;
+    color:var(--muted);
+    font-size:.78rem;
     font-weight:700;
-    writing-mode:vertical-rl;
-    transform:rotate(180deg);
-    max-height:48px;
+  }
+  .round-chart-legend i {
+    width:.7rem;
+    height:.7rem;
+    border-radius:50%;
+    flex:0 0 auto;
+  }
+  .round-chart-legend b {
+    color:var(--ink);
+    font-family:var(--font-mono);
+    font-weight:700;
+    margin-left:auto;
   }
   .status-pill {
     display:inline-flex;
@@ -180,29 +221,6 @@
     font-family:var(--font-mono);
     font-size:.78rem;
     font-weight:800;
-  }
-  .heat-grid {
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(92px, 1fr));
-    gap:.6rem;
-  }
-  .heat-cell {
-    border:1px solid var(--border);
-    border-radius:var(--r);
-    background:rgba(225,29,72,var(--heat));
-    padding:.75rem;
-    min-height:74px;
-  }
-  .heat-cell p {
-    color:var(--ink);
-    font-weight:800;
-    margin:0 0 .2rem;
-    font-size:.78rem;
-  }
-  .heat-cell small {
-    color:var(--muted);
-    font-family:var(--font-mono);
-    font-weight:700;
   }
   .mini-kpi-strip {
     display:grid;
@@ -332,27 +350,40 @@
         <div class="col-lg-7">
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Daily Revenue Trend</h6>
-            <% const revenueMax = maxOf(a.revenueTrend || [], 'total'); %>
-            <div class="chart-column-wrap mb-3">
-              <% (a.revenueTrend || []).slice(-14).forEach(row => { %>
-                <div class="chart-column" title="<%= dateLabel(row.period_label) %>: <%= money(row.total) %>">
-                  <span style="height:<%= barWidth(row.total, revenueMax) %>%;"></span>
-                  <small><%= dateLabel(row.period_label) %></small>
-                </div>
-              <% }) %>
-            </div>
-            <div class="metric-list">
-              <% (a.revenueTrend || []).forEach(row => { %>
-                <div>
-                  <div class="metric-row mb-1">
-                    <p><%= dateLabel(row.period_label) %></p>
-                    <small><%= money(row.total) %></small>
+            <%
+              const revenueRows = (a.revenueTrend || []).filter(row => Number(row.total || 0) > 0);
+              const revenueTotal = revenueRows.reduce((sum, row) => sum + Number(row.total || 0), 0);
+              let revenueCursor = 0;
+              const revenueGradient = revenueRows.map((row, index) => {
+                const start = revenueCursor;
+                revenueCursor += (Number(row.total || 0) / revenueTotal) * 100;
+                const color = chartColors[index % chartColors.length];
+                return `${color} ${start.toFixed(2)}% ${revenueCursor.toFixed(2)}%`;
+              }).join(', ');
+            %>
+            <% if (revenueRows.length) { %>
+              <div class="round-chart-wrap">
+                <div class="round-chart" style="background:conic-gradient(<%- revenueGradient %>);">
+                  <div class="round-chart-center">
+                    <div>
+                      <strong><%= money(revenueTotal) %></strong>
+                      <small>Total</small>
+                    </div>
                   </div>
-                  <div class="mini-bar"><span style="width:<%= barWidth(row.total, revenueMax) %>%;"></span></div>
                 </div>
-              <% }) %>
-              <% if (!(a.revenueTrend || []).length) { %><p style="color:var(--muted);margin:0;">No paid revenue in this range.</p><% } %>
-            </div>
+                <div class="round-chart-legend">
+                  <% revenueRows.forEach((row, index) => { %>
+                    <span>
+                      <i style="background:<%= chartColors[index % chartColors.length] %>;"></i>
+                      <%= dateLabel(row.period_label) %>
+                      <b><%= money(row.total) %></b>
+                    </span>
+                  <% }) %>
+                </div>
+              </div>
+            <% } else { %>
+              <p style="color:var(--muted);margin:0;">No paid revenue in this range.</p>
+            <% } %>
           </div>
         </div>
         <div class="col-lg-5">
@@ -496,21 +527,6 @@
             <p style="color:var(--muted);margin:0;">Average time between booking creation and appointment slot.</p>
           </div>
         </div>
-        <div class="col-12">
-          <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Peak Demand Heatmap</h6>
-            <% const heatMax = maxOf(a.peakBookingTimes || [], 'bookings'); %>
-            <div class="heat-grid">
-              <% (a.peakBookingTimes || []).forEach(row => { %>
-                <div class="heat-cell" style="--heat:<%= Math.max(.08, Number(row.bookings || 0) / heatMax).toFixed(2) %>;">
-                  <p><%= row.day_label %></p>
-                  <small><%= String(row.hour_label).padStart(2, '0') %>:00 · <%= number(row.bookings) %></small>
-                </div>
-              <% }) %>
-              <% if (!(a.peakBookingTimes || []).length) { %><p style="color:var(--muted);margin:0;">No heatmap data yet.</p><% } %>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -527,46 +543,20 @@
             <p class="stat-value" style="color:var(--accent);"><%= number(a.customerSegments?.returning_customers) %></p>
           </div>
         </div>
-        <div class="col-lg-3">
-          <div class="analytics-card">
-            <h6 class="analytics-title mb-3">CLV &amp; Sentiment</h6>
-            <p style="color:var(--muted);margin-bottom:.35rem;">Average rating</p>
-            <p class="stat-value mb-3" style="color:var(--warn);"><%= rating(a.reviewSummary?.average_rating) %></p>
-            <p style="color:var(--muted);margin-bottom:.35rem;">Reviews</p>
-            <p class="stat-value"><%= number(a.reviewSummary?.review_count) %></p>
-          </div>
-        </div>
-        <div class="col-lg-6">
+        <div class="col-lg-9">
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Most Loyal Customers</h6>
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
-                <thead style="background:var(--accent-light);"><tr><th>Customer</th><th>Bookings</th><th>CLV</th></tr></thead>
+                <thead style="background:var(--accent-light);"><tr><th>Customer</th><th>Bookings</th><th>Reviews</th><th>CLV</th></tr></thead>
                 <tbody>
                   <% (a.topCustomers || []).forEach(customer => { %>
-                    <tr><td><%= customer.full_name %></td><td><%= number(customer.bookings) %></td><td><%= money(customer.lifetime_value) %></td></tr>
+                    <tr><td><%= customer.full_name %></td><td><%= number(customer.bookings) %></td><td><%= number(customer.reviews) %></td><td><%= money(customer.lifetime_value) %></td></tr>
                   <% }) %>
                 </tbody>
               </table>
             </div>
             <% if (!(a.topCustomers || []).length) { %><p style="color:var(--muted);margin:0;">No repeat customer data yet.</p><% } %>
-          </div>
-        </div>
-        <div class="col-12">
-          <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Loyalty Points Usage &amp; Demographics</h6>
-            <div class="row g-3">
-              <% (a.loyaltyUsage || []).forEach(row => { %>
-                <div class="col-md-4">
-                  <p style="color:var(--muted);margin-bottom:.25rem;"><%= String(row.transaction_type || '').replace('_', ' ') %></p>
-                  <p class="stat-value" style="font-size:1.35rem;"><%= number(row.points) %> pts</p>
-                </div>
-              <% }) %>
-              <div class="col-md-4">
-                <p style="color:var(--muted);margin-bottom:.25rem;">Demographics</p>
-                <p style="margin:0;color:var(--ink);font-weight:700;">No age or gender fields configured</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -666,19 +656,6 @@
             </div>
           </div>
         <% }) %>
-        <div class="col-12">
-          <div class="analytics-card">
-            <div class="d-flex flex-wrap justify-content-between gap-2 align-items-center">
-              <div>
-                <h6 class="analytics-title mb-1">Payout History, Expenses &amp; Downloadable Reports</h6>
-                <p style="color:var(--muted);margin:0;">Payout and expense tables are not configured yet. Payment receipts remain available from booking/payment records.</p>
-              </div>
-              <button type="button" class="btn btn-outline-secondary btn-pill" onclick="window.print()">
-                <i class="bi bi-download me-1"></i>Export View
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
 

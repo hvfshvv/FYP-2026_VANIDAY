@@ -579,15 +579,18 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
       rangeParams
     ).then(([rows]) => rows[0] || {}),
     db.query(
-      `SELECT u.full_name, u.email, COUNT(b.booking_id) AS bookings, COALESCE(SUM(p.amount), 0) AS lifetime_value
+      `SELECT u.full_name, u.email, COUNT(b.booking_id) AS bookings,
+              COUNT(DISTINCT r.review_id) AS reviews,
+              COALESCE(SUM(p.amount), 0) AS lifetime_value
        FROM users u
        JOIN booking b ON b.customer_id = u.user_id
        LEFT JOIN payment p ON p.booking_id = b.booking_id AND p.payment_status = 'paid'
+       LEFT JOIN merchant_review r ON r.booking_id = b.booking_id AND DATE(r.created_at) BETWEEN ? AND ?
        WHERE ${bookingDateFilter}
        GROUP BY u.user_id, u.full_name, u.email
        ORDER BY bookings DESC, lifetime_value DESC
        LIMIT 8`,
-      rangeParams
+      [...rangeParams, ...rangeParams]
     ).then(([rows]) => rows),
     db.query(
       `SELECT transaction_type, COALESCE(SUM(points_amount), 0) AS points, COALESCE(SUM(cashback_amount), 0) AS cashback
