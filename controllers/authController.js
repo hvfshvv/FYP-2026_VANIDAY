@@ -192,8 +192,6 @@ async function login(req, res) {
 async function register(req, res) {
   const {
     full_name,
-    email,
-    password,
     phone,
     date_of_birth,
     role,
@@ -202,6 +200,8 @@ async function register(req, res) {
     address,
     category
   } = req.body;
+  const email = String(req.body.register_email || req.body.email || '').trim().toLowerCase();
+  const password = req.body.register_password || req.body.password;
   const next = safeNext(req.query.next || req.body.next);
 
   const normalizedPhone = phone && phone.trim()
