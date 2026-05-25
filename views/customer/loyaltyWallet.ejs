@@ -140,6 +140,14 @@
             <span class="small" style="color:var(--muted);">Special vouchers unlock by tier</span>
           </div>
 
+          <% if (!rewards.length) { %>
+            <div class="text-center py-4">
+              <div class="wallet-empty-icon mx-auto">
+                <i class="bi bi-stars"></i>
+              </div>
+              <p style="color:var(--muted);margin:.75rem 0 0;">No loyalty vouchers are available right now.</p>
+            </div>
+          <% } else { %>
           <div class="row g-3">
             <!-- Each reward has flags from loyaltyModel.decorateRewards. -->
             <% rewards.forEach(reward => { %>
@@ -174,6 +182,7 @@
               </div>
             <% }) %>
           </div>
+          <% } %>
         </div>
       </div>
 

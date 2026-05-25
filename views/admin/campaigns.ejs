@@ -62,8 +62,8 @@
       <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Voucher &amp; Campaign Management</h2>
       <p style="color:var(--muted);margin-bottom:0;">Create platform-wide vouchers and monitor voucher usage.</p>
     </div>
-    <a href="/admin/dashboard" class="btn btn-outline-secondary btn-pill btn-sm">
-      <i class="bi bi-arrow-left me-1"></i>Dashboard
+    <a href="/admin/campaigns" class="btn btn-outline-secondary btn-pill btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Voucher Home
     </a>
   </div>
 
@@ -150,7 +150,7 @@
     <div class="col-12">
       <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
         <p class="section-label mb-2">Create Voucher</p>
-        <form action="/admin/campaigns/create" method="POST">
+        <form action="/admin/campaigns/vouchers/create" method="POST">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label" style="font-weight:600;font-size:.875rem;">Campaign Name</label>
@@ -268,7 +268,7 @@
                 <i class="bi bi-calendar-x me-1"></i>Expired
               </button>
               <% } else { %>
-              <form action="/admin/campaigns/<%= voucher.voucher_id %>/toggle" method="POST" class="m-0">
+              <form action="/admin/campaigns/vouchers/<%= voucher.voucher_id %>/toggle" method="POST" class="m-0">
                 <% if (voucher.is_active) { %>
                 <button type="submit" class="btn btn-sm btn-pill btn-outline-secondary">
                   <i class="bi bi-pause-circle me-1"></i>Pause

@@ -1,0 +1,214 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const money = value => 'S$' + Number(value || 0).toFixed(2);
+  const rewardDiscount = reward => reward.discountType === 'percent'
+    ? Number(reward.discountValue || 0).toFixed(0) + '%'
+    : money(reward.discountValue);
+  const editing = typeof editingReward !== 'undefined' && editingReward;
+%>
+
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+    <div>
+      <p class="section-label">Loyalty Wallet</p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Loyalty Vouchers Management</h2>
+      <p style="color:var(--muted);margin-bottom:0;">Create the reward vouchers customers can redeem with points.</p>
+    </div>
+    <a href="/admin/campaigns" class="btn btn-outline-secondary btn-pill btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Voucher Home
+    </a>
+  </div>
+
+  <% if (error) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+    <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+  </div>
+  <% } %>
+
+  <% if (query && query.created) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+    <i class="bi bi-check-circle me-2"></i>Loyalty voucher created.
+  </div>
+  <% } %>
+
+  <% if (query && query.updated) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+    <i class="bi bi-check-circle me-2"></i>Loyalty voucher status updated.
+  </div>
+  <% } %>
+
+  <% if (query && query.saved) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+    <i class="bi bi-check-circle me-2"></i>Loyalty voucher saved.
+  </div>
+  <% } %>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-4">
+      <div class="stat-card">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Total Rewards</p>
+        <p class="stat-value"><%= summary.total_count || rewards.length || 0 %></p>
+      </div>
+    </div>
+    <div class="col-6 col-lg-4">
+      <div class="stat-card">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Active</p>
+        <p class="stat-value" style="color:var(--success);"><%= summary.active_count || 0 %></p>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="stat-card">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Paused</p>
+        <p class="stat-value" style="color:var(--muted);"><%= summary.paused_count || 0 %></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 mb-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <p class="section-label mb-0"><%= editing ? 'Edit Loyalty Voucher' : 'Create Loyalty Voucher' %></p>
+      <% if (editing) { %>
+        <a href="/admin/campaigns/loyalty" class="btn btn-outline-secondary btn-sm btn-pill">
+          <i class="bi bi-x-lg me-1"></i>Cancel Edit
+        </a>
+      <% } %>
+    </div>
+    <form action="<%= editing ? `/admin/campaigns/loyalty/${editingReward.id}/edit` : '/admin/campaigns/loyalty/create' %>" method="POST">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label" style="font-weight:600;font-size:.875rem;">Reward Title</label>
+          <input type="text" name="title" class="form-control rounded-xl" value="<%= form.title || '' %>" placeholder="e.g. S$5 Beauty Voucher" required />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" style="font-weight:600;font-size:.875rem;">Points Cost</label>
+          <input type="number" name="points_cost" class="form-control rounded-xl" value="<%= form.points_cost || '' %>" min="1" step="1" placeholder="50" required />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" style="font-weight:600;font-size:.875rem;">Minimum Tier</label>
+          <select name="min_tier" class="form-select rounded-xl">
+            <% ['Bronze','Silver','Gold','Platinum'].forEach(tier => { %>
+              <option value="<%= tier %>" <%= (form.min_tier || 'Bronze') === tier ? 'selected' : '' %>><%= tier %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="col-md-12">
+          <label class="form-label" style="font-weight:600;font-size:.875rem;">Description</label>
+          <input type="text" name="description" class="form-control rounded-xl" value="<%= form.description || '' %>" placeholder="Use this on your next paid booking." />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" style="font-weight:600;font-size:.875rem;">Discount Type</label>
+          <select name="discount_type" class="form-select rounded-xl">
+            <option value="fixed_amount" <%= form.discount_type === 'fixed_amount' ? 'selected' : '' %>>Fixed amount</option>
+            <option value="percent" <%= form.discount_type === 'percent' ? 'selected' : '' %>>Percent</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" style="font-weight:600;font-size:.875rem;">Discount Value</label>
+          <input type="number" name="discount_value" class="form-control rounded-xl" value="<%= form.discount_value || '' %>" min="0.01" step="0.01" placeholder="5" required />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" style="font-weight:600;font-size:.875rem;">Value Label</label>
+          <input type="text" name="value_label" class="form-control rounded-xl" value="<%= form.value_label || '' %>" placeholder="S$5 off" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" style="font-weight:600;font-size:.875rem;">Min Spend</label>
+          <input type="number" name="min_spend" class="form-control rounded-xl" value="<%= form.min_spend || '' %>" min="0" step="0.01" placeholder="Optional" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" style="font-weight:600;font-size:.875rem;">Validity Months</label>
+          <input type="number" name="validity_months" class="form-control rounded-xl" value="<%= form.validity_months || '3' %>" min="1" step="1" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" style="font-weight:600;font-size:.875rem;">Display Order</label>
+          <input type="number" name="display_order" class="form-control rounded-xl" value="<%= form.display_order || '0' %>" step="1" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-pill mt-3">
+        <i class="bi <%= editing ? 'bi-save' : 'bi-stars' %> me-1"></i><%= editing ? 'Save Loyalty Voucher' : 'Create Loyalty Voucher' %>
+      </button>
+    </form>
+  </div>
+
+  <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
+      <div>
+        <p class="section-label mb-1">Reward Catalogue</p>
+        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">All Loyalty Vouchers</h5>
+      </div>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);"><%= rewards.length %> total</span>
+    </div>
+
+    <% if (!rewards.length) { %>
+      <div class="text-center py-5 px-4">
+        <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
+          <i class="bi bi-stars" style="font-size:2rem;color:var(--accent);"></i>
+        </div>
+        <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No loyalty vouchers yet</h6>
+        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Created loyalty rewards will appear in the customer wallet.</p>
+      </div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+          <thead style="background:var(--accent-light);">
+            <tr>
+              <th>Reward</th>
+              <th>Unlock</th>
+              <th>Discount</th>
+              <th>Validity</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% rewards.forEach(reward => { %>
+              <tr>
+                <td>
+                  <p style="font-weight:700;color:var(--ink);margin-bottom:.15rem;"><%= reward.title %></p>
+                  <p style="color:var(--muted);margin-bottom:0;"><%= reward.description || '-' %></p>
+                </td>
+                <td>
+                  <p style="font-weight:700;margin-bottom:.15rem;"><%= reward.pointsCost %> pts</p>
+                  <p style="color:var(--muted);margin-bottom:0;"><%= reward.minTier %> tier</p>
+                </td>
+                <td>
+                  <p style="font-weight:700;margin-bottom:.15rem;"><%= reward.valueLabel || rewardDiscount(reward) %></p>
+                  <p style="color:var(--muted);margin-bottom:0;">Min <%= reward.minSpend ? money(reward.minSpend) : 'None' %></p>
+                </td>
+                <td><%= reward.validityMonths %> months</td>
+                <td>
+                  <% if (reward.isActive) { %>
+                    <span class="badge" style="background:var(--success-bg);color:var(--success);">Active</span>
+                  <% } else { %>
+                    <span class="badge" style="background:var(--neutral-bg);color:var(--muted);">Paused</span>
+                  <% } %>
+                </td>
+                <td>
+                  <div class="d-flex flex-wrap gap-2">
+                  <a href="/admin/campaigns/loyalty/<%= reward.id %>/edit" class="btn btn-sm btn-pill btn-outline-secondary">
+                    <i class="bi bi-pencil me-1"></i>Edit
+                  </a>
+                  <form action="/admin/campaigns/loyalty/<%= reward.id %>/toggle" method="POST" class="m-0">
+                    <% if (reward.isActive) { %>
+                      <button type="submit" class="btn btn-sm btn-pill btn-outline-secondary">
+                        <i class="bi bi-pause-circle me-1"></i>Pause
+                      </button>
+                    <% } else { %>
+                      <button type="submit" class="btn btn-sm btn-pill btn-outline-success">
+                        <i class="bi bi-play-circle me-1"></i>Activate
+                      </button>
+                    <% } %>
+                  </form>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
