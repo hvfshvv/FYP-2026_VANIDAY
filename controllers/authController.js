@@ -94,7 +94,8 @@ function showLogin(req, res) {
     title: 'Login',
     error: null,
     query: req.query,
-    verificationLink: null
+    verificationLink: null,
+    email: ''
   });
 }
 
@@ -131,7 +132,8 @@ function showMerchantRegister(req, res) {
 }
 
 async function login(req, res) {
-  const { email, password } = req.body;
+  const password = req.body.login_password || req.body.password;
+  const email = String(req.body.login_email || req.body.email || '').trim().toLowerCase();
   const next = safeNext(req.query.next || req.body.next);
 
   try {
@@ -142,7 +144,8 @@ async function login(req, res) {
         title: 'Login',
         error: 'Invalid email or password.',
         query: req.query,
-        verificationLink: null
+        verificationLink: null,
+        email
       });
     }
 
@@ -151,7 +154,8 @@ async function login(req, res) {
         title: 'Login',
         error: 'This account has been disabled. Please contact support.',
         query: req.query,
-        verificationLink: null
+        verificationLink: null,
+        email
       });
     }
 
@@ -164,7 +168,8 @@ async function login(req, res) {
           ? 'Please verify your email before signing in. A new verification link has been sent.'
           : 'Please verify your email before signing in. Email is not configured, so use the local verification link below.',
         query: req.query,
-        verificationLink: verificationResult.sent ? null : verificationResult.verificationUrl
+        verificationLink: verificationResult.sent ? null : verificationResult.verificationUrl,
+        email
       });
     }
 
@@ -178,7 +183,8 @@ async function login(req, res) {
       title: 'Login',
       error: 'Something went wrong. Please try again.',
       query: req.query,
-      verificationLink: null
+      verificationLink: null,
+      email
     });
   }
 }
@@ -343,7 +349,8 @@ async function verifyEmail(req, res) {
         title: 'Login',
         error: 'This verification link is invalid or expired.',
         query: req.query,
-        verificationLink: null
+        verificationLink: null,
+        email: ''
       });
     }
 
@@ -354,7 +361,8 @@ async function verifyEmail(req, res) {
       title: 'Login',
       error: 'Could not verify your email. Please try again.',
       query: req.query,
-      verificationLink: null
+      verificationLink: null,
+      email: ''
     });
   }
 }
@@ -390,7 +398,7 @@ async function requestPasswordReset(req, res) {
 }
 
 async function startPasswordResetFromLogin(req, res) {
-  const email = String(req.body.email || '').trim().toLowerCase();
+  const email = String(req.body.login_email || req.body.email || '').trim().toLowerCase();
 
   try {
     const user = email ? await authModel.findUserByEmail(email) : null;
@@ -400,7 +408,8 @@ async function startPasswordResetFromLogin(req, res) {
         title: 'Login',
         error: 'Enter a registered email address to reset your password.',
         query: req.query,
-        verificationLink: null
+        verificationLink: null,
+        email
       });
     }
 
@@ -412,7 +421,8 @@ async function startPasswordResetFromLogin(req, res) {
       title: 'Login',
       error: 'Could not start password reset. Please try again.',
       query: req.query,
-      verificationLink: null
+      verificationLink: null,
+      email
     });
   }
 }
