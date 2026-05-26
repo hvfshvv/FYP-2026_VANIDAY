@@ -1,6 +1,8 @@
 const adminModel = require('../models/adminModel');
 const voucherModel = require('../models/voucherModel');
+const loyaltyModel = require('../models/loyaltyModel');
 const promotionModel = require('../models/promotionModel');
+const whatsappNotificationService = require('../services/whatsappNotificationService');
 const { wantsJson } = require('../middleware/auth');
 
 const CUSTOMER_DISABLE_REASONS = [
@@ -72,6 +74,87 @@ function showComingSoon(req, res) {
     title: pageTitle,
     pageTitle,
   });
+}
+
+async function showValidationLogs(req, res) {
+  const filters = {
+    module: req.query.module || 'all',
+    status: req.query.status || 'all',
+    search: req.query.search || '',
+  };
+
+  try {
+    const [logs, summary] = await Promise.all([
+      adminModel.getValidationLogs(filters),
+      adminModel.getValidationLogSummary(),
+    ]);
+
+    res.render('admin/validationLogs', {
+      title: 'Validation & Support Logs',
+      logs,
+      summary,
+      filters,
+      query: req.query,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/validationLogs', {
+      title: 'Validation & Support Logs',
+      logs: [],
+      summary: {},
+      filters,
+      query: req.query,
+      error: 'Failed to load validation logs.',
+    });
+  }
+}
+
+async function resolveValidationLog(req, res) {
+  try {
+    await adminModel.markValidationLogResolved(req.params.logId);
+    res.redirect('/admin/validation?resolved=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/validation?error=resolve');
+  }
+}
+
+function extractSupportPhone(log) {
+  if (log.customer_phone) {
+    return log.customer_phone;
+  }
+
+  const match = String(log.error_message || '').match(/^Phone:\s*(.+)$/m);
+  return match ? match[1].trim() : null;
+}
+
+async function replyToWhatsAppSupport(req, res) {
+  const reply = String(req.body.reply || '').trim();
+
+  try {
+    if (!reply) {
+      return res.redirect('/admin/validation?error=reply');
+    }
+
+    const log = await adminModel.getValidationLogById(req.params.logId);
+
+    if (!log || log.module !== 'whatsapp_support') {
+      return res.redirect('/admin/validation?error=notfound');
+    }
+
+    const phone = extractSupportPhone(log);
+    await whatsappNotificationService.sendSupportReply(phone, reply);
+    await adminModel.appendValidationLogReply(
+      req.params.logId,
+      reply,
+      req.session.user && req.session.user.full_name
+    );
+
+    res.redirect('/admin/validation?replySent=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/validation?error=replySend');
+  }
 }
 
 async function showMerchants(req, res) {
@@ -515,11 +598,10 @@ function emptyRevenueReport() {
 
 async function showMerchantValidations(req, res) {
   try {
-    const [pendingMerchants, recentDecisions, statusSummary, applicationTrend] = await Promise.all([
+    const [pendingMerchants, recentDecisions, statusSummary] = await Promise.all([
       adminModel.getPendingMerchantApplications(),
       adminModel.getRecentMerchantValidationDecisions(),
       adminModel.getMerchantValidationStatusSummary(),
-      adminModel.getMerchantApplicationTrend(),
     ]);
 
     res.render('admin/merchantValidations', {
@@ -527,7 +609,6 @@ async function showMerchantValidations(req, res) {
       pendingMerchants,
       recentDecisions,
       statusSummary,
-      applicationTrend,
       query: req.query,
     });
   } catch (err) {
@@ -537,7 +618,6 @@ async function showMerchantValidations(req, res) {
       pendingMerchants: [],
       recentDecisions: [],
       statusSummary: { pending: 0, approved: 0, rejected: 0 },
-      applicationTrend: [],
       query: req.query,
       error: 'Failed to load merchant validation data.',
     });
@@ -649,6 +729,31 @@ async function rejectPromotion(req, res) {
 
 async function showCampaigns(req, res) {
   try {
+    const [voucherSummary, loyaltySummary] = await Promise.all([
+      voucherModel.getVoucherStatusSummary(),
+      loyaltyModel.getLoyaltyRewardSummary(),
+    ]);
+
+    res.render('admin/campaignsHome', {
+      title: 'Voucher Management',
+      voucherSummary,
+      loyaltySummary,
+      query: req.query,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/campaignsHome', {
+      title: 'Voucher Management',
+      voucherSummary: {},
+      loyaltySummary: {},
+      query: req.query,
+      error: 'Failed to load voucher management summary.',
+    });
+  }
+}
+
+async function showVoucherCampaigns(req, res) {
+  try {
     const [vouchers, merchants, voucherSummary] = await Promise.all([
       voucherModel.getVoucherCampaigns(),
       voucherModel.getApprovedMerchants(),
@@ -676,6 +781,102 @@ async function showCampaigns(req, res) {
       error: 'Failed to load voucher campaigns.',
     });
   }
+}
+
+async function showLoyaltyRewards(req, res) {
+  try {
+    const [rewards, summary] = await Promise.all([
+      loyaltyModel.getLoyaltyRewards({ includeInactive: true }),
+      loyaltyModel.getLoyaltyRewardSummary(),
+    ]);
+
+    res.render('admin/loyaltyRewards', {
+      title: 'Loyalty Vouchers Management',
+      rewards,
+      summary,
+      query: req.query,
+      form: {},
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/loyaltyRewards', {
+      title: 'Loyalty Vouchers Management',
+      rewards: [],
+      summary: {},
+      query: req.query,
+      form: {},
+      error: 'Failed to load loyalty vouchers.',
+    });
+  }
+}
+
+async function showEditLoyaltyReward(req, res) {
+  try {
+    const [reward, rewards, summary] = await Promise.all([
+      loyaltyModel.getLoyaltyRewardById(req.params.rewardId),
+      loyaltyModel.getLoyaltyRewards({ includeInactive: true }),
+      loyaltyModel.getLoyaltyRewardSummary(),
+    ]);
+
+    if (!reward) {
+      return res.redirect('/admin/campaigns/loyalty?error=missing');
+    }
+
+    res.render('admin/loyaltyRewards', {
+      title: 'Edit Loyalty Voucher',
+      rewards,
+      summary,
+      query: req.query,
+      form: {
+        title: reward.title,
+        description: reward.description,
+        points_cost: reward.pointsCost,
+        min_tier: reward.minTier,
+        value_label: reward.valueLabel,
+        discount_type: reward.discountType,
+        discount_value: reward.discountValue,
+        min_spend: reward.minSpend || '',
+        validity_months: reward.validityMonths,
+        display_order: reward.displayOrder,
+      },
+      editingReward: reward,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/campaigns/loyalty?error=edit');
+  }
+}
+
+function parseLoyaltyRewardForm(form) {
+  const title = String(form.title || '').trim();
+  const discountType = form.discount_type === 'fixed_amount' ? 'fixed_amount' : 'percent';
+  const discountValue = Number(form.discount_value || 0);
+  const pointsCost = Number.parseInt(form.points_cost, 10);
+  const minSpend = form.min_spend ? Number(form.min_spend) : null;
+  const validityMonths = form.validity_months ? Number.parseInt(form.validity_months, 10) : 3;
+  const displayOrder = form.display_order ? Number.parseInt(form.display_order, 10) : 0;
+  const minTier = ['Bronze', 'Silver', 'Gold', 'Platinum'].includes(form.min_tier) ? form.min_tier : 'Bronze';
+
+  if (!title) throw new Error('Reward title is required.');
+  if (!pointsCost || pointsCost <= 0) throw new Error('Points cost must be more than 0.');
+  if (!discountValue || discountValue <= 0) throw new Error('Discount value must be more than 0.');
+  if (discountType === 'percent' && discountValue > 100) throw new Error('Percent discount cannot be more than 100.');
+  if (!validityMonths || validityMonths <= 0) throw new Error('Validity must be at least 1 month.');
+
+  return {
+    title,
+    description: String(form.description || '').trim(),
+    pointsCost,
+    minTier,
+    valueLabel: String(form.value_label || '').trim(),
+    discountType,
+    discountValue,
+    minSpend,
+    validityMonths,
+    displayOrder,
+  };
 }
 
 async function createCampaign(req, res) {
@@ -712,7 +913,7 @@ async function createCampaign(req, res) {
       endDate: form.end_date,
     });
 
-    res.redirect('/admin/campaigns?created=1');
+    res.redirect('/admin/campaigns/vouchers?created=1');
   } catch (err) {
     const [vouchers, merchants, voucherSummary] = await Promise.all([
       voucherModel.getVoucherCampaigns().catch(() => []),
@@ -734,19 +935,85 @@ async function createCampaign(req, res) {
   }
 }
 
+async function createLoyaltyReward(req, res) {
+  const form = req.body;
+
+  try {
+    await loyaltyModel.createLoyaltyReward(parseLoyaltyRewardForm(form));
+
+    res.redirect('/admin/campaigns/loyalty?created=1');
+  } catch (err) {
+    const [rewards, summary] = await Promise.all([
+      loyaltyModel.getLoyaltyRewards({ includeInactive: true }).catch(() => []),
+      loyaltyModel.getLoyaltyRewardSummary().catch(() => ({})),
+    ]);
+
+    res.render('admin/loyaltyRewards', {
+      title: 'Loyalty Vouchers Management',
+      rewards,
+      summary,
+      query: req.query,
+      form,
+      error: err.message,
+    });
+  }
+}
+
+async function updateLoyaltyReward(req, res) {
+  const form = req.body;
+
+  try {
+    const affectedRows = await loyaltyModel.updateLoyaltyReward(
+      req.params.rewardId,
+      parseLoyaltyRewardForm(form)
+    );
+
+    res.redirect(`/admin/campaigns/loyalty?${affectedRows ? 'saved=1' : 'error=missing'}`);
+  } catch (err) {
+    const [reward, rewards, summary] = await Promise.all([
+      loyaltyModel.getLoyaltyRewardById(req.params.rewardId).catch(() => null),
+      loyaltyModel.getLoyaltyRewards({ includeInactive: true }).catch(() => []),
+      loyaltyModel.getLoyaltyRewardSummary().catch(() => ({})),
+    ]);
+
+    res.render('admin/loyaltyRewards', {
+      title: 'Edit Loyalty Voucher',
+      rewards,
+      summary,
+      query: req.query,
+      form,
+      editingReward: reward,
+      error: err.message,
+    });
+  }
+}
+
 async function toggleCampaign(req, res) {
   try {
     await voucherModel.toggleVoucherStatus(req.params.voucherId);
-    res.redirect('/admin/campaigns?updated=1');
+    res.redirect('/admin/campaigns/vouchers?updated=1');
   } catch (err) {
     console.error(err);
-    res.redirect('/admin/campaigns?error=update');
+    res.redirect('/admin/campaigns/vouchers?error=update');
+  }
+}
+
+async function toggleLoyaltyReward(req, res) {
+  try {
+    await loyaltyModel.toggleLoyaltyRewardStatus(req.params.rewardId);
+    res.redirect('/admin/campaigns/loyalty?updated=1');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/campaigns/loyalty?error=update');
   }
 }
 
 module.exports = {
   showDashboard,
   showComingSoon,
+  showValidationLogs,
+  resolveValidationLog,
+  replyToWhatsAppSupport,
   showMerchants,
   showCustomers,
   showRevenueReport,
@@ -771,6 +1038,12 @@ module.exports = {
   approvePromotion,
   rejectPromotion,
   showCampaigns,
+  showVoucherCampaigns,
+  showLoyaltyRewards,
+  showEditLoyaltyReward,
   createCampaign,
+  createLoyaltyReward,
+  updateLoyaltyReward,
   toggleCampaign,
+  toggleLoyaltyReward,
 };

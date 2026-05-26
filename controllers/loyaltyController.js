@@ -16,9 +16,9 @@ function requireCustomer(req, res) {
   return true;
 }
 
-// Customer id is normally stored on the session after login.
+// Loyalty tables use users.user_id as customer_id.
 function getCustomerId(req) {
-  return req.session.user.customer_id || req.session.user.user_id;
+  return req.session.user.user_id;
 }
 
 // Loads all wallet data needed by views/customer/loyaltyWallet.ejs.
@@ -27,6 +27,7 @@ async function showWallet(req, res) {
 
   try {
     const customerId = getCustomerId(req);
+    await loyaltyModel.syncMissingBookingPointsForCustomer(customerId);
     const [summary, claimedVouchers, availableVouchers] = await Promise.all([
       loyaltyModel.getWalletSummary(customerId),
       voucherModel.getCustomerVouchers(customerId),

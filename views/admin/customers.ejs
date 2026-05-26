@@ -167,11 +167,6 @@
     line-height:1;
     padding:.5rem .25rem;
   }
-  .pie-bars {
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
-    gap:.75rem;
-  }
   .chart-column-wrap {
     display:flex;
     align-items:end;
@@ -472,7 +467,6 @@
                   <small><%= voucher.discount_type === 'percent' ? Number(voucher.discount_value || 0).toFixed(0) + '%' : money(voucher.discount_value) %></small>
                 </div>
               <% }) %>
-              <div class="metric-row"><p>Referral rewards</p><small>Referral module not configured</small></div>
             </div>
           </div>
         </div>
@@ -509,7 +503,6 @@
         <div class="col-lg-6">
           <div class="customer-card">
             <h6 class="customer-title mb-3">Spending Categories</h6>
-            <% const categoryMax = maxOf(a.spendingCategories || [], 'total'); %>
             <% const categoryTotal = (a.spendingCategories || []).reduce((sum, row) => sum + Number(row.total || 0), 0) || 1; %>
             <div class="donut-grid mb-3">
               <% (a.spendingCategories || []).slice(0, 4).forEach(row => {
@@ -521,14 +514,6 @@
                   </div>
                   <p style="color:var(--ink);font-weight:800;margin:0;"><%= row.category %></p>
                   <small style="color:var(--muted);font-family:var(--font-mono);"><%= money(row.total) %></small>
-                </div>
-              <% }) %>
-            </div>
-            <div class="pie-bars">
-              <% (a.spendingCategories || []).forEach(row => { %>
-                <div>
-                  <div class="metric-row mb-1"><p><%= row.category %></p><small><%= money(row.total) %></small></div>
-                  <div class="mini-bar"><span style="width:<%= barWidth(row.total, categoryMax) %>%;"></span></div>
                 </div>
               <% }) %>
               <% if (!(a.spendingCategories || []).length) { %><p style="color:var(--muted);margin:0;">No category spend yet.</p><% } %>

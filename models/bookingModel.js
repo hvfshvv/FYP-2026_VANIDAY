@@ -339,7 +339,7 @@ async function assertNoCustomerBookingConflict(connection, {
     JOIN merchant m ON b.merchant_id = m.merchant_id
     WHERE b.customer_id = ?
       AND (
-        b.status IN ('confirmed', 'arrived')
+        b.status IN ('confirmed', 'rescheduled', 'arrived')
         OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
       )
       AND ts.slot_date = ?
@@ -385,6 +385,8 @@ async function getBookingById(bookingId) {
             pr.discount_pct AS promo_discount_pct,
             COALESCE(vch_applied.campaign_name, vch_applied.voucher_code) AS voucher_name,
             m.merchant_name,
+            m.email AS merchant_email,
+            m.address AS merchant_address,
             COALESCE(c.full_name, b.guest_name) AS customer_name,
             COALESCE(c.email, b.guest_email) AS customer_email,
             COALESCE(c.phone, b.guest_phone) AS customer_phone
@@ -413,6 +415,7 @@ async function getCustomerBookingById(bookingId, customerId) {
             COALESCE(NULLIF(b.total_amount, 0), s.price) AS payable_amount,
             m.merchant_name,
             m.address AS merchant_address,
+            m.email AS merchant_email,
             p.payment_status
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
@@ -427,7 +430,9 @@ async function getCustomerBookingById(bookingId, customerId) {
 }
 
 async function updateBookingStatus(bookingId, status) {
+  const booking = await getBookingById(bookingId);
   await db.query('UPDATE booking SET status = ? WHERE booking_id = ?', [status, bookingId]);
+  return booking;
 }
 
 async function updateMerchantBookingStatus(bookingId, merchantId, status) {
@@ -489,7 +494,7 @@ async function markCustomerArrivedForMerchant(customerId, merchantId) {
        JOIN merchant m ON b.merchant_id = m.merchant_id
        WHERE b.customer_id = ?
          AND b.merchant_id = ?
-         AND b.status = 'confirmed'
+         AND b.status IN ('confirmed', 'rescheduled')
          AND ts.slot_date = CURDATE()
        ORDER BY ts.start_time ASC
        LIMIT 1
@@ -511,7 +516,7 @@ async function markCustomerArrivedForMerchant(customerId, merchantId) {
        WHERE booking_id = ?
          AND merchant_id = ?
          AND customer_id = ?
-         AND status = 'confirmed'`,
+         AND status IN ('confirmed', 'rescheduled')`,
       [booking.booking_id, merchantId, customerId]
     );
 
@@ -685,8 +690,12 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
       newSlotId = slotResult.insertId;
     }
 
+    const nextStatus = booking.status === 'pending_payment' ? 'pending_payment' : 'rescheduled';
     await connection.query('UPDATE time_slot SET is_available = TRUE WHERE slot_id = ?', [booking.slot_id]);
-    await connection.query('UPDATE booking SET slot_id = ?, staff_id = ? WHERE booking_id = ?', [newSlotId, safeStaffId, bookingId]);
+    await connection.query(
+      'UPDATE booking SET slot_id = ?, staff_id = ?, status = ? WHERE booking_id = ?',
+      [newSlotId, safeStaffId, nextStatus, bookingId]
+    );
 
     await connection.commit();
   } catch (err) {
@@ -714,12 +723,15 @@ async function getMerchantBookings(merchantId) {
             ts.slot_date  AS booking_date,
             ts.start_time AS booking_time,
             s.service_name,
+            m.email AS merchant_email,
+            m.address AS merchant_address,
             COALESCE(c.full_name, b.guest_name) AS customer_name,
             COALESCE(c.email, b.guest_email) AS customer_email,
             COALESCE(c.phone, b.guest_phone) AS customer_phone
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
+     JOIN merchant  m  ON b.merchant_id = m.merchant_id
      LEFT JOIN customer c ON b.customer_id = c.customer_id
      WHERE b.merchant_id = ?
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
@@ -746,6 +758,7 @@ async function getCustomerBookings(customerId) {
             COALESCE(b.voucher_discount_amount, 0) AS voucher_discount_amount,
             m.merchant_name,
             m.address AS merchant_address,
+            m.email AS merchant_email,
             p.payment_status,
             p.payment_ref,
             p.transaction_ref,
@@ -837,6 +850,68 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
   }
 
   return slots;
+}
+
+async function hasSentEmailNotification(bookingId, notificationType) {
+  const [rows] = await db.query(
+    `SELECT notification_id
+     FROM notification
+     WHERE booking_id = ?
+       AND notification_type = ?
+       AND channel = 'email'
+       AND status = 'sent'
+     LIMIT 1`,
+    [bookingId, notificationType]
+  );
+  return Boolean(rows[0]);
+}
+
+async function recordEmailNotification(booking, notificationType, message, status) {
+  await db.query(
+    `INSERT INTO notification
+       (booking_id, user_id, merchant_id, notification_type, channel, message, status, scheduled_at, sent_at)
+     VALUES (?, ?, ?, ?, 'email', ?, ?, NOW(), CASE WHEN ? = 'sent' THEN NOW() ELSE NULL END)`,
+    [
+      booking.booking_id,
+      booking.customer_id || null,
+      booking.merchant_id,
+      notificationType,
+      message,
+      status,
+      status,
+    ]
+  );
+}
+
+async function getBookingsNeedingEmailReminders() {
+  const [rows] = await db.query(
+    `SELECT b.*,
+            ts.slot_date AS booking_date,
+            ts.start_time AS booking_time,
+            s.service_name,
+            m.merchant_name,
+            m.address AS merchant_address,
+            COALESCE(c.full_name, b.guest_name) AS customer_name,
+            COALESCE(c.email, b.guest_email) AS customer_email,
+            COALESCE(c.phone, b.guest_phone) AS customer_phone
+     FROM booking b
+     JOIN time_slot ts ON b.slot_id = ts.slot_id
+     JOIN service s ON b.service_id = s.service_id
+     JOIN merchant m ON b.merchant_id = m.merchant_id
+     LEFT JOIN customer c ON b.customer_id = c.customer_id
+     LEFT JOIN notification n ON n.booking_id = b.booking_id
+       AND n.notification_type = 'reminder_24h'
+       AND n.channel = 'email'
+       AND n.status = 'sent'
+     WHERE b.status IN ('confirmed', 'rescheduled')
+       AND COALESCE(c.email, b.guest_email) IS NOT NULL
+       AND TIMESTAMP(ts.slot_date, ts.start_time) BETWEEN DATE_ADD(NOW(), INTERVAL 23 HOUR)
+                                                     AND DATE_ADD(NOW(), INTERVAL 25 HOUR)
+       AND n.notification_id IS NULL
+     ORDER BY ts.slot_date ASC, ts.start_time ASC
+     LIMIT 100`
+  );
+  return rows;
 }
 
 async function applyPromotion(bookingId, promoId, discountAmount) {
@@ -947,6 +1022,9 @@ module.exports = {
   getMerchantBookings,
   getCustomerBookings,
   getAvailableSlots,
+  hasSentEmailNotification,
+  recordEmailNotification,
+  getBookingsNeedingEmailReminders,
   applyPromotion,
   applyVoucher,
   expirePendingPaymentBookings,

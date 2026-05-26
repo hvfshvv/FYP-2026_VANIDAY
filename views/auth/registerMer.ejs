@@ -220,7 +220,7 @@
       </div>
       <% } %>
 
-      <form action="/auth/register" method="POST" class="merchant-register-form">
+      <form action="/auth/register" method="POST" class="merchant-register-form" autocomplete="off">
         <input type="hidden" name="role" value="merchant" />
 
         <div>
@@ -273,7 +273,9 @@
 
         <div>
           <label class="form-label">Email Address</label>
-          <input type="email" name="email" class="form-control" placeholder="you@example.com" required />
+          <input type="email" name="register_email" class="form-control" placeholder="you@example.com"
+            autocomplete="new-password" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="email"
+            required />
         </div>
 
         <div>
@@ -287,7 +289,7 @@
         <div>
           <label class="form-label">Password</label>
           <div class="merchant-password-wrap">
-            <input type="password" name="password" id="merchantPassword" class="form-control" placeholder="Min. 6 characters" minlength="6" required />
+            <input type="password" name="register_password" id="merchantPassword" class="form-control" placeholder="Min. 6 characters" autocomplete="new-password" minlength="6" required />
             <button type="button" class="merchant-password-toggle" aria-label="Show password" onclick="toggleMerchantPassword()">
               <i class="bi bi-eye" id="merchantPasswordIcon"></i>
             </button>

@@ -6,6 +6,7 @@
   const statusStyles = {
     pending_payment: { label: 'Pending Payment', bg: 'var(--warn-bg)', color: 'var(--warn)' },
     confirmed:       { label: 'Confirmed', bg: 'var(--success-bg)', color: 'var(--success)' },
+    rescheduled:     { label: 'Rescheduled', bg: '#EFF6FF', color: '#1D4ED8' },
     arrived:         { label: 'Arrived', bg: '#EFF6FF', color: '#1D4ED8' },
     completed:       { label: 'Completed', bg: 'var(--neutral-bg)', color: 'var(--muted)' },
     cancelled:       { label: 'Cancelled', bg: 'var(--danger-bg)', color: 'var(--danger)' },
@@ -122,7 +123,7 @@
                     </span>
                   </td>
                   <td>
-                    <% if (booking.status === 'confirmed') { %>
+                    <% if (booking.status === 'confirmed' || booking.status === 'rescheduled') { %>
                       <form action="/merchant/bookings/<%= booking.booking_id %>/arrived" method="POST" class="d-inline">
                         <input type="hidden" name="returnTo" value="/merchant/bookings">
                         <button class="btn btn-sm btn-outline-secondary btn-pill" style="font-size:.72rem;padding:.2rem .6rem;">

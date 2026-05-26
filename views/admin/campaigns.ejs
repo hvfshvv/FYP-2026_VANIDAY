@@ -16,10 +16,10 @@
     start.setHours(0, 0, 0, 0);
     end.setHours(0, 0, 0, 0);
 
-    if (!voucher.is_active) return { label: 'Paused', style: 'background:var(--neutral-bg);color:var(--muted);' };
-    if (today < start) return { label: 'Upcoming', style: 'background:#EFF6FF;color:#1D4ED8;' };
-    if (today > end) return { label: 'Expired', style: 'background:var(--danger-bg);color:var(--danger);' };
-    return { label: 'Active', style: 'background:var(--success-bg);color:var(--success);' };
+    if (!voucher.is_active) return { label: 'Paused', className: 'status-paused' };
+    if (today < start) return { label: 'Upcoming', className: 'status-upcoming' };
+    if (today > end) return { label: 'Expired', className: 'status-expired' };
+    return { label: 'Active', className: 'status-active' };
   };
   const summary = { active_count: 0, upcoming_count: 0, paused_count: 0, expired_count: 0 };
 
@@ -33,6 +33,28 @@
   });
 %>
 
+<style>
+  .campaign-status-badge.status-active {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+
+  .campaign-status-badge.status-upcoming {
+    background: #EFF6FF;
+    color: #1D4ED8;
+  }
+
+  .campaign-status-badge.status-paused {
+    background: var(--neutral-bg);
+    color: var(--muted);
+  }
+
+  .campaign-status-badge.status-expired {
+    background: var(--danger-bg);
+    color: var(--danger);
+  }
+</style>
+
 <div class="container py-5">
   <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
     <div>
@@ -40,8 +62,8 @@
       <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Voucher &amp; Campaign Management</h2>
       <p style="color:var(--muted);margin-bottom:0;">Create platform-wide vouchers and monitor voucher usage.</p>
     </div>
-    <a href="/admin/dashboard" class="btn btn-outline-secondary btn-pill btn-sm">
-      <i class="bi bi-arrow-left me-1"></i>Dashboard
+    <a href="/admin/campaigns" class="btn btn-outline-secondary btn-pill btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Voucher Home
     </a>
   </div>
 
@@ -70,42 +92,65 @@
   <% } %>
 
   <div class="row g-3 mb-4">
-    <% [
-      { label:'Active', value:summary.active_count || 0, icon:'bi-play-circle', color:'var(--success)' },
-      { label:'Upcoming', value:summary.upcoming_count || 0, icon:'bi-calendar-plus', color:'#1D4ED8' },
-      { label:'Paused', value:summary.paused_count || 0, icon:'bi-pause-circle', color:'var(--muted)' },
-      { label:'Expired', value:summary.expired_count || 0, icon:'bi-calendar-x', color:'var(--danger)' },
-    ].forEach(stat => { %>
     <div class="col-6 col-lg-3">
       <div class="stat-card">
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
-            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
-            <p class="stat-value" style="color:<%= stat.color %>;"><%= stat.value %></p>
+            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Active</p>
+            <p class="stat-value" style="color:var(--success);"><%= summary.active_count || 0 %></p>
           </div>
           <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
-            <i class="bi <%= stat.icon %>"></i>
+            <i class="bi bi-play-circle"></i>
           </div>
         </div>
       </div>
     </div>
-    <% }) %>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Upcoming</p>
+            <p class="stat-value" style="color:#1D4ED8;"><%= summary.upcoming_count || 0 %></p>
+          </div>
+          <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+            <i class="bi bi-calendar-plus"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Paused</p>
+            <p class="stat-value" style="color:var(--muted);"><%= summary.paused_count || 0 %></p>
+          </div>
+          <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+            <i class="bi bi-pause-circle"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Expired</p>
+            <p class="stat-value" style="color:var(--danger);"><%= summary.expired_count || 0 %></p>
+          </div>
+          <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+            <i class="bi bi-calendar-x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="row g-4 mb-4">
-    <div class="col-lg-5">
-      <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
-        <p class="section-label mb-2">Campaign Status</p>
-        <div style="height:260px;">
-          <canvas id="voucherStatusChart" aria-label="Voucher status chart"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-7">
+    <div class="col-12">
       <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
         <p class="section-label mb-2">Create Voucher</p>
-        <form action="/admin/campaigns/create" method="POST">
+        <form action="/admin/campaigns/vouchers/create" method="POST">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label" style="font-weight:600;font-size:.875rem;">Campaign Name</label>
@@ -118,8 +163,13 @@
             <div class="col-md-6">
               <label class="form-label" style="font-weight:600;font-size:.875rem;">Discount Type</label>
               <select name="discount_type" class="form-select rounded-xl">
-                <option value="percent" <%= form.discount_type === 'percent' ? 'selected' : '' %>>Percent</option>
-                <option value="fixed_amount" <%= form.discount_type === 'fixed_amount' ? 'selected' : '' %>>Fixed amount</option>
+                <% if (form.discount_type === 'fixed_amount') { %>
+                <option value="percent">Percent</option>
+                <option value="fixed_amount" selected>Fixed amount</option>
+                <% } else { %>
+                <option value="percent" selected>Percent</option>
+                <option value="fixed_amount">Fixed amount</option>
+                <% } %>
               </select>
             </div>
             <div class="col-md-6">
@@ -211,17 +261,23 @@
               <p style="color:var(--muted);margin-bottom:.1rem;"><%= voucher.use_count || 0 %> used</p>
               <p style="color:var(--muted);margin-bottom:0;font-size:.75rem;">Limit <%= voucher.usage_limit || 'Unlimited' %></p>
             </td>
-            <td><span class="badge" style="<%= status.style %>"><%= status.label %></span></td>
+            <td><span class="badge campaign-status-badge <%= status.className %>"><%= status.label %></span></td>
             <td>
               <% if (status.label === 'Expired') { %>
               <button type="button" class="btn btn-sm btn-pill btn-outline-secondary" disabled>
                 <i class="bi bi-calendar-x me-1"></i>Expired
               </button>
               <% } else { %>
-              <form action="/admin/campaigns/<%= voucher.voucher_id %>/toggle" method="POST" class="m-0">
-                <button type="submit" class="btn btn-sm btn-pill <%= voucher.is_active ? 'btn-outline-secondary' : 'btn-outline-success' %>">
-                  <i class="bi bi-<%= voucher.is_active ? 'pause' : 'play' %>-circle me-1"></i><%= voucher.is_active ? 'Pause' : 'Activate' %>
+              <form action="/admin/campaigns/vouchers/<%= voucher.voucher_id %>/toggle" method="POST" class="m-0">
+                <% if (voucher.is_active) { %>
+                <button type="submit" class="btn btn-sm btn-pill btn-outline-secondary">
+                  <i class="bi bi-pause-circle me-1"></i>Pause
                 </button>
+                <% } else { %>
+                <button type="submit" class="btn btn-sm btn-pill btn-outline-success">
+                  <i class="bi bi-play-circle me-1"></i>Activate
+                </button>
+                <% } %>
               </form>
               <% } %>
             </td>
@@ -233,44 +289,5 @@
     <% } %>
   </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<script>
-  const voucherSummary = <%- JSON.stringify(summary) %>;
-  const voucherStatusCanvas = document.getElementById('voucherStatusChart');
-
-  if (voucherStatusCanvas && window.Chart) {
-    new Chart(voucherStatusCanvas, {
-      type: 'doughnut',
-      data: {
-        labels: ['Active', 'Upcoming', 'Paused', 'Expired'],
-        datasets: [{
-          data: [
-            voucherSummary.active_count || 0,
-            voucherSummary.upcoming_count || 0,
-            voucherSummary.paused_count || 0,
-            voucherSummary.expired_count || 0
-          ],
-          backgroundColor: ['#10B981', '#1D4ED8', '#6B7280', '#EF4444'],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              boxWidth: 10,
-              usePointStyle: true
-            }
-          }
-        },
-        cutout: '68%'
-      }
-    });
-  }
-</script>
 
 <%- include('../partials/footer') %>

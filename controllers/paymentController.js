@@ -11,9 +11,11 @@ const { buildReceiptPdf } = require('../services/receiptPdfService');
 const bookingModel = require('../models/bookingModel');
 const paymentModel = require('../models/paymentModel');
 const loyaltyModel = require('../models/loyaltyModel');
+const emailService = require('../services/emailService');
 const promotionModel = require('../models/promotionModel');
 const voucherModel = require('../models/voucherModel');
 const cancellationPolicyModel = require('../models/cancellationPolicyModel');
+const whatsappNotificationService = require('../services/whatsappNotificationService');
 
 function hasGuestBookingAccess(req, bookingId) {
   // Allow guests to pay only for bookings created in their session.
@@ -249,14 +251,28 @@ async function getAuthorizedBooking(req, res, bookingId, { json = false } = {}) 
 async function confirmPaidBooking(bookingId) {
   await bookingModel.expirePendingPaymentBookings();
   const current = await bookingModel.getBookingById(bookingId);
-  if (!current || current.status === 'confirmed') return;
-  if (current.status !== 'pending_payment') {
+  if (!current) return;
+  if (!['pending_payment', 'confirmed'].includes(current.status)) {
     console.warn('[payment] Refusing to confirm expired/non-payable booking %s with status %s', bookingId, current.status);
     return;
   }
 
-  // Confirm booking only after successful payment.
-  await bookingModel.updateBookingStatus(bookingId, 'confirmed');
+  if (current.status === 'pending_payment') {
+    // Confirm booking only after successful payment.
+    await bookingModel.updateBookingStatus(bookingId, 'confirmed');
+  }
+
+  if (current.status === 'pending_payment' && current.source === 'whatsapp') {
+    try {
+      const confirmedBooking = await bookingModel.getBookingById(bookingId);
+      const result = await whatsappNotificationService.sendBookingConfirmation(confirmedBooking);
+      if (result && result.skipped) {
+        console.warn('[whatsapp] confirmation skipped for booking %s: %s', bookingId, result.reason);
+      }
+    } catch (err) {
+      console.error('[whatsapp] confirmation failed for booking %s:', bookingId, err.message || err);
+    }
+  }
 
   try {
     await loyaltyModel.awardBookingPoints(bookingId);
@@ -266,6 +282,23 @@ async function confirmPaidBooking(bookingId) {
 
   try {
     const booking = await bookingModel.getBookingById(bookingId);
+    if (booking && booking.customer_email) {
+      const alreadySent = await bookingModel.hasSentEmailNotification(bookingId, 'confirmation');
+
+      if (!alreadySent) {
+        const baseUrl = (process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+        const receiptUrl = `${baseUrl}/payment/receipt/${bookingId}.pdf`;
+        const result = await emailService.sendBookingConfirmationEmail(booking, receiptUrl);
+
+        await bookingModel.recordEmailNotification(
+          booking,
+          'confirmation',
+          `Booking confirmation email for booking #${bookingId}`,
+          result.sent ? 'sent' : 'failed'
+        );
+      }
+    }
+
     // Only customer bookings can have vouchers; guest bookings have no customer_id.
     if (booking && booking.applied_cv_id && booking.customer_id) {
       const marked = await voucherModel.markVoucherUsed(booking.applied_cv_id, booking.customer_id);
@@ -275,7 +308,7 @@ async function confirmPaidBooking(bookingId) {
       }
     }
   } catch (err) {
-    console.error('voucher mark-used failed:', err);
+    console.error('post-confirm booking actions failed:', err);
   }
 }
 
@@ -646,6 +679,15 @@ async function paymentSuccess(req, res) {
     if (!existing || existing.payment_status !== 'paid') {
       return res.redirect(`/payment/checkout/${booking_id}`);
     }
+
+    if (booking && booking.customer_id) {
+      try {
+        await loyaltyModel.awardBookingPoints(booking_id);
+      } catch (err) {
+        console.error('loyalty award on success page failed:', err);
+      }
+    }
+
     const loyaltyEarned = booking && booking.customer_id
       ? await loyaltyModel.getEarnedPointsForBooking(booking_id).catch(() => 0)
       : 0;

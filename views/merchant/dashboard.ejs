@@ -174,6 +174,7 @@
                 // Match each booking status to a badge colour.
                 const statusMap = {
                   confirmed: { bg:'var(--success-bg)',  color:'var(--success)'  },
+                  rescheduled: { bg:'#EFF6FF',            color:'#1D4ED8'         },
                   completed: { bg:'var(--neutral-bg)',  color:'var(--muted)'    },
                   arrived:   { bg:'#EFF6FF',            color:'#1D4ED8'         },
                   cancelled: { bg:'var(--danger-bg)',   color:'var(--danger)'   },
@@ -190,7 +191,7 @@
               </span>
             </td>
             <td>
-              <% if (b.status === 'confirmed') { %>
+              <% if (b.status === 'confirmed' || b.status === 'rescheduled') { %>
               <form action="/merchant/bookings/<%= b.booking_id %>/arrived" method="POST" class="d-inline">
                 <button class="btn btn-sm btn-outline-secondary btn-pill" style="font-size:.72rem;padding:.2rem .6rem;">
                   <i class="bi bi-person-check me-1"></i>Arrived

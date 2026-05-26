@@ -18,6 +18,9 @@ router.get('/featured', adminController.showFeaturedMerchants);
 router.post('/featured/:listingId/toggle', adminController.toggleFeaturedMerchant);
 router.post('/featured/:listingId/remove', adminController.removeFeaturedMerchant);
 router.get('/customers', adminController.showCustomers);
+router.get('/validation', adminController.showValidationLogs);
+router.post('/validation/:logId/resolve', adminController.resolveValidationLog);
+router.post('/validation/:logId/reply', adminController.replyToWhatsAppSupport);
 
 // User management pages for customers and merchants.
 router.get('/user-management', adminController.showUserManagementHome);
@@ -38,8 +41,15 @@ router.post('/promotions/:promoId/reject', adminController.rejectPromotion);
 
 // Campaign and voucher management.
 router.get('/campaigns', adminController.showCampaigns);
+router.get('/campaigns/vouchers', adminController.showVoucherCampaigns);
+router.post('/campaigns/vouchers/create', adminController.createCampaign);
 router.post('/campaigns/create', adminController.createCampaign);
+router.post('/campaigns/vouchers/:voucherId/toggle', adminController.toggleCampaign);
 router.post('/campaigns/:voucherId/toggle', adminController.toggleCampaign);
-router.get('/:page(validation)', adminController.showComingSoon);
+router.get('/campaigns/loyalty', adminController.showLoyaltyRewards);
+router.post('/campaigns/loyalty/create', adminController.createLoyaltyReward);
+router.get('/campaigns/loyalty/:rewardId/edit', adminController.showEditLoyaltyReward);
+router.post('/campaigns/loyalty/:rewardId/edit', adminController.updateLoyaltyReward);
+router.post('/campaigns/loyalty/:rewardId/toggle', adminController.toggleLoyaltyReward);
 
 module.exports = router;

@@ -2,6 +2,8 @@ const twilio = require('twilio');
 const merchantModel = require('../models/merchantModel');
 const bookingModel = require('../models/bookingModel');
 const staffModel = require('../models/staffModel');
+const whatsappModel = require('../models/whatsappModel');
+const supportModel = require('../models/supportModel');
 
 const userSessions = {};
 
@@ -119,9 +121,11 @@ function getMainMenu() {
     'Hi, welcome to Uniday! 💖\n' +
     'What would you like to do today?\n\n' +
     '1. Book a Service\n' +
-    '2. Check Reservation\n' +
-    '3. Help / Support\n\n' +
-    'Reply with 1, 2, or 3.\n' +
+    '2. View Booking\n' +
+    '3. Cancel Booking\n' +
+    '4. Reschedule Booking\n' +
+    '5. Help / Support\n\n' +
+    'Reply with 1, 2, 3, 4, or 5.\n' +
     'Type menu anytime to restart.'
   );
 }
@@ -207,6 +211,22 @@ function getDatePrompt(service) {
   );
 }
 
+function getLinkedDatePrompt(customer, merchant, service) {
+  const greeting = customer
+    ? 'Welcome back, ' + customer.full_name + '!\n\n'
+    : '';
+
+  return (
+    greeting +
+    'Let\'s continue your booking for ' + service.service_name +
+    ' at ' + merchant.merchant_name + '.\n\n' +
+    'Please enter your preferred booking date in this format:\n\n' +
+    'YYYY-MM-DD\n\n' +
+    'Example: 2026-05-20\n\n' +
+    'Reply 0 or back to go back.'
+  );
+}
+
 function getTimeSlotMenu(bookingDate, slots) {
   return (
     'Here are the available time slots for ' + bookingDate + ':\n\n' +
@@ -235,13 +255,70 @@ function getPaymentLink(bookingReference) {
   return baseUrl + '/payment/checkout/' + bookingReference;
 }
 
+function getLoginLink(sender) {
+  const baseUrl = process.env.APP_URL || process.env.APP_BASE_URL || 'http://localhost:3000';
+  const phone = encodeURIComponent(String(sender || '').replace('whatsapp:', ''));
+
+  return baseUrl + '/auth/login?from=whatsapp&phone=' + phone;
+}
+
+function getSingaporeTimeParts() {
+  const parts = new Intl.DateTimeFormat('en-SG', {
+    timeZone: 'Asia/Singapore',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(new Date());
+
+  const values = {};
+  parts.forEach(function (part) {
+    values[part.type] = part.value;
+  });
+
+  return {
+    weekday: values.weekday,
+    hour: Number(values.hour),
+    minute: Number(values.minute)
+  };
+}
+
+function getSupportHoursStatus() {
+  const now = getSingaporeTimeParts();
+  const isWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(now.weekday);
+  const isDuringSupportHours = isWeekday && now.hour >= 9 && now.hour < 18;
+
+  return {
+    isDuringSupportHours: isDuringSupportHours,
+    label: 'Mon-Fri, 9:00 AM - 6:00 PM'
+  };
+}
+
+function getSupportPrompt(status) {
+  if (status.isDuringSupportHours) {
+    return (
+      'A Uniday support agent is available now.\n\n' +
+      'Please describe your issue and we will add you to the live support queue.'
+    );
+  }
+
+  return (
+    'Our live agents are offline right now.\n' +
+    'Support hours are ' + status.label + '.\n\n' +
+    'Please describe your issue and we will follow up during the next working period.'
+  );
+}
+
 function formatBookingDate(value) {
   if (!value) {
     return 'Not available';
   }
 
   if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return year + '-' + month + '-' + day;
   }
 
   return String(value).slice(0, 10);
@@ -268,6 +345,46 @@ function getReservationSummary(booking) {
   );
 }
 
+function getCancellationSummary(booking) {
+  return (
+    'I found this booking:\n\n' +
+    'Booking ID: ' + booking.booking_id + '\n' +
+    'Merchant: ' + booking.merchant_name + '\n' +
+    'Service: ' + booking.service_name + '\n' +
+    'Date: ' + formatBookingDate(booking.booking_date) + '\n' +
+    'Time: ' + formatBookingTime(booking.booking_time) + '\n' +
+    'Status: ' + booking.status + '\n\n' +
+    'Reply YES to cancel this booking, or NO to keep it.'
+  );
+}
+
+function getReschedulePrompt(booking) {
+  return (
+    'I found this booking:\n\n' +
+    'Booking ID: ' + booking.booking_id + '\n' +
+    'Merchant: ' + booking.merchant_name + '\n' +
+    'Service: ' + booking.service_name + '\n' +
+    'Current date: ' + formatBookingDate(booking.booking_date) + '\n' +
+    'Current time: ' + formatBookingTime(booking.booking_time) + '\n' +
+    'Staff: ' + (booking.staff_name || 'Any Available Staff') + '\n' +
+    'Status: ' + booking.status + '\n\n' +
+    'Please enter the new date in this format:\n\n' +
+    'YYYY-MM-DD'
+  );
+}
+
+function getRescheduleConfirmation(booking, bookingDate, slot) {
+  return (
+    'Please confirm your new appointment time:\n\n' +
+    'Booking ID: ' + booking.booking_id + '\n' +
+    'Merchant: ' + booking.merchant_name + '\n' +
+    'Service: ' + booking.service_name + '\n' +
+    'From: ' + formatBookingDate(booking.booking_date) + ' ' + formatBookingTime(booking.booking_time) + '\n' +
+    'To: ' + bookingDate + ' ' + slot.label + '\n\n' +
+    'Reply YES to reschedule, or NO to keep your current booking.'
+  );
+}
+
 async function checkReservation(bookingId) {
   try {
     const booking = await bookingModel.getBookingById(bookingId);
@@ -276,6 +393,57 @@ async function checkReservation(bookingId) {
     console.error('Failed to check reservation:', error.message);
     return { booking: null, error: error };
   }
+}
+
+async function getVerifiedCustomerForSender(sender) {
+  return whatsappModel.findExistingCustomerByPhone(sender);
+}
+
+function isCustomerBooking(booking, customer) {
+  return booking && customer && String(booking.customer_id) === String(customer.customer_id);
+}
+
+function canStartReschedule(booking) {
+  return booking && !['cancelled', 'payment_failed', 'completed', 'no_show'].includes(booking.status);
+}
+
+function parseBookingRef(message) {
+  const match = String(message || '').match(/\bref:\s*M(\d+)-S(\d+)\b/i);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    merchantId: Number(match[1]),
+    serviceId: Number(match[2])
+  };
+}
+
+async function loadBookingRefContext(ref) {
+  if (!ref || !ref.merchantId || !ref.serviceId) {
+    return null;
+  }
+
+  const merchant = await merchantModel.getMerchantById(ref.merchantId);
+
+  if (!merchant) {
+    return null;
+  }
+
+  const services = await merchantModel.getMerchantServices(ref.merchantId);
+  const service = services.find(function (item) {
+    return Number(item.service_id) === Number(ref.serviceId);
+  });
+
+  if (!service) {
+    return null;
+  }
+
+  return {
+    merchant: merchant,
+    service: service
+  };
 }
 
 function sendTwiml(res, twiml) {
@@ -432,10 +600,30 @@ async function receiveMessage(req, res) {
     const message = incomingMessage.toLowerCase().trim();
     const sender = req.body.From || 'unknown';
     const session = userSessions[sender];
+    const bookingRef = parseBookingRef(incomingMessage);
 
     console.log('Incoming WhatsApp message:', incomingMessage);
 
-    if (message === 'reset' || message === 'menu' || message === 'hi' || message === 'hello') {
+    if (bookingRef) {
+      const context = await loadBookingRefContext(bookingRef);
+
+      if (!context) {
+        delete userSessions[sender];
+        twiml.message('Sorry, I could not find that merchant or service. Please reply menu to start again.');
+      } else {
+        const customer = await whatsappModel.findExistingCustomerByPhone(sender);
+
+        saveSession(sender, {
+          state: 'choosing_date',
+          category: context.service.category || context.merchant.category || null,
+          merchant: context.merchant,
+          service: context.service,
+          customer: customer
+        });
+
+        twiml.message(getLinkedDatePrompt(customer, context.merchant, context.service));
+      }
+    } else if (message === 'reset' || message === 'menu' || message === 'hi' || message === 'hello') {
       delete userSessions[sender];
       twiml.message(getMainMenu());
     } else if (message === '0' || message === 'back') {
@@ -458,6 +646,190 @@ async function receiveMessage(req, res) {
           'Please enter another booking ID, or reply menu to start over.'
         );
       }
+    } else if (session && session.state === 'cancelling_awaiting_id') {
+      const bookingId = incomingMessage.trim();
+      const booking = await bookingModel.getBookingById(bookingId);
+
+      if (!booking || !isCustomerBooking(booking, session.customer)) {
+        twiml.message(
+          'Sorry, I could not find that booking under your Uniday account.\n\n' +
+          'Please enter another booking ID, or reply menu to start over.'
+        );
+      } else {
+        saveSession(sender, {
+          state: 'cancelling_confirm',
+          customer: session.customer,
+          bookingId: booking.booking_id
+        });
+
+        twiml.message(getCancellationSummary(booking));
+      }
+    } else if (session && session.state === 'cancelling_confirm') {
+      if (message === 'yes' || message === 'y') {
+        try {
+          await bookingModel.cancelCustomerBooking(session.bookingId, session.customer.customer_id);
+          const booking = await bookingModel.getBookingById(session.bookingId);
+
+          twiml.message(
+            'Your booking has been cancelled.\n\n' +
+            'Booking ID: ' + session.bookingId + '\n' +
+            'Merchant: ' + (booking ? booking.merchant_name : '-') + '\n' +
+            'Service: ' + (booking ? booking.service_name : '-') + '\n' +
+            'Date: ' + (booking ? formatBookingDate(booking.booking_date) : '-') + '\n' +
+            'Time: ' + (booking ? formatBookingTime(booking.booking_time) : '-')
+          );
+
+          delete userSessions[sender];
+        } catch (error) {
+          twiml.message(
+            'Sorry, I could not cancel this booking.\n\n' +
+            (error.message || 'Please try again later, or contact Uniday support.')
+          );
+          delete userSessions[sender];
+        }
+      } else if (message === 'no' || message === 'n') {
+        twiml.message('No problem. Your booking has not been changed.');
+        delete userSessions[sender];
+      } else {
+        twiml.message('Please reply YES to cancel this booking, or NO to keep it.');
+      }
+    } else if (session && session.state === 'reschedule_awaiting_id') {
+      const bookingId = incomingMessage.trim();
+      const booking = await bookingModel.getBookingById(bookingId);
+
+      if (!booking || !isCustomerBooking(booking, session.customer)) {
+        twiml.message(
+          'Sorry, I could not find that booking under your Uniday account.\n\n' +
+          'Please enter another booking ID, or reply menu to start over.'
+        );
+      } else if (!canStartReschedule(booking)) {
+        twiml.message('This booking cannot be rescheduled because its current status is ' + booking.status + '.');
+        delete userSessions[sender];
+      } else {
+        saveSession(sender, {
+          state: 'reschedule_awaiting_date',
+          customer: session.customer,
+          booking: booking
+        });
+
+        twiml.message(getReschedulePrompt(booking));
+      }
+    } else if (session && session.state === 'reschedule_awaiting_date') {
+      const bookingDate = message;
+
+      if (!isValidDate(bookingDate)) {
+        twiml.message(
+          'Invalid date format. Please enter the new booking date as YYYY-MM-DD.\n\n' +
+          'Example: 2026-05-20'
+        );
+      } else {
+        const booking = session.booking;
+        const slots = await bookingModel.getAvailableSlots({
+          merchantId: booking.merchant_id,
+          serviceId: booking.service_id,
+          staffId: booking.staff_id || null,
+          bookingDate: bookingDate
+        });
+
+        if (!slots.length) {
+          twiml.message(
+            'Sorry, there are no available time slots for ' + bookingDate + '.\n\n' +
+            'Please enter another date as YYYY-MM-DD.'
+          );
+        } else {
+          saveSession(sender, {
+            state: 'reschedule_awaiting_time',
+            customer: session.customer,
+            booking: booking,
+            bookingDate: bookingDate,
+            slots: slots
+          });
+
+          twiml.message(getTimeSlotMenu(bookingDate, slots));
+        }
+      }
+    } else if (session && session.state === 'reschedule_awaiting_time') {
+      const slotNumber = parseInt(message, 10);
+      const selectedSlot = session.slots[slotNumber - 1];
+
+      if (!selectedSlot) {
+        twiml.message('Invalid time slot number. Please choose a time slot from the list.');
+      } else {
+        saveSession(sender, {
+          state: 'reschedule_confirm',
+          customer: session.customer,
+          booking: session.booking,
+          bookingDate: session.bookingDate,
+          selectedSlot: selectedSlot
+        });
+
+        twiml.message(getRescheduleConfirmation(session.booking, session.bookingDate, selectedSlot));
+      }
+    } else if (session && session.state === 'reschedule_confirm') {
+      if (message === 'yes' || message === 'y') {
+        try {
+          await bookingModel.rescheduleCustomerBooking(
+            session.booking.booking_id,
+            session.customer.customer_id,
+            session.bookingDate,
+            session.selectedSlot.start_time
+          );
+
+          const booking = await bookingModel.getBookingById(session.booking.booking_id);
+
+          twiml.message(
+            'Your booking has been rescheduled.\n\n' +
+            'Booking ID: ' + booking.booking_id + '\n' +
+            'Merchant: ' + booking.merchant_name + '\n' +
+            'Service: ' + booking.service_name + '\n' +
+            'New date: ' + formatBookingDate(booking.booking_date) + '\n' +
+            'New time: ' + formatBookingTime(booking.booking_time) + '\n' +
+            'Staff: ' + (booking.staff_name || 'Any Available Staff')
+          );
+
+          delete userSessions[sender];
+        } catch (error) {
+          twiml.message(
+            'Sorry, I could not reschedule this booking.\n\n' +
+            (error.message || 'Please try again later, or contact Uniday support.')
+          );
+          delete userSessions[sender];
+        }
+      } else if (message === 'no' || message === 'n') {
+        twiml.message('No problem. Your booking has not been changed.');
+        delete userSessions[sender];
+      } else {
+        twiml.message('Please reply YES to reschedule this booking, or NO to keep your current booking.');
+      }
+    } else if (session && session.state === 'support_awaiting_issue') {
+      const issue = incomingMessage.trim();
+
+      if (!issue) {
+        twiml.message('Please describe your issue so a Uniday support staff can follow up.');
+      } else {
+        const ticketId = await supportModel.createWhatsAppSupportRequest({
+          customerId: session.customer ? session.customer.customer_id : null,
+          phone: String(sender || '').replace('whatsapp:', ''),
+          message: issue,
+          isDuringSupportHours: session.supportStatus.isDuringSupportHours
+        });
+
+        if (session.supportStatus.isDuringSupportHours) {
+          twiml.message(
+            'Thanks. You have been added to the live support queue.\n\n' +
+            'Support Request ID: ' + ticketId + '\n' +
+            'A Uniday support staff will follow up shortly.'
+          );
+        } else {
+          twiml.message(
+            'Thanks. Your support request has been recorded.\n\n' +
+            'Support Request ID: ' + ticketId + '\n' +
+            'Our live agents are offline now, but a Uniday support staff will follow up during support hours.'
+          );
+        }
+
+        delete userSessions[sender];
+      }
     } else if (session && session.state === 'choosing_category') {
       const category = categories[message];
 
@@ -467,7 +839,8 @@ async function receiveMessage(req, res) {
         saveSession(sender, {
           state: 'choosing_merchant',
           category: category,
-          merchants: merchants
+          merchants: merchants,
+          customer: session.customer || null
         });
 
         twiml.message(getMerchantMenu(category, merchants));
@@ -485,7 +858,8 @@ async function receiveMessage(req, res) {
           state: 'choosing_service',
           category: session.category,
           merchant: selectedMerchant,
-          services: services
+          services: services,
+          customer: session.customer || null
         });
 
         twiml.message(getServiceMenu(selectedMerchant, services));
@@ -501,7 +875,8 @@ async function receiveMessage(req, res) {
           state: 'choosing_date',
           category: session.category,
           merchant: session.merchant,
-          service: selectedService
+          service: selectedService,
+          customer: session.customer || null
         });
 
         twiml.message(getDatePrompt(selectedService));
@@ -519,6 +894,7 @@ async function receiveMessage(req, res) {
           category: session.category,
           merchant: session.merchant,
           service: session.service,
+          customer: session.customer || null,
           bookingDate: bookingDate,
           slots: slots
         });
@@ -542,6 +918,7 @@ async function receiveMessage(req, res) {
           category: session.category,
           merchant: session.merchant,
           service: session.service,
+          customer: session.customer || null,
           bookingDate: session.bookingDate,
           selectedSlot: selectedSlot,
           staff: staff
@@ -556,13 +933,40 @@ async function receiveMessage(req, res) {
       const selectedStaff = staffNumber === 1 ? null : session.staff[staffNumber - 2];
 
       if (staffNumber === 1 || selectedStaff) {
-        const bookingReference = 'WA-' + Date.now();
-        const paymentLink = getPaymentLink(bookingReference);
         const staffName = selectedStaff ? selectedStaff.full_name : 'No Preference';
+
+        if (!session.customer) {
+          twiml.message(
+            'Your booking details are ready.\n\n' +
+            'Merchant: ' + session.merchant.merchant_name + '\n' +
+            'Service: ' + session.service.service_name + '\n' +
+            'Date: ' + session.bookingDate + '\n' +
+            'Time: ' + session.selectedSlot.label + '\n' +
+            'Staff: ' + staffName + '\n\n' +
+            'Please log in or create a Uniday account to confirm this booking:\n' +
+            getLoginLink(sender) + '\n\n' +
+            'After your account is linked, future WhatsApp bookings can go straight to payment.'
+          );
+
+          delete userSessions[sender];
+          return sendTwiml(res, twiml);
+        }
+
+        const bookingId = await bookingModel.createBooking({
+          customerId: session.customer.customer_id,
+          serviceId: session.service.service_id,
+          merchantId: session.merchant.merchant_id,
+          bookingDate: session.bookingDate,
+          bookingTime: session.selectedSlot.start_time,
+          staffId: selectedStaff ? selectedStaff.staff_id : null,
+          source: 'whatsapp'
+        });
+
+        const paymentLink = getPaymentLink(bookingId);
 
         twiml.message(
           'Perfect! Your booking is pending payment.\n\n' +
-          'Booking Reference: ' + bookingReference + '\n' +
+          'Booking ID: ' + bookingId + '\n' +
           'Merchant: ' + session.merchant.merchant_name + '\n' +
           'Service: ' + session.service.service_name + '\n' +
           'Date: ' + session.bookingDate + '\n' +
@@ -570,8 +974,7 @@ async function receiveMessage(req, res) {
           'Staff: ' + staffName + '\n' +
           'Total: $' + getServicePrice(session.service) + '\n\n' +
           'Please complete payment using this link:\n' +
-          paymentLink + '\n\n' +
-          'Note: This is a demo WhatsApp booking reference. Database booking creation will be connected later.'
+          paymentLink
         );
 
         delete userSessions[sender];
@@ -579,8 +982,11 @@ async function receiveMessage(req, res) {
         twiml.message('Invalid staff number. Please choose a staff option from the list.');
       }
     } else if (message === '1') {
+      const customer = await whatsappModel.findExistingCustomerByPhone(sender);
+
       saveSession(sender, {
-        state: 'choosing_category'
+        state: 'choosing_category',
+        customer: customer
       });
 
       twiml.message(getCategoryMenu());
@@ -590,8 +996,49 @@ async function receiveMessage(req, res) {
       });
 
       twiml.message('Please enter your booking ID to check your reservation.');
-    } else if (message === '3') {
-      twiml.message('Sure! I can help you with booking, checking reservations, cancellations, and rescheduling. For urgent issues, a Uniday support staff can follow up later.');
+    } else if (message === '3' || message === 'cancel' || message === 'cancel booking') {
+      const customer = await getVerifiedCustomerForSender(sender);
+
+      if (!customer) {
+        twiml.message(
+          'Please log in or create a Uniday account before cancelling a booking through WhatsApp:\n' +
+          getLoginLink(sender)
+        );
+      } else {
+        saveSession(sender, {
+          state: 'cancelling_awaiting_id',
+          customer: customer
+        });
+
+        twiml.message('Please enter the booking ID you want to cancel.');
+      }
+    } else if (message === '4' || message === 'reschedule' || message === 'reschedule booking') {
+      const customer = await getVerifiedCustomerForSender(sender);
+
+      if (!customer) {
+        twiml.message(
+          'Please log in or create a Uniday account before rescheduling a booking through WhatsApp:\n' +
+          getLoginLink(sender)
+        );
+      } else {
+        saveSession(sender, {
+          state: 'reschedule_awaiting_id',
+          customer: customer
+        });
+
+        twiml.message('Please enter the booking ID you want to reschedule.');
+      }
+    } else if (message === '5' || message === 'help' || message === 'support') {
+      const customer = await getVerifiedCustomerForSender(sender);
+      const supportStatus = getSupportHoursStatus();
+
+      saveSession(sender, {
+        state: 'support_awaiting_issue',
+        customer: customer,
+        supportStatus: supportStatus
+      });
+
+      twiml.message(getSupportPrompt(supportStatus));
     } else {
       delete userSessions[sender];
       twiml.message(getMainMenu());
