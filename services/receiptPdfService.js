@@ -252,9 +252,9 @@ function buildReceiptPdf({ booking, payment }) {
   txtRight(money(totalPaid), totalsAmountX, totalY, 13, 'F2', accent);
 
   setColor(soft);
-  rect(72, 340, 451, 54, true);
-  txt('Notes', 92, 371, 10, 'F2', accent);
-  txt('Thank you for booking with Uniday. Please show this receipt if needed during your visit.', 92, 354, 9, 'F1', ink);
+  rect(72, 255, 451, 54, true);
+  txt('Notes', 92, 286, 10, 'F2', accent);
+  txt('Thank you for booking with Uniday. Please show this receipt if needed during your visit.', 92, 269, 9, 'F1', ink);
 
   txt('This receipt confirms payment received for your Uniday booking.', 72, 96, 8, 'F1', muted);
 

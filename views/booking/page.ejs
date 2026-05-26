@@ -5,6 +5,7 @@
   const selectedServiceId = state.service_id || '';
   const selectedDate = state.booking_date || '';
   const selectedBookingTime = state.booking_time ? String(state.booking_time).slice(0,5) : '';
+  const selectedStaffId = state.staff_id || '';
 %>
 <%- include('../partials/header') %>
 
@@ -125,6 +126,22 @@
                 </div>
               </div>
 
+              <div class="mb-3">
+                <label class="form-label" style="font-weight:600;font-size:.875rem;">
+                  Select Staff <span style="color:var(--muted);font-weight:400;">(optional)</span>
+                </label>
+                <div class="row g-2" id="staffOptionsGrid">
+                  <div class="col-12">
+                    <div class="time-empty" style="color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">
+                      Pick a time to see available staff.
+                    </div>
+                  </div>
+                </div>
+                <p id="staffAvailabilityNote" class="small mt-2 mb-0" style="color:var(--muted);">
+                  Choose a date and time to see which staff are available.
+                </p>
+              </div>
+
               <div class="d-flex gap-2 mt-4">
                 <button type="button" class="btn btn-outline-secondary btn-pill w-50" style="font-weight:600;" onclick="prevStep(2)">
                   <i class="bi bi-arrow-left me-1"></i>Back
@@ -212,6 +229,7 @@
                 <div class="summary-row"><span class="lbl">Service</span><span class="val" id="confirm-service" style="font-weight:700;">—</span></div>
                 <div class="summary-row"><span class="lbl">Date</span><span class="val" id="confirm-date">—</span></div>
                 <div class="summary-row"><span class="lbl">Time</span><span class="val" id="confirm-time">—</span></div>
+                <div class="summary-row"><span class="lbl">Staff</span><span class="val" id="confirm-staff">No Preference</span></div>
                 <div class="summary-row total">
                   <span style="font-weight:700;">Total</span>
                   <span style="font-weight:700;color:var(--accent);font-family:var(--font-mono);" id="confirm-price">—</span>
@@ -264,6 +282,10 @@
             <span class="lbl">Time</span>
             <span class="val" id="sum-time" style="color:var(--muted);">—</span>
           </div>
+          <div class="summary-row">
+            <span class="lbl">Staff</span>
+            <span class="val" id="sum-staff" style="color:var(--muted);">No Preference</span>
+          </div>
           <div class="summary-row total">
             <span style="font-weight:700;">Total</span>
             <span style="font-weight:700;font-size:1.1rem;color:var(--accent);font-family:var(--font-mono);" id="sum-price">—</span>
@@ -290,8 +312,11 @@
 <script>
 let selectedService = null;
 let selectedTime    = null;
+let selectedStaffId = '';
+let selectedStaffName = 'No Preference';
 const initialServiceId = '<%= selectedServiceId %>';
 const initialTime = '<%= selectedBookingTime %>';
+const initialStaffId = '<%= selectedStaffId %>';
 const loggedInCustomer = <%= loggedInCustomer ? 'true' : 'false' %>;
 
 function pad2(value) {
@@ -318,6 +343,148 @@ function clearStep2Error() {
   document.getElementById('step2-error').style.display = 'none';
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function staffOptionTemplate(member, selected = false) {
+  const isAnyStaff = !member;
+  const value = isAnyStaff ? '' : member.staff_id;
+  const name = isAnyStaff ? 'No Preference' : escapeHtml(member.full_name || 'Staff');
+  const role = !isAnyStaff && member.role
+    ? `<span style="font-size:.72rem;color:var(--muted);margin-top:.2rem;">${escapeHtml(member.role)}</span>`
+    : '';
+  const selectedClass = selected ? ' selected' : '';
+  const selectedStyles = selected
+    ? 'border-color:var(--accent);background:var(--accent-light);box-shadow:0 0 0 3px var(--accent-mid);'
+    : 'border-color:var(--border);background:var(--surface);';
+
+  return `
+    <div class="col-md-4 col-6">
+      <button
+        type="button"
+        class="staff-option${selectedClass} d-flex flex-column align-items-center justify-content-center text-center h-100 p-3"
+        data-staff-name="${name}"
+        onclick="selectStaff(this)"
+        style="border:1px solid var(--border);border-radius:var(--r);${selectedStyles}cursor:pointer;min-height:104px;width:100%;transition:border-color .15s, background .15s, box-shadow .15s;"
+      >
+        <input type="radio" name="staff_id" value="${value}" ${selected ? 'checked' : ''} style="position:absolute;opacity:0;">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:999px;background:${selected ? '#fff' : 'var(--accent-light)'};color:var(--accent);font-size:1.25rem;margin-bottom:.6rem;">
+          <i class="bi bi-person"></i>
+        </span>
+        <span style="font-weight:700;color:var(--ink);font-size:.82rem;">${name}</span>
+        ${role}
+      </button>
+    </div>
+  `;
+}
+
+function setStaffSelection(button) {
+  document.querySelectorAll('.staff-option').forEach(option => {
+    option.classList.remove('selected');
+    option.style.borderColor = 'var(--border)';
+    option.style.background = 'var(--surface)';
+    option.style.boxShadow = 'none';
+    const input = option.querySelector('input[name="staff_id"]');
+    if (input) input.checked = false;
+  });
+
+  button.classList.add('selected');
+  button.style.borderColor = 'var(--accent)';
+  button.style.background = 'var(--accent-light)';
+  button.style.boxShadow = '0 0 0 3px var(--accent-mid)';
+  const input = button.querySelector('input[name="staff_id"]');
+  if (input) {
+    input.checked = true;
+    selectedStaffId = input.value;
+  }
+  selectedStaffName = button.dataset.staffName || 'No Preference';
+}
+
+function selectStaff(button) {
+  setStaffSelection(button);
+  updateSummary();
+  updateAuthLinks();
+}
+
+function resetStaffOptions(message = 'Choose a date and time to see which staff are available.') {
+  selectedStaffId = '';
+  selectedStaffName = 'No Preference';
+  const grid = document.getElementById('staffOptionsGrid');
+  const note = document.getElementById('staffAvailabilityNote');
+  if (grid) {
+    grid.innerHTML = `
+      <div class="col-12">
+        <div class="time-empty" style="color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">
+          Pick a time to see available staff.
+        </div>
+      </div>
+    `;
+  }
+  if (note) {
+    note.textContent = message;
+    note.style.color = 'var(--muted)';
+  }
+}
+
+function renderStaffOptions(availableStaff) {
+  const staff = Array.isArray(availableStaff) ? availableStaff : [];
+  const grid = document.getElementById('staffOptionsGrid');
+  const note = document.getElementById('staffAvailabilityNote');
+  const keepSelected = selectedStaffId && staff.some(member => String(member.staff_id) === String(selectedStaffId));
+
+  if (!grid) return;
+
+  grid.innerHTML = [
+    staffOptionTemplate(null, !keepSelected),
+    ...staff.map(member => staffOptionTemplate(member, keepSelected && String(member.staff_id) === String(selectedStaffId)))
+  ].join('');
+
+  const selectedOption = grid.querySelector('.staff-option.selected') || grid.querySelector('.staff-option');
+  if (selectedOption) setStaffSelection(selectedOption);
+
+  if (note) {
+    note.textContent = staff.length
+      ? `${staff.length} staff member${staff.length === 1 ? '' : 's'} available for this time.`
+      : 'No specific staff are available; no preference will assign any available staff.';
+    note.style.color = staff.length ? 'var(--muted)' : 'var(--warn)';
+  }
+
+  updateSummary();
+}
+
+async function loadAvailableStaff() {
+  const date = document.getElementById('booking_date').value;
+  const merchantId = document.getElementById('merchant_id').value;
+
+  if (!date || !selectedService || !selectedTime) {
+    resetStaffOptions();
+    updateSummary();
+    return;
+  }
+
+  const params = new URLSearchParams({
+    merchantId,
+    serviceId: selectedService.id,
+    bookingDate: date,
+    bookingTime: selectedTime,
+  });
+
+  try {
+    const response = await fetch('/book/api/staff?' + params.toString());
+    const availableStaff = await response.json();
+    renderStaffOptions(availableStaff);
+  } catch (err) {
+    console.error(err);
+    resetStaffOptions('Unable to load available staff.');
+  }
+}
+
 function validateBookingDate() {
   const dateEl = document.getElementById('booking_date');
   const today = localDateValue();
@@ -328,6 +495,7 @@ function validateBookingDate() {
     selectedTime = null;
     document.getElementById('hidden_booking_time').value = '';
     document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+    resetStaffOptions();
     setStep2Error('Please choose today or a future date.');
     return false;
   }
@@ -341,6 +509,7 @@ async function updateAvailableTimes() {
 
   selectedTime = null;
   document.getElementById('hidden_booking_time').value = '';
+  resetStaffOptions();
   updateSummary();
 
   if (!date || !selectedService) {
@@ -362,6 +531,7 @@ async function updateAvailableTimes() {
 
     if (!slots.length) {
       grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">No slots available for this date.</div>';
+      resetStaffOptions('No staff are available for this date.');
       return;
     }
 
@@ -418,6 +588,7 @@ function selectTime(el, time) {
   selectedTime = time;
   document.getElementById('hidden_booking_time').value = time;
   clearStep2Error();
+  loadAvailableStaff();
   updateSummary();
   updateAuthLinks();
 }
@@ -448,6 +619,11 @@ function updateSummary() {
     document.getElementById('sum-time').style.cssText   = 'color:var(--muted);';
     document.getElementById('confirm-time').textContent = '—';
   }
+
+  const staffText = selectedStaffName || 'No Preference';
+  document.getElementById('sum-staff').textContent = staffText;
+  document.getElementById('sum-staff').style.cssText = 'font-weight:600;';
+  document.getElementById('confirm-staff').textContent = staffText;
 }
 
 function updateAuthLinks() {
@@ -460,6 +636,7 @@ function updateAuthLinks() {
   const dateValue = document.getElementById('booking_date').value;
   if (dateValue) params.set('bookingDate', dateValue);
   if (selectedTime) params.set('bookingTime', selectedTime);
+  if (selectedStaffId) params.set('staffId', selectedStaffId);
 
   const next = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
   if (loginLink) loginLink.href = '/auth/login?next=' + encodeURIComponent(next);
@@ -516,7 +693,10 @@ validateBookingDate();
 updateAvailableTimes().then(() => {
   if (!initialTime) return;
   const initialTimeButton = document.querySelector('.time-btn[data-time="' + initialTime + '"]');
-  if (initialTimeButton) selectTime(initialTimeButton, initialTime);
+  if (initialTimeButton) {
+    selectedStaffId = initialStaffId;
+    selectTime(initialTimeButton, initialTime);
+  }
 });
 
 const emailInput = document.getElementById('booking_email');

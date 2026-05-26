@@ -57,6 +57,7 @@ function buildQrNextUrl(token, state = {}) {
   if (state.service_id) params.set('serviceId', state.service_id);
   if (state.booking_date) params.set('bookingDate', state.booking_date);
   if (state.booking_time) params.set('bookingTime', state.booking_time);
+  if (state.staff_id) params.set('staffId', state.staff_id);
 
   const query = params.toString();
   return `/book/${token}${query ? '?' + query : ''}`;
@@ -67,6 +68,7 @@ function getQrFormState(req) {
     service_id: req.body.service_id || req.query.serviceId || '',
     booking_date: req.body.booking_date || req.query.bookingDate || '',
     booking_time: req.body.booking_time || req.query.bookingTime || '',
+    staff_id: req.body.staff_id || req.query.staffId || '',
     full_name: req.body.full_name || '',
     phone: req.body.phone || '',
     email: req.body.email || '',

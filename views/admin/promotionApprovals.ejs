@@ -12,6 +12,12 @@
     if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
     return values.map(day => dayNames[day] || day).join(', ');
   };
+  const lifecycleStyle = status => ({
+    active:   { label: 'Active',   icon: 'bi-broadcast',  bg: 'var(--success-bg)', color: 'var(--success)' },
+    upcoming: { label: 'Upcoming', icon: 'bi-clock',      bg: '#EFF6FF',           color: '#1D4ED8' },
+    paused:   { label: 'Paused',   icon: 'bi-pause',      bg: 'var(--warn-bg)',    color: 'var(--warn)' },
+    expired:  { label: 'Expired',  icon: 'bi-calendar-x', bg: 'var(--danger-bg)',  color: 'var(--danger)' },
+  }[status] || { label: 'Approved', icon: 'bi-check-circle', bg: 'var(--success-bg)', color: 'var(--success)' });
   const pastApprovedList = Array.isArray(pastApprovedPromotions) ? pastApprovedPromotions : [];
 %>
 
@@ -136,9 +142,9 @@
     <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
       <div>
         <p class="section-label mb-1">Approved History</p>
-        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Past Approved Promotions</h5>
+        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Approved Promotions</h5>
       </div>
-      <span class="badge" style="background:var(--danger-bg);color:var(--danger);"><%= pastApprovedList.length %> expired</span>
+      <span class="badge" style="background:var(--success-bg);color:var(--success);"><%= pastApprovedList.length %> approved</span>
     </div>
 
     <% if (!pastApprovedList.length) { %>
@@ -146,8 +152,8 @@
       <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
         <i class="bi bi-calendar-check" style="font-size:2rem;color:var(--muted);"></i>
       </div>
-      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No past approved promotions</h6>
-      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Approved promotions will appear here after their end date passes.</p>
+      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No approved promotions yet</h6>
+      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Approved promotions will appear here after review.</p>
     </div>
     <% } else { %>
     <div class="table-responsive">
@@ -163,6 +169,7 @@
         </thead>
         <tbody>
           <% pastApprovedList.forEach(promo => { %>
+          <% const lifecycle = lifecycleStyle(promo.lifecycle_status); %>
           <tr>
             <td style="min-width:260px;">
               <div class="d-flex gap-3 align-items-start">
@@ -193,8 +200,8 @@
               <p style="color:var(--muted);margin:.25rem 0 0;"><i class="bi bi-calendar-week me-1"></i><%= dayLabel(promo.applicable_days) %></p>
             </td>
             <td>
-              <span class="badge rounded-pill" style="background:var(--danger-bg);color:var(--danger);">
-                <i class="bi bi-calendar-x me-1"></i>Expired
+              <span class="badge rounded-pill" style="background:<%= lifecycle.bg %>;color:<%= lifecycle.color %>;">
+                <i class="bi <%= lifecycle.icon %> me-1"></i><%= lifecycle.label %>
               </span>
               <p style="color:var(--muted);margin:.35rem 0 0;">Approved <%= formatDate(promo.approved_at) %></p>
             </td>

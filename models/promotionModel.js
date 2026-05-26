@@ -1,7 +1,31 @@
 const db = require('../config/db');
+const fs = require('fs');
+const path = require('path');
 const { resolveMerchantImagePath } = require('../utils/merchantImages');
 
 let schemaReady = false;
+const PROMOTION_IMAGE_WEB_DIR = '/images/promotions';
+const PROMOTION_IMAGE_DIR = path.join(__dirname, '..', 'public', 'images', 'promotions');
+
+function promotionImageExists(webPath) {
+  if (!webPath || !webPath.startsWith(`${PROMOTION_IMAGE_WEB_DIR}/`)) {
+    return Boolean(webPath);
+  }
+
+  const filename = decodeURIComponent(webPath.slice(PROMOTION_IMAGE_WEB_DIR.length + 1));
+  return fs.existsSync(path.join(PROMOTION_IMAGE_DIR, filename));
+}
+
+function resolvePromotionImagePath(row) {
+  if (promotionImageExists(row.image_path)) {
+    return row.image_path;
+  }
+
+  return resolveMerchantImagePath({
+    merchant_name: row.merchant_name,
+    profile_image: row.merchant_profile_image,
+  });
+}
 
 async function columnExists(columnName) {
   const [rows] = await db.query(
@@ -204,10 +228,7 @@ async function getActivePromotions(category = null) {
   );
   return rows.map(row => ({
     ...row,
-    image_path: row.image_path || resolveMerchantImagePath({
-      merchant_name: row.merchant_name,
-      profile_image: row.merchant_profile_image,
-    }),
+    image_path: resolvePromotionImagePath(row),
   }));
 }
 
@@ -239,7 +260,12 @@ async function getPendingPromotionRequests() {
 
   // Load merchant promotion requests waiting for admin review.
   const [rows] = await db.query(
-    `SELECT p.*, m.merchant_name, m.email AS merchant_email, s.service_name
+    `SELECT
+       p.*,
+       m.merchant_name,
+       m.email AS merchant_email,
+       m.profile_image AS merchant_profile_image,
+       s.service_name
      FROM promotion p
      JOIN merchant m ON p.merchant_id = m.merchant_id
      LEFT JOIN service s ON p.service_id = s.service_id
@@ -247,23 +273,39 @@ async function getPendingPromotionRequests() {
      ORDER BY p.submitted_at ASC, p.promo_id ASC`
   );
 
-  return rows;
+  return rows.map(row => ({
+    ...row,
+    image_path: resolvePromotionImagePath(row),
+  }));
 }
 
 async function getPastApprovedPromotions() {
   await ensurePromotionSchema();
 
   const [rows] = await db.query(
-    `SELECT p.*, m.merchant_name, m.email AS merchant_email, s.service_name
+    `SELECT
+       p.*,
+       m.merchant_name,
+       m.email AS merchant_email,
+       m.profile_image AS merchant_profile_image,
+       s.service_name,
+       CASE
+         WHEN p.end_date < CURDATE() THEN 'expired'
+         WHEN p.start_date > CURDATE() THEN 'upcoming'
+         WHEN p.is_active = 1 THEN 'active'
+         ELSE 'paused'
+       END AS lifecycle_status
      FROM promotion p
      JOIN merchant m ON p.merchant_id = m.merchant_id
      LEFT JOIN service s ON p.service_id = s.service_id
      WHERE p.approval_status = 'approved'
-       AND p.end_date < CURDATE()
-     ORDER BY p.end_date DESC, p.approved_at DESC, p.promo_id DESC`
+     ORDER BY COALESCE(p.approved_at, p.submitted_at) DESC, p.promo_id DESC`
   );
 
-  return rows;
+  return rows.map(row => ({
+    ...row,
+    image_path: resolvePromotionImagePath(row),
+  }));
 }
 
 async function approvePromotion(promoId, adminId) {

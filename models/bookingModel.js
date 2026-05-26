@@ -762,6 +762,15 @@ async function getCustomerBookings(customerId) {
             p.payment_status,
             p.payment_ref,
             p.transaction_ref,
+            CASE
+              WHEN b.status = 'pending_payment'
+               AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+              THEN 1 ELSE 0
+            END AS pending_is_active,
+            GREATEST(
+              0,
+              TIMESTAMPDIFF(SECOND, NOW(), DATE_ADD(b.created_at, INTERVAL 5 MINUTE))
+            ) AS pending_remaining_seconds,
             COALESCE(CASE WHEN cp.is_active = 1 THEN cp.min_cancel_hours END, 6) AS min_cancel_hours,
             COALESCE(CASE WHEN cp.is_active = 1 THEN cp.refund_percentage END, 100.00) AS refund_percentage,
             COALESCE(CASE WHEN cp.is_active = 1 THEN cp.allow_reschedule END, 1) AS allow_reschedule,
@@ -941,6 +950,14 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
 
   try {
     await connection.beginTransaction();
+
+    await connection.query(
+      `UPDATE booking b
+       JOIN payment p ON p.booking_id = b.booking_id
+        AND p.payment_status = 'paid'
+       SET b.status = 'confirmed'
+       WHERE b.status = 'pending_payment'`
+    );
 
     const [expired] = await connection.query(
       `SELECT b.booking_id, b.slot_id

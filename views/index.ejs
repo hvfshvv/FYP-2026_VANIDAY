@@ -231,7 +231,7 @@
     </div>
 
     <div class="deal-dots" aria-label="Promotion slides">
-      <% promotions.slice(0, 7).forEach((promo, index) => { %>
+      <% promotions.forEach((promo, index) => { %>
         <button
           type="button"
           class="<%= index === 0 ? 'active' : '' %>"
