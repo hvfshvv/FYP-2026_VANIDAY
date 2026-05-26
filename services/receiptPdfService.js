@@ -142,12 +142,8 @@ function buildReceiptPdf({ booking, payment }) {
   const promoDiscount = Number(booking.discount_amount || 0);
   const voucherDiscount = Number(booking.voucher_discount_amount || 0);
   const totalPaid = Number(payment?.amount || booking.payable_amount || Math.max(subtotal - promoDiscount - voucherDiscount, 0));
-  const promoLabel = booking.promo_title
-    ? `Promotion discount (${booking.promo_title})`
-    : 'Promotion discount';
-  const voucherLabel = booking.voucher_name
-    ? `Voucher discount (${booking.voucher_name})`
-    : 'Voucher discount';
+  const promoLabel = booking.promo_title || 'Promotion';
+  const voucherLabel = booking.voucher_name || 'Voucher';
   const paymentMethod = String(payment?.payment_method || '-').toUpperCase();
   const paidAt = payment?.paid_at ? fmtDate(payment.paid_at) : fmtDate(new Date());
   const accent = hexToRgb('#e11d48');
@@ -231,27 +227,29 @@ function buildReceiptPdf({ booking, payment }) {
   txtRight(money(subtotal), 462, 531, 10, 'F1', ink);
   txtRight(money(subtotal), 515, 531, 10, 'F1', ink);
 
-  txtRight('Subtotal', 426, 475, 10, 'F2', ink);
-  txtRight(money(subtotal), 523, 475, 10, 'F1', ink);
+  const totalsLabelX = 360;
+  const totalsAmountX = 523;
+  txt('Subtotal', totalsLabelX, 475, 10, 'F2', ink);
+  txtRight(money(subtotal), totalsAmountX, 475, 10, 'F1', ink);
   let totalsY = 453;
   if (promoDiscount > 0) {
-    txtRight(shortText(promoLabel, 34), 426, totalsY, 9, 'F2', ink);
-    txtRight(`-${money(promoDiscount)}`, 523, totalsY, 9, 'F1', accent);
-    totalsY -= 20;
+    txt('Promotion discount:', totalsLabelX, totalsY, 9, 'F2', ink);
+    txtRight(`-${money(promoDiscount)}`, totalsAmountX, totalsY, 9, 'F1', accent);
+    txt(shortText(promoLabel, 40), totalsLabelX, totalsY - 14, 8, 'F1', muted);
+    totalsY -= 34;
   }
   if (voucherDiscount > 0) {
-    txtRight(shortText(voucherLabel, 34), 426, totalsY, 9, 'F2', ink);
-    txtRight(`-${money(voucherDiscount)}`, 523, totalsY, 9, 'F1', accent);
-    totalsY -= 20;
+    txt('Voucher discount:', totalsLabelX, totalsY, 9, 'F2', ink);
+    txtRight(`-${money(voucherDiscount)}`, totalsAmountX, totalsY, 9, 'F1', accent);
+    txt(shortText(voucherLabel, 40), totalsLabelX, totalsY - 14, 8, 'F1', muted);
+    totalsY -= 34;
   }
-  txtRight('Tax', 426, totalsY, 10, 'F2', ink);
-  txtRight(money(0), 523, totalsY, 10, 'F1', ink);
-  const totalLineY = totalsY - 15;
+  const totalLineY = totalsY - 4;
   const totalY = totalLineY - 22;
   setStroke(ink);
   line(360, totalLineY, 523, totalLineY);
-  txtRight('Total Paid', 426, totalY, 13, 'F2', ink);
-  txtRight(money(totalPaid), 523, totalY, 13, 'F2', accent);
+  txt('Total Paid', totalsLabelX, totalY, 13, 'F2', ink);
+  txtRight(money(totalPaid), totalsAmountX, totalY, 13, 'F2', accent);
 
   setColor(soft);
   rect(72, 340, 451, 54, true);

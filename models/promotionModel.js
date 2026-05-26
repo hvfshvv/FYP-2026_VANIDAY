@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { resolveMerchantImagePath } = require('../utils/merchantImages');
 
 let schemaReady = false;
 
@@ -179,6 +180,7 @@ async function getActivePromotions(category = null) {
     `SELECT
        p.*,
        m.merchant_name,
+       m.profile_image AS merchant_profile_image,
        COALESCE(NULLIF(s.category, ''), NULLIF(m.category, '')) AS category,
        s.service_name
      FROM promotion p
@@ -200,7 +202,13 @@ async function getActivePromotions(category = null) {
      ORDER BY p.start_date DESC`,
     params
   );
-  return rows;
+  return rows.map(row => ({
+    ...row,
+    image_path: row.image_path || resolveMerchantImagePath({
+      merchant_name: row.merchant_name,
+      profile_image: row.merchant_profile_image,
+    }),
+  }));
 }
 
 async function togglePromotion(promoId, merchantId) {
