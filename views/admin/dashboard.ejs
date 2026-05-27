@@ -64,21 +64,16 @@
   .admin-module-carousel {
     display: flex;
     gap: 1.25rem;
-    margin-bottom: 3rem;
+    margin-bottom: 2.25rem;
     overflow-x: auto;
-    padding: .25rem .15rem 1rem;
+    padding: .25rem .15rem .35rem;
     scroll-behavior: smooth;
     scroll-snap-type: x mandatory;
-    scrollbar-width: thin;
+    scrollbar-width: none;
   }
 
   .admin-module-carousel::-webkit-scrollbar {
-    height: 8px;
-  }
-
-  .admin-module-carousel::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 999px;
+    display: none;
   }
 
   .admin-module-card {
@@ -88,8 +83,8 @@
   }
 
   .admin-module-card .action-card {
-    min-height: 310px;
-    padding: 1.75rem;
+    min-height: 260px;
+    padding: 1.45rem;
   }
 
   .stat-card.is-alert {
@@ -123,7 +118,7 @@
   }
 
   .admin-metric-grid {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .admin-priority-grid .stat-card {
@@ -131,17 +126,42 @@
   }
 
   .admin-metric-grid .stat-card {
-    min-height: 124px;
-    padding: 1.35rem;
+    min-height: 132px;
+    min-width: 0;
   }
 
   .admin-metric-grid .stat-value {
-    font-size: clamp(1.6rem, 2vw, 2.15rem);
+    font-size: clamp(1.85rem, 2.4vw, 2.4rem);
+    line-height: 1.1;
+    max-width: 100%;
+    white-space: nowrap;
   }
 
   .admin-metric-grid .icon-circle {
+    flex: 0 0 auto;
     height: 38px !important;
     width: 38px !important;
+  }
+
+  .admin-metric-grid .stat-card > .d-flex > div:first-child {
+    min-width: 0;
+  }
+
+  .admin-metric-grid .stat-card.is-money .stat-value {
+    font-size: clamp(1.85rem, 2.25vw, 2.35rem);
+  }
+
+  .admin-system-log-card .p-4 {
+    padding: 1.25rem !important;
+  }
+
+  .admin-system-log-card table th,
+  .admin-system-log-card table td {
+    padding: .85rem 1rem;
+  }
+
+  .admin-system-log-card table p {
+    line-height: 1.25;
   }
 
   @media (max-width: 1199.98px) {
@@ -150,7 +170,7 @@
     }
 
     .admin-metric-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .admin-module-card {
@@ -186,15 +206,22 @@
     .admin-metric-grid {
       grid-template-columns: 1fr;
     }
+
+    .admin-metric-grid .stat-value {
+      white-space: normal;
+    }
   }
 </style>
 
 <%
-  const money = value => 'S$' + Number(value || 0).toFixed(2);
+  const money = value => 'S$' + Number(value || 0).toLocaleString('en-SG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   const queueStats = [
     { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)', href:'/admin/merchant-validations', alertWhenPositive:true },
     { label:'Pending Promotion Approvals', value:summary.pending_promotion_approvals || 0, icon:'bi-megaphone', color:'var(--warn)', href:'/admin/promotions', alertWhenPositive:true },
-    { label:'Validation Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)' },
+    { label:'Unresolved Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)', href:'/admin/validation', alertWhenPositive:true },
   ];
   const metricStats = [
     { label:'Customers', value:summary.total_customers || 0, icon:'bi-people', color:'var(--accent)' },
@@ -202,7 +229,7 @@
     { label:'Services', value:summary.total_services || 0, icon:'bi-scissors', color:'var(--ink)' },
     { label:'Promotions', value:summary.total_promotions || 0, icon:'bi-tag', color:'var(--accent)' },
     { label:'Bookings', value:summary.total_bookings || 0, icon:'bi-calendar-check', color:'#1D4ED8' },
-    { label:'Gross Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)', href:'/admin/revenue' },
+    { label:'Gross Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)', href:'/admin/revenue', money:true },
     { label:'Payments', value:summary.total_payments || 0, icon:'bi-receipt', color:'var(--accent)' },
   ];
 %>
@@ -229,7 +256,7 @@
   <section class="admin-section">
     <div class="admin-section-heading">
       <div>
-        <p class="section-label mb-1">Review Queue</p>
+        <p class="section-label mb-1">Action Required</p>
         <h5>Needs Attention</h5>
       </div>
     </div>
@@ -237,7 +264,7 @@
       <% queueStats.forEach(stat => { %>
       <% const statTag = stat.href ? 'a' : 'div'; %>
       <% const isAlert = stat.alertWhenPositive && Number(stat.value) > 0; %>
-      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %>"<%- stat.href ? ` href="${stat.href}"` : '' %>>
+      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %><%= stat.money ? ' is-money' : '' %>"<%- stat.href ? ` href="${stat.href}"` : '' %>>
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
             <p class="stat-alert-label" style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
@@ -263,7 +290,7 @@
       <% metricStats.forEach(stat => { %>
       <% const statTag = stat.href ? 'a' : 'div'; %>
       <% const isAlert = stat.alertWhenPositive && Number(stat.value) > 0; %>
-      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %>"<%- stat.href ? ` href="${stat.href}"` : '' %>>
+      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %><%= stat.wide ? ' is-wide' : '' %>"<%- stat.href ? ` href="${stat.href}"` : '' %>>
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
             <p class="stat-alert-label" style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
@@ -281,7 +308,7 @@
   <section class="admin-section">
   <div class="admin-module-header">
     <div>
-      <p class="section-label mb-1">Admin Modules</p>
+      <p class="section-label mb-1">Management Tools</p>
       <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Platform Tools</h5>
     </div>
     <div class="admin-module-controls" aria-label="Module carousel controls">
@@ -358,10 +385,10 @@
   <section class="admin-section">
   <div class="row g-4">
     <div class="col-12">
-      <div class="card border-0 overflow-hidden h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="card border-0 overflow-hidden h-100 admin-system-log-card" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
         <div class="p-4" style="border-bottom:1px solid var(--border);">
-          <p class="section-label mb-1">Validation</p>
-          <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Validation Errors</h5>
+          <p class="section-label mb-1">System Activity</p>
+          <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent System Logs</h5>
         </div>
         <% if (recentErrors.length === 0) { %>
         <div class="text-center py-5 px-4">

@@ -13,7 +13,7 @@ async function getDashboardSummary() {
       (SELECT COUNT(*) FROM promotion) AS total_promotions,
       (SELECT COUNT(*) FROM promotion WHERE approval_status = 'pending') AS pending_promotion_approvals,
       (SELECT COUNT(*) FROM merchant WHERE verification_status = 'pending') AS pending_merchant_validations,
-      (SELECT COUNT(*) FROM validation_log) AS total_validation_errors
+      (SELECT COUNT(*) FROM validation_log WHERE is_resolved = FALSE) AS total_validation_errors
   `);
 
   return rows[0] || {};

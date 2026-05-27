@@ -2,6 +2,7 @@
 <%- include('../partials/header') %>
 
 <%
+  const editing = typeof editingCampaign !== 'undefined' && editingCampaign;
   const money = value => 'S$' + Number(value || 0).toFixed(2);
   const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
   const discountText = voucher => voucher.discount_type === 'percent'
@@ -85,6 +86,12 @@
   </div>
   <% } %>
 
+  <% if (query && query.saved) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+    <i class="bi bi-check-circle me-2"></i>Voucher campaign saved.
+  </div>
+  <% } %>
+
   <% if (query && query.error) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
     <i class="bi bi-exclamation-circle me-2"></i>Unable to update voucher campaign.
@@ -149,8 +156,15 @@
   <div class="row g-4 mb-4">
     <div class="col-12">
       <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
-        <p class="section-label mb-2">Create Voucher</p>
-        <form action="/admin/campaigns/vouchers/create" method="POST">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+          <p class="section-label mb-0"><%= editing ? 'Edit Voucher' : 'Create Voucher' %></p>
+          <% if (editing) { %>
+          <a href="/admin/campaigns/vouchers" class="btn btn-sm btn-outline-secondary btn-pill">
+            <i class="bi bi-x-lg me-1"></i>Cancel edit
+          </a>
+          <% } %>
+        </div>
+        <form action="<%= editing ? `/admin/campaigns/vouchers/${editingCampaign.voucher_id}/edit` : '/admin/campaigns/vouchers/create' %>" method="POST">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label" style="font-weight:600;font-size:.875rem;">Campaign Name</label>
@@ -198,7 +212,7 @@
             </div>
           </div>
           <button type="submit" class="btn btn-primary btn-pill mt-3">
-            <i class="bi bi-ticket-perforated me-1"></i>Create Campaign
+            <i class="bi <%= editing ? 'bi-save' : 'bi-ticket-perforated' %> me-1"></i><%= editing ? 'Save Campaign' : 'Create Campaign' %>
           </button>
         </form>
       </div>
@@ -263,6 +277,10 @@
             </td>
             <td><span class="badge campaign-status-badge <%= status.className %>"><%= status.label %></span></td>
             <td>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+              <a href="/admin/campaigns/vouchers/<%= voucher.voucher_id %>/edit" class="btn btn-sm btn-pill btn-outline-secondary">
+                <i class="bi bi-pencil-square me-1"></i>Edit
+              </a>
               <% if (status.label === 'Expired') { %>
               <button type="button" class="btn btn-sm btn-pill btn-outline-secondary" disabled>
                 <i class="bi bi-calendar-x me-1"></i>Expired
@@ -280,6 +298,7 @@
                 <% } %>
               </form>
               <% } %>
+              </div>
             </td>
           </tr>
           <% }) %>

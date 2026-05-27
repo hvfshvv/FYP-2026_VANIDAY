@@ -783,6 +783,35 @@ async function showVoucherCampaigns(req, res) {
   }
 }
 
+async function showEditCampaign(req, res) {
+  try {
+    const [voucher, vouchers, merchants, voucherSummary] = await Promise.all([
+      voucherModel.getVoucherCampaignById(req.params.voucherId),
+      voucherModel.getVoucherCampaigns(),
+      voucherModel.getApprovedMerchants(),
+      voucherModel.getVoucherStatusSummary(),
+    ]);
+
+    if (!voucher) {
+      return res.redirect('/admin/campaigns/vouchers?error=missing');
+    }
+
+    res.render('admin/campaigns', {
+      title: 'Edit Voucher Campaign',
+      vouchers,
+      merchants,
+      voucherSummary,
+      query: req.query,
+      form: voucherToCampaignForm(voucher),
+      editingCampaign: voucher,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/campaigns/vouchers?error=edit');
+  }
+}
+
 async function showLoyaltyRewards(req, res) {
   try {
     const [rewards, summary] = await Promise.all([
@@ -879,10 +908,7 @@ function parseLoyaltyRewardForm(form) {
   };
 }
 
-async function createCampaign(req, res) {
-  const form = req.body;
-
-  try {
+function parseCampaignForm(form) {
     const voucherCode = String(form.voucher_code || '').trim().toUpperCase();
     const voucherType = 'platform';
     const merchantId = null;
@@ -899,35 +925,93 @@ async function createCampaign(req, res) {
     if (!form.start_date || !form.end_date) throw new Error('Start and end dates are required.');
     if (new Date(form.end_date) < new Date(form.start_date)) throw new Error('End date cannot be before start date.');
 
-    await voucherModel.createVoucherCampaign({
-      merchantId,
-      voucherCode,
-      voucherType,
-      campaignName: String(form.campaign_name).trim(),
-      discountType,
-      discountValue,
-      minSpend,
-      usageLimit,
-      usagePerCustomer,
-      startDate: form.start_date,
-      endDate: form.end_date,
-    });
+  return {
+    merchantId,
+    voucherCode,
+    voucherType,
+    campaignName: String(form.campaign_name).trim(),
+    discountType,
+    discountValue,
+    minSpend,
+    usageLimit,
+    usagePerCustomer,
+    startDate: form.start_date,
+    endDate: form.end_date,
+  };
+}
+
+function voucherToCampaignForm(voucher) {
+  return {
+    campaign_name: voucher.campaign_name || '',
+    voucher_code: voucher.voucher_code || '',
+    discount_type: voucher.discount_type || 'percent',
+    discount_value: voucher.discount_value || '',
+    min_spend: voucher.min_spend || '',
+    usage_limit: voucher.usage_limit || '',
+    usage_per_customer: voucher.usage_per_customer || '1',
+    start_date: toDateInput(new Date(voucher.start_date)),
+    end_date: toDateInput(new Date(voucher.end_date)),
+  };
+}
+
+async function renderCampaignFormError(res, req, {
+  title = 'Voucher & Campaign Management',
+  form,
+  error,
+  editingCampaign = null,
+}) {
+  const [vouchers, merchants, voucherSummary] = await Promise.all([
+    voucherModel.getVoucherCampaigns().catch(() => []),
+    voucherModel.getApprovedMerchants().catch(() => []),
+    voucherModel.getVoucherStatusSummary().catch(() => ({})),
+  ]);
+
+  res.render('admin/campaigns', {
+    title,
+    vouchers,
+    merchants,
+    voucherSummary,
+    query: req.query,
+    form,
+    editingCampaign,
+    error,
+  });
+}
+
+async function createCampaign(req, res) {
+  const form = req.body;
+
+  try {
+    await voucherModel.createVoucherCampaign(parseCampaignForm(form));
 
     res.redirect('/admin/campaigns/vouchers?created=1');
   } catch (err) {
-    const [vouchers, merchants, voucherSummary] = await Promise.all([
-      voucherModel.getVoucherCampaigns().catch(() => []),
-      voucherModel.getApprovedMerchants().catch(() => []),
-      voucherModel.getVoucherStatusSummary().catch(() => ({})),
-    ]);
-
-    res.render('admin/campaigns', {
-      title: 'Voucher & Campaign Management',
-      vouchers,
-      merchants,
-      voucherSummary,
-      query: req.query,
+    await renderCampaignFormError(res, req, {
       form,
+      error: err.code === 'ER_DUP_ENTRY'
+        ? 'That voucher code already exists. Please use another code.'
+        : err.message,
+    });
+  }
+}
+
+async function updateCampaign(req, res) {
+  const form = req.body;
+
+  try {
+    const affectedRows = await voucherModel.updateVoucherCampaign(
+      req.params.voucherId,
+      parseCampaignForm(form)
+    );
+
+    res.redirect(`/admin/campaigns/vouchers?${affectedRows ? 'saved=1' : 'error=missing'}`);
+  } catch (err) {
+    const editingCampaign = await voucherModel.getVoucherCampaignById(req.params.voucherId).catch(() => null);
+
+    await renderCampaignFormError(res, req, {
+      title: 'Edit Voucher Campaign',
+      form,
+      editingCampaign,
       error: err.code === 'ER_DUP_ENTRY'
         ? 'That voucher code already exists. Please use another code.'
         : err.message,
@@ -1039,9 +1123,11 @@ module.exports = {
   rejectPromotion,
   showCampaigns,
   showVoucherCampaigns,
+  showEditCampaign,
   showLoyaltyRewards,
   showEditLoyaltyReward,
   createCampaign,
+  updateCampaign,
   createLoyaltyReward,
   updateLoyaltyReward,
   toggleCampaign,

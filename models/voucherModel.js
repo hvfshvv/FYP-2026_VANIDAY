@@ -44,6 +44,19 @@ async function getVoucherCampaigns() {
   return rows;
 }
 
+async function getVoucherCampaignById(voucherId) {
+  const [rows] = await db.query(
+    `SELECT *
+     FROM voucher
+     WHERE voucher_id = ?
+       AND voucher_code NOT LIKE 'LOYALTY\\_%'
+     LIMIT 1`,
+    [voucherId]
+  );
+
+  return rows[0] || null;
+}
+
 async function getApprovedMerchants() {
   const [rows] = await db.query(
     `SELECT merchant_id, merchant_name
@@ -90,6 +103,53 @@ async function createVoucherCampaign({
   );
 
   return result.insertId;
+}
+
+async function updateVoucherCampaign(voucherId, {
+  merchantId,
+  voucherCode,
+  voucherType,
+  campaignName,
+  discountType,
+  discountValue,
+  minSpend,
+  usageLimit,
+  usagePerCustomer,
+  startDate,
+  endDate,
+}) {
+  const [result] = await db.query(
+    `UPDATE voucher
+     SET merchant_id = ?,
+         voucher_code = ?,
+         voucher_type = ?,
+         campaign_name = ?,
+         discount_type = ?,
+         discount_value = ?,
+         min_spend = ?,
+         usage_limit = ?,
+         usage_per_customer = ?,
+         start_date = ?,
+         end_date = ?
+     WHERE voucher_id = ?
+       AND voucher_code NOT LIKE 'LOYALTY\\_%'`,
+    [
+      merchantId || null,
+      voucherCode,
+      voucherType,
+      campaignName || null,
+      discountType,
+      discountValue,
+      minSpend || null,
+      usageLimit || null,
+      usagePerCustomer || null,
+      startDate,
+      endDate,
+      voucherId,
+    ]
+  );
+
+  return result.affectedRows;
 }
 
 async function toggleVoucherStatus(voucherId) {
@@ -395,8 +455,10 @@ async function claimVoucher(customerId, voucherCode) {
 
 module.exports = {
   getVoucherCampaigns,
+  getVoucherCampaignById,
   getApprovedMerchants,
   createVoucherCampaign,
+  updateVoucherCampaign,
   toggleVoucherStatus,
   getVoucherStatusSummary,
   getAvailableVouchers,

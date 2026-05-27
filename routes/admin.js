@@ -44,6 +44,8 @@ router.get('/campaigns', adminController.showCampaigns);
 router.get('/campaigns/vouchers', adminController.showVoucherCampaigns);
 router.post('/campaigns/vouchers/create', adminController.createCampaign);
 router.post('/campaigns/create', adminController.createCampaign);
+router.get('/campaigns/vouchers/:voucherId/edit', adminController.showEditCampaign);
+router.post('/campaigns/vouchers/:voucherId/edit', adminController.updateCampaign);
 router.post('/campaigns/vouchers/:voucherId/toggle', adminController.toggleCampaign);
 router.post('/campaigns/:voucherId/toggle', adminController.toggleCampaign);
 router.get('/campaigns/loyalty', adminController.showLoyaltyRewards);
