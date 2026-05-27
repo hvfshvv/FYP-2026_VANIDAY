@@ -89,9 +89,19 @@ async function submitBookingReview({
     throw new Error('Please choose a merchant rating from 1 to 5 stars.');
   }
 
-  const safePlatformRating = platformRating ? Number(platformRating) : null;
-  if (safePlatformRating && (!Number.isInteger(safePlatformRating) || safePlatformRating < 1 || safePlatformRating > 5)) {
-    throw new Error('Please choose a platform rating from 1 to 5 stars.');
+  const safeMerchantReviewText = String(merchantReviewText || '').trim();
+  if (!safeMerchantReviewText) {
+    throw new Error('Please write a comment for your merchant review.');
+  }
+
+  const safePlatformRating = Number(platformRating);
+  if (!Number.isInteger(safePlatformRating) || safePlatformRating < 1 || safePlatformRating > 5) {
+    throw new Error('Please choose a Uniday rating from 1 to 5 stars.');
+  }
+
+  const safePlatformFeedbackText = String(platformFeedbackText || '').trim();
+  if (!safePlatformFeedbackText) {
+    throw new Error('Please write a comment for your Uniday feedback.');
   }
 
   const allowedFeedbackTypes = ['booking_experience', 'payment', 'qr_checkin', 'whatsapp', 'general'];
@@ -114,11 +124,11 @@ async function submitBookingReview({
         booking.service_id,
         booking.staff_id || null,
         safeMerchantRating,
-        merchantReviewText || null,
+        safeMerchantReviewText,
       ]
     );
 
-    if (safePlatformRating && !booking.platform_feedback_id) {
+    if (!booking.platform_feedback_id) {
       await connection.query(
         `INSERT INTO platform_feedback
           (booking_id, customer_id, rating, feedback_type, feedback_text)
@@ -128,7 +138,7 @@ async function submitBookingReview({
           customerId,
           safePlatformRating,
           safeFeedbackType,
-          platformFeedbackText || null,
+          safePlatformFeedbackText,
         ]
       );
     }

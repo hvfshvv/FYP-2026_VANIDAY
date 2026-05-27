@@ -272,10 +272,16 @@
   <% if (!reviewList.length) { %>
     <p style="color:var(--muted);">No reviews yet.</p>
   <% } else { %>
-    <div class="row g-3">
+    <div class="review-carousel-wrap">
+      <% if (reviewList.length > 1) { %>
+      <button class="promo-carousel-nav promo-carousel-prev" onclick="shiftCarousel('merchant-review-carousel',-1)" aria-label="Previous reviews">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <% } %>
+      <div class="promo-carousel review-carousel" id="merchant-review-carousel" aria-label="Customer reviews">
       <% reviewList.forEach(review => { %>
-      <div class="col-md-6">
-        <article class="promo-card h-100">
+      <div class="promo-carousel-item review-carousel-item">
+        <article class="promo-card review-card h-100">
           <div class="d-flex justify-content-between gap-2 mb-2">
             <div>
               <p style="font-weight:800;color:var(--ink);margin-bottom:.1rem;"><%= review.customer_name %></p>
@@ -295,6 +301,12 @@
         </article>
       </div>
       <% }) %>
+      </div>
+      <% if (reviewList.length > 1) { %>
+      <button class="promo-carousel-nav promo-carousel-next" onclick="shiftCarousel('merchant-review-carousel',1)" aria-label="Next reviews">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+      <% } %>
     </div>
   <% } %>
 

@@ -1469,7 +1469,7 @@ async function getPlatformFeedback({ type = 'all', rating = 'all', search = '' }
     'pf.feedback_text',
   ]);
   if (filter.clause) {
-    clauses.push(filter.clause);
+    clauses.push(filter.clause.replace(/^\s*AND\s+/i, ''));
     params.push(...filter.params);
   }
 

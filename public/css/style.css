@@ -676,6 +676,33 @@ a:hover { color: var(--accent-dark); }
 .promo-carousel-prev { left: -18px; }
 .promo-carousel-next { right: -18px; }
 @media (max-width: 575px) { .promo-carousel-nav { display: none; } }
+.review-carousel-wrap {
+  position: relative;
+}
+.review-carousel {
+  padding: .35rem .25rem 1rem;
+}
+.review-carousel-item {
+  flex-basis: clamp(280px, 42vw, 440px);
+}
+.review-card {
+  min-height: 220px;
+  background:
+    linear-gradient(180deg, rgba(255, 241, 245, .68), rgba(255, 255, 255, 0) 34%),
+    var(--surface);
+}
+.review-card > p {
+  line-height: 1.65;
+}
+@media (max-width: 575px) {
+  .review-carousel {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .review-carousel-item {
+    flex-basis: min(86vw, 360px);
+  }
+}
 .promo-img-wrap {
   margin: -1.5rem -1.5rem 1rem;
   border-radius: var(--r-lg) var(--r-lg) 0 0;
