@@ -31,8 +31,15 @@
     return new Date(createdAt.getTime() + 5 * 60 * 1000).toISOString();
   }
 
+  function pendingRemainingSeconds(booking) {
+    return Math.max(0, Number(booking.pending_remaining_seconds || 0));
+  }
+
   function isPendingPaymentExpired(booking) {
     if (booking.status !== 'pending_payment') return false;
+    if (typeof booking.pending_is_active !== 'undefined') {
+      return Number(booking.pending_is_active) !== 1;
+    }
     const expiresAt = new Date(pendingExpiryIso(booking)).getTime();
     return !Number.isNaN(expiresAt) && Date.now() >= expiresAt;
   }
@@ -50,6 +57,11 @@
     return new Date(`${year}-${month}-${day}T${formatTime(booking.booking_time)}:00`);
   }
 
+  function bookingStartTime(booking) {
+    const startsAt = bookingStartDate(booking);
+    return startsAt && !Number.isNaN(startsAt.getTime()) ? startsAt.getTime() : 0;
+  }
+
   function cancellationDeadlineIso(booking) {
     const startsAt = bookingStartDate(booking);
     if (!startsAt || Number.isNaN(startsAt.getTime())) return '';
@@ -63,11 +75,20 @@
   }
 
   const isUpcomingBooking = booking => new Date(booking.booking_date) >= new Date(new Date().toDateString());
-  const currentBookings = bookingList.filter(booking =>
-    effectiveStatus(booking) === 'pending_payment'
-    || ((effectiveStatus(booking) === 'confirmed' || effectiveStatus(booking) === 'arrived') && isUpcomingBooking(booking))
-  );
-  const historyBookings = bookingList.filter(booking => !currentBookings.includes(booking));
+  const pendingBookings = bookingList
+    .filter(booking => effectiveStatus(booking) === 'pending_payment')
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const upcomingBookings = bookingList
+    .filter(booking =>
+      !pendingBookings.includes(booking)
+      && (effectiveStatus(booking) === 'confirmed' || effectiveStatus(booking) === 'arrived')
+      && isUpcomingBooking(booking)
+    )
+    .sort((a, b) => bookingStartTime(a) - bookingStartTime(b));
+  const currentBookings = [...pendingBookings, ...upcomingBookings];
+  const historyBookings = bookingList
+    .filter(booking => !currentBookings.includes(booking))
+    .sort((a, b) => bookingStartTime(a) - bookingStartTime(b));
   const displayBookings = [...currentBookings, ...historyBookings];
 %>
 
@@ -133,7 +154,7 @@
                   <h5 style="font-weight:800;color:var(--ink);margin:0;"><%= booking.service_name %></h5>
                   <span class="badge rounded-pill" data-status-badge style="background:<%= status.bg %>;color:<%= status.color %>;"><%= status.label %></span>
                   <% if (canContinuePayment) { %>
-                    <span class="badge rounded-pill pending-payment-timer" data-expires-at="<%= pendingExpiryIso(booking) %>" style="background:var(--accent-light);color:var(--accent);border:1px solid rgba(225,29,72,.2);">
+                    <span class="badge rounded-pill pending-payment-timer" data-expires-at="<%= pendingExpiryIso(booking) %>" data-remaining-seconds="<%= pendingRemainingSeconds(booking) %>" style="background:var(--accent-light);color:var(--accent);border:1px solid rgba(225,29,72,.2);">
                       <i class="bi bi-hourglass-split me-1"></i><span data-countdown>--:--</span> left
                     </span>
                   <% } %>
@@ -176,7 +197,7 @@
                 <p style="color:var(--ink);font-weight:800;font-size:1.2rem;margin:0 0 .75rem;">S$<%= Number(booking.payable_amount || booking.total_amount || 0).toFixed(2) %></p>
                 <% if (canContinuePayment) { %>
                   <a href="/payment/checkout/<%= booking.booking_id %>" class="btn btn-primary btn-sm btn-pill" data-payment-action>Continue Payment</a>
-                <% } else if (booking.payment_status === 'paid') { %>
+                <% } else if (bookingStatus !== 'payment_failed' && booking.payment_status === 'paid') { %>
                   <div class="d-flex flex-column gap-2 align-items-md-end">
                     <a href="/payment/receipt/<%= booking.booking_id %>.pdf" class="btn btn-outline-secondary btn-sm btn-pill" download>
                       <i class="bi bi-download me-1"></i>Download Receipt
@@ -224,12 +245,17 @@
   (() => {
     const timers = Array.from(document.querySelectorAll('.pending-payment-timer'));
     if (!timers.length) return;
+    let reloadScheduled = false;
 
     const render = () => {
       timers.forEach(timer => {
         const output = timer.querySelector('[data-countdown]');
-        const expiresAt = new Date(timer.dataset.expiresAt || '').getTime();
-        const remaining = Math.max(0, expiresAt - Date.now());
+        if (!timer.dataset.startedAt) {
+          timer.dataset.startedAt = String(Date.now());
+        }
+        const initialRemaining = Number(timer.dataset.remainingSeconds || 0) * 1000;
+        const elapsed = Date.now() - Number(timer.dataset.startedAt || Date.now());
+        const remaining = Math.max(0, initialRemaining - elapsed);
         const totalSeconds = Math.ceil(remaining / 1000);
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = String(totalSeconds % 60).padStart(2, '0');
@@ -252,6 +278,10 @@
           }
           if (paymentAction) paymentAction.remove();
           timer.innerHTML = '<i class="bi bi-hourglass-bottom me-1"></i>Expired';
+          if (!reloadScheduled) {
+            reloadScheduled = true;
+            setTimeout(() => window.location.reload(), 1500);
+          }
         }
       });
     };

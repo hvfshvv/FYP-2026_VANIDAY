@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { withResolvedMerchantImage } = require('../utils/merchantImages');
 
 async function getDashboardSummary() {
   const [rows] = await db.query(`
@@ -755,7 +756,8 @@ async function getFeaturedMerchantListings() {
        fl.created_at,
        m.merchant_name,
        COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
-       m.profile_image AS image_path,
+       COALESCE(NULLIF(fl.image_path, ''), NULLIF(m.profile_image, '')) AS image_path,
+       m.profile_image,
        COUNT(DISTINCT b.booking_id) AS bookings,
        COUNT(DISTINCT b.customer_id) AS customers,
        COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS revenue,
@@ -775,11 +777,12 @@ async function getFeaturedMerchantListings() {
        fl.created_at,
        m.merchant_name,
        m.category,
+       fl.image_path,
        m.profile_image
-     ORDER BY fl.is_visible DESC, fl.display_order ASC, revenue DESC, fl.created_at DESC`
-  );
+      ORDER BY fl.is_visible DESC, fl.display_order ASC, revenue DESC, fl.created_at DESC`
+   );
 
-  return rows;
+  return rows.map(withResolvedMerchantImage);
 }
 
 async function toggleFeaturedMerchantVisibility(listingId) {
