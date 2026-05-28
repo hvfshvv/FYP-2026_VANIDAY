@@ -875,11 +875,42 @@ async function hasSentEmailNotification(bookingId, notificationType) {
   return Boolean(rows[0]);
 }
 
+async function hasSentWhatsAppNotification(bookingId, notificationType) {
+  const [rows] = await db.query(
+    `SELECT notification_id
+     FROM notification
+     WHERE booking_id = ?
+       AND notification_type = ?
+       AND channel = 'whatsapp'
+       AND status = 'sent'
+     LIMIT 1`,
+    [bookingId, notificationType]
+  );
+  return Boolean(rows[0]);
+}
+
 async function recordEmailNotification(booking, notificationType, message, status) {
   await db.query(
     `INSERT INTO notification
        (booking_id, user_id, merchant_id, notification_type, channel, message, status, scheduled_at, sent_at)
      VALUES (?, ?, ?, ?, 'email', ?, ?, NOW(), CASE WHEN ? = 'sent' THEN NOW() ELSE NULL END)`,
+    [
+      booking.booking_id,
+      booking.customer_id || null,
+      booking.merchant_id,
+      notificationType,
+      message,
+      status,
+      status,
+    ]
+  );
+}
+
+async function recordWhatsAppNotification(booking, notificationType, message, status) {
+  await db.query(
+    `INSERT INTO notification
+       (booking_id, user_id, merchant_id, notification_type, channel, message, status, scheduled_at, sent_at)
+     VALUES (?, ?, ?, ?, 'whatsapp', ?, ?, NOW(), CASE WHEN ? = 'sent' THEN NOW() ELSE NULL END)`,
     [
       booking.booking_id,
       booking.customer_id || null,
@@ -1040,7 +1071,9 @@ module.exports = {
   getCustomerBookings,
   getAvailableSlots,
   hasSentEmailNotification,
+  hasSentWhatsAppNotification,
   recordEmailNotification,
+  recordWhatsAppNotification,
   getBookingsNeedingEmailReminders,
   applyPromotion,
   applyVoucher,

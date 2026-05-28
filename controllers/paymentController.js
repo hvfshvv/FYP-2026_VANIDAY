@@ -262,15 +262,37 @@ async function confirmPaidBooking(bookingId) {
     await bookingModel.updateBookingStatus(bookingId, 'confirmed');
   }
 
-  if (current.status === 'pending_payment' && current.source === 'whatsapp') {
+  if (current.source === 'whatsapp') {
     try {
       const confirmedBooking = await bookingModel.getBookingById(bookingId);
-      const result = await whatsappNotificationService.sendBookingConfirmation(confirmedBooking);
-      if (result && result.skipped) {
-        console.warn('[whatsapp] confirmation skipped for booking %s: %s', bookingId, result.reason);
+      const alreadySent = await bookingModel.hasSentWhatsAppNotification(bookingId, 'confirmation');
+      if (!alreadySent) {
+        const result = await whatsappNotificationService.sendBookingConfirmation(confirmedBooking);
+        if (result && result.skipped) {
+          console.warn('[whatsapp] confirmation skipped for booking %s: %s', bookingId, result.reason);
+        }
+        await bookingModel.recordWhatsAppNotification(
+          confirmedBooking,
+          'confirmation',
+          `WhatsApp booking confirmation for booking #${bookingId}`,
+          result && result.skipped ? 'failed' : 'sent'
+        );
       }
     } catch (err) {
       console.error('[whatsapp] confirmation failed for booking %s:', bookingId, err.message || err);
+      try {
+        const booking = await bookingModel.getBookingById(bookingId);
+        if (booking) {
+          await bookingModel.recordWhatsAppNotification(
+            booking,
+            'confirmation',
+            `WhatsApp booking confirmation for booking #${bookingId}`,
+            'failed'
+          );
+        }
+      } catch (logErr) {
+        console.error('[whatsapp] failed to record confirmation status for booking %s:', bookingId, logErr.message || logErr);
+      }
     }
   }
 
