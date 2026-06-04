@@ -35,10 +35,14 @@ async function ensureBookingPromoSchema() {
      FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'booking' AND COLUMN_NAME = 'status'`
   );
-  if (statusCol?.columnType && !String(statusCol.columnType).includes('payment_failed')) {
+  if (
+    statusCol?.columnType &&
+    (!String(statusCol.columnType).includes('payment_failed') ||
+      !String(statusCol.columnType).includes('rescheduled'))
+  ) {
     await db.query(
       `ALTER TABLE booking
-       MODIFY status ENUM('pending_payment','confirmed','arrived','completed','cancelled','payment_failed','no_show')
+       MODIFY status ENUM('pending_payment','confirmed','rescheduled','arrived','completed','cancelled','payment_failed','no_show')
        DEFAULT 'pending_payment'`
     );
   }
@@ -60,6 +64,8 @@ async function createBooking({
   guestPhone = null,
 }) {
   await expirePendingPaymentBookings();
+
+  assertCurrentOrFutureSlot(bookingDate, bookingTime);
 
   const connection = await db.getConnection();
 
@@ -247,7 +253,7 @@ async function getAvailableStaffForSlot({
          WHERE b.staff_id = st.staff_id
            AND ts.slot_date = ?
            AND (
-             b.status IN ('confirmed', 'arrived')
+             b.status IN ('confirmed', 'rescheduled', 'arrived')
              OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
            )
            AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
@@ -268,7 +274,7 @@ async function getAvailableStaffForSlot({
        AND b.staff_id IS NULL
        AND ts.slot_date = ?
        AND (
-         b.status IN ('confirmed', 'arrived')
+         b.status IN ('confirmed', 'rescheduled', 'arrived')
          OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
        )
        AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
@@ -620,8 +626,7 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
     const requestedTime = String(bookingTime).slice(0, 5);
 
     if (currentDate === bookingDate && currentTime === requestedTime) {
-      await connection.commit();
-      return;
+      throw new Error('Please choose a different date or time to reschedule this booking.');
     }
 
     await assertNoCustomerBookingConflict(connection, {
@@ -873,6 +878,18 @@ async function hasSentEmailNotification(bookingId, notificationType) {
     [bookingId, notificationType]
   );
   return Boolean(rows[0]);
+}
+
+function assertCurrentOrFutureSlot(bookingDate, bookingTime) {
+  if (!bookingDate || !bookingTime) {
+    throw new Error('Please choose a booking date and time.');
+  }
+
+  const slot = new Date(`${bookingDate}T${String(bookingTime).slice(0, 5)}:00`);
+
+  if (Number.isNaN(slot.getTime()) || slot < new Date()) {
+    throw new Error('Please choose a booking date and time that is not in the past.');
+  }
 }
 
 async function hasSentWhatsAppNotification(bookingId, notificationType) {

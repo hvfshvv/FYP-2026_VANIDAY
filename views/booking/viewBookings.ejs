@@ -74,6 +74,7 @@
     return !Number.isNaN(deadline.getTime()) && Date.now() <= deadline.getTime();
   }
 
+  const activeBookingStatuses = ['confirmed', 'rescheduled', 'arrived'];
   const isUpcomingBooking = booking => new Date(booking.booking_date) >= new Date(new Date().toDateString());
   const pendingBookings = bookingList
     .filter(booking => effectiveStatus(booking) === 'pending_payment')
@@ -81,7 +82,7 @@
   const upcomingBookings = bookingList
     .filter(booking =>
       !pendingBookings.includes(booking)
-      && (effectiveStatus(booking) === 'confirmed' || effectiveStatus(booking) === 'arrived')
+      && activeBookingStatuses.includes(effectiveStatus(booking))
       && isUpcomingBooking(booking)
     )
     .sort((a, b) => bookingStartTime(a) - bookingStartTime(b));

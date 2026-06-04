@@ -332,6 +332,17 @@ function formatBookingTime(value) {
   return String(value).slice(0, 5);
 }
 
+function isSameBookingSlot(booking, bookingDate, bookingTime) {
+  if (!booking) {
+    return false;
+  }
+
+  return (
+    formatBookingDate(booking.booking_date) === bookingDate &&
+    formatBookingTime(booking.booking_time) === String(bookingTime || '').slice(0, 5)
+  );
+}
+
 function getReservationSummary(booking) {
   return (
     'Here are your reservation details:\n\n' +
@@ -502,6 +513,18 @@ function isValidDate(message) {
     date.getMonth() === month - 1 &&
     date.getDate() === day
   );
+}
+
+function getTodayDateValue() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return year + '-' + month + '-' + day;
+}
+
+function isCurrentOrFutureDate(message) {
+  return isValidDate(message) && message >= getTodayDateValue();
 }
 
 async function getMerchantsForCategory(category) {
@@ -722,6 +745,11 @@ async function receiveMessage(req, res) {
           'Invalid date format. Please enter the new booking date as YYYY-MM-DD.\n\n' +
           'Example: 2026-05-20'
         );
+      } else if (!isCurrentOrFutureDate(bookingDate)) {
+        twiml.message(
+          'Please choose today or a future date for your new booking.\n\n' +
+          'Today is ' + getTodayDateValue() + '.'
+        );
       } else {
         const booking = session.booking;
         const slots = await bookingModel.getAvailableSlots({
@@ -754,6 +782,11 @@ async function receiveMessage(req, res) {
 
       if (!selectedSlot) {
         twiml.message('Invalid time slot number. Please choose a time slot from the list.');
+      } else if (isSameBookingSlot(session.booking, session.bookingDate, selectedSlot.start_time)) {
+        twiml.message(
+          'That is your current booking slot.\n\n' +
+          'Please choose a different time, or reply 0/back to choose another date.'
+        );
       } else {
         saveSession(sender, {
           state: 'reschedule_confirm',
@@ -886,8 +919,16 @@ async function receiveMessage(req, res) {
     } else if (session && session.state === 'choosing_date') {
       const bookingDate = message;
 
-      if (isValidDate(bookingDate)) {
+      if (isCurrentOrFutureDate(bookingDate)) {
         const slots = await getTimeSlotsForDate(session, bookingDate);
+
+        if (!slots.length) {
+          twiml.message(
+            'Sorry, there are no available time slots for ' + bookingDate + '.\n\n' +
+            'Please enter another date as YYYY-MM-DD.'
+          );
+          return sendTwiml(res, twiml);
+        }
 
         saveSession(sender, {
           state: 'choosing_time_slot',
@@ -900,6 +941,11 @@ async function receiveMessage(req, res) {
         });
 
         twiml.message(getTimeSlotMenu(bookingDate, slots));
+      } else if (isValidDate(bookingDate)) {
+        twiml.message(
+          'Please choose today or a future date for your booking.\n\n' +
+          'Today is ' + getTodayDateValue() + '.'
+        );
       } else {
         twiml.message(
           'Invalid date format. Please enter your preferred booking date as YYYY-MM-DD.\n\n' +
