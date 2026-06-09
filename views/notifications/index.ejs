@@ -1,0 +1,106 @@
+<%- include('../partials/header') %>
+
+<main style="background:var(--canvas);min-height:80vh;padding:2rem 1rem;">
+  <div class="container" style="max-width:900px;">
+    <div class="d-flex align-items-center justify-content-between gap-3 mb-4">
+      <div>
+        <p class="section-label mb-1">Chatbot</p>
+        <h1 style="font-size:clamp(1.75rem,3vw,2.5rem);font-weight:800;color:var(--ink);margin:0;">Uniday Assistant</h1>
+      </div>
+      <% if (notifications.some(n => !n.is_read)) { %>
+      <form action="/assistant/read-all" method="POST">
+        <button class="btn btn-outline-secondary btn-sm btn-pill" type="submit">
+          <i class="bi bi-check2-all me-1"></i>Mark all read
+        </button>
+      </form>
+      <% } %>
+    </div>
+
+    <% if (success) { %>
+    <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+      <i class="bi bi-check-circle me-2"></i><%= success %>
+    </div>
+    <% } %>
+
+    <% if (typeof query !== 'undefined' && query && query.error) { %>
+    <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+      <i class="bi bi-exclamation-circle me-2"></i><%= query.error %>
+    </div>
+    <% } %>
+
+    <% if (error) { %>
+    <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+      <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+    </div>
+    <% } %>
+
+    <% if (!notifications.length) { %>
+    <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:2rem;text-align:center;">
+      <i class="bi bi-chat-dots" style="font-size:2rem;color:var(--muted);"></i>
+      <p style="font-weight:800;color:var(--ink);margin:.75rem 0 .25rem;">No assistant messages yet</p>
+      <p style="color:var(--muted);margin:0;">Signup and booking updates will appear as chatbot messages here.</p>
+    </div>
+    <% } %>
+
+    <section class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;<%= notifications.length ? '' : 'display:none;' %>">
+      <div class="d-flex align-items-center gap-3 p-3" style="border-bottom:1px solid var(--border);background:var(--surface);">
+        <div style="width:42px;height:42px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:grid;place-items:center;font-size:1.2rem;">
+          <i class="bi bi-stars"></i>
+        </div>
+        <div>
+          <p style="font-weight:800;color:var(--ink);margin:0;">Uniday Assistant</p>
+          <p style="font-size:.8125rem;color:var(--muted);margin:0;">Automated booking updates</p>
+        </div>
+      </div>
+
+      <div style="padding:1.25rem;background:linear-gradient(180deg,#fff 0%,var(--canvas) 100%);">
+      <% notifications.forEach(notification => { %>
+      <article class="d-flex align-items-start gap-3 mb-3">
+        <div style="width:34px;height:34px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:grid;place-items:center;flex:0 0 34px;">
+          <i class="bi bi-stars"></i>
+        </div>
+        <div style="max-width:720px;">
+          <div style="background:#fff;border:1px solid var(--border);border-radius:1rem 1rem 1rem .25rem;padding:1rem;box-shadow:0 10px 25px rgba(15,23,42,.05);">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <% if (!notification.is_read) { %>
+              <span style="width:.55rem;height:.55rem;border-radius:50%;background:var(--accent);display:inline-block;"></span>
+              <% } %>
+              <p style="font-size:.8125rem;font-weight:800;color:var(--accent);margin:0;"><%= notification.title %></p>
+            </div>
+            <p style="color:var(--muted);margin:0;"><%= notification.message %></p>
+          </div>
+          <div class="d-flex align-items-center gap-2 mt-2">
+            <p style="font-size:.8125rem;color:var(--ghost);margin:0;">
+              <%= new Date(notification.created_at).toLocaleString('en-SG', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) %>
+            </p>
+            <% if (notification.booking_id) { %>
+            <a href="/book/viewBookings" class="btn btn-outline-secondary btn-sm btn-pill">
+              <i class="bi bi-calendar-check me-1"></i>Booking
+            </a>
+            <% } %>
+            <% if (!notification.is_read) { %>
+            <form action="/assistant/<%= notification.id %>/read" method="POST">
+              <button class="btn btn-primary btn-sm btn-pill" type="submit">
+                <i class="bi bi-check2 me-1"></i>Read
+              </button>
+            </form>
+            <% } %>
+          </div>
+        </div>
+      </article>
+      <% }) %>
+      </div>
+    </section>
+
+    <form action="/assistant/ask" method="POST" class="card border-0 mt-3" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1rem;">
+      <div class="d-flex gap-2">
+        <input type="text" name="question" class="form-control rounded-xl" placeholder="Ask me anything" autocomplete="off" required />
+        <button class="btn btn-primary btn-pill" type="submit">
+          <i class="bi bi-send"></i>Ask
+        </button>
+      </div>
+    </form>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

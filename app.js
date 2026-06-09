@@ -13,8 +13,10 @@ const marketplaceRoutes = require('./routes/marketplace');
 const whatsappRoutes    = require('./routes/whatsapp');
 const favouriteRoutes   = require('./routes/favourite');
 const loyaltyRoutes     = require('./routes/loyalty');
+const notificationRoutes = require('./routes/notifications');
 const reminderService   = require('./services/reminderService');
 const bookingModel      = require('./models/bookingModel');
+const notificationModel = require('./models/notificationModel');
 
 const app = express();
 
@@ -43,15 +45,27 @@ app.use((req, res, next) => {
 
 app.use(async (req, res, next) => {
   res.locals.pendingPaymentCount = 0;
+  res.locals.unreadNotificationCount = 0;
+  res.locals.assistantPreviewMessages = [];
   const user = req.session.user;
-  if (!user || user.role !== 'customer') return next();
+  if (!user) return next();
 
   try {
-    res.locals.pendingPaymentCount = await bookingModel.countActivePendingPaymentBookings(
-      user.customer_id || user.user_id
-    );
+    const tasks = [
+      notificationModel.countUnreadForUser(user.user_id),
+      notificationModel.getUnreadForUser(user.user_id, 3),
+    ];
+
+    if (user.role === 'customer') {
+      tasks.push(bookingModel.countActivePendingPaymentBookings(user.customer_id || user.user_id));
+    }
+
+    const [unreadCount, assistantPreviewMessages, pendingPaymentCount = 0] = await Promise.all(tasks);
+    res.locals.unreadNotificationCount = unreadCount;
+    res.locals.assistantPreviewMessages = assistantPreviewMessages;
+    res.locals.pendingPaymentCount = pendingPaymentCount;
   } catch (err) {
-    console.error('[booking] Failed to count pending payment bookings:', err.message);
+    console.error('[app] Failed to load navigation counters:', err.message);
   }
   next();
 });
@@ -67,6 +81,8 @@ app.use('/payment',    paymentRoutes);
 app.use('/whatsapp',   whatsappRoutes);
 app.use('/favourite', favouriteRoutes);
 app.use('/loyalty',    loyaltyRoutes);
+app.use('/notifications', notificationRoutes);
+app.use('/assistant', notificationRoutes);
 
 async function releaseExpiredPendingPayments() {
   try {

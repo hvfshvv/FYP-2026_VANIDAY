@@ -22,6 +22,10 @@ function getFromAddress() {
   return process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@uniday.local';
 }
 
+function shouldLogSmtpDebug() {
+  return String(process.env.SMTP_DEBUG || '').toLowerCase() === 'true';
+}
+
 function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
@@ -86,13 +90,24 @@ async function sendMailOrLog({ to, subject, text, html, logLabel }) {
     return { sent: false, reason: 'SMTP_NOT_CONFIGURED' };
   }
 
-  await transporter.sendMail({
+  const info = await transporter.sendMail({
     from: getFromAddress(),
     to,
     subject,
     text,
     html,
   });
+
+  if (shouldLogSmtpDebug()) {
+    console.log('[email] sent', {
+      to,
+      subject,
+      messageId: info.messageId,
+      accepted: info.accepted,
+      rejected: info.rejected,
+      response: info.response,
+    });
+  }
 
   return { sent: true };
 }

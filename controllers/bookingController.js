@@ -6,6 +6,7 @@ const bookingModel  = require('../models/bookingModel');
 const staffModel = require('../models/staffModel');
 const emailService = require('../services/emailService');
 const cancellationPolicyModel = require('../models/cancellationPolicyModel');
+const notificationModel = require('../models/notificationModel');
 
 // Power Automate webhook URL: paste your webhook URL here or set POWER_AUTOMATE_WEBHOOK_URL in .env
 const POWER_AUTOMATE_WEBHOOK_URL = process.env.POWER_AUTOMATE_WEBHOOK_URL || 'PASTE_YOUR_POWER_AUTOMATE_WEBHOOK_URL_HERE';
@@ -123,6 +124,31 @@ async function sendCancellationEmails(booking) {
   }
 }
 
+async function sendBookingCreatedNotification(bookingId) {
+  try {
+    const booking = await bookingModel.getBookingById(bookingId);
+    await notificationModel.notifyBookingCreated(booking);
+  } catch (err) {
+    console.error('booking created notification failed:', err);
+  }
+}
+
+async function sendCancellationNotification(booking) {
+  try {
+    await notificationModel.notifyBookingCancelled(booking);
+  } catch (err) {
+    console.error('booking cancellation notification failed:', err);
+  }
+}
+
+async function sendRescheduleNotification(booking, previousBooking) {
+  try {
+    await notificationModel.notifyBookingRescheduled(booking, previousBooking);
+  } catch (err) {
+    console.error('booking reschedule notification failed:', err);
+  }
+}
+
 async function sendRescheduleEmails(booking, previousBooking) {
   for (const recipient of bookingRecipients(booking)) {
     try {
@@ -212,6 +238,7 @@ async function confirmPortalBooking(req, res) {
       staffId:     staff_id || null,
       source:      'portal',
     });
+    await sendBookingCreatedNotification(bookingId);
 
     try {
       await sendPowerAutomateWebhook({
@@ -284,7 +311,10 @@ async function cancelCustomerBooking(req, res) {
   try {
     await bookingModel.cancelCustomerBooking(req.params.bookingId, req.session.user.customer_id);
     const booking = await bookingModel.getBookingById(req.params.bookingId);
-    if (booking) await sendCancellationEmails(booking);
+    if (booking) {
+      await sendCancellationEmails(booking);
+      await sendCancellationNotification(booking);
+    }
     res.redirect('/book/viewBookings?success=Booking cancelled successfully.');
   } catch (err) {
     console.error(err);
@@ -323,7 +353,10 @@ async function rescheduleCustomerBooking(req, res) {
       booking_time
     );
     const booking = await bookingModel.getBookingById(req.params.bookingId);
-    if (booking && previousBooking) await sendRescheduleEmails(booking, previousBooking);
+    if (booking && previousBooking) {
+      await sendRescheduleEmails(booking, previousBooking);
+      await sendRescheduleNotification(booking, previousBooking);
+    }
     res.redirect('/book/viewBookings?success=Booking rescheduled successfully.');
   } catch (err) {
     console.error(err);
@@ -503,6 +536,7 @@ async function confirmBooking(req, res) {
       guestEmail,
       guestPhone,
     });
+    await sendBookingCreatedNotification(bookingId);
 
     if (!customerId) {
       // Give guest customers access to their payment page in this session.

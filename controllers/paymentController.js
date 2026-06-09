@@ -16,6 +16,7 @@ const promotionModel = require('../models/promotionModel');
 const voucherModel = require('../models/voucherModel');
 const cancellationPolicyModel = require('../models/cancellationPolicyModel');
 const whatsappNotificationService = require('../services/whatsappNotificationService');
+const notificationModel = require('../models/notificationModel');
 
 function hasGuestBookingAccess(req, bookingId) {
   // Allow guests to pay only for bookings created in their session.
@@ -260,6 +261,13 @@ async function confirmPaidBooking(bookingId) {
   if (current.status === 'pending_payment') {
     // Confirm booking only after successful payment.
     await bookingModel.updateBookingStatus(bookingId, 'confirmed');
+  }
+
+  try {
+    const confirmedBooking = await bookingModel.getBookingById(bookingId);
+    await notificationModel.notifyBookingConfirmed(confirmedBooking);
+  } catch (err) {
+    console.error('assistant booking confirmation failed:', err);
   }
 
   if (current.source === 'whatsapp') {

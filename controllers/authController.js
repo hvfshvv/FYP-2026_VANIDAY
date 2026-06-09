@@ -3,6 +3,7 @@ const authModel = require('../models/authModel');
 const loyaltyModel = require('../models/loyaltyModel');
 const qrService = require('../services/qrService');
 const emailService = require('../services/emailService');
+const notificationModel = require('../models/notificationModel');
 
 const ALLOWED_ROLES = ['customer', 'merchant'];
 
@@ -25,6 +26,10 @@ function safeNext(next) {
 
 function getBaseUrl(req) {
   return (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+}
+
+function isEmailVerificationRequired() {
+  return String(process.env.EMAIL_VERIFICATION_REQUIRED || 'true').toLowerCase() !== 'false';
 }
 
 async function sendVerificationEmail(req, user) {
@@ -159,7 +164,7 @@ async function login(req, res) {
       });
     }
 
-    if (!user.email_verified_at) {
+    if (isEmailVerificationRequired() && !user.email_verified_at) {
       const verificationResult = await sendVerificationEmail(req, user);
 
       return res.render('auth/login', {
@@ -310,13 +315,18 @@ async function register(req, res) {
       await qrService.ensureMerchantQRCodes(merchantId);
     }
 
-    await sendVerificationEmail(req, newUser);
+    if (isEmailVerificationRequired()) {
+      await sendVerificationEmail(req, newUser);
+    }
+    await notificationModel.notifySignup(newUser).catch(err => {
+      console.error('signup notification failed:', err);
+    });
 
     if (safeRole === 'merchant') {
-      return res.redirect('/auth/login?registered=1&verify=1');
+      return res.redirect(`/auth/login?registered=1${isEmailVerificationRequired() ? '&verify=1' : ''}`);
     }
 
-    res.redirect(`/auth/login?registered=1&verify=1${next ? '&next=' + encodeURIComponent(next) : ''}`);
+    res.redirect(`/auth/login?registered=1${isEmailVerificationRequired() ? '&verify=1' : ''}${next ? '&next=' + encodeURIComponent(next) : ''}`);
 
   } catch (err) {
     console.error(err);
