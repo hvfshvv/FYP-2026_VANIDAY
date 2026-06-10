@@ -866,7 +866,16 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
   return slots;
 }
 
-async function hasSentEmailNotification(bookingId, notificationType) {
+async function hasSentEmailNotification(bookingId, notificationType, recipientKind = null) {
+  const params = [bookingId, notificationType];
+  const recipientFilter = recipientKind
+    ? 'AND message LIKE ?'
+    : '';
+
+  if (recipientKind) {
+    params.push(`% email to ${recipientKind} (%`);
+  }
+
   const [rows] = await db.query(
     `SELECT notification_id
      FROM notification
@@ -874,8 +883,9 @@ async function hasSentEmailNotification(bookingId, notificationType) {
        AND notification_type = ?
        AND channel = 'email'
        AND status = 'sent'
+       ${recipientFilter}
      LIMIT 1`,
-    [bookingId, notificationType]
+    params
   );
   return Boolean(rows[0]);
 }

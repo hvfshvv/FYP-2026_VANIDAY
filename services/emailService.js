@@ -180,35 +180,61 @@ async function sendEmailVerificationEmail(user, verificationUrl) {
   });
 }
 
-async function sendBookingConfirmationEmail(booking, receiptUrl = null) {
-  const customerName = booking.customer_name || 'there';
+async function sendBookingConfirmationEmail(booking, receiptUrl = null, recipient = null) {
+  const safeRecipient = recipient || {
+    kind: 'customer',
+    email: booking.customer_email,
+    name: booking.customer_name,
+  };
+  const recipientName = safeRecipient.name || 'there';
+  const isMerchant = safeRecipient.kind === 'merchant';
   const details = bookingLines(booking);
   const text = [
-    `Hi ${customerName},`,
+    `Hi ${recipientName},`,
     '',
-    'Your Uniday booking is confirmed.',
+    isMerchant
+      ? 'A Uniday booking has been confirmed after payment.'
+      : 'Your Uniday booking is confirmed.',
     '',
     ...details,
-    receiptUrl ? `Receipt: ${receiptUrl}` : null,
+    isMerchant && booking.customer_name ? `Customer: ${booking.customer_name}` : null,
+    isMerchant && booking.customer_phone ? `Customer phone: ${booking.customer_phone}` : null,
+    !isMerchant && receiptUrl ? `Receipt: ${receiptUrl}` : null,
     '',
-    'Please scan the merchant arrival QR when you reach the store.',
+    isMerchant
+      ? 'You can view this booking from your merchant dashboard.'
+      : 'Please scan the merchant arrival QR when you reach the store.',
     '',
     'Uniday',
   ].filter(Boolean).join('\n');
 
   return sendMailOrLog({
-    to: booking.customer_email,
-    subject: `Booking confirmed: ${booking.service_name}`,
+    to: safeRecipient.email,
+    subject: isMerchant
+      ? `New confirmed booking: ${booking.service_name}`
+      : `Booking confirmed: ${booking.service_name}`,
     text,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#18181B;">
         <h2 style="color:#E11D48;margin:0 0 12px;">Booking confirmed</h2>
-        <p>Hi ${escapeHtml(customerName)}, your Uniday booking is confirmed.</p>
+        <p>Hi ${escapeHtml(recipientName)}, ${isMerchant ? 'a Uniday booking has been confirmed after payment.' : 'your Uniday booking is confirmed.'}</p>
         <table style="border-collapse:collapse;width:100%;max-width:520px;background:#fff;border:1px solid #F3E8EC;border-radius:12px;overflow:hidden;">
           ${bookingHtmlRows(booking)}
+          ${isMerchant && booking.customer_name ? `
+            <tr>
+              <td style="padding:8px 12px;color:#71717A;border-bottom:1px solid #F3E8EC;">Customer</td>
+              <td style="padding:8px 12px;font-weight:700;border-bottom:1px solid #F3E8EC;">${escapeHtml(booking.customer_name)}</td>
+            </tr>
+          ` : ''}
+          ${isMerchant && booking.customer_phone ? `
+            <tr>
+              <td style="padding:8px 12px;color:#71717A;border-bottom:1px solid #F3E8EC;">Customer phone</td>
+              <td style="padding:8px 12px;font-weight:700;border-bottom:1px solid #F3E8EC;">${escapeHtml(booking.customer_phone)}</td>
+            </tr>
+          ` : ''}
         </table>
-        ${receiptUrl ? `<p><a href="${escapeHtml(receiptUrl)}" style="display:inline-block;background:#E11D48;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-weight:700;">View receipt</a></p>` : ''}
-        <p style="color:#71717A;font-size:14px;">Please scan the merchant arrival QR when you reach the store.</p>
+        ${!isMerchant && receiptUrl ? `<p><a href="${escapeHtml(receiptUrl)}" style="display:inline-block;background:#E11D48;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-weight:700;">View receipt</a></p>` : ''}
+        <p style="color:#71717A;font-size:14px;">${isMerchant ? 'You can view this booking from your merchant dashboard.' : 'Please scan the merchant arrival QR when you reach the store.'}</p>
       </div>
     `,
     logLabel: 'Booking confirmation',

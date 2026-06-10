@@ -47,6 +47,21 @@ function canAccessBooking(req, booking) {
   return false;
 }
 
+function bookingEmailRecipients(booking) {
+  return [
+    {
+      kind: 'customer',
+      email: booking.customer_email,
+      name: booking.customer_name,
+    },
+    {
+      kind: 'merchant',
+      email: booking.merchant_email,
+      name: booking.merchant_name,
+    },
+  ].filter(recipient => recipient.email);
+}
+
 function formatDateOnly(value) {
   if (value instanceof Date) {
     const year = value.getFullYear();
@@ -312,20 +327,32 @@ async function confirmPaidBooking(bookingId) {
 
   try {
     const booking = await bookingModel.getBookingById(bookingId);
-    if (booking && booking.customer_email) {
-      const alreadySent = await bookingModel.hasSentEmailNotification(bookingId, 'confirmation');
+    if (booking) {
+      const baseUrl = (process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+      const receiptUrl = `${baseUrl}/payment/receipt/${bookingId}.pdf`;
+      const recipients = bookingEmailRecipients(booking);
 
-      if (!alreadySent) {
-        const baseUrl = (process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
-        const receiptUrl = `${baseUrl}/payment/receipt/${bookingId}.pdf`;
-        const result = await emailService.sendBookingConfirmationEmail(booking, receiptUrl);
-
-        await bookingModel.recordEmailNotification(
-          booking,
+      for (const recipient of recipients) {
+        const alreadySent = await bookingModel.hasSentEmailNotification(
+          bookingId,
           'confirmation',
-          `Booking confirmation email for booking #${bookingId}`,
-          result.sent ? 'sent' : 'failed'
+          recipient.kind
         );
+
+        if (!alreadySent) {
+          const result = await emailService.sendBookingConfirmationEmail(
+            booking,
+            receiptUrl,
+            recipient
+          );
+
+          await bookingModel.recordEmailNotification(
+            booking,
+            'confirmation',
+            `confirmation email to ${recipient.kind} (${recipient.email}) for booking #${bookingId}`,
+            result.sent ? 'sent' : 'failed'
+          );
+        }
       }
     }
 
