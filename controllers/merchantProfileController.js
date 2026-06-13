@@ -38,7 +38,7 @@ function handleMarketplaceImageUpload(req, res, next) {
       ? 'Image must be under 2MB.'
       : err.message || 'Could not upload image.';
 
-    return res.redirect(`/merchant/dashboard?imageError=${encodeURIComponent(message)}`);
+    return res.redirect(`/merchant/manage?imageError=${encodeURIComponent(message)}`);
   });
 }
 
@@ -47,7 +47,7 @@ async function updateMarketplaceImage(req, res) {
 
   try {
     if (!req.file) {
-      return res.redirect('/merchant/dashboard?imageError=Please choose an image to upload.');
+      return res.redirect('/merchant/manage?imageError=Please choose an image to upload.');
     }
 
     await merchantModel.updateMerchantProfileImage(
@@ -55,10 +55,10 @@ async function updateMarketplaceImage(req, res) {
       `/images/merchants/${req.file.filename}`
     );
 
-    res.redirect('/merchant/dashboard?imageSuccess=Marketplace photo updated.');
+    res.redirect('/merchant/manage?imageSuccess=Marketplace photo updated.');
   } catch (err) {
     console.error(err);
-    res.redirect('/merchant/dashboard?imageError=Could not update marketplace photo.');
+    res.redirect('/merchant/manage?imageError=Could not update marketplace photo.');
   }
 }
 

@@ -180,15 +180,30 @@ async function getMerchantReviews(merchantId) {
   return rows;
 }
 
-async function getMerchantReviewSummary(merchantId) {
+async function getMerchantReviewSummary(merchantId, periodStart = null) {
+  await ensureReviewSchema();
+  const selectedPeriod = periodStart || new Date().toISOString().slice(0, 7) + '-01';
+
   const [rows] = await db.query(
-    `SELECT COUNT(*) AS review_count, COALESCE(AVG(rating), 0) AS average_rating
+    `SELECT COUNT(CASE WHEN created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 MONTH) THEN 1 END) AS review_count,
+            COALESCE(AVG(CASE WHEN created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 MONTH) THEN rating END), 0) AS average_rating,
+            COUNT(CASE WHEN merchant_reply IS NULL OR TRIM(merchant_reply) = '' THEN 1 END) AS awaiting_reply,
+            (SELECT latest.rating
+             FROM merchant_review latest
+             WHERE latest.merchant_id = ?
+             ORDER BY latest.created_at DESC, latest.review_id DESC
+             LIMIT 1) AS latest_rating,
+            (SELECT latest.created_at
+             FROM merchant_review latest
+             WHERE latest.merchant_id = ?
+             ORDER BY latest.created_at DESC, latest.review_id DESC
+             LIMIT 1) AS latest_review_at
      FROM merchant_review
      WHERE merchant_id = ?`,
-    [merchantId]
+    [selectedPeriod, selectedPeriod, selectedPeriod, selectedPeriod, merchantId, merchantId, merchantId]
   );
 
-  return rows[0] || { review_count: 0, average_rating: 0 };
+  return rows[0] || { review_count: 0, average_rating: 0, latest_rating: null, latest_review_at: null };
 }
 
 async function replyToMerchantReview(reviewId, merchantId, replyText) {

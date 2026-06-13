@@ -5,13 +5,13 @@
   const bookingList = Array.isArray(bookings) ? bookings : [];
   const statusStyles = {
     pending_payment: { label: 'Pending Payment', bg: 'var(--warn-bg)', color: 'var(--warn)' },
-    confirmed:       { label: 'Confirmed', bg: 'var(--success-bg)', color: 'var(--success)' },
-    rescheduled:     { label: 'Rescheduled', bg: '#EFF6FF', color: '#1D4ED8' },
-    arrived:         { label: 'Arrived', bg: '#EFF6FF', color: '#1D4ED8' },
-    completed:       { label: 'Completed', bg: 'var(--neutral-bg)', color: 'var(--muted)' },
+    confirmed:       { label: 'Confirmed', bg: '#EFF6FF', color: '#2563EB' },
+    rescheduled:     { label: 'Rescheduled', bg: '#EFF6FF', color: '#2563EB' },
+    arrived:         { label: 'Arrived', bg: '#F5F3FF', color: '#7C3AED' },
+    completed:       { label: 'Completed', bg: 'var(--success-bg)', color: 'var(--success)' },
     cancelled:       { label: 'Cancelled', bg: 'var(--danger-bg)', color: 'var(--danger)' },
     payment_failed:  { label: 'Payment Failed', bg: 'var(--danger-bg)', color: 'var(--danger)' },
-    no_show:         { label: 'No Show', bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    no_show:         { label: 'No Show', bg: 'var(--warn-bg)', color: 'var(--warn)' },
   };
 
   function formatDate(value) {
@@ -24,6 +24,18 @@
 
   function formatTime(value) {
     return String(value || '').slice(0, 5);
+  }
+
+  function isPastAppointment(booking) {
+    const date = booking.booking_date instanceof Date
+      ? [
+          booking.booking_date.getFullYear(),
+          String(booking.booking_date.getMonth() + 1).padStart(2, '0'),
+          String(booking.booking_date.getDate()).padStart(2, '0'),
+        ].join('-')
+      : String(booking.booking_date || '').slice(0, 10);
+    const appointment = new Date(`${date}T${formatTime(booking.booking_time)}:00`);
+    return !Number.isNaN(appointment.getTime()) && appointment <= new Date();
   }
 %>
 
@@ -42,6 +54,20 @@
       <a href="/merchant/qr" class="btn btn-primary btn-pill">
         <i class="bi bi-qr-code me-1"></i>My QR Code
       </a>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-3" aria-label="Booking status colours">
+      <% [
+        statusStyles.confirmed,
+        statusStyles.arrived,
+        statusStyles.completed,
+        statusStyles.cancelled,
+        statusStyles.no_show,
+      ].forEach(item => { %>
+        <span class="badge rounded-pill" style="background:<%= item.bg %>;color:<%= item.color %>;padding:.45rem .7rem;">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:<%= item.color %>;margin-right:.3rem;"></span><%= item.label %>
+        </span>
+      <% }) %>
     </div>
 
     <% if (typeof error !== 'undefined' && error) { %>
@@ -92,6 +118,7 @@
                   bg: 'var(--accent-light)',
                   color: 'var(--accent)',
                 };
+                const canMarkNoShow = ['confirmed', 'rescheduled'].includes(booking.status) && isPastAppointment(booking);
               %>
                 <tr>
                   <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= booking.booking_id %></td>
@@ -123,6 +150,7 @@
                     </span>
                   </td>
                   <td>
+                    <div class="d-flex flex-wrap gap-1">
                     <% if (booking.status === 'confirmed' || booking.status === 'rescheduled') { %>
                       <form action="/merchant/bookings/<%= booking.booking_id %>/arrived" method="POST" class="d-inline">
                         <input type="hidden" name="returnTo" value="/merchant/bookings">
@@ -130,6 +158,14 @@
                           <i class="bi bi-person-check me-1"></i>Arrived
                         </button>
                       </form>
+                    <% if (canMarkNoShow) { %>
+                      <form action="/merchant/bookings/<%= booking.booking_id %>/no-show" method="POST" class="d-inline"
+                            onsubmit="return confirm('Mark this appointment as a no-show?');">
+                        <button class="btn btn-sm btn-pill" style="font-size:.72rem;padding:.2rem .6rem;background:var(--warn-bg);color:var(--warn);border:1px solid rgba(217,119,6,.2);">
+                          <i class="bi bi-person-x me-1"></i>No Show
+                        </button>
+                      </form>
+                    <% } %>
                     <% } else if (booking.status === 'arrived') { %>
                       <form action="/merchant/bookings/<%= booking.booking_id %>/complete" method="POST" class="d-inline">
                         <input type="hidden" name="returnTo" value="/merchant/bookings">
@@ -140,6 +176,7 @@
                     <% } else { %>
                       <span style="color:var(--muted);font-size:.75rem;">-</span>
                     <% } %>
+                    </div>
                   </td>
                 </tr>
               <% }) %>

@@ -1,0 +1,73 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container" style="max-width:1100px;">
+    <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
+      <i class="bi bi-arrow-left me-1"></i>Dashboard Overview
+    </a>
+
+    <div class="mb-4">
+      <p class="section-label">Business Settings</p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Management</h2>
+      <p style="color:var(--muted);margin:0;">Manage services, staff, customer engagement, and marketplace settings.</p>
+    </div>
+
+    <% if (imageError) { %>
+      <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;"><i class="bi bi-exclamation-circle me-2"></i><%= imageError %></div>
+    <% } %>
+    <% if (imageSuccess) { %>
+      <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;"><i class="bi bi-check-circle me-2"></i><%= imageSuccess %></div>
+    <% } %>
+
+    <div class="row g-3 mb-5">
+      <% [
+        {href:'/merchant/services', icon:'bi-scissors', label:'Services', sub:'Add, edit, and publish services'},
+        {href:'/merchant/bookings', icon:'bi-calendar-check', label:'Bookings', sub:'View and update appointments'},
+        {href:'/merchant/staff', icon:'bi-people', label:'Staff', sub:'Manage employees and assignments'},
+        {href:'/merchant/availability', icon:'bi-clock', label:'Availability', sub:'Set operating hours'},
+        {href:'/merchant/promotions', icon:'bi-tag', label:'Promotions', sub:'Create and manage deals'},
+        {href:'/merchant/reviews', icon:'bi-star', label:'Reviews', sub:'Read and reply to customers'},
+        {href:'/merchant/qr', icon:'bi-qr-code', label:'QR Code', sub:'Manage booking and arrival QR'},
+        {href:'/merchant/cancellation-policy', icon:'bi-hourglass-split', label:'Cancellation Policy', sub:'Set cancellation rules'},
+        {href:'/merchant/revenue', icon:'bi-graph-up', label:'Revenue Report', sub:'Review revenue and your earnings'},
+        {href:'/#featured-listings', icon:'bi-stars', label:'Featured Listing', sub:'View marketplace placement'},
+      ].forEach(action => { %>
+        <div class="col-6 col-md-4">
+          <a href="<%= action.href %>" class="action-card h-100">
+            <div class="action-icon"><i class="bi <%= action.icon %>"></i></div>
+            <p style="font-weight:700;font-size:.875rem;color:var(--ink);margin-bottom:.1rem;"><%= action.label %></p>
+            <p style="color:var(--muted);font-size:.72rem;margin:0;"><%= action.sub %></p>
+          </a>
+        </div>
+      <% }) %>
+    </div>
+
+    <!-- Marketplace photo remains a management setting rather than a dashboard indicator. -->
+    <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
+      <div class="row g-0 align-items-stretch">
+        <div class="col-md-4">
+          <% if (merchant && merchant.profile_image) { %>
+            <img src="<%= merchant.profile_image %>" alt="<%= merchant.merchant_name %>" style="width:100%;height:100%;min-height:220px;object-fit:cover;display:block;">
+          <% } else { %>
+            <div style="min-height:220px;height:100%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:3rem;"><i class="bi bi-image"></i></div>
+          <% } %>
+        </div>
+        <div class="col-md-8">
+          <div class="p-4 h-100 d-flex flex-column justify-content-center">
+            <p class="section-label mb-2">Marketplace Photo</p>
+            <h5 style="font-weight:800;color:var(--ink);">Your merchant card image</h5>
+            <p style="color:var(--muted);">Upload the picture customers see on your marketplace card.</p>
+            <form action="/merchant/marketplace-image" method="POST" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
+              <input type="file" name="marketplace_image" class="form-control rounded-xl" accept="image/*" required style="max-width:360px;">
+              <button type="submit" class="btn btn-primary btn-pill"><i class="bi bi-upload me-1"></i>Update Photo</button>
+            </form>
+            <p class="small mt-2 mb-0" style="color:var(--muted);">Recommended: landscape photo, under 2MB.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

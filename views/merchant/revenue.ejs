@@ -2,76 +2,54 @@
 <%- include('../partials/header') %>
 
 <div class="container py-5">
-  <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
+  <a href="/merchant/dashboard?month=<%= selectedPeriod %>" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
     <i class="bi bi-arrow-left me-1"></i>Dashboard
   </a>
-  <div class="d-flex align-items-center gap-3 mb-4">
-    <div class="icon-circle flex-shrink-0" style="background:var(--accent-light);width:40px;height:40px;">
-      <i class="bi bi-graph-up" style="color:var(--accent);"></i>
+  <div class="d-flex justify-content-between align-items-end gap-3 mb-4 flex-wrap">
+    <div class="d-flex align-items-center gap-3">
+      <div class="icon-circle flex-shrink-0" style="background:var(--accent-light);width:40px;height:40px;">
+        <i class="bi bi-graph-up" style="color:var(--accent);"></i>
+      </div>
+      <div>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;">Revenue Report</h2>
+        <p style="color:var(--muted);margin-bottom:0;font-size:.875rem;">Showing successful payments for <strong><%= periodLabel %></strong>.</p>
+      </div>
     </div>
-    <div>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;">Revenue Report</h2>
-      <p style="color:var(--muted);margin-bottom:0;font-size:.875rem;">Powered by Uniday's 20% commission model.</p>
-    </div>
+    <form action="/merchant/revenue" method="GET" class="d-flex gap-2 align-items-center">
+      <label for="revenueMonth" style="font-size:.75rem;font-weight:700;color:var(--muted);">View month</label>
+      <input id="revenueMonth" type="month" name="month" value="<%= selectedPeriod %>" max="<%= currentPeriod %>"
+             class="form-control form-control-sm" style="width:155px;border-radius:999px;" onchange="this.form.submit()">
+    </form>
   </div>
 
   <!-- Summary Cards -->
   <div class="row g-3 mb-5">
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Total Revenue</p>
-        <p class="stat-value" style="color:var(--accent);">S$<%= Number(summary.total_revenue || 0).toFixed(2) %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Gross from customers</p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= periodLabel %> Revenue</p>
+        <p class="stat-value" style="color:var(--accent);">S$<%= Number(summary.month_revenue || 0).toFixed(2) %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Successful customer payments</p>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card text-center">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Successful Payments</p>
+        <p class="stat-value" style="color:var(--success);"><%= Number(summary.month_successful_payments || 0) %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Paid bookings in <%= periodLabel %></p>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
         <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Your Earnings</p>
-        <p class="stat-value" style="color:var(--success);">S$<%= Number(summary.total_merchant_share || 0).toFixed(2) %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">After 20% commission</p>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Uniday Commission</p>
-        <p class="stat-value" style="color:var(--muted);">S$<%= Number(summary.total_uniday_share || 0).toFixed(2) %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Platform fee (20%)</p>
+        <p class="stat-value" style="color:var(--success);">S$<%= Number(summary.month_merchant_earnings || 0).toFixed(2) %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">From paid bookings in <%= periodLabel %></p>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
         <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Avg. Order Value</p>
-        <p class="stat-value" style="color:var(--ink);">S$<%= Number(summary.avg_order_value || 0).toFixed(2) %></p>
+        <p class="stat-value" style="color:var(--ink);">S$<%= Number(summary.month_avg_order_value || 0).toFixed(2) %></p>
         <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Per booking</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Revenue Split -->
-  <div class="card border-0 p-4 mb-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
-    <h6 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">Revenue Split Breakdown</h6>
-    <div class="row align-items-center g-3">
-      <div class="col-md-6">
-        <div class="d-flex justify-content-between small mb-1">
-          <span style="font-weight:600;color:var(--success);">Your Share (80%)</span>
-          <span style="font-weight:700;font-family:var(--font-mono);">S$<%= Number(summary.total_merchant_share || 0).toFixed(2) %></span>
-        </div>
-        <div class="progress mb-3" style="height:10px;border-radius:8px;background:var(--neutral-bg);">
-          <div class="progress-bar" style="width:80%;background:var(--success);border-radius:8px;"></div>
-        </div>
-        <div class="d-flex justify-content-between small mb-1">
-          <span style="color:var(--muted);font-weight:600;">Uniday Commission (20%)</span>
-          <span style="font-weight:700;color:var(--muted);font-family:var(--font-mono);">S$<%= Number(summary.total_uniday_share || 0).toFixed(2) %></span>
-        </div>
-        <div class="progress" style="height:10px;border-radius:8px;background:var(--neutral-bg);">
-          <div class="progress-bar" style="width:20%;background:var(--muted);border-radius:8px;"></div>
-        </div>
-      </div>
-      <div class="col-md-6">
-        <div class="p-3 rounded-xl" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.12);">
-          <p style="font-size:.8125rem;color:var(--accent);margin-bottom:.4rem;"><i class="bi bi-info-circle me-1"></i><strong>How it works</strong></p>
-          <p style="font-size:.8125rem;color:var(--muted);margin-bottom:0;">For every booking paid through Uniday, the platform retains a 20% commission fee. You receive the remaining 80% as your net earnings — consistent with the industry-standard Uniday commission model.</p>
-        </div>
       </div>
     </div>
   </div>
@@ -88,19 +66,17 @@
           <tr>
             <th>Month</th>
             <th>Bookings</th>
-            <th>Gross Revenue</th>
-            <th>Uniday (20%)</th>
-            <th>Your Net Earnings</th>
+            <th>Revenue</th>
+            <th>Your Earnings</th>
           </tr>
         </thead>
         <tbody>
           <% monthly.forEach(m => { %>
-          <tr>
+          <tr style="<%= m.month === selectedPeriod ? 'background:var(--accent-light);' : '' %>">
             <td style="font-weight:600;"><%= m.month %></td>
             <td><%= m.bookings %></td>
             <td style="font-family:var(--font-mono);">S$<%= Number(m.revenue || 0).toFixed(2) %></td>
-            <td style="color:var(--muted);font-family:var(--font-mono);">S$<%= Number((m.revenue || 0) * 0.2).toFixed(2) %></td>
-            <td style="font-weight:700;color:var(--success);font-family:var(--font-mono);">S$<%= Number(m.net_earnings || 0).toFixed(2) %></td>
+            <td style="font-weight:700;color:var(--success);font-family:var(--font-mono);">S$<%= Number(m.merchant_earnings || 0).toFixed(2) %></td>
           </tr>
           <% }) %>
         </tbody>
@@ -110,7 +86,7 @@
   <% } %>
 
   <!-- Transaction History -->
-  <h5 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">Transaction History</h5>
+  <h5 style="font-weight:700;color:var(--ink);margin-bottom:1rem;"><%= periodLabel %> Transaction History</h5>
   <% if (transactions.length === 0) { %>
   <div class="card border-0 text-center py-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <div class="icon-circle-lg mx-auto mb-3">
@@ -130,9 +106,8 @@
             <th>Service</th>
             <th>Date</th>
             <th>Source</th>
-            <th>Gross</th>
-            <th>Uniday (20%)</th>
-            <th>Your Share</th>
+            <th>Amount</th>
+            <th>Your Earnings</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -162,10 +137,9 @@
               <% } %>
             </td>
             <td style="font-family:var(--font-mono);font-weight:600;"><%= t.amount ? 'S$' + Number(t.amount).toFixed(2) : '—' %></td>
-            <td style="color:var(--muted);font-family:var(--font-mono);"><%= t.uniday_share ? 'S$' + Number(t.uniday_share).toFixed(2) : '—' %></td>
-            <td style="font-weight:700;color:var(--success);font-family:var(--font-mono);"><%= t.merchant_share ? 'S$' + Number(t.merchant_share).toFixed(2) : '—' %></td>
+            <td style="font-weight:700;color:var(--success);font-family:var(--font-mono);"><%= t.merchant_earnings ? 'S$' + Number(t.merchant_earnings).toFixed(2) : '—' %></td>
             <td>
-              <span class="badge" style="background:<%= t.payment_status==='success'?'var(--success-bg)':t.payment_status==='pending'?'var(--warn-bg)':'var(--accent-light)' %>;color:<%= t.payment_status==='success'?'var(--success)':t.payment_status==='pending'?'var(--warn)':'var(--accent)' %>;">
+              <span class="badge" style="background:<%= t.payment_status==='paid'?'var(--success-bg)':t.payment_status==='pending'?'var(--warn-bg)':'var(--accent-light)' %>;color:<%= t.payment_status==='paid'?'var(--success)':t.payment_status==='pending'?'var(--warn)':'var(--accent)' %>;">
                 <%= t.payment_status ? t.payment_status.charAt(0).toUpperCase() + t.payment_status.slice(1) : 'Unpaid' %>
               </span>
             </td>

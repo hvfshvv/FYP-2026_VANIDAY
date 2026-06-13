@@ -444,6 +444,23 @@ async function updateBookingStatus(bookingId, status) {
 async function updateMerchantBookingStatus(bookingId, merchantId, status) {
   const fields = ['status = ?'];
   const params = [status];
+  const transitionRules = {
+    arrived: {
+      currentStatuses: ['confirmed', 'rescheduled'],
+      timeRule: '',
+    },
+    completed: {
+      currentStatuses: ['arrived'],
+      timeRule: '',
+    },
+    no_show: {
+      currentStatuses: ['confirmed', 'rescheduled'],
+      timeRule: 'AND TIMESTAMP(ts.slot_date, ts.start_time) <= NOW()',
+    },
+  };
+  const rule = transitionRules[status];
+
+  if (!rule) return 0;
 
   if (status === 'arrived') {
     // Record manual merchant check-in from the dashboard.
@@ -454,10 +471,13 @@ async function updateMerchantBookingStatus(bookingId, merchantId, status) {
 
   const [result] = await db.query(
     `UPDATE booking
+     JOIN time_slot ts ON ts.slot_id = booking.slot_id
      SET ${fields.join(', ')}
-     WHERE booking_id = ?
-       AND merchant_id = ?`,
-    params
+     WHERE booking.booking_id = ?
+       AND booking.merchant_id = ?
+       AND booking.status IN (?)
+       ${rule.timeRule}`,
+    [...params, rule.currentStatuses]
   );
 
   return result.affectedRows;
@@ -742,6 +762,84 @@ async function getMerchantBookings(merchantId) {
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [merchantId]
   );
+  return rows;
+}
+
+// Decision-support counts used by the merchant dashboard.
+async function getMerchantDashboardSummary(merchantId, periodStart) {
+  await expirePendingPaymentBookings();
+
+  const [[row]] = await db.query(
+    `SELECT
+       COUNT(*) AS month_bookings,
+       COUNT(CASE WHEN ts.slot_date = CURDATE()
+                    AND b.status IN ('confirmed', 'rescheduled', 'arrived') THEN 1 END) AS today_bookings,
+       (SELECT COUNT(*)
+        FROM booking upcoming
+        JOIN time_slot upcoming_slot ON upcoming_slot.slot_id = upcoming.slot_id
+        WHERE upcoming.merchant_id = ?
+          AND TIMESTAMP(upcoming_slot.slot_date, upcoming_slot.start_time) > NOW()
+          AND upcoming.status IN ('confirmed', 'rescheduled')) AS upcoming_bookings,
+       COUNT(CASE WHEN b.status = 'confirmed' OR b.status = 'rescheduled' THEN 1 END) AS confirmed,
+       COUNT(CASE WHEN b.status = 'arrived' THEN 1 END) AS arrived,
+       COUNT(CASE WHEN b.status = 'completed' THEN 1 END) AS completed,
+       COUNT(CASE WHEN b.status = 'cancelled' THEN 1 END) AS cancelled,
+       COUNT(CASE WHEN b.status = 'no_show' THEN 1 END) AS no_show,
+       COUNT(CASE WHEN b.status = 'completed' THEN 1 END) AS month_completed,
+       COUNT(CASE WHEN b.status = 'cancelled' THEN 1 END) AS month_cancelled,
+       COUNT(CASE WHEN b.status = 'no_show' THEN 1 END) AS month_no_show,
+       COUNT(CASE WHEN b.source = 'qr' THEN 1 END) AS qr_bookings
+     FROM booking b
+     JOIN time_slot ts ON ts.slot_id = b.slot_id
+     WHERE b.merchant_id = ?
+       AND ts.slot_date >= ?
+       AND ts.slot_date < DATE_ADD(?, INTERVAL 1 MONTH)`,
+    [merchantId, merchantId, periodStart, periodStart]
+  );
+
+  const [[mostBookedService]] = await db.query(
+    `SELECT s.service_name, COUNT(*) AS booking_count
+     FROM booking b
+     JOIN service s ON s.service_id = b.service_id
+     JOIN time_slot ts ON ts.slot_id = b.slot_id
+     WHERE b.merchant_id = ?
+       AND b.status NOT IN ('cancelled', 'payment_failed')
+       AND ts.slot_date >= ?
+       AND ts.slot_date < DATE_ADD(?, INTERVAL 1 MONTH)
+     GROUP BY s.service_id, s.service_name
+     ORDER BY booking_count DESC, s.service_name ASC
+     LIMIT 1`,
+    [merchantId, periodStart, periodStart]
+  );
+
+  return {
+    ...row,
+    most_booked_service: mostBookedService?.service_name || null,
+    most_booked_service_count: Number(mostBookedService?.booking_count || 0),
+  };
+}
+
+// Only appointments still relevant to the merchant's schedule today.
+async function getMerchantTodaySchedule(merchantId) {
+  const [rows] = await db.query(
+    `SELECT b.booking_id, b.status,
+            ts.start_time AS booking_time,
+            s.service_name,
+            COALESCE(st.full_name, 'Any Available Staff') AS staff_name,
+            COALESCE(c.full_name, b.guest_name, 'Guest customer') AS customer_name
+     FROM booking b
+     JOIN time_slot ts ON ts.slot_id = b.slot_id
+     JOIN service s ON s.service_id = b.service_id
+     LEFT JOIN staff st ON st.staff_id = b.staff_id
+     LEFT JOIN customer c ON c.customer_id = b.customer_id
+     WHERE b.merchant_id = ?
+       AND ts.slot_date = CURDATE()
+       AND ts.start_time >= CURTIME()
+       AND b.status IN ('confirmed', 'rescheduled', 'arrived')
+     ORDER BY ts.start_time ASC`,
+    [merchantId]
+  );
+
   return rows;
 }
 
@@ -1095,6 +1193,8 @@ module.exports = {
   cancelCustomerBooking,
   rescheduleCustomerBooking,
   getMerchantBookings,
+  getMerchantDashboardSummary,
+  getMerchantTodaySchedule,
   getCustomerBookings,
   getAvailableSlots,
   hasSentEmailNotification,

@@ -1,219 +1,601 @@
 <% locals.hideCatNav = true %>
 <%- include('../partials/header') %>
 
-<!-- Merchant dashboard: overview of revenue, bookings, quick links and marketplace image. -->
-<div class="container py-5">
-  <div class="d-flex justify-content-between align-items-start mb-5 flex-wrap gap-3">
-    <div>
-      <p class="section-label">Overview</p>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Dashboard</h2>
-      <p style="color:var(--muted);margin-bottom:0;">Welcome back, <strong><%= user.full_name %></strong></p>
-    </div>
-    <div class="d-flex gap-2 flex-wrap justify-content-start justify-content-md-end" style="min-width:min(100%,360px);">
-      <a href="/merchant/revenue" class="btn btn-outline-secondary btn-pill"
-         style="font-weight:800;padding:.72rem 1.15rem;min-width:150px;">
-        <i class="bi bi-graph-up me-1"></i>Revenue Report
-      </a>
-      <a href="/merchant/qr" class="btn btn-primary btn-pill"
-         style="font-weight:800;padding:.72rem 1.15rem;min-width:150px;">
-        <i class="bi bi-qr-code me-1"></i>My QR Code
-      </a>
-    </div>
-  </div>
+<style>
+  .merchant-analytics-shell {
+    background:linear-gradient(145deg,#fff 0%,#fff8fa 100%);
+    border:1px solid rgba(225,29,72,.08);
+    border-radius:28px;
+    box-shadow:0 24px 60px rgba(136,19,55,.09);
+    padding:1.4rem;
+  }
+  .dashboard-panel {
+    background:#fff;
+    border:1px solid rgba(225,29,72,.08);
+    border-radius:20px;
+    box-shadow:0 10px 30px rgba(136,19,55,.07);
+    overflow:hidden;
+  }
+  .dashboard-panel-head {
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:1rem;
+    padding:1rem 1.15rem;
+    border-bottom:1px solid rgba(225,29,72,.08);
+    background:linear-gradient(90deg,#fff7f9,#fff);
+  }
+  .dashboard-panel-body { padding:1.15rem; }
+  .signal-pill {
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    border-radius:999px;
+    padding:.32rem .55rem;
+    background:var(--neutral-bg);
+    color:var(--muted);
+    font-size:.62rem;
+    font-weight:800;
+  }
+  .dashboard-kpi {
+    position:relative;
+    overflow:hidden;
+    min-height:150px;
+    border-radius:20px;
+    padding:1.2rem;
+    background:#fff;
+    border:1px solid rgba(225,29,72,.09);
+    box-shadow:0 10px 24px rgba(136,19,55,.07);
+  }
+  .dashboard-kpi::after {
+    content:"";
+    position:absolute;
+    width:100px;
+    height:100px;
+    right:-38px;
+    bottom:-48px;
+    border-radius:50%;
+    background:currentColor;
+    opacity:.08;
+  }
+  .dashboard-kpi.featured {
+    color:#fff !important;
+    border:0;
+    background:linear-gradient(135deg,var(--accent),#fb7185);
+  }
+  .dashboard-kpi.featured * { color:#fff !important; }
+  .dashboard-kpi .kpi-signal {
+    position:absolute;
+    top:1rem;
+    right:1rem;
+    z-index:1;
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:currentColor;
+    box-shadow:0 0 0 5px color-mix(in srgb,currentColor 12%,transparent);
+  }
+  .metric-icon {
+    width:38px;
+    height:38px;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--accent-light);
+    color:var(--accent);
+  }
+  .indicator-gauge-card {
+    background:linear-gradient(145deg,#fff,#fff8fa);
+    border:1px solid rgba(225,29,72,.08);
+    border-radius:18px;
+    padding:1rem;
+    height:100%;
+  }
+  .indicator-gauge {
+    --gauge-color:var(--accent);
+    width:min(100%,210px);
+    margin:0 auto;
+    position:relative;
+  }
+  .indicator-gauge svg { width:100%;height:auto;display:block;overflow:visible; }
+  .gauge-track,.gauge-progress {
+    fill:none;
+    stroke-width:23;
+    stroke-linecap:round;
+  }
+  .gauge-track { stroke:var(--neutral-bg); }
+  .gauge-progress {
+    stroke:var(--gauge-color);
+    stroke-dasharray:var(--gauge-value) 100;
+    transition:stroke-dasharray .45s ease;
+  }
+  .gauge-needle { stroke:var(--ink);stroke-width:5;stroke-linecap:round; }
+  .gauge-hub { fill:#fff;stroke:var(--ink);stroke-width:4; }
+  .gauge-scale {
+    display:flex;
+    justify-content:space-between;
+    color:var(--muted);
+    font-size:.62rem;
+    font-weight:700;
+    margin:-.65rem .3rem 0;
+  }
+  .gauge-reading { text-align:center;margin-top:-.15rem; }
+  .gauge-reading strong { display:block;color:var(--ink);font-size:1.55rem;line-height:1;font-family:var(--font-mono); }
+  .gauge-reading span { color:var(--muted);font-size:.63rem;font-weight:700; }
+  .capacity-meter { height:8px;border-radius:999px;background:#fff;overflow:hidden;margin-top:.65rem; }
+  .capacity-meter > span { display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),#fb7185); }
+  .outcome-track { display:flex;height:18px;border-radius:999px;overflow:hidden;background:var(--neutral-bg);box-shadow:inset 0 0 0 1px var(--border); }
+  .outcome-track > span { min-width:0;transition:width .2s ease; }
+  .outcome-row { display:grid;grid-template-columns:100px 1fr 34px;align-items:center;gap:.7rem; }
+  .outcome-line { height:7px;border-radius:999px;background:var(--neutral-bg);overflow:hidden; }
+  .outcome-line > span { display:block;height:100%;border-radius:inherit; }
+  .mini-signal-card {
+    display:block;
+    height:100%;
+    padding:1rem;
+    border-radius:18px;
+    background:#fff;
+    border:1px solid rgba(225,29,72,.08);
+    box-shadow:0 8px 20px rgba(136,19,55,.06);
+    position:relative;
+    overflow:hidden;
+  }
+  .mini-signal-card::before { content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--signal-color,var(--accent)); }
+  .mini-signal-icon { width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--accent-light);color:var(--accent); }
+  .trend-chart { min-height:230px;display:flex;align-items:flex-end;gap:.65rem;padding-top:1.5rem; }
+  .trend-column { flex:1;min-width:34px;text-align:center; }
+  .trend-bar-track { height:165px;display:flex;align-items:flex-end;background:linear-gradient(to top,rgba(225,29,72,.04),transparent);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0; }
+  .trend-bar { width:100%;min-height:5px;border-radius:10px 10px 3px 3px;background:linear-gradient(180deg,#fb7185,var(--accent));box-shadow:0 8px 16px rgba(225,29,72,.18); }
+  @media (max-width:767px) {
+    .merchant-analytics-shell { padding:.75rem;border-radius:20px; }
+    .outcome-row { grid-template-columns:82px 1fr 28px; }
+  }
+</style>
 
-  <!-- Feedback after uploading the marketplace photo. -->
-  <% if (imageError) { %>
-  <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
-    <i class="bi bi-exclamation-circle me-2"></i><%= imageError %>
-  </div>
-  <% } %>
-  <% if (imageSuccess) { %>
-  <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i><%= imageSuccess %>
-  </div>
-  <% } %>
+<%
+  const bookings = bookingSummary || {};
+  const revenue = revenueSummary || {};
+  const reviews = reviewSummary || {};
+  const metrics = dashboardMetrics || {};
+  const schedule = Array.isArray(todaySchedule) ? todaySchedule : [];
+  const revenueTrend = Array.isArray(monthlyRevenue) ? monthlyRevenue : [];
+  const actions = Array.isArray(pendingActions) ? pendingActions : [];
+  const cancellationRate = Number(metrics.cancellationRate || 0);
+  const hasFinalOutcomes = Number(bookings.month_completed || 0) + Number(bookings.month_cancelled || 0) + Number(bookings.month_no_show || 0) > 0;
+  const hasReliableCancellationSample = Number(metrics.monthlyFinishedBookings || 0) >= 5;
+  const cancellationColor = !hasReliableCancellationSample ? 'var(--muted)' : cancellationRate <= 10 ? 'var(--success)' : cancellationRate <= 20 ? 'var(--warn)' : 'var(--danger)';
+  const cancellationInsight = !hasFinalOutcomes
+    ? 'Complete appointments to begin tracking cancellation risk.'
+    : !hasReliableCancellationSample
+      ? Number(metrics.monthlyCancelledBookings || 0) + ' cancelled of ' + Number(metrics.monthlyFinishedBookings || 0) + ' final outcome(s). More results are needed before judging the trend.'
+    : cancellationRate <= 10
+      ? 'Bookings are being retained well. Keep your current confirmation process.'
+      : cancellationRate <= 20
+        ? 'Some revenue is at risk. Review reminders and cancellation reasons.'
+        : 'High booking loss. Consider deposits, reminders, or policy changes.';
+  const hasPeriodReviews = Number(reviews.review_count || 0) > 0;
+  const hasRating = hasPeriodReviews || reviews.latest_rating !== null && typeof reviews.latest_rating !== 'undefined';
+  const rating = Number(hasPeriodReviews ? reviews.average_rating : reviews.latest_rating || 0);
+  const ratingLabel = hasPeriodReviews ? 'Average Rating' : 'Latest Rating';
+  const ratingNote = hasPeriodReviews
+    ? Number(reviews.review_count || 0) + ' customer review(s) in ' + periodLabel
+    : hasRating
+      ? 'Latest available merchant review'
+      : 'No customer reviews yet';
+  const ratingColor = !hasRating ? 'var(--muted)' : rating >= 4.5 ? 'var(--success)' : rating >= 4 ? 'var(--warn)' : 'var(--danger)';
+  const ratingInsight = !hasRating
+    ? 'Ask completed customers for reviews to establish a satisfaction baseline.'
+    : !hasPeriodReviews
+      ? 'No reviews were submitted in ' + periodLabel + '. Showing the latest available merchant rating.'
+    : rating >= 4.5
+      ? 'Customers are highly satisfied. Maintain the service experience.'
+      : rating >= 4
+        ? 'Feedback is positive, with room to improve recurring concerns.'
+        : 'Customer experience needs attention. Review recent comments and reply quickly.';
+  const maxMonthlyRevenue = Math.max(...revenueTrend.map(item => Number(item.revenue || 0)), 1);
+  const outcomeItems = [
+    {label:'Completed', value:Number(bookings.month_completed || 0), color:'var(--success)', bg:'var(--success-bg)', icon:'bi-check2-all'},
+    {label:'Cancelled', value:Number(bookings.month_cancelled || 0), color:'var(--danger)', bg:'var(--danger-bg)', icon:'bi-x-circle'},
+    {label:'No Shows', value:Number(bookings.month_no_show || 0), color:'var(--warn)', bg:'var(--warn-bg)', icon:'bi-person-x'},
+    {label:'Confirmed', value:Number(bookings.confirmed || 0), color:'#2563EB', bg:'#EFF6FF', icon:'bi-calendar-check'},
+  ];
+  const outcomeTotal = outcomeItems.reduce((sum, item) => sum + item.value, 0);
+  const maxOutcome = Math.max(...outcomeItems.map(item => item.value), 1);
+  const totalServices = Number(operations.activeServices || 0) + Number(operations.inactiveServices || 0);
+  const totalStaff = Number(operations.activeStaff || 0) + Number(operations.inactiveStaff || 0);
+  const serviceCoverage = totalServices ? Math.round((Number(operations.activeServices || 0) / totalServices) * 100) : 0;
+  const staffCoverage = totalStaff ? Math.round((Number(operations.activeStaff || 0) / totalStaff) * 100) : 0;
+  const hoursCoverage = Math.round((Number(operations.activeAvailabilityDays || 0) / 7) * 100);
+  function monthLabel(value) {
+    const [year, month] = String(value || '').split('-').map(Number);
+    if (!year || !month) return value || '';
+    return new Date(year, month - 1, 1).toLocaleDateString('en-SG', { month:'short' });
+  }
+  const statusStyles = {
+    confirmed: { label: 'Confirmed', bg: '#EFF6FF', color: '#2563EB' },
+    rescheduled: { label: 'Rescheduled', bg: '#EFF6FF', color: '#2563EB' },
+    arrived: { label: 'Arrived', bg: '#F5F3FF', color: '#7C3AED' },
+  };
+%>
 
-  <!-- Marketplace photo card: controls the image shown on public merchant cards. -->
-  <div class="card border-0 mb-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
-    <div class="row g-0 align-items-stretch">
-      <div class="col-md-4">
-        <% if (merchant && merchant.profile_image) { %>
-          <img src="<%= merchant.profile_image %>" alt="<%= merchant.merchant_name %>" style="width:100%;height:100%;min-height:220px;object-fit:cover;display:block;">
-        <% } else { %>
-          <div style="min-height:220px;height:100%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:3rem;">
-            <i class="bi bi-image"></i>
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container merchant-analytics-shell" style="max-width:1240px;">
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+      <div>
+        <p class="section-label">Business Overview</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Dashboard</h2>
+        <p style="color:var(--muted);margin-bottom:0;">Welcome back, <strong><%= user.full_name %></strong>. Reviewing <strong><%= periodLabel %></strong>.</p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap justify-content-end">
+        <form action="/merchant/dashboard" method="GET" class="d-flex gap-2 align-items-center dashboard-panel p-2">
+          <label for="dashboardMonth" style="font-size:.7rem;font-weight:800;color:var(--muted);padding-left:.35rem;">View month</label>
+          <input id="dashboardMonth" type="month" name="month" value="<%= selectedPeriod %>" max="<%= currentPeriod %>"
+                 class="form-control form-control-sm" style="width:150px;border-radius:999px;" onchange="this.form.submit()">
+          <% if (!isCurrentPeriod) { %><a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill">Current</a><% } %>
+        </form>
+        <a href="/merchant/manage" class="btn btn-primary btn-pill" style="font-weight:800;padding:.72rem 1.15rem;">
+          <i class="bi bi-sliders me-1"></i>Merchant Management
+        </a>
+      </div>
+    </div>
+
+    <!-- The first row answers the merchant's immediate planning questions. -->
+    <div class="row g-3 mb-4">
+      <% [
+        isCurrentPeriod
+          ? { label:"Today's Bookings", value:bookings.today_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:'Appointments to prepare for', featured:true }
+          : { label:'Bookings in Period', value:bookings.month_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:'All bookings during ' + periodLabel, featured:true },
+        isCurrentPeriod
+          ? { label:'Upcoming Bookings', value:bookings.upcoming_bookings, icon:'bi-calendar-week', color:'#1D4ED8', note:'Future confirmed workload' }
+          : { label:'Confirmed', value:bookings.confirmed, icon:'bi-calendar-week', color:'#1D4ED8', note:'Confirmed or rescheduled bookings' },
+        { label:'Revenue', value:'S$' + Number(revenue.month_revenue || 0).toFixed(2), icon:'bi-cash-stack', color:'var(--success)', note:'Successful payments in ' + periodLabel },
+        { label:'Cancellation Rate', value:hasFinalOutcomes ? cancellationRate + '%' : 'N/A', icon:'bi-x-circle', color:cancellationColor, note:hasFinalOutcomes ? Number(metrics.monthlyCancelledBookings || 0) + ' cancelled of ' + Number(metrics.monthlyFinishedBookings || 0) + ' final outcome(s)' + (!hasReliableCancellationSample ? '; limited data' : '') : 'No final appointment outcomes yet' },
+        { label:ratingLabel, value:hasRating ? rating.toFixed(1) : 'N/A', icon:'bi-star-fill', color:ratingColor, note:ratingNote },
+      ].forEach(item => { %>
+        <div class="col-6 col-lg">
+          <div class="dashboard-kpi h-100 <%= item.featured ? 'featured' : '' %>" style="color:<%= item.color %>;">
+            <span class="kpi-signal" aria-hidden="true"></span>
+            <div class="metric-icon mb-3"><i class="bi <%= item.icon %>"></i></div>
+            <p style="font-weight:700;color:var(--muted);font-size:.72rem;margin-bottom:.25rem;"><%= item.label %></p>
+            <p class="stat-value mb-1" style="color:<%= item.color %>;font-size:1.65rem;"><%= item.value || 0 %></p>
+            <p style="color:var(--muted);font-size:.66rem;margin:0;"><%= item.note %></p>
           </div>
-        <% } %>
+        </div>
+      <% }) %>
+    </div>
+
+    <!-- Direct performance and coverage indicators that answer merchant business questions. -->
+    <div class="row g-4 mb-5">
+      <div class="col-lg-8">
+        <div class="dashboard-panel h-100">
+          <div class="dashboard-panel-head">
+            <div>
+              <p class="section-label mb-2">Performance Insights</p>
+              <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Business Performance Console</h5>
+              <p style="color:var(--muted);font-size:.75rem;margin:0;">Demand, revenue, capacity, and risk signals for <%= periodLabel %>.</p>
+            </div>
+            <span class="signal-pill"><i class="bi bi-activity"></i><%= actions.length ? actions.length + ' live alert(s)' : 'Operations clear' %></span>
+          </div>
+          <div class="dashboard-panel-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="indicator-gauge-card">
+                <div class="indicator-gauge" style="--gauge-value:<%= hasFinalOutcomes ? cancellationRate : 0 %>;--gauge-color:<%= cancellationColor %>;">
+                  <svg viewBox="0 0 200 118" aria-label="Cancellation rate gauge">
+                    <path class="gauge-track" pathLength="100" d="M20 100 A80 80 0 0 1 180 100"></path>
+                    <path class="gauge-progress" pathLength="100" d="M20 100 A80 80 0 0 1 180 100"></path>
+                    <line class="gauge-needle" x1="100" y1="100" x2="100" y2="38" transform="rotate(<%= -90 + ((hasFinalOutcomes ? cancellationRate : 0) * 1.8) %> 100 100)"></line>
+                    <circle class="gauge-hub" cx="100" cy="100" r="9"></circle>
+                  </svg>
+                  <div class="gauge-scale"><span>0%</span><span>100%</span></div>
+                  <div class="gauge-reading">
+                    <strong><%= hasFinalOutcomes ? cancellationRate + '%' : 'N/A' %></strong>
+                    <span>Cancellation rate</span>
+                  </div>
+                </div>
+                <div class="text-center mt-3">
+                  <p style="font-weight:800;color:var(--ink);margin-bottom:.2rem;">Cancellation Risk</p>
+                  <p style="font-size:.7rem;color:<%= cancellationColor %>;font-weight:700;margin-bottom:.2rem;"><%= !hasFinalOutcomes ? 'No outcome data' : !hasReliableCancellationSample ? 'Limited data' : cancellationRate <= 10 ? 'Good' : cancellationRate <= 20 ? 'Monitor' : 'Needs attention' %></p>
+                  <p style="font-size:.63rem;color:var(--muted);margin:0;"><%= cancellationInsight %></p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="indicator-gauge-card">
+                <% const ratingPercent = hasRating ? Math.round((rating / 5) * 100) : 0; %>
+                <div class="indicator-gauge" style="--gauge-value:<%= ratingPercent %>;--gauge-color:<%= ratingColor %>;">
+                  <svg viewBox="0 0 200 118" aria-label="Customer rating gauge">
+                    <path class="gauge-track" pathLength="100" d="M20 100 A80 80 0 0 1 180 100"></path>
+                    <path class="gauge-progress" pathLength="100" d="M20 100 A80 80 0 0 1 180 100"></path>
+                    <line class="gauge-needle" x1="100" y1="100" x2="100" y2="38" transform="rotate(<%= -90 + (ratingPercent * 1.8) %> 100 100)"></line>
+                    <circle class="gauge-hub" cx="100" cy="100" r="9"></circle>
+                  </svg>
+                  <div class="gauge-scale"><span>0%</span><span>100%</span></div>
+                  <div class="gauge-reading">
+                    <strong><%= hasRating ? ratingPercent + '%' : 'N/A' %></strong>
+                    <span><%= hasRating ? rating.toFixed(1) + '/5 customer rating' : 'Customer rating' %></span>
+                  </div>
+                </div>
+                <div class="text-center mt-3">
+                  <p style="font-weight:800;color:var(--ink);margin-bottom:.2rem;">Customer Rating</p>
+                  <p style="font-size:.7rem;color:<%= ratingColor %>;font-weight:700;margin-bottom:.2rem;"><%= !hasRating ? 'No reviews yet' : !hasPeriodReviews ? 'Latest available rating' : rating >= 4.5 ? 'Excellent' : rating >= 4 ? 'Good' : 'Needs attention' %></p>
+                  <p style="font-size:.63rem;color:var(--muted);margin:0;"><%= ratingInsight %></p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row g-3 mt-1">
+            <div class="col-md-6">
+              <div class="rounded-xl p-4 h-100" style="background:var(--accent-light);">
+                <i class="bi bi-graph-up-arrow" style="color:var(--accent);font-size:1.35rem;"></i>
+                <p style="color:var(--muted);font-size:.7rem;margin:.8rem 0 .25rem;">Most Booked Service</p>
+                <h6 style="font-weight:800;color:var(--ink);margin-bottom:.2rem;"><%= bookings.most_booked_service || 'No booking data yet' %></h6>
+                <p style="color:var(--muted);font-size:.72rem;margin:0;"><%= Number(bookings.most_booked_service_count || 0) %> booking(s) in <%= periodLabel %></p>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="rounded-xl p-4 h-100" style="background:var(--success-bg);">
+                <i class="bi bi-cash-coin" style="color:var(--success);font-size:1.35rem;"></i>
+                <p style="color:var(--muted);font-size:.7rem;margin:.8rem 0 .25rem;">Top Revenue Service</p>
+                <h6 style="font-weight:800;color:var(--ink);margin-bottom:.2rem;"><%= topRevenueService ? topRevenueService.service_name : 'No paid revenue yet' %></h6>
+                <p style="color:var(--muted);font-size:.72rem;margin:0;"><%= topRevenueService ? 'S$' + Number(topRevenueService.revenue || 0).toFixed(2) + ' earned in ' + periodLabel : 'Successful payments will reveal the top earner.' %></p>
+              </div>
+            </div>
+            <% [
+              {label:'Service Coverage', value:operations.activeServices + ' active', note:operations.inactiveServices + ' disabled', percent:serviceCoverage, icon:'bi-scissors', href:'/merchant/services'},
+              {label:'Staff Availability', value:operations.activeStaff + ' active', note:operations.inactiveStaff + ' inactive', percent:staffCoverage, icon:'bi-people', href:'/merchant/staff'},
+              {label:'Operating Hours', value:operations.activeAvailabilityDays + ' days active', note:operations.missingAvailabilityDays.length ? 'Missing: ' + operations.missingAvailabilityDays.join(', ') : 'All days configured', percent:hoursCoverage, icon:'bi-clock', href:'/merchant/availability'},
+            ].forEach(item => { %>
+              <div class="col-md-4">
+                <a href="<%= item.href %>" class="rounded-xl p-3 h-100 d-block text-decoration-none" style="background:var(--neutral-bg);">
+                  <i class="bi <%= item.icon %>" style="color:var(--accent);"></i>
+                  <p style="font-size:.7rem;color:var(--muted);margin:.55rem 0 .15rem;"><%= item.label %></p>
+                  <strong style="font-size:.85rem;color:var(--ink);"><%= item.value %></strong>
+                  <span style="float:right;font-size:.68rem;font-weight:800;color:var(--accent);"><%= item.percent %>%</span>
+                  <div class="capacity-meter"><span style="width:<%= item.percent %>%;"></span></div>
+                  <p style="font-size:.62rem;color:var(--muted);margin:.2rem 0 0;"><%= item.note %></p>
+                </a>
+              </div>
+            <% }) %>
+          </div>
+          </div>
+        </div>
       </div>
-      <div class="col-md-8">
-        <div class="p-4 h-100 d-flex flex-column justify-content-center">
-          <p class="section-label mb-2">Marketplace photo</p>
-          <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;">Your merchant card image</h5>
-          <p style="color:var(--muted);margin-bottom:1rem;">Upload the picture customers will see on your marketplace card.</p>
-          <form action="/merchant/marketplace-image" method="POST" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
-            <input type="file" name="marketplace_image" class="form-control rounded-xl" accept="image/*" required style="max-width:360px;">
-            <button type="submit" class="btn btn-primary btn-pill">
-              <i class="bi bi-upload me-1"></i>Update Photo
-            </button>
-          </form>
-          <p class="small mt-2 mb-0" style="color:var(--muted);">Recommended: landscape photo, under 2MB.</p>
+
+      <div class="col-lg-4">
+        <div class="dashboard-panel h-100">
+          <div class="dashboard-panel-head">
+            <div>
+          <p class="section-label mb-2"><%= periodLabel %></p>
+          <h5 style="font-weight:800;color:var(--ink);"><i class="bi bi-trophy me-2" style="color:var(--warn);"></i>Top Performing Staff</h5>
+          <p style="color:var(--muted);font-size:.75rem;">Ranked by completed appointments, then revenue.</p>
+            </div>
+          </div>
+          <div class="dashboard-panel-body">
+          <% if (!topPerformingStaff) { %>
+            <div class="rounded-xl p-3 text-center mt-3" style="background:var(--neutral-bg);">
+              <i class="bi bi-person-check" style="font-size:1.7rem;color:var(--accent);"></i>
+              <p style="font-weight:700;color:var(--ink);margin:.6rem 0 .2rem;">No result yet</p>
+              <p style="color:var(--muted);font-size:.72rem;margin:0;">No completed staff appointments were recorded for this period.</p>
+            </div>
+          <% } else { %>
+            <div class="rounded-xl p-3 mt-3" style="background:var(--accent-light);">
+              <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="icon-circle flex-shrink-0"><i class="bi bi-person-fill" style="color:var(--accent);"></i></div>
+                <div>
+                  <p style="font-weight:800;color:var(--ink);margin:0;"><%= topPerformingStaff.full_name %></p>
+                  <p style="color:var(--muted);font-size:.7rem;margin:0;"><%= topPerformingStaff.role || 'Staff member' %></p>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between py-2 border-top"><span style="font-size:.72rem;color:var(--muted);">Completed</span><strong><%= Number(topPerformingStaff.completed_bookings || 0) %></strong></div>
+              <div class="d-flex justify-content-between py-2 border-top"><span style="font-size:.72rem;color:var(--muted);">Revenue</span><strong>S$<%= Number(topPerformingStaff.revenue || 0).toFixed(2) %></strong></div>
+            </div>
+          <% } %>
+          <a href="/merchant/staff" class="btn btn-outline-secondary btn-pill btn-sm w-100 mt-3">Manage Staff</a>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Revenue Stats: summary numbers loaded from revenueModel.getMerchantRevenueSummary. -->
-  <div class="row g-3 mb-5">
-    <div class="col-6 col-md-3">
-      <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Total Revenue</p>
-        <p class="stat-value" style="color:var(--accent);">S$<%= Number(summary.total_revenue || 0).toFixed(2) %></p>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Your Earnings</p>
-        <p class="stat-value" style="color:var(--success);">S$<%= Number(summary.total_merchant_share || 0).toFixed(2) %></p>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">QR Bookings</p>
-        <p class="stat-value" style="color:var(--accent);">
-          <%= summary.qr_bookings || 0 %>
-        </p>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Total Bookings</p>
-        <p class="stat-value" style="color:var(--ink);"><%= summary.total_bookings || 0 %></p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Quick Actions: shortcuts to the main merchant tools. -->
-  <div class="row g-3 mb-5">
-    <% [
-      { href:'/merchant/services',    icon:'bi-scissors', label:'My Services',sub:'Add & manage'        },
-      { href:'/merchant/bookings',    icon:'bi-calendar-check', label:'Bookings', sub:'View all'        },
-      { href:'/merchant/staff',        icon:'bi-people',   label:'Staff',        sub:'Manage employees' },
-      { href:'/merchant/availability', icon:'bi-clock',    label:'Availability', sub:'Set working hours' },
-      { href:'/merchant/promotions',  icon:'bi-tag',      label:'Promotions', sub:'Create deals'        },
-      { href:'/merchant/reviews',      icon:'bi-star',     label:'Reviews',      sub:'View & reply'      },
-      { href:'/merchant/cancellation-policy', icon:'bi-hourglass-split', label:'Policy', sub:'Cancellation rules' },
-    ].forEach(a => { %>
-    <div class="col-6 col-md-3">
-      <a href="<%= a.href %>" class="action-card">
-        <div class="action-icon">
-          <i class="bi <%= a.icon %>"></i>
+    <div class="row g-4 mb-5">
+      <!-- Warning lights appear only when the merchant needs to act. -->
+      <div class="col-lg-5">
+        <div class="dashboard-panel h-100">
+          <div class="dashboard-panel-head">
+            <div>
+          <h5 style="font-weight:800;color:var(--ink);"><i class="bi bi-exclamation-circle me-2" style="color:var(--warn);"></i>Live Pending Actions</h5>
+          <p style="color:var(--muted);font-size:.8rem;">Current items requiring attention, regardless of the viewed month.</p>
+            </div>
+            <span class="signal-pill"><%= actions.length %> alert(s)</span>
+          </div>
+          <div class="dashboard-panel-body">
+          <% if (!actions.length) { %>
+            <div class="rounded-xl p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+              <i class="bi bi-check-circle me-2"></i>No action needed right now.
+            </div>
+          <% } else { %>
+            <div class="d-grid gap-2">
+              <% actions.forEach(action => { %>
+                <a href="<%= action.href %>" class="text-decoration-none rounded-xl p-3 d-flex align-items-start gap-3"
+                   style="background:var(--warn-bg);color:var(--ink);">
+                  <i class="bi <%= action.icon %>" style="color:var(--warn);"></i>
+                  <span style="font-size:.82rem;font-weight:700;"><%= action.label %></span>
+                  <i class="bi bi-chevron-right ms-auto" style="color:var(--muted);"></i>
+                </a>
+              <% }) %>
+            </div>
+          <% } %>
+          </div>
         </div>
-        <p style="font-weight:700;font-size:.875rem;color:var(--ink);margin-bottom:.1rem;"><%= a.label %></p>
-        <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= a.sub %></p>
-      </a>
-    </div>
-    <% }) %>
-  </div>
+      </div>
 
-  <!-- Recent Bookings: latest bookings with action buttons for status updates. -->
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent Bookings</h5>
-  </div>
+      <div class="col-lg-7">
+        <div class="dashboard-panel h-100 overflow-hidden">
+          <div class="dashboard-panel-head">
+            <div>
+            <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= isCurrentPeriod ? "Today's Schedule" : 'Historical Period' %></h5>
+            <p style="color:var(--muted);font-size:.8rem;"><%= isCurrentPeriod ? 'Upcoming appointments for the rest of today.' : 'Daily schedules are shown only for the current month.' %></p>
+            </div>
+            <span class="signal-pill"><i class="bi bi-calendar3"></i><%= isCurrentPeriod ? schedule.length + ' upcoming' : periodLabel %></span>
+          </div>
+          <% if (!schedule.length) { %>
+            <div class="text-center px-4 pb-5 pt-3">
+              <i class="bi bi-calendar2-check" style="font-size:2rem;color:var(--accent);"></i>
+              <p style="font-weight:700;color:var(--ink);margin:.7rem 0 .2rem;"><%= isCurrentPeriod ? 'No more appointments today' : periodLabel + ' performance selected' %></p>
+              <p style="color:var(--muted);font-size:.8rem;margin:0;"><%= isCurrentPeriod ? 'Your upcoming schedule is clear.' : 'Use the indicators and booking pipeline to review this past month.' %></p>
+            </div>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" style="font-size:.8rem;">
+                <thead style="background:var(--accent-light);"><tr><th>Time</th><th>Customer</th><th>Service</th><th>Staff</th><th>Status</th></tr></thead>
+                <tbody>
+                  <% schedule.forEach(item => { const style = statusStyles[item.status] || statusStyles.confirmed; %>
+                    <tr>
+                      <td style="font-weight:800;font-family:var(--font-mono);"><%= String(item.booking_time || '').slice(0,5) %></td>
+                      <td><%= item.customer_name %></td>
+                      <td><%= item.service_name %></td>
+                      <td><%= item.staff_name %></td>
+                      <td><span class="badge rounded-pill" style="background:<%= style.bg %>;color:<%= style.color %>;"><%= style.label %></span></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
 
-  <% if (bookings.length === 0) { %>
-  <div class="card border-0 text-center py-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
-    <div class="icon-circle-lg mx-auto mb-3">
-      <i class="bi bi-inbox" style="font-size:2rem;color:var(--accent);"></i>
-    </div>
-    <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No bookings yet</h6>
-    <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">Generate your QR code and share it to start receiving cashless bookings.</p>
-    <div class="d-flex gap-2 justify-content-center">
-      <a href="/merchant/qr" class="btn btn-primary btn-pill btn-sm">Get My QR Code</a>
-      <a href="/merchant/services" class="btn btn-outline-secondary btn-pill btn-sm">Add Services</a>
-    </div>
-  </div>
-  <% } else { %>
-  <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
-        <thead style="background:var(--accent-light);">
-          <tr>
-            <th>ID</th>
-            <th>Customer</th>
-            <th>Service</th>
-            <th>Date &amp; Time</th>
-            <th>Source</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% bookings.slice(0,10).forEach(b => { %>
-          <tr>
-            <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= b.booking_id %></td>
-            <td>
-              <p style="font-weight:600;margin-bottom:0;"><%= b.customer_name %></p>
-              <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= b.customer_phone %></p>
-            </td>
-            <td><%= b.service_name %></td>
-            <td>
-              <%= new Date(b.booking_date).toLocaleDateString('en-SG',{day:'numeric',month:'short'}) %>
-              <span style="color:var(--muted);margin-left:.25rem;"><%= String(b.booking_time).slice(0,5) %></span>
-            </td>
-            <td>
-              <% if (b.source === 'qr' || b.source === 'qr_scan') { %>
-              <span class="badge" style="background:var(--accent-light);color:var(--accent);">
-                <i class="bi bi-qr-code me-1"></i>QR
-              </span>
-              <% } else { %>
-              <span class="badge bg-secondary"><%= b.source %></span>
-              <% } %>
-            </td>
-            <td>
-              <%
-                // Match each booking status to a badge colour.
-                const statusMap = {
-                  confirmed: { bg:'var(--success-bg)',  color:'var(--success)'  },
-                  rescheduled: { bg:'#EFF6FF',            color:'#1D4ED8'         },
-                  completed: { bg:'var(--neutral-bg)',  color:'var(--muted)'    },
-                  arrived:   { bg:'#EFF6FF',            color:'#1D4ED8'         },
-                  cancelled: { bg:'var(--danger-bg)',   color:'var(--danger)'   },
-                  payment_failed: { bg:'var(--danger-bg)', color:'var(--danger)' },
-                  pending:   { bg:'var(--warn-bg)',     color:'var(--warn)'     },
-                };
-                const st = statusMap[b.status] || statusMap.pending;
-                const statusLabel = b.status === 'payment_failed'
-                  ? 'Payment Failed'
-                  : b.status.charAt(0).toUpperCase() + b.status.slice(1).replace('_', ' ');
+    <div class="row g-4 mb-5">
+      <div class="col-lg-6">
+        <div class="dashboard-panel h-100">
+          <div class="dashboard-panel-head">
+            <div>
+              <p class="section-label mb-2">Appointment Results</p>
+              <h5 style="font-weight:800;color:var(--ink);"><%= periodLabel %> Booking Outcomes</h5>
+              <p style="color:var(--muted);font-size:.75rem;">Direct counts make completed work and lost appointments easy to compare.</p>
+            </div>
+            <a href="/merchant/bookings" class="btn btn-outline-secondary btn-pill btn-sm">View</a>
+          </div>
+          <div class="dashboard-panel-body">
+            <div class="outcome-track mb-4" aria-label="Booking outcome distribution">
+              <% outcomeItems.forEach(item => { %>
+                <span style="width:<%= outcomeTotal ? (item.value / outcomeTotal) * 100 : 0 %>%;background:<%= item.color %>;" title="<%= item.label %>: <%= item.value %>"></span>
+              <% }) %>
+            </div>
+            <div class="d-grid gap-3">
+              <% outcomeItems.forEach(item => { %>
+                <div class="outcome-row">
+                  <span style="font-size:.72rem;font-weight:700;color:var(--muted);"><i class="bi <%= item.icon %> me-1" style="color:<%= item.color %>;"></i><%= item.label %></span>
+                  <div class="outcome-line"><span style="width:<%= (item.value / maxOutcome) * 100 %>%;background:<%= item.color %>;"></span></div>
+                  <strong style="font-size:.8rem;color:<%= item.color %>;text-align:right;"><%= item.value %></strong>
+                </div>
+              <% }) %>
+            </div>
+            <p style="font-size:.65rem;color:var(--muted);margin:1.25rem 0 0;">The stacked bar shows the proportion of each appointment outcome.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="dashboard-panel h-100">
+          <div class="dashboard-panel-head">
+            <div>
+              <p class="section-label mb-2">Performance Trend</p>
+              <h5 style="font-weight:800;color:var(--ink);">Six-Month Revenue</h5>
+              <p style="color:var(--muted);font-size:.75rem;">Successful payments reveal the direction of demand.</p>
+            </div>
+            <a href="/merchant/revenue?month=<%= selectedPeriod %>" class="btn btn-outline-secondary btn-pill btn-sm align-self-start">Report</a>
+          </div>
+          <div class="dashboard-panel-body">
+          <% if (!revenueTrend.length) { %>
+            <div class="rounded-xl p-4 text-center mt-4" style="background:var(--neutral-bg);">
+              <i class="bi bi-bar-chart" style="font-size:1.8rem;color:var(--accent);"></i>
+              <p style="font-weight:700;color:var(--ink);margin:.6rem 0 .2rem;">No paid revenue trend yet</p>
+              <p style="color:var(--muted);font-size:.7rem;margin:0;">Monthly bars will appear after successful payments.</p>
+            </div>
+          <% } else { %>
+            <div class="trend-chart">
+              <% revenueTrend.forEach(item => {
+                const barHeight = Math.max(4, Math.round((Number(item.revenue || 0) / maxMonthlyRevenue) * 100));
               %>
-              <span class="badge" style="background:<%= st.bg %>;color:<%= st.color %>">
-                <%= statusLabel %>
-              </span>
-            </td>
-            <td>
-              <% if (b.status === 'confirmed' || b.status === 'rescheduled') { %>
-              <form action="/merchant/bookings/<%= b.booking_id %>/arrived" method="POST" class="d-inline">
-                <button class="btn btn-sm btn-outline-secondary btn-pill" style="font-size:.72rem;padding:.2rem .6rem;">
-                  <i class="bi bi-person-check me-1"></i>Arrived
-                </button>
-              </form>
-              <% } else if (b.status === 'arrived') { %>
-              <form action="/merchant/bookings/<%= b.booking_id %>/complete" method="POST" class="d-inline">
-                <button class="btn btn-sm btn-pill" style="font-size:.72rem;padding:.2rem .6rem;background:var(--success);color:#fff;border:none;">
-                  <i class="bi bi-check2-all me-1"></i>Complete
-                </button>
-              </form>
-              <% } else { %>
-              <span style="color:var(--muted);font-size:.75rem;">—</span>
-              <% } %>
-            </td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
+                <div class="trend-column">
+                  <span style="font-size:.6rem;color:var(--muted);">S$<%= Number(item.revenue || 0).toFixed(0) %></span>
+                  <div class="trend-bar-track mt-1">
+                    <div class="trend-bar" style="height:<%= barHeight %>%;" title="<%= item.month %>: S$<%= Number(item.revenue || 0).toFixed(2) %>"></div>
+                  </div>
+                  <span style="font-size:.62rem;color:var(--muted);"><%= monthLabel(item.month) %></span>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+          <div class="d-flex justify-content-between align-items-center rounded-xl p-3 mt-3" style="background:var(--accent-light);">
+            <div>
+              <p style="font-size:.68rem;color:var(--muted);margin-bottom:.1rem;"><%= periodLabel %></p>
+              <strong style="color:var(--ink);">S$<%= Number(revenue.month_revenue || 0).toFixed(2) %></strong>
+            </div>
+            <% if (metrics.revenueGrowth === null || typeof metrics.revenueGrowth === 'undefined') { %>
+              <strong style="font-size:.8rem;color:var(--muted);">No previous-month baseline yet</strong>
+            <% } else { %>
+              <strong style="font-size:.85rem;color:<%= Number(metrics.revenueGrowth) >= 0 ? 'var(--success)' : 'var(--danger)' %>;">
+                <i class="bi bi-arrow-<%= Number(metrics.revenueGrowth) >= 0 ? 'up' : 'down' %>-right me-1"></i><%= Math.abs(Number(metrics.revenueGrowth)) %>%
+              </strong>
+              <span style="font-size:.72rem;color:var(--muted);"> vs previous month</span>
+            <% } %>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-5">
+      <% [
+        {label:'Successful Payments', value:revenue.month_successful_payments || 0, note:'Paid transactions in ' + periodLabel, icon:'bi-credit-card', color:'var(--success)', href:'/merchant/revenue?month=' + selectedPeriod},
+        {label:'QR Bookings', value:bookings.qr_bookings || 0, note:'QR booking usage in ' + periodLabel, icon:'bi-qr-code', color:'#2563EB', href:'/merchant/qr'},
+        {label:'Reviews Awaiting Reply', value:reviews.awaiting_reply, note:'Customer replies needed', icon:'bi-chat-left-text', color:'var(--warn)', href:'/merchant/reviews'},
+        {label:'Your Earnings', value:'S$' + Number(revenue.month_merchant_earnings || 0).toFixed(2), note:'Your earnings from paid bookings in ' + periodLabel, icon:'bi-wallet2', color:'var(--accent)', href:'/merchant/revenue?month=' + selectedPeriod},
+      ].forEach(item => { %>
+        <div class="col-6 col-md-3">
+          <a href="<%= item.href %>" class="text-decoration-none">
+            <div class="mini-signal-card" style="--signal-color:<%= item.color %>;">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="mini-signal-icon"><i class="bi <%= item.icon %>"></i></div>
+                <i class="bi bi-arrow-up-right" style="color:var(--muted);font-size:.7rem;"></i>
+              </div>
+              <p style="color:var(--muted);font-size:.72rem;margin-bottom:.35rem;"><%= item.label %></p>
+              <p style="font-weight:800;color:<%= item.color %>;font-size:1.15rem;margin-bottom:.2rem;word-break:break-word;"><%= item.value %></p>
+              <p style="color:var(--muted);font-size:.68rem;margin:0;"><%= item.note %></p>
+            </div>
+          </a>
+        </div>
+      <% }) %>
+    </div>
+
+    <!-- Quick actions remain available, below the business indicators. -->
+    <div class="d-flex justify-content-between align-items-end gap-2 mb-3">
+      <div><h5 style="font-weight:800;color:var(--ink);margin:0;">Quick Actions</h5><p style="color:var(--muted);font-size:.8rem;margin:0;">Manage your business after reviewing the indicators.</p></div>
+      <a href="/merchant/manage" class="btn btn-outline-secondary btn-pill btn-sm">All Management Tools</a>
+    </div>
+    <div class="row g-3">
+      <% [
+        {href:'/merchant/services', icon:'bi-scissors', label:'Manage Services'},
+        {href:'/merchant/staff', icon:'bi-people', label:'Manage Staff'},
+        {href:'/merchant/availability', icon:'bi-clock', label:'Manage Availability'},
+        {href:'/merchant/promotions', icon:'bi-tag', label:'Manage Promotions'},
+        {href:'/merchant/qr', icon:'bi-qr-code', label:'Manage QR Code'},
+        {href:'/#featured-listings', icon:'bi-star', label:'View Featured Listing'},
+        {href:'/merchant/revenue?month=' + selectedPeriod, icon:'bi-graph-up', label:'View Revenue Report'},
+      ].forEach(action => { %>
+        <div class="col-6 col-md-3">
+          <a href="<%= action.href %>" class="action-card h-100">
+            <div class="action-icon"><i class="bi <%= action.icon %>"></i></div>
+            <p style="font-weight:700;font-size:.82rem;color:var(--ink);margin:0;"><%= action.label %></p>
+          </a>
+        </div>
+      <% }) %>
     </div>
   </div>
-  <% } %>
-</div>
+</main>
 
 <%- include('../partials/footer') %>

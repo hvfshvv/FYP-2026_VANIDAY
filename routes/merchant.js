@@ -16,24 +16,148 @@ const cancellationPolicyCtrl = require('../controllers/cancellationPolicyControl
 const bookingModel = require('../models/bookingModel');
 const revenueModel = require('../models/revenueModel');
 const merchantModel = require('../models/merchantModel');
+const serviceModel = require('../models/serviceModel');
+const staffModel = require('../models/staffModel');
+const availabilityModel = require('../models/availabilityModel');
+const reviewModel = require('../models/reviewModel');
+const promotionModel = require('../models/promotionModel');
 
 // Every route in this file requires a logged-in, approved merchant account.
 router.use(requireLogin, requireMerchant);
 
-// Dashboard: shows recent bookings, revenue summary and marketplace photo settings.
+// Dashboard: decision-support indicators, today's schedule, and action warnings.
 router.get('/dashboard', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
+  const now = new Date();
+  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const requestedPeriod = /^\d{4}-(0[1-9]|1[0-2])$/.test(String(req.query.month || ''))
+    ? String(req.query.month)
+    : currentPeriod;
+  const selectedPeriod = requestedPeriod <= currentPeriod ? requestedPeriod : currentPeriod;
+  const periodStart = `${selectedPeriod}-01`;
+  const isCurrentPeriod = selectedPeriod === currentPeriod;
+  const periodLabel = new Date(`${periodStart}T00:00:00`).toLocaleDateString('en-SG', {
+    month: 'long',
+    year: 'numeric',
+  });
 
-  const [bookings, summary, merchant] = await Promise.all([
-    bookingModel.getMerchantBookings(merchantId).catch(() => []),
-    revenueModel.getMerchantRevenueSummary(merchantId).catch(() => ({})),
-    merchantModel.getMerchantProfile(merchantId).catch(() => null),
+  const [
+    bookingSummary,
+    todaySchedule,
+    revenueSummary,
+    monthlyRevenue,
+    topRevenueService,
+    topPerformingStaff,
+    services,
+    staff,
+    availability,
+    reviewSummary,
+    promotions,
+  ] = await Promise.all([
+    bookingModel.getMerchantDashboardSummary(merchantId, periodStart).catch(() => ({})),
+    isCurrentPeriod ? bookingModel.getMerchantTodaySchedule(merchantId).catch(() => []) : [],
+    revenueModel.getMerchantRevenueSummary(merchantId, selectedPeriod).catch(() => ({})),
+    revenueModel.getMonthlyRevenue(merchantId).catch(() => []),
+    revenueModel.getTopRevenueService(merchantId, selectedPeriod).catch(() => null),
+    revenueModel.getTopPerformingStaffThisMonth(merchantId, periodStart).catch(() => null),
+    serviceModel.getServicesByMerchant(merchantId).catch(() => []),
+    staffModel.getStaffByMerchant(merchantId).catch(() => []),
+    availabilityModel.getAvailabilityByMerchant(merchantId).catch(() => []),
+    reviewModel.getMerchantReviewSummary(merchantId, periodStart).catch(() => ({})),
+    promotionModel.getMerchantPromotions(merchantId).catch(() => []),
   ]);
+
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const configuredDays = new Set(availability.map(item => item.day_of_week));
+  const missingAvailabilityDays = days.filter(day => !configuredDays.has(day));
+  const operations = {
+    activeServices: services.filter(item => Number(item.is_active) === 1).length,
+    inactiveServices: services.filter(item => Number(item.is_active) !== 1).length,
+    activeStaff: staff.filter(item => Number(item.is_active) === 1).length,
+    inactiveStaff: staff.filter(item => Number(item.is_active) !== 1).length,
+    activeAvailabilityDays: availability.filter(item => Number(item.is_active) === 1).length,
+    missingAvailabilityDays,
+    pendingPromotions: promotions.filter(item => item.approval_status === 'pending').length,
+  };
+
+  const monthlyFinishedBookings =
+    Number(bookingSummary.month_completed || 0) +
+    Number(bookingSummary.month_cancelled || 0) +
+    Number(bookingSummary.month_no_show || 0);
+  const cancellationRate = monthlyFinishedBookings
+    ? Math.round((Number(bookingSummary.month_cancelled || 0) / monthlyFinishedBookings) * 100)
+    : 0;
+  const previousMonthRevenue = Number(revenueSummary.previous_month_revenue || 0);
+  const currentMonthRevenue = Number(revenueSummary.month_revenue || 0);
+  const revenueGrowth = previousMonthRevenue > 0
+    ? Math.round(((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100)
+    : null;
+  const dashboardMetrics = {
+    cancellationRate,
+    monthlyFinishedBookings,
+    monthlyCancelledBookings: Number(bookingSummary.month_cancelled || 0),
+    revenueGrowth,
+  };
+
+  const pendingActions = [
+    Number(reviewSummary.awaiting_reply || 0) > 0 && {
+      icon: 'bi-chat-left-text',
+      label: `${reviewSummary.awaiting_reply} review(s) awaiting reply`,
+      href: '/merchant/reviews',
+    },
+    operations.pendingPromotions > 0 && {
+      icon: 'bi-hourglass-split',
+      label: `${operations.pendingPromotions} promotion(s) awaiting approval`,
+      href: '/merchant/promotions',
+    },
+    missingAvailabilityDays.length > 0 && {
+      icon: 'bi-calendar-x',
+      label: `Availability not configured for ${missingAvailabilityDays.join(', ')}`,
+      href: '/merchant/availability',
+    },
+    operations.activeAvailabilityDays === 0 && {
+      icon: 'bi-clock-history',
+      label: 'No operating availability is currently active',
+      href: '/merchant/availability',
+    },
+    operations.activeStaff === 0 && {
+      icon: 'bi-people',
+      label: 'No active staff available for bookings',
+      href: '/merchant/staff',
+    },
+    operations.activeServices === 0 && {
+      icon: 'bi-scissors',
+      label: 'No active services listed',
+      href: '/merchant/services',
+    },
+  ].filter(Boolean);
 
   res.render('merchant/dashboard', {
     title: 'Merchant Dashboard',
-    bookings,
-    summary,
+    bookingSummary,
+    todaySchedule,
+    revenueSummary,
+    monthlyRevenue: monthlyRevenue.reverse(),
+    topRevenueService,
+    topPerformingStaff,
+    reviewSummary,
+    operations,
+    dashboardMetrics,
+    pendingActions,
+    selectedPeriod,
+    currentPeriod,
+    periodLabel,
+    isCurrentPeriod,
+  });
+});
+
+// Management hub preserves all merchant setup and control functions.
+router.get('/manage', async (req, res) => {
+  const merchantId = req.session.user.merchant_id;
+  const merchant = await merchantModel.getMerchantProfile(merchantId).catch(() => null);
+
+  res.render('merchant/manage', {
+    title: 'Merchant Management',
     merchant,
     imageSuccess: req.query.imageSuccess,
     imageError: req.query.imageError,
@@ -63,10 +187,20 @@ router.get('/bookings', async (req, res) => {
 // Revenue report with summary, transactions and monthly chart data.
 router.get('/revenue', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
+  const now = new Date();
+  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const requestedPeriod = /^\d{4}-(0[1-9]|1[0-2])$/.test(String(req.query.month || ''))
+    ? String(req.query.month)
+    : currentPeriod;
+  const selectedPeriod = requestedPeriod <= currentPeriod ? requestedPeriod : currentPeriod;
+  const periodLabel = new Date(`${selectedPeriod}-01T00:00:00`).toLocaleDateString('en-SG', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   const [summary, transactions, monthly] = await Promise.all([
-    revenueModel.getMerchantRevenueSummary(merchantId).catch(() => ({})),
-    revenueModel.getMerchantTransactions(merchantId).catch(() => []),
+    revenueModel.getMerchantRevenueSummary(merchantId, selectedPeriod).catch(() => ({})),
+    revenueModel.getMerchantTransactions(merchantId, selectedPeriod).catch(() => []),
     revenueModel.getMonthlyRevenue(merchantId).catch(() => []),
   ]);
 
@@ -74,7 +208,10 @@ router.get('/revenue', async (req, res) => {
     title: 'Revenue Report',
     summary,
     transactions,
-    monthly
+    monthly,
+    selectedPeriod,
+    currentPeriod,
+    periodLabel,
   });
 });
 
@@ -100,6 +237,19 @@ router.post('/bookings/:bookingId/complete', async (req, res) => {
     .catch(console.error);
 
   res.redirect(returnTo);
+});
+
+// Mark a past confirmed appointment as a no-show.
+router.post('/bookings/:bookingId/no-show', async (req, res) => {
+  const merchantId = req.session.user.merchant_id;
+  const updated = await bookingModel
+    .updateMerchantBookingStatus(req.params.bookingId, merchantId, 'no_show')
+    .catch(() => 0);
+
+  const query = updated
+    ? `?success=${encodeURIComponent('Booking marked as no-show.')}`
+    : `?error=${encodeURIComponent('Only past confirmed appointments can be marked as no-show.')}`;
+  res.redirect(`/merchant/bookings${query}`);
 });
 
 // QR Code pages and actions.
