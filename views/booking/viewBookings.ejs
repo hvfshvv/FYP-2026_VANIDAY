@@ -1,5 +1,23 @@
 <%- include('../partials/header') %>
 
+<style>
+  .booking-entry-details {
+    min-width: 0;
+  }
+
+  .booking-entry-actions {
+    flex: 0 0 240px;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  @media (max-width: 767.98px) {
+    .booking-entry-actions {
+      flex: 1 1 100%;
+    }
+  }
+</style>
+
 <%
   const bookingList = Array.isArray(bookings) ? bookings : [];
   const statusStyles = {
@@ -149,8 +167,8 @@
             <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
           <% } %>
           <div class="p-4 booking-entry" <%= booking.status === 'pending_payment' ? 'data-pending-payment-entry' : '' %> style="<%= sectionIndex ? 'border-top:1px solid var(--border);' : '' %>">
-            <div class="d-flex flex-wrap justify-content-between gap-3">
-              <div>
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+              <div class="booking-entry-details flex-grow-1">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                   <h5 style="font-weight:800;color:var(--ink);margin:0;"><%= booking.service_name %></h5>
                   <span class="badge rounded-pill" data-status-badge style="background:<%= status.bg %>;color:<%= status.color %>;"><%= status.label %></span>
@@ -193,13 +211,13 @@
                 <% } %>
               </div>
 
-              <div class="text-md-end">
+              <div class="booking-entry-actions">
                 <p style="color:var(--muted);font-size:.8rem;margin:0;">Total</p>
                 <p style="color:var(--ink);font-weight:800;font-size:1.2rem;margin:0 0 .75rem;">S$<%= Number(booking.payable_amount || booking.total_amount || 0).toFixed(2) %></p>
                 <% if (canContinuePayment) { %>
                   <a href="/payment/checkout/<%= booking.booking_id %>" class="btn btn-primary btn-sm btn-pill" data-payment-action>Continue Payment</a>
                 <% } else if (bookingStatus !== 'payment_failed' && booking.payment_status === 'paid') { %>
-                  <div class="d-flex flex-column gap-2 align-items-md-end">
+                  <div class="d-flex flex-column gap-2 align-items-end">
                     <a href="/payment/receipt/<%= booking.booking_id %>.pdf" class="btn btn-outline-secondary btn-sm btn-pill" download>
                       <i class="bi bi-download me-1"></i>Download Receipt
                     </a>
@@ -208,7 +226,7 @@
                   <span class="badge rounded-pill" style="background:var(--canvas);color:var(--muted);border:1px solid var(--border);">Receipt unavailable</span>
                 <% } %>
                 <% if (canManage) { %>
-                  <div class="d-flex flex-wrap gap-2 justify-content-md-end mt-2">
+                  <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
                     <% if (Number(booking.allow_reschedule) === 1) { %>
                     <a href="/book/<%= booking.booking_id %>/reschedule" class="btn btn-outline-secondary btn-sm btn-pill">
                       <i class="bi bi-calendar-event me-1"></i>Reschedule
@@ -220,17 +238,26 @@
                       </button>
                     </form>
                   </div>
-                <% } else if (booking.status === 'completed' && !booking.merchant_review_id) { %>
-                  <div class="mt-2">
+                <% } else if (booking.status === 'completed') { %>
+                  <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
+                    <% if (!booking.gallery_post_id) { %>
+                    <a href="/gallery/create/<%= booking.booking_id %>" class="btn btn-outline-secondary btn-sm btn-pill">
+                      <i class="bi bi-image me-1"></i>Share Result
+                    </a>
+                    <% } else { %>
+                    <a href="/gallery" class="btn btn-outline-secondary btn-sm btn-pill">
+                      <i class="bi bi-patch-check-fill me-1"></i>Result Shared
+                    </a>
+                    <% } %>
+                    <% if (!booking.merchant_review_id) { %>
                     <a href="/book/<%= booking.booking_id %>/review" class="btn btn-primary btn-sm btn-pill">
                       <i class="bi bi-star me-1"></i>Leave Review +2 pts
                     </a>
-                  </div>
-                <% } else if (booking.status === 'completed' && booking.merchant_review_id) { %>
-                  <div class="mt-2">
+                    <% } else { %>
                     <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);">
                       <i class="bi bi-star-fill me-1"></i>Reviewed
                     </span>
+                    <% } %>
                   </div>
                 <% } %>
               </div>

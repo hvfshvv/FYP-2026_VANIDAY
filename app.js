@@ -14,6 +14,7 @@ const whatsappRoutes    = require('./routes/whatsapp');
 const favouriteRoutes   = require('./routes/favourite');
 const loyaltyRoutes     = require('./routes/loyalty');
 const notificationRoutes = require('./routes/notifications');
+const galleryRoutes      = require('./routes/gallery');
 const reminderService   = require('./services/reminderService');
 const bookingModel      = require('./models/bookingModel');
 const notificationModel = require('./models/notificationModel');
@@ -83,6 +84,7 @@ app.use('/favourite', favouriteRoutes);
 app.use('/loyalty',    loyaltyRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/assistant', notificationRoutes);
+app.use('/gallery', galleryRoutes);
 
 async function releaseExpiredPendingPayments() {
   try {
