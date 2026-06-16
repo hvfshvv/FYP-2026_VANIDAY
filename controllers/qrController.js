@@ -28,41 +28,6 @@ async function showQRPage(req, res) {
   }
 }
 
-async function generateQRCode(req, res) {
-  const merchantId = req.session.user.merchant_id;
-
-  try {
-    // Regenerate the booking QR when the merchant needs a new printout.
-    await qrService.createBookingQRForMerchant(merchantId, {
-      baseUrl: getRequestBaseUrl(req),
-    });
-    res.redirect('/merchant/qr');
-  } catch (err) {
-    console.error(err);
-    res.redirect('/merchant/qr');
-  }
-}
-
-async function regenerateArrivalQRCode(req, res) {
-  const merchantId = req.session.user.merchant_id;
-
-  try {
-    // Regenerate the counter QR used for customer arrival check-in.
-    await qrService.createArrivalQRForMerchant(merchantId, {
-      baseUrl: getRequestBaseUrl(req),
-    });
-    res.redirect('/merchant/qr');
-  } catch (err) {
-    console.error(err);
-    res.redirect('/merchant/qr');
-  }
-}
-
-const regenerateQRCode = generateQRCode;
-
 module.exports = {
   showQRPage,
-  generateQRCode,
-  regenerateQRCode,
-  regenerateArrivalQRCode,
 };

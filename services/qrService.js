@@ -78,24 +78,38 @@ async function createArrivalQRForMerchant(merchantId, options = {}) {
   return createQRForMerchant(merchantId, 'check_in', options);
 }
 
+async function ensureQrImageExists(qr) {
+  if (!qr || !qr.qr_image_path) return qr;
+
+  const fileName = path.basename(qr.qr_image_path);
+  const filePath = path.join(QR_DIR, fileName);
+
+  if (!fs.existsSync(filePath)) {
+    fs.mkdirSync(QR_DIR, { recursive: true });
+    await QRCode.toFile(filePath, qr.qr_url, { width: 400, margin: 2 });
+  }
+
+  return qr;
+}
+
 async function ensureBookingQRForMerchant(merchantId, options = {}) {
   const existing = await qrModel.getActiveQRByMerchant(merchantId, 'booking');
-  if (existing) return existing;
-
-  return createBookingQRForMerchant(merchantId, {
+  const qr = existing || await createBookingQRForMerchant(merchantId, {
     ...options,
     deactivateExisting: false,
   });
+
+  return ensureQrImageExists(qr);
 }
 
 async function ensureArrivalQRForMerchant(merchantId, options = {}) {
   const existing = await qrModel.getActiveQRByMerchant(merchantId, 'check_in');
-  if (existing) return existing;
-
-  return createArrivalQRForMerchant(merchantId, {
+  const qr = existing || await createArrivalQRForMerchant(merchantId, {
     ...options,
     deactivateExisting: false,
   });
+
+  return ensureQrImageExists(qr);
 }
 
 async function ensureMerchantQRCodes(merchantId, options = {}) {

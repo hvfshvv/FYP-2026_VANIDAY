@@ -254,9 +254,6 @@ router.post('/bookings/:bookingId/no-show', async (req, res) => {
 
 // QR Code pages and actions.
 router.get('/qr', qrCtrl.showQRPage);
-router.post('/qr/generate', qrCtrl.generateQRCode);
-router.post('/qr/regenerate', qrCtrl.regenerateQRCode);
-router.post('/qr/arrival/regenerate', qrCtrl.regenerateArrivalQRCode);
 
 // Promotion management for merchant-created deals.
 router.get('/promotions', promoCtrl.showPromotions);
