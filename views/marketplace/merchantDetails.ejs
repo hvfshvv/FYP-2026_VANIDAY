@@ -4,6 +4,9 @@
   const reviewCount = Number(merchant.review_count || 0);
   const averageRating = Number(merchant.average_rating || 0);
   const starIcon = index => index <= Math.round(averageRating) ? 'bi-star-fill' : 'bi-star';
+  const words = value => String(value || '').trim().split(/\s+/).filter(Boolean);
+  const previewText = (value, limit) => words(value).slice(0, limit).join(' ');
+  const isLongText = (value, limit) => words(value).length > limit;
   const operatingHoursLines = item => {
     const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const formatTime = value => {
@@ -280,22 +283,52 @@
       <% } %>
       <div class="promo-carousel review-carousel" id="merchant-review-carousel" aria-label="Customer reviews">
       <% reviewList.forEach(review => { %>
+      <%
+        const reviewText = review.review_text || 'No written comment.';
+        const reviewPreviewLimit = review.review_image_path ? 28 : 42;
+        const reviewIsLong = isLongText(reviewText, reviewPreviewLimit);
+        const replyPreviewLimit = 30;
+        const replyIsLong = review.merchant_reply && isLongText(review.merchant_reply, replyPreviewLimit);
+      %>
       <div class="promo-carousel-item review-carousel-item">
         <article class="promo-card review-card h-100">
-          <div class="d-flex justify-content-between gap-2 mb-2">
-            <div>
+          <div class="review-card-head">
+            <div class="min-w-0">
               <p style="font-weight:800;color:var(--ink);margin-bottom:.1rem;"><%= review.customer_name %></p>
               <p class="small text-muted mb-0"><%= review.service_name %></p>
             </div>
-            <div style="color:#f59e0b;white-space:nowrap;">
+            <div class="review-stars">
               <% [1,2,3,4,5].forEach(i => { %><i class="bi <%= i <= Number(review.rating || 0) ? 'bi-star-fill' : 'bi-star' %>"></i><% }) %>
             </div>
           </div>
-          <p style="color:var(--ink);"><%= review.review_text || 'No written comment.' %></p>
+          <div class="review-card-body">
+            <p class="review-text-compact">
+              <% if (reviewIsLong) { %>
+                <span data-preview><%= previewText(reviewText, reviewPreviewLimit) %>...</span>
+                <span data-full hidden><%= reviewText %></span>
+                <button type="button" class="review-more-toggle" data-review-more>more</button>
+              <% } else { %>
+                <%= reviewText %>
+              <% } %>
+            </p>
+            <% if (review.review_image_path) { %>
+            <a href="<%= review.review_image_path %>" target="_blank" rel="noopener noreferrer" class="review-photo-thumb" aria-label="Open photo review by <%= review.customer_name %>">
+              <img src="<%= review.review_image_path %>" alt="Photo review by <%= review.customer_name %>">
+            </a>
+            <% } %>
+          </div>
           <% if (review.merchant_reply) { %>
-          <div class="rounded-xl p-3 mt-3" style="background:var(--accent-light);border:1px solid rgba(225,29,72,.12);">
+          <div class="review-reply-compact">
             <p class="small mb-1" style="font-weight:800;color:var(--accent);">Merchant reply</p>
-            <p class="small mb-0" style="color:var(--ink);"><%= review.merchant_reply %></p>
+            <p class="small mb-0">
+              <% if (replyIsLong) { %>
+                <span data-preview><%= previewText(review.merchant_reply, replyPreviewLimit) %>...</span>
+                <span data-full hidden><%= review.merchant_reply %></span>
+                <button type="button" class="review-more-toggle" data-review-more>more</button>
+              <% } else { %>
+                <%= review.merchant_reply %>
+              <% } %>
+            </p>
           </div>
           <% } %>
         </article>
@@ -379,6 +412,20 @@
 
 <script>
 document.addEventListener('click', event => {
+  const moreButton = event.target.closest('[data-review-more]');
+  if (moreButton) {
+    const container = moreButton.closest('p');
+    const preview = container ? container.querySelector('[data-preview]') : null;
+    const full = container ? container.querySelector('[data-full]') : null;
+    if (!preview || !full) return;
+
+    const expanded = !full.hidden;
+    preview.hidden = !expanded;
+    full.hidden = expanded;
+    moreButton.textContent = expanded ? 'more' : 'less';
+    return;
+  }
+
   const button = event.target.closest('[data-service-category]');
   if (!button) return;
 

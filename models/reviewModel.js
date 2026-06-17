@@ -1,7 +1,12 @@
 const db = require('../config/db');
 const loyaltyModel = require('./loyaltyModel');
 
+const MERCHANT_REVIEW_WORD_LIMIT = 120;
 let schemaReady = false;
+
+function wordCount(value) {
+  return String(value || '').trim().split(/\s+/).filter(Boolean).length;
+}
 
 async function reviewColumnExists(columnName) {
   const [rows] = await db.query(
@@ -32,6 +37,8 @@ async function ensureReviewSchema() {
 
   await addReviewColumnIfMissing('merchant_reply', 'merchant_reply TEXT NULL AFTER review_text');
   await addReviewColumnIfMissing('merchant_replied_at', 'merchant_replied_at DATETIME NULL AFTER merchant_reply');
+  await addReviewColumnIfMissing('review_image_data', 'review_image_data LONGBLOB NULL AFTER review_text');
+  await addReviewColumnIfMissing('review_image_mime', 'review_image_mime VARCHAR(50) NULL AFTER review_image_data');
 
   schemaReady = true;
 }
@@ -72,6 +79,8 @@ async function submitBookingReview({
   platformRating = null,
   platformFeedbackType = 'booking_experience',
   platformFeedbackText = null,
+  reviewImageData = null,
+  reviewImageMime = null,
 }) {
   await ensureReviewSchema();
 
@@ -93,6 +102,9 @@ async function submitBookingReview({
   if (!safeMerchantReviewText) {
     throw new Error('Please write a comment for your merchant review.');
   }
+  if (wordCount(safeMerchantReviewText) > MERCHANT_REVIEW_WORD_LIMIT) {
+    throw new Error(`Merchant review must be ${MERCHANT_REVIEW_WORD_LIMIT} words or fewer.`);
+  }
 
   const safePlatformRating = Number(platformRating);
   if (!Number.isInteger(safePlatformRating) || safePlatformRating < 1 || safePlatformRating > 5) {
@@ -113,10 +125,12 @@ async function submitBookingReview({
   try {
     await connection.beginTransaction();
 
+    const hasReviewImage = Buffer.isBuffer(reviewImageData) && reviewImageMime;
+
     await connection.query(
       `INSERT INTO merchant_review
-        (booking_id, customer_id, merchant_id, service_id, staff_id, rating, review_text)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (booking_id, customer_id, merchant_id, service_id, staff_id, rating, review_text, review_image_data, review_image_mime)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         booking.booking_id,
         customerId,
@@ -125,6 +139,8 @@ async function submitBookingReview({
         booking.staff_id || null,
         safeMerchantRating,
         safeMerchantReviewText,
+        hasReviewImage ? reviewImageData : null,
+        hasReviewImage ? reviewImageMime : null,
       ]
     );
 
@@ -143,9 +159,13 @@ async function submitBookingReview({
       );
     }
 
-    await loyaltyModel.awardReviewBonusPoints(customerId, booking.booking_id, connection);
+    const bonusPoints = hasReviewImage
+      ? loyaltyModel.PHOTO_REVIEW_BONUS_POINTS
+      : loyaltyModel.REVIEW_BONUS_POINTS;
+    await loyaltyModel.awardReviewBonusPoints(customerId, booking.booking_id, connection, bonusPoints);
 
     await connection.commit();
+    return { points: bonusPoints, hasReviewImage };
   } catch (err) {
     await connection.rollback();
 
@@ -164,6 +184,7 @@ async function getMerchantReviews(merchantId) {
 
   const [rows] = await db.query(
     `SELECT r.review_id, r.booking_id, r.rating, r.review_text, r.created_at,
+            CASE WHEN r.review_image_mime IS NOT NULL THEN CONCAT('/client-diaries/images/', r.review_id) ELSE NULL END AS review_image_path,
             r.merchant_reply, r.merchant_replied_at,
             u.full_name AS customer_name,
             s.service_name,
@@ -231,6 +252,7 @@ async function getRecentMerchantReviews(merchantId, limit = 6) {
 
   const [rows] = await db.query(
     `SELECT r.review_id, r.rating, r.review_text, r.created_at,
+            CASE WHEN r.review_image_mime IS NOT NULL THEN CONCAT('/client-diaries/images/', r.review_id) ELSE NULL END AS review_image_path,
             r.merchant_reply, r.merchant_replied_at,
             u.full_name AS customer_name,
             s.service_name
@@ -246,6 +268,78 @@ async function getRecentMerchantReviews(merchantId, limit = 6) {
   return rows;
 }
 
+async function getReviewImage(reviewId) {
+  await ensureReviewSchema();
+
+  const [rows] = await db.query(
+    `SELECT review_image_data, review_image_mime
+     FROM merchant_review
+     WHERE review_id = ?
+       AND review_image_data IS NOT NULL
+       AND review_image_mime IS NOT NULL
+     LIMIT 1`,
+    [reviewId]
+  );
+
+  return rows[0] || null;
+}
+
+async function getPhotoReviewCategories() {
+  await ensureReviewSchema();
+
+  const [rows] = await db.query(
+    `SELECT DISTINCT s.category
+     FROM merchant_review r
+     JOIN service s ON s.service_id = r.service_id
+     WHERE r.review_image_data IS NOT NULL
+       AND r.review_image_mime IS NOT NULL
+       AND s.category IS NOT NULL
+       AND TRIM(s.category) <> ''`
+  );
+
+  return rows.map(row => row.category);
+}
+
+async function getPhotoReviews({ category = null, limit = null } = {}) {
+  await ensureReviewSchema();
+  const clauses = [
+    'r.review_image_data IS NOT NULL',
+    'r.review_image_mime IS NOT NULL',
+  ];
+  const params = [];
+
+  if (category) {
+    clauses.push('LOWER(s.category) = LOWER(?)');
+    params.push(category);
+  }
+
+  let limitSql = '';
+  if (Number.isInteger(limit) && limit > 0) {
+    limitSql = 'LIMIT ?';
+    params.push(limit);
+  }
+
+  const [rows] = await db.query(
+    `SELECT r.review_id, r.customer_id, r.merchant_id, r.service_id, r.booking_id,
+            r.rating, r.review_text, r.created_at,
+            CONCAT('/client-diaries/images/', r.review_id) AS image_path,
+            u.full_name AS customer_name,
+            m.merchant_name,
+            s.service_name,
+            s.category AS service_category
+     FROM merchant_review r
+     JOIN users u ON u.user_id = r.customer_id
+     JOIN merchant m ON m.merchant_id = r.merchant_id
+     JOIN service s ON s.service_id = r.service_id
+     WHERE ${clauses.join(' AND ')}
+     ORDER BY r.created_at DESC, r.review_id DESC
+     ${limitSql}`,
+    params
+  );
+
+  return rows;
+}
+
 module.exports = {
   ensureReviewSchema,
   getCompletedBookingForReview,
@@ -254,4 +348,8 @@ module.exports = {
   getMerchantReviewSummary,
   replyToMerchantReview,
   getRecentMerchantReviews,
+  getReviewImage,
+  getPhotoReviewCategories,
+  getPhotoReviews,
+  MERCHANT_REVIEW_WORD_LIMIT,
 };

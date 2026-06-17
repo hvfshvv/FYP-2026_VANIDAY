@@ -240,18 +240,9 @@
                   </div>
                 <% } else if (booking.status === 'completed') { %>
                   <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
-                    <% if (!booking.gallery_post_id) { %>
-                    <a href="/gallery/create/<%= booking.booking_id %>" class="btn btn-outline-secondary btn-sm btn-pill">
-                      <i class="bi bi-image me-1"></i>Share Result
-                    </a>
-                    <% } else { %>
-                    <a href="/gallery" class="btn btn-outline-secondary btn-sm btn-pill">
-                      <i class="bi bi-patch-check-fill me-1"></i>Result Shared
-                    </a>
-                    <% } %>
                     <% if (!booking.merchant_review_id) { %>
                     <a href="/book/<%= booking.booking_id %>/review" class="btn btn-primary btn-sm btn-pill">
-                      <i class="bi bi-star me-1"></i>Leave Review +2 pts
+                      <i class="bi bi-star me-1"></i>Leave Review +2/3 pts
                     </a>
                     <% } else { %>
                     <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);">

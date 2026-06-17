@@ -6,8 +6,7 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "seed": "node database/seed.js",
-    "migrate:gallery-images": "node database/migrate_gallery_images_to_db.js"
+    "seed": "node database/seed.js"
   },
   "dependencies": {
     "axios": "^1.16.1",

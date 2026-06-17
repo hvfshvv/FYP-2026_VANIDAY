@@ -10,6 +10,7 @@ const TIER_DEFINITIONS = [
 ];
 
 const REVIEW_BONUS_POINTS = 2;
+const PHOTO_REVIEW_BONUS_POINTS = 3;
 let loyaltyRewardSchemaReady = false;
 
 // Customers earn 10% of the paid booking amount as points.
@@ -538,10 +539,14 @@ async function syncMissingBookingPointsForCustomer(customerId) {
   return results;
 }
 
-async function awardReviewBonusPoints(customerId, bookingId, connection = db) {
+async function awardReviewBonusPoints(customerId, bookingId, connection = db, points = REVIEW_BONUS_POINTS) {
   if (!customerId || !bookingId) {
     return { awarded: false, reason: 'missing_customer_or_booking' };
   }
+
+  const safePoints = Number.isInteger(Number(points)) && Number(points) > 0
+    ? Number(points)
+    : REVIEW_BONUS_POINTS;
 
   await ensureWallet(customerId, connection);
 
@@ -556,13 +561,13 @@ async function awardReviewBonusPoints(customerId, bookingId, connection = db) {
     return { awarded: false, reason: 'wallet_not_found' };
   }
 
-  const description = `Earned ${REVIEW_BONUS_POINTS} points for reviewing booking #${bookingId}`;
+  const description = `Earned ${safePoints} points for reviewing booking #${bookingId}`;
 
   await connection.query(
     `INSERT INTO loyalty_transaction
        (wallet_id, transaction_type, points_amount, description)
      VALUES (?, 'earn_points', ?, ?)`,
-    [wallet.wallet_id, REVIEW_BONUS_POINTS, description]
+    [wallet.wallet_id, safePoints, description]
   );
 
   await connection.query(
@@ -571,10 +576,10 @@ async function awardReviewBonusPoints(customerId, bookingId, connection = db) {
          lifetime_points_earned = lifetime_points_earned + ?,
          updated_at = NOW()
      WHERE wallet_id = ?`,
-    [REVIEW_BONUS_POINTS, REVIEW_BONUS_POINTS, wallet.wallet_id]
+    [safePoints, safePoints, wallet.wallet_id]
   );
 
-  return { awarded: true, points: REVIEW_BONUS_POINTS };
+  return { awarded: true, points: safePoints };
 }
 
 module.exports = {
@@ -593,4 +598,6 @@ module.exports = {
   ensureLoyaltyRewardSchema,
   getEarnedPointsForBooking,
   createWalletForCustomer,
+  REVIEW_BONUS_POINTS,
+  PHOTO_REVIEW_BONUS_POINTS,
 };

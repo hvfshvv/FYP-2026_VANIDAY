@@ -72,6 +72,9 @@
             </div>
 
             <p style="color:var(--ink);margin:1rem 0;"><%= review.review_text || 'No written comment.' %></p>
+            <% if (review.review_image_path) { %>
+              <img src="<%= review.review_image_path %>" alt="Photo review by <%= review.customer_name %>" style="width:100%;max-height:360px;object-fit:contain;background:#111;border-radius:12px;margin-bottom:1rem;">
+            <% } %>
 
             <% if (review.merchant_reply) { %>
               <div class="rounded-xl p-3" style="background:var(--accent-light);border:1px solid rgba(225,29,72,.12);">

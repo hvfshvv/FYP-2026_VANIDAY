@@ -1,0 +1,27 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+<style>
+  .diaries-hero{background:linear-gradient(135deg,#fff1f4,#fff);border:1px solid rgba(225,29,72,.09);border-radius:26px;padding:2rem;box-shadow:var(--shadow)}
+  .diaries-feed{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.25rem;align-items:start}
+  .diaries-card{background:#fff;border:1px solid var(--border);border-radius:16px;overflow:visible;box-shadow:0 10px 28px rgba(136,19,55,.07)}
+  .diaries-card-head{position:relative;display:flex;justify-content:space-between;align-items:center;padding:.8rem 1rem;background:#fff;border-radius:16px 16px 0 0}
+  .diaries-card-user{display:flex;align-items:center;gap:.65rem}.diaries-avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#fb7185);color:#fff;font-weight:800}.diaries-card-user p{font-weight:800;color:var(--ink);font-size:.86rem;margin:0}.diaries-card-user small{color:var(--muted);font-size:.68rem}.diaries-card-user small i{color:var(--success)}
+  .diaries-photo{width:100%;height:min(48vh,350px);background:#111;display:grid;place-items:center;overflow:hidden}.diaries-photo img{display:block;width:100%;height:100%;object-fit:contain}
+  .diaries-copy{padding:1rem}.diaries-caption{font-size:.84rem;color:var(--ink);margin-bottom:.75rem}.diaries-date{font-size:.66rem;text-transform:uppercase;color:var(--muted);margin:.75rem 0 0}
+  .diaries-service-tag{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);background:var(--canvas);border-radius:12px;padding:.65rem .75rem}.diaries-service-tag span{display:block;color:var(--accent);font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}.diaries-service-tag strong{color:var(--ink);font-size:.8rem}.diaries-service-tag i{color:var(--success)}
+  .diaries-rating{white-space:nowrap;color:#f59e0b;font-size:.9rem}
+  @media(min-width:1500px){.diaries-feed{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  @media(max-width:991px){.diaries-feed{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:575px){.diaries-feed{grid-template-columns:1fr}.diaries-card{border-radius:12px}.diaries-photo{height:min(52vh,420px)}}
+</style>
+
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container" style="max-width:1240px;">
+    <section class="diaries-hero mb-4"><div class="d-flex flex-wrap justify-content-between align-items-end gap-3"><div><p class="section-label mb-2">Verified Photo Reviews</p><h1 style="font-weight:800;letter-spacing:-.04em;color:var(--ink);margin-bottom:.35rem;">Client Diaries</h1><p style="color:var(--muted);max-width:680px;margin:0;">Browse real photo reviews from completed appointments and filter by service category.</p></div></div></section>
+    <% if(success){%><div class="rounded-xl p-3 mb-3" style="background:var(--success-bg);color:var(--success);"><i class="bi bi-check-circle me-2"></i><%=success%></div><%}%><% if(error){%><div class="rounded-xl p-3 mb-3" style="background:var(--danger-bg);color:var(--danger);"><%=error%></div><%}%>
+    <nav class="service-filter-panel mb-4" aria-label="Filter Client Diaries by category"><div class="service-filter-inner"><a href="/client-diaries" class="service-filter-link <%=!selectedCategory?'active':''%>"><i class="bi bi-grid-3x3-gap"></i>All</a><%categories.forEach(category=>{%><a href="/client-diaries?category=<%=encodeURIComponent(category)%>" class="service-filter-link <%=selectedCategory===category?'active':''%>"><%=category%></a><%})%></div></nav>
+    <% if(!posts.length){%><div class="card border-0 text-center p-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);"><i class="bi bi-images" style="font-size:2.5rem;color:var(--accent);"></i><h5 class="mt-3" style="font-weight:800;">No photo reviews yet</h5><p style="color:var(--muted);margin:0;">Photo reviews from completed customers will appear here.</p></div><%}else{%>
+    <div class="diaries-feed"><%posts.forEach(post=>{%><%-include('photoReviewCard',{post})%><%})%></div><%}%>
+  </div>
+</main>
+<%- include('../partials/footer') %>

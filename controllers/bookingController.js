@@ -3,7 +3,6 @@ const qrModel       = require('../models/qrModel');
 const merchantModel = require('../models/merchantModel');
 const authModel     = require('../models/authModel');
 const bookingModel  = require('../models/bookingModel');
-const galleryModel  = require('../models/galleryModel');
 const staffModel = require('../models/staffModel');
 const emailService = require('../services/emailService');
 const cancellationPolicyModel = require('../models/cancellationPolicyModel');
@@ -292,11 +291,6 @@ async function viewCustomerBookings(req, res) {
   try {
     const customerId = req.session.user.customer_id || req.session.user.user_id;
     const bookings = await bookingModel.getCustomerBookings(customerId);
-    const postedBookings = await galleryModel.getPostedBookingIds(customerId).catch(() => []);
-    const galleryPostsByBooking = new Map(postedBookings.map(post => [String(post.booking_id), post.post_id]));
-    bookings.forEach(booking => {
-      booking.gallery_post_id = galleryPostsByBooking.get(String(booking.booking_id)) || null;
-    });
     res.render('booking/viewBookings', {
       title: 'My Bookings',
       bookings,

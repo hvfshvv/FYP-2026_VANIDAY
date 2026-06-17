@@ -1,0 +1,31 @@
+<article class="diaries-card">
+  <header class="diaries-card-head">
+    <div class="diaries-card-user">
+      <span class="diaries-avatar"><%= String(post.customer_name || 'C').charAt(0).toUpperCase() %></span>
+      <div>
+        <p><%= post.customer_name %></p>
+        <small><i class="bi bi-patch-check-fill"></i> Verified visit &middot; <%= post.merchant_name %></small>
+      </div>
+    </div>
+    <div class="diaries-rating" aria-label="<%= post.rating %> star review">
+      <% [1,2,3,4,5].forEach(i => { %><i class="bi <%= i <= Number(post.rating || 0) ? 'bi-star-fill' : 'bi-star' %>"></i><% }) %>
+    </div>
+  </header>
+
+  <div class="diaries-photo">
+    <img src="<%= post.image_path %>" alt="<%= post.service_name %> photo review by <%= post.customer_name %>">
+  </div>
+
+  <div class="diaries-copy">
+    <p class="diaries-caption"><strong><%= post.customer_name %></strong> <%= post.review_text || 'Shared a photo review.' %></p>
+    <div class="diaries-service-tag">
+      <div><span><%= post.service_category || 'Beauty & Wellness' %></span><strong><%= post.service_name %></strong></div>
+      <i class="bi bi-patch-check-fill" title="Verified completed booking"></i>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+      <a href="/marketplace/merchant/<%= post.merchant_id %>" class="btn btn-outline-secondary btn-sm btn-pill flex-grow-1">View Merchant</a>
+      <a href="/book?merchantId=<%= post.merchant_id %>&serviceId=<%= post.service_id %>" class="btn btn-primary btn-sm btn-pill flex-grow-1">Book Service</a>
+    </div>
+    <p class="diaries-date"><%= new Date(post.created_at).toLocaleDateString('en-SG',{day:'numeric',month:'long',year:'numeric'}) %></p>
+  </div>
+</article>

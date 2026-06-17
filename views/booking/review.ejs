@@ -3,6 +3,7 @@
 
 <%
   const values = typeof formValues !== 'undefined' && formValues ? formValues : {};
+  const merchantReviewWordLimit = 120;
   const selected = (name, value) => String(values[name] || '') === String(value) ? 'checked' : '';
   const optionSelected = (name, value) => String(values[name] || '') === String(value) ? 'selected' : '';
   const formatDate = value => new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -21,7 +22,7 @@
         <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Share Your Experience</h2>
         <p style="color:var(--muted);margin:0;">Reviews are only available after completed bookings.</p>
         <span class="d-inline-flex align-items-center gap-2 mt-3 px-3 py-2 rounded-pill" style="background:var(--accent-light);color:var(--accent);font-weight:800;font-size:.875rem;">
-          <i class="bi bi-plus-circle"></i> Earn 2 loyalty points
+          <i class="bi bi-plus-circle"></i> Earn 2 points, or 3 with a photo
         </span>
       </div>
     </div>
@@ -44,7 +45,7 @@
       </div>
     </div>
 
-    <form action="/book/<%= booking.booking_id %>/review" method="POST">
+    <form action="/book/<%= booking.booking_id %>/review" method="POST" enctype="multipart/form-data">
       <div class="card border-0 mb-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
         <div class="card-body p-4">
           <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;">Merchant Review</h5>
@@ -58,13 +59,32 @@
           </div>
 
           <textarea
+            id="merchant_review_text"
             name="merchant_review_text"
             class="form-control rounded-xl"
             rows="4"
-            maxlength="1000"
+            maxlength="900"
+            data-word-limit="<%= merchantReviewWordLimit %>"
             required
             placeholder="What stood out about the service?"
           ><%= values.merchant_review_text || '' %></textarea>
+          <p id="merchantReviewWordCount" style="color:var(--muted);font-size:.78rem;margin:.45rem 0 0;">0/<%= merchantReviewWordLimit %> words</p>
+
+          <div class="mt-3">
+            <label for="review_image" class="form-label" style="font-weight:800;color:var(--ink);">Photo review</label>
+            <input
+              type="file"
+              id="review_image"
+              name="review_image"
+              class="form-control rounded-xl"
+              accept="image/jpeg,image/png,image/webp"
+            >
+            <p style="color:var(--muted);font-size:.78rem;margin:.5rem 0 0;">Optional JPG, PNG, or WebP. Add a photo to earn 3 loyalty points.</p>
+          </div>
+
+          <div id="reviewImagePreviewWrap" class="rounded-xl mt-3" style="display:none;background:#111;overflow:hidden;border:1px solid var(--border);">
+            <img id="reviewImagePreview" alt="Selected review image preview" style="display:block;width:100%;height:min(46vh,420px);object-fit:contain;">
+          </div>
         </div>
       </div>
 
@@ -137,5 +157,46 @@
     transform: translateY(-1px);
   }
 </style>
+
+<script>
+  (() => {
+    const input = document.getElementById('review_image');
+    const preview = document.getElementById('reviewImagePreview');
+    const wrap = document.getElementById('reviewImagePreviewWrap');
+    let previewUrl = '';
+
+    if (!input || !preview || !wrap) return;
+
+    input.addEventListener('change', () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      const file = input.files && input.files[0];
+      if (!file) {
+        preview.removeAttribute('src');
+        wrap.style.display = 'none';
+        return;
+      }
+      previewUrl = URL.createObjectURL(file);
+      preview.src = previewUrl;
+      wrap.style.display = 'block';
+    });
+  })();
+
+  (() => {
+    const textarea = document.getElementById('merchant_review_text');
+    const output = document.getElementById('merchantReviewWordCount');
+    if (!textarea || !output) return;
+
+    const limit = Number(textarea.dataset.wordLimit || 120);
+    const countWords = value => String(value || '').trim().split(/\s+/).filter(Boolean).length;
+    const render = () => {
+      const count = countWords(textarea.value);
+      output.textContent = `${count}/${limit} words`;
+      output.style.color = count > limit ? 'var(--danger)' : 'var(--muted)';
+    };
+
+    textarea.addEventListener('input', render);
+    render();
+  })();
+</script>
 
 <%- include('../partials/footer') %>
