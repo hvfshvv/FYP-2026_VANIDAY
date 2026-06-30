@@ -909,21 +909,21 @@ function parseLoyaltyRewardForm(form) {
 }
 
 function parseCampaignForm(form) {
-    const voucherCode = String(form.voucher_code || '').trim().toUpperCase();
-    const voucherType = 'platform';
-    const merchantId = null;
-    const discountType = form.discount_type === 'fixed_amount' ? 'fixed_amount' : 'percent';
-    const discountValue = Number(form.discount_value || 0);
-    const minSpend = form.min_spend ? Number(form.min_spend) : null;
-    const usageLimit = form.usage_limit ? Number.parseInt(form.usage_limit, 10) : null;
-    const usagePerCustomer = form.usage_per_customer ? Number.parseInt(form.usage_per_customer, 10) : null;
+  const voucherCode = String(form.voucher_code || '').trim().toUpperCase();
+  const voucherType = 'platform';
+  const merchantId = null;
+  const discountType = form.discount_type === 'fixed_amount' ? 'fixed_amount' : 'percent';
+  const discountValue = Number(form.discount_value || 0);
+  const minSpend = form.min_spend ? Number(form.min_spend) : null;
+  const usageLimit = form.usage_limit ? Number.parseInt(form.usage_limit, 10) : null;
+  const usagePerCustomer = form.usage_per_customer ? Number.parseInt(form.usage_per_customer, 10) : null;
 
-    if (!voucherCode) throw new Error('Voucher code is required.');
-    if (!form.campaign_name || !String(form.campaign_name).trim()) throw new Error('Campaign name is required.');
-    if (!discountValue || discountValue <= 0) throw new Error('Discount value must be more than 0.');
-    if (discountType === 'percent' && discountValue > 100) throw new Error('Percent discount cannot be more than 100.');
-    if (!form.start_date || !form.end_date) throw new Error('Start and end dates are required.');
-    if (new Date(form.end_date) < new Date(form.start_date)) throw new Error('End date cannot be before start date.');
+  if (!voucherCode) throw new Error('Voucher code is required.');
+  if (!form.campaign_name || !String(form.campaign_name).trim()) throw new Error('Campaign name is required.');
+  if (!discountValue || discountValue <= 0) throw new Error('Discount value must be more than 0.');
+  if (discountType === 'percent' && discountValue > 100) throw new Error('Percent discount cannot be more than 100.');
+  if (!form.start_date || !form.end_date) throw new Error('Start and end dates are required.');
+  if (new Date(form.end_date) < new Date(form.start_date)) throw new Error('End date cannot be before start date.');
 
   return {
     merchantId,

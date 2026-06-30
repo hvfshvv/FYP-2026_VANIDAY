@@ -1,5 +1,5 @@
-const loyaltyModel  = require('../models/loyaltyModel');
-const voucherModel  = require('../models/voucherModel');
+const loyaltyModel = require('../models/loyaltyModel');
+const voucherModel = require('../models/voucherModel');
 
 // Only signed-in customers should be able to view or redeem wallet rewards.
 function requireCustomer(req, res) {

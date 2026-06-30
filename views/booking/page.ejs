@@ -16,6 +16,11 @@
     </a>
   </div>
 
+  <div id="mobile-summary-bar" class="mobile-summary-bar d-lg-none" style="display:none!important;">
+    <span id="msb-service">—</span>
+    <span id="msb-price" class="msb-price">—</span>
+  </div>
+
   <!-- Merchant Banner -->
   <div class="mb-4" style="background:var(--ink);border-radius:var(--r-xl);padding:1.5rem 2rem;">
     <div class="d-flex align-items-center gap-3">
@@ -517,7 +522,7 @@ async function updateAvailableTimes() {
     return;
   }
 
-  grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">Loading available times...</div>';
+  grid.innerHTML = '<div class="time-loading"><div class="time-loading-spinner"></div>Loading times…</div>';
 
   const params = new URLSearchParams({
     merchantId,
@@ -601,6 +606,13 @@ function updateSummary() {
     document.getElementById('sum-price').textContent     = 'S$' + selectedService.price.toFixed(2);
     document.getElementById('confirm-service').textContent = selectedService.name;
     document.getElementById('confirm-price').textContent   = 'S$' + selectedService.price.toFixed(2);
+
+    const bar = document.getElementById('mobile-summary-bar');
+    if (bar) {
+      bar.style.setProperty('display', 'flex', 'important');
+      document.getElementById('msb-service').textContent = selectedService.name;
+      document.getElementById('msb-price').textContent   = 'S$' + selectedService.price.toFixed(2);
+    }
   }
   const dateEl = document.getElementById('booking_date');
   if (dateEl && dateEl.value) {

@@ -35,7 +35,6 @@ async function createCustomerProfile(userId, fullName, email, phone, dateOfBirth
   );
 }
 
-
 async function createMerchantProfile(userId, merchantName, email, phone, address, businessUen, category) {
   const [result] = await db.query(
     `INSERT INTO merchant
@@ -73,10 +72,6 @@ async function ensureCustomerProfile(userId, fullName, email, phone) {
 async function getMerchantByUserId(userId) {
   const [rows] = await db.query('SELECT * FROM merchant WHERE user_id = ?', [userId]);
   return rows[0] || null;
-}
-
-function hashResetToken(token) {
-  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 function hashToken(token) {
@@ -142,7 +137,7 @@ async function verifyEmailToken(token) {
 
 async function createPasswordResetToken(userId) {
   const token = crypto.randomBytes(32).toString('hex');
-  const tokenHash = hashResetToken(token);
+  const tokenHash = hashToken(token);
 
   await db.query(
     `INSERT INTO password_reset_token (user_id, token_hash, expires_at)
@@ -154,7 +149,7 @@ async function createPasswordResetToken(userId) {
 }
 
 async function getValidPasswordResetToken(token) {
-  const tokenHash = hashResetToken(token);
+  const tokenHash = hashToken(token);
   const [rows] = await db.query(
     `SELECT prt.*, u.email, u.full_name
      FROM password_reset_token prt

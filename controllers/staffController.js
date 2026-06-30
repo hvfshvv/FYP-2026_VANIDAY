@@ -96,7 +96,7 @@ async function deleteStaff(req, res) {
 module.exports = {
   showStaff,
   addStaff,
-   editStaff,
+  editStaff,
   toggleStaff,
   deleteStaff
 };
