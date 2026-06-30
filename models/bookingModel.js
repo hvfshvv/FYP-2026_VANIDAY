@@ -1,56 +1,22 @@
+/*
+ * bookingModel.js
+ * Core booking lifecycle: creating, updating, cancelling, and rescheduling
+ * bookings, plus merchant and customer read queries. Slot/staff logic lives
+ * in slotModel; notification tracking lives in bookingNotificationModel.
+ */
+
 const db = require('../config/db');
 const voucherModel = require('./voucherModel');
 const cancellationPolicyModel = require('./cancellationPolicyModel');
+const { resolveAvailableStaffForBooking, assertNoCustomerBookingConflict } = require('./slotModel');
+const {
+  ensureBookingPromoSchema,
+  expirePendingPaymentBookings,
+} = require('./bookingNotificationModel');
 
-let bookingPromoSchemaReady = false;
+// ── BOOKING CREATION ───────────────────────────────────────────────────────
 
-async function ensureBookingPromoSchema() {
-  if (bookingPromoSchemaReady) return;
-
-  const hasCol = async (col) => {
-    const [rows] = await db.query(
-      `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'booking' AND COLUMN_NAME = ?`,
-      [col]
-    );
-    return Number(rows[0]?.cnt) > 0;
-  };
-
-  const alterations = [
-    ['applied_promo_id',        'ALTER TABLE booking ADD COLUMN applied_promo_id INT NULL'],
-    ['discount_amount',         'ALTER TABLE booking ADD COLUMN discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00'],
-    ['applied_cv_id',           'ALTER TABLE booking ADD COLUMN applied_cv_id INT NULL'],
-    ['voucher_discount_amount', 'ALTER TABLE booking ADD COLUMN voucher_discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00'],
-  ];
-
-  for (const [col, sql] of alterations) {
-    if (!(await hasCol(col))) {
-      try { await db.query(sql); }
-      catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
-    }
-  }
-
-  const [[statusCol]] = await db.query(
-    `SELECT COLUMN_TYPE AS columnType
-     FROM INFORMATION_SCHEMA.COLUMNS
-     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'booking' AND COLUMN_NAME = 'status'`
-  );
-  if (
-    statusCol?.columnType &&
-    (!String(statusCol.columnType).includes('payment_failed') ||
-      !String(statusCol.columnType).includes('rescheduled'))
-  ) {
-    await db.query(
-      `ALTER TABLE booking
-       MODIFY status ENUM('pending_payment','confirmed','rescheduled','arrived','completed','cancelled','payment_failed','no_show')
-       DEFAULT 'pending_payment'`
-    );
-  }
-
-  await voucherModel.ensureCustomerVoucherSchema();
-  bookingPromoSchemaReady = true;
-}
-
+// Locks the slot and creates a pending_payment booking inside a DB transaction.
 async function createBooking({
   customerId = null,
   serviceId,
@@ -65,6 +31,8 @@ async function createBooking({
 }) {
   await expirePendingPaymentBookings();
 
+  // Import assertCurrentOrFutureSlot lazily here to avoid circular dependency issues.
+  const { assertCurrentOrFutureSlot } = require('./slotModel');
   assertCurrentOrFutureSlot(bookingDate, bookingTime);
 
   const connection = await db.getConnection();
@@ -87,7 +55,7 @@ async function createBooking({
     }
 
     if (customerId) {
-      // Check if customer already has an overlapping booking.
+      // Check if customer already has an overlapping active booking.
       await assertNoCustomerBookingConflict(connection, {
         customerId,
         bookingDate,
@@ -153,7 +121,7 @@ async function createBooking({
     const safeSource = allowedSources.includes(mappedSource) ? mappedSource : 'web';
     const mappedBookingType = safeSource === 'qr' ? 'walk_in' : 'advance';
 
-    // Save booking as pending payment until Stripe confirms payment.
+    // Save booking as pending_payment until Stripe confirms payment.
     const [result] = await connection.query(
       `INSERT INTO booking
          (customer_id, guest_name, guest_email, guest_phone, merchant_id, service_id, staff_id, slot_id, booking_type, source, status, total_amount)
@@ -183,6 +151,7 @@ async function createBooking({
   }
 }
 
+// Acquires a row lock on the customer record to serialise concurrent booking attempts.
 async function lockCustomerForBooking(connection, customerId) {
   const [[customer]] = await connection.query(
     'SELECT customer_id FROM customer WHERE customer_id = ? FOR UPDATE',
@@ -194,184 +163,9 @@ async function lockCustomerForBooking(connection, customerId) {
   }
 }
 
-async function getAvailableStaffForSlot({
-  merchantId,
-  serviceId,
-  bookingDate,
-  bookingTime,
-  durationMins = null,
-  staffId = null,
-  excludeBookingId = null,
-  connection = db,
-}) {
-  if (!merchantId || !serviceId || !bookingDate || !bookingTime) return [];
+// ── BOOKING READS ──────────────────────────────────────────────────────────
 
-  let safeDuration = Number(durationMins);
-  if (!Number.isFinite(safeDuration) || safeDuration <= 0) {
-    const [[service]] = await connection.query(
-      `SELECT duration_mins
-       FROM service
-       WHERE service_id = ? AND merchant_id = ? AND is_active = 1`,
-      [serviceId, merchantId]
-    );
-    if (!service) return [];
-    safeDuration = Number(service.duration_mins || 0);
-  }
-
-  const params = [
-    merchantId,
-    serviceId,
-    bookingDate,
-    bookingTime,
-    safeDuration,
-    bookingTime,
-  ];
-
-  let excludeBookingFilter = '';
-  if (excludeBookingId) {
-    excludeBookingFilter = 'AND b.booking_id <> ?';
-    params.push(excludeBookingId);
-  }
-
-  let staffFilter = '';
-  if (staffId) {
-    staffFilter = 'AND st.staff_id = ?';
-    params.push(Number(staffId));
-  }
-
-  const [rows] = await connection.query(
-    `SELECT DISTINCT st.staff_id, st.full_name, st.role, st.bio, st.experience_years
-     FROM staff st
-     JOIN staff_service ss ON ss.staff_id = st.staff_id
-     WHERE st.merchant_id = ?
-       AND ss.service_id = ?
-       AND st.is_active = 1
-       AND NOT EXISTS (
-         SELECT 1
-         FROM booking b
-         JOIN time_slot ts ON ts.slot_id = b.slot_id
-         WHERE b.staff_id = st.staff_id
-           AND ts.slot_date = ?
-           AND (
-             b.status IN ('confirmed', 'rescheduled', 'arrived')
-             OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
-           )
-           AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
-           AND ts.end_time > ?
-           ${excludeBookingFilter}
-       )
-       ${staffFilter}
-     ORDER BY st.full_name ASC`,
-    params
-  );
-
-  const [legacyRows] = await connection.query(
-    `SELECT COUNT(*) AS legacy_count
-     FROM booking b
-     JOIN time_slot ts ON ts.slot_id = b.slot_id
-     WHERE b.merchant_id = ?
-       AND b.service_id = ?
-       AND b.staff_id IS NULL
-       AND ts.slot_date = ?
-       AND (
-         b.status IN ('confirmed', 'rescheduled', 'arrived')
-         OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
-       )
-       AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
-       AND ts.end_time > ?
-       ${excludeBookingId ? 'AND b.booking_id <> ?' : ''}`,
-    excludeBookingId
-      ? [merchantId, serviceId, bookingDate, bookingTime, safeDuration, bookingTime, excludeBookingId]
-      : [merchantId, serviceId, bookingDate, bookingTime, safeDuration, bookingTime]
-  );
-
-  const legacyHoldCount = Number(legacyRows[0]?.legacy_count || 0);
-  if (!legacyHoldCount) return rows;
-
-  if (staffId) {
-    return rows;
-  }
-
-  return rows.slice(legacyHoldCount);
-}
-
-async function resolveAvailableStaffForBooking(connection, {
-  merchantId,
-  serviceId,
-  bookingDate,
-  bookingTime,
-  durationMins,
-  staffId = null,
-  excludeBookingId = null,
-}) {
-  const availableStaff = await getAvailableStaffForSlot({
-    merchantId,
-    serviceId,
-    bookingDate,
-    bookingTime,
-    durationMins,
-    staffId,
-    excludeBookingId,
-    connection,
-  });
-
-  if (staffId) {
-    if (!availableStaff.length) {
-      throw new Error('Selected staff member is no longer available for this time.');
-    }
-    return availableStaff[0];
-  }
-
-  if (!availableStaff.length) {
-    throw new Error('No staff are available for this service at the selected time.');
-  }
-
-  return availableStaff[0];
-}
-
-async function assertNoCustomerBookingConflict(connection, {
-  customerId,
-  bookingDate,
-  bookingTime,
-  durationMins,
-  excludeBookingId = null,
-}) {
-  // Validate booking slot availability for this customer.
-  let query = `
-    SELECT b.booking_id, ts.start_time, ts.end_time, s.service_name, m.merchant_name
-    FROM booking b
-    JOIN time_slot ts ON b.slot_id = ts.slot_id
-    JOIN service s ON b.service_id = s.service_id
-    JOIN merchant m ON b.merchant_id = m.merchant_id
-    WHERE b.customer_id = ?
-      AND (
-        b.status IN ('confirmed', 'rescheduled', 'arrived')
-        OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
-      )
-      AND ts.slot_date = ?
-      AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
-      AND ts.end_time > ?
-  `;
-  const params = [customerId, bookingDate, bookingTime, durationMins, bookingTime];
-
-  if (excludeBookingId) {
-    query += ' AND b.booking_id <> ?';
-    params.push(excludeBookingId);
-  }
-
-  query += ' LIMIT 1 FOR UPDATE';
-
-  const [[conflict]] = await connection.query(query, params);
-
-  if (conflict) {
-    const start = String(conflict.start_time).slice(0, 5);
-    const end = String(conflict.end_time).slice(0, 5);
-    throw new Error(
-      `You already have a booking at ${conflict.merchant_name} (${conflict.service_name}) from ${start} to ${end}. Please choose a different time.`
-    );
-  }
-}
-
+// Fetches a full booking record with service, merchant, customer, and promo details.
 async function getBookingById(bookingId) {
   await ensureBookingPromoSchema();
   const [rows] = await db.query(
@@ -412,6 +206,7 @@ async function getBookingById(bookingId) {
   return rows[0] || null;
 }
 
+// Fetches a booking record scoped to the owning customer (used on My Bookings page).
 async function getCustomerBookingById(bookingId, customerId) {
   const [rows] = await db.query(
     `SELECT b.*,
@@ -436,12 +231,16 @@ async function getCustomerBookingById(bookingId, customerId) {
   return rows[0] || null;
 }
 
+// ── BOOKING STATUS UPDATES ─────────────────────────────────────────────────
+
+// Changes the booking status (used after payment confirmation or admin action).
 async function updateBookingStatus(bookingId, status) {
   const booking = await getBookingById(bookingId);
   await db.query('UPDATE booking SET status = ? WHERE booking_id = ?', [status, bookingId]);
   return booking;
 }
 
+// Updates booking status from the merchant dashboard with valid state-transition rules.
 async function updateMerchantBookingStatus(bookingId, merchantId, status) {
   const fields = ['status = ?'];
   const params = [status];
@@ -456,6 +255,7 @@ async function updateMerchantBookingStatus(bookingId, merchantId, status) {
     },
     no_show: {
       currentStatuses: ['confirmed', 'rescheduled'],
+      // Only mark no-show after the appointment time has passed.
       timeRule: 'AND TIMESTAMP(ts.slot_date, ts.start_time) <= NOW()',
     },
   };
@@ -484,6 +284,9 @@ async function updateMerchantBookingStatus(bookingId, merchantId, status) {
   return result.affectedRows;
 }
 
+// ── QR CHECK-IN ───────────────────────────────────────────────────────────
+
+// Marks a customer as arrived after scanning the merchant's arrival QR code.
 async function markCustomerArrivedForMerchant(customerId, merchantId) {
   const connection = await db.getConnection();
 
@@ -557,6 +360,9 @@ async function markCustomerArrivedForMerchant(customerId, merchantId) {
   }
 }
 
+// ── CANCELLATION ───────────────────────────────────────────────────────────
+
+// Cancels a customer booking, enforcing the merchant's cancellation policy window.
 async function cancelCustomerBooking(bookingId, customerId) {
   const connection = await db.getConnection();
 
@@ -608,6 +414,9 @@ async function cancelCustomerBooking(bookingId, customerId) {
   }
 }
 
+// ── RESCHEDULING ───────────────────────────────────────────────────────────
+
+// Moves a booking to a new date/time, freeing the old slot and claiming a new one.
 async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, bookingTime) {
   const connection = await db.getConnection();
 
@@ -717,6 +526,7 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
     }
 
     const nextStatus = booking.status === 'pending_payment' ? 'pending_payment' : 'rescheduled';
+    // Free the old slot before updating the booking row.
     await connection.query('UPDATE time_slot SET is_available = TRUE WHERE slot_id = ?', [booking.slot_id]);
     await connection.query(
       'UPDATE booking SET slot_id = ?, staff_id = ?, status = ? WHERE booking_id = ?',
@@ -732,17 +542,9 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
   }
 }
 
-function formatDateValue(value) {
-  if (value instanceof Date) {
-    const year = value.getFullYear();
-    const month = String(value.getMonth() + 1).padStart(2, '0');
-    const day = String(value.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
+// ── MERCHANT VIEWS ─────────────────────────────────────────────────────────
 
-  return String(value || '').slice(0, 10);
-}
-
+// Returns all bookings for a merchant ordered by most recent first.
 async function getMerchantBookings(merchantId) {
   const [rows] = await db.query(
     `SELECT b.*,
@@ -766,7 +568,7 @@ async function getMerchantBookings(merchantId) {
   return rows;
 }
 
-// Decision-support counts used by the merchant dashboard.
+// Aggregates decision-support counts for the merchant dashboard summary cards.
 async function getMerchantDashboardSummary(merchantId, periodStart) {
   await expirePendingPaymentBookings();
 
@@ -798,6 +600,7 @@ async function getMerchantDashboardSummary(merchantId, periodStart) {
     [merchantId, merchantId, periodStart, periodStart]
   );
 
+  // Most-booked service in the period — shown as a KPI on the dashboard.
   const [[mostBookedService]] = await db.query(
     `SELECT s.service_name, COUNT(*) AS booking_count
      FROM booking b
@@ -820,7 +623,7 @@ async function getMerchantDashboardSummary(merchantId, periodStart) {
   };
 }
 
-// Only appointments still relevant to the merchant's schedule today.
+// Returns today's upcoming confirmed/arrived bookings for the merchant schedule panel.
 async function getMerchantTodaySchedule(merchantId) {
   const [rows] = await db.query(
     `SELECT b.booking_id, b.status,
@@ -844,6 +647,9 @@ async function getMerchantTodaySchedule(merchantId) {
   return rows;
 }
 
+// ── CUSTOMER VIEWS ─────────────────────────────────────────────────────────
+
+// Returns all bookings for a customer with promo, policy, and review status included.
 async function getCustomerBookings(customerId) {
   await ensureBookingPromoSchema();
   await expirePendingPaymentBookings();
@@ -897,189 +703,9 @@ async function getCustomerBookings(customerId) {
   return rows;
 }
 
-async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }) {
-  await expirePendingPaymentBookings();
+// ── PROMOTION / VOUCHER APPLICATION ───────────────────────────────────────
 
-  if (!merchantId || !serviceId || !bookingDate) return [];
-
-  // Load service duration before building available time slots.
-  const [[service]] = await db.query(
-    `SELECT duration_mins 
-     FROM service 
-     WHERE service_id = ? AND merchant_id = ? AND is_active = 1`,
-    [serviceId, merchantId]
-  );
-
-  if (!service) return [];
-
-  const dayOfWeek = new Date(bookingDate + 'T00:00:00')
-    .toLocaleDateString('en-US', { weekday: 'long' });
-
-  // Use merchant opening hours for the selected day.
-  const [[availability]] = await db.query(
-    `SELECT start_time, end_time
-     FROM merchant_availability
-     WHERE merchant_id = ?
-     AND day_of_week = ?
-     AND is_active = 1
-     LIMIT 1`,
-    [merchantId, dayOfWeek]
-  );
-
-  if (!availability) return [];
-
-  const slots = [];
-
-  const start = String(availability.start_time).slice(0, 5);
-  const end = String(availability.end_time).slice(0, 5);
-
-  let current = new Date(`${bookingDate}T${start}:00`);
-  const closing = new Date(`${bookingDate}T${end}:00`);
-
-  while (current < closing) {
-    const slotEnd = new Date(current.getTime() + service.duration_mins * 60000);
-
-    if (slotEnd <= closing && current >= new Date()) {
-      const timeValue = current.toTimeString().slice(0, 5);
-      const availableStaff = await getAvailableStaffForSlot({
-        merchantId,
-        serviceId,
-        bookingDate,
-        bookingTime: timeValue,
-        durationMins: service.duration_mins,
-        staffId,
-      });
-
-      if (availableStaff.length) {
-        slots.push({
-          start_time: timeValue + ':00',
-          label: timeValue,
-          available_staff_count: availableStaff.length,
-        });
-      }
-    }
-
-    current.setMinutes(current.getMinutes() + 30);
-  }
-
-  return slots;
-}
-
-async function hasSentEmailNotification(bookingId, notificationType, recipientKind = null) {
-  const params = [bookingId, notificationType];
-  const recipientFilter = recipientKind
-    ? 'AND message LIKE ?'
-    : '';
-
-  if (recipientKind) {
-    params.push(`% email to ${recipientKind} (%`);
-  }
-
-  const [rows] = await db.query(
-    `SELECT notification_id
-     FROM notification
-     WHERE booking_id = ?
-       AND notification_type = ?
-       AND channel = 'email'
-       AND status = 'sent'
-       ${recipientFilter}
-     LIMIT 1`,
-    params
-  );
-  return Boolean(rows[0]);
-}
-
-function assertCurrentOrFutureSlot(bookingDate, bookingTime) {
-  if (!bookingDate || !bookingTime) {
-    throw new Error('Please choose a booking date and time.');
-  }
-
-  const slot = new Date(`${bookingDate}T${String(bookingTime).slice(0, 5)}:00`);
-
-  if (Number.isNaN(slot.getTime()) || slot < new Date()) {
-    throw new Error('Please choose a booking date and time that is not in the past.');
-  }
-}
-
-async function hasSentWhatsAppNotification(bookingId, notificationType) {
-  const [rows] = await db.query(
-    `SELECT notification_id
-     FROM notification
-     WHERE booking_id = ?
-       AND notification_type = ?
-       AND channel = 'whatsapp'
-       AND status = 'sent'
-     LIMIT 1`,
-    [bookingId, notificationType]
-  );
-  return Boolean(rows[0]);
-}
-
-async function recordEmailNotification(booking, notificationType, message, status) {
-  await db.query(
-    `INSERT INTO notification
-       (booking_id, user_id, merchant_id, notification_type, channel, message, status, scheduled_at, sent_at)
-     VALUES (?, ?, ?, ?, 'email', ?, ?, NOW(), CASE WHEN ? = 'sent' THEN NOW() ELSE NULL END)`,
-    [
-      booking.booking_id,
-      booking.customer_id || null,
-      booking.merchant_id,
-      notificationType,
-      message,
-      status,
-      status,
-    ]
-  );
-}
-
-async function recordWhatsAppNotification(booking, notificationType, message, status) {
-  await db.query(
-    `INSERT INTO notification
-       (booking_id, user_id, merchant_id, notification_type, channel, message, status, scheduled_at, sent_at)
-     VALUES (?, ?, ?, ?, 'whatsapp', ?, ?, NOW(), CASE WHEN ? = 'sent' THEN NOW() ELSE NULL END)`,
-    [
-      booking.booking_id,
-      booking.customer_id || null,
-      booking.merchant_id,
-      notificationType,
-      message,
-      status,
-      status,
-    ]
-  );
-}
-
-async function getBookingsNeedingEmailReminders() {
-  const [rows] = await db.query(
-    `SELECT b.*,
-            ts.slot_date AS booking_date,
-            ts.start_time AS booking_time,
-            s.service_name,
-            m.merchant_name,
-            m.address AS merchant_address,
-            COALESCE(c.full_name, b.guest_name) AS customer_name,
-            COALESCE(c.email, b.guest_email) AS customer_email,
-            COALESCE(c.phone, b.guest_phone) AS customer_phone
-     FROM booking b
-     JOIN time_slot ts ON b.slot_id = ts.slot_id
-     JOIN service s ON b.service_id = s.service_id
-     JOIN merchant m ON b.merchant_id = m.merchant_id
-     LEFT JOIN customer c ON b.customer_id = c.customer_id
-     LEFT JOIN notification n ON n.booking_id = b.booking_id
-       AND n.notification_type = 'reminder_24h'
-       AND n.channel = 'email'
-       AND n.status = 'sent'
-     WHERE b.status IN ('confirmed', 'rescheduled')
-       AND COALESCE(c.email, b.guest_email) IS NOT NULL
-       AND TIMESTAMP(ts.slot_date, ts.start_time) BETWEEN DATE_ADD(NOW(), INTERVAL 23 HOUR)
-                                                     AND DATE_ADD(NOW(), INTERVAL 25 HOUR)
-       AND n.notification_id IS NULL
-     ORDER BY ts.slot_date ASC, ts.start_time ASC
-     LIMIT 100`
-  );
-  return rows;
-}
-
+// Records a promotion discount against a booking (called after promo validation).
 async function applyPromotion(bookingId, promoId, discountAmount) {
   await ensureBookingPromoSchema();
   await db.query(
@@ -1088,6 +714,7 @@ async function applyPromotion(bookingId, promoId, discountAmount) {
   );
 }
 
+// Records a voucher discount against a booking (called after voucher validation).
 async function applyVoucher(bookingId, cvId, voucherDiscountAmount) {
   await ensureBookingPromoSchema();
   await db.query(
@@ -1096,96 +723,23 @@ async function applyVoucher(bookingId, cvId, voucherDiscountAmount) {
   );
 }
 
-async function expirePendingPaymentBookings(ttlMinutes = 5) {
-  await ensureBookingPromoSchema();
+// ── DATE UTILITY ───────────────────────────────────────────────────────────
 
-  const safeTtl = Number.isFinite(Number(ttlMinutes)) && Number(ttlMinutes) > 0
-    ? Number(ttlMinutes)
-    : 5;
-
-  const connection = await db.getConnection();
-
-  try {
-    await connection.beginTransaction();
-
-    await connection.query(
-      `UPDATE booking b
-       JOIN payment p ON p.booking_id = b.booking_id
-        AND p.payment_status = 'paid'
-       SET b.status = 'confirmed'
-       WHERE b.status = 'pending_payment'`
-    );
-
-    const [expired] = await connection.query(
-      `SELECT b.booking_id, b.slot_id
-       FROM booking b
-       LEFT JOIN payment p ON p.booking_id = b.booking_id
-        AND p.payment_status = 'paid'
-       WHERE b.status = 'pending_payment'
-         AND b.created_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)
-         AND p.payment_id IS NULL
-       FOR UPDATE`,
-      [safeTtl]
-    );
-
-    if (!expired.length) {
-      await connection.commit();
-      return 0;
-    }
-
-    const bookingIds = expired.map(row => row.booking_id);
-    const slotIds = expired.map(row => row.slot_id).filter(Boolean);
-
-    await connection.query(
-      `UPDATE booking
-       SET status = 'payment_failed',
-           applied_cv_id = NULL,
-           voucher_discount_amount = 0
-       WHERE booking_id IN (?)`,
-      [bookingIds]
-    );
-
-    if (slotIds.length) {
-      await connection.query(
-        `UPDATE time_slot
-         SET is_available = TRUE
-         WHERE slot_id IN (?)`,
-        [slotIds]
-      );
-    }
-
-    await connection.commit();
-    return expired.length;
-  } catch (err) {
-    await connection.rollback();
-    throw err;
-  } finally {
-    connection.release();
+// Normalises a Date object or raw DB date value to a YYYY-MM-DD string.
+function formatDateValue(value) {
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
-}
 
-async function countActivePendingPaymentBookings(customerId, ttlMinutes = 5) {
-  await ensureBookingPromoSchema();
-  await expirePendingPaymentBookings(ttlMinutes);
-
-  const safeTtl = Number.isFinite(Number(ttlMinutes)) && Number(ttlMinutes) > 0
-    ? Number(ttlMinutes)
-    : 5;
-
-  const [[row]] = await db.query(
-    `SELECT COUNT(*) AS count
-     FROM booking
-     WHERE customer_id = ?
-       AND status = 'pending_payment'
-       AND created_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
-    [customerId, safeTtl]
-  );
-
-  return Number(row?.count || 0);
+  return String(value || '').slice(0, 10);
 }
 
 module.exports = {
   createBooking,
+  lockCustomerForBooking,
   getBookingById,
   getCustomerBookingById,
   updateBookingStatus,
@@ -1197,15 +751,7 @@ module.exports = {
   getMerchantDashboardSummary,
   getMerchantTodaySchedule,
   getCustomerBookings,
-  getAvailableSlots,
-  hasSentEmailNotification,
-  hasSentWhatsAppNotification,
-  recordEmailNotification,
-  recordWhatsAppNotification,
-  getBookingsNeedingEmailReminders,
   applyPromotion,
   applyVoucher,
-  expirePendingPaymentBookings,
-  countActivePendingPaymentBookings,
-  getAvailableStaffForSlot,
+  formatDateValue,
 };

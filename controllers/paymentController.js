@@ -9,6 +9,7 @@ const {
 } = require('../services/stripeService');
 const { buildReceiptPdf } = require('../services/receiptPdfService');
 const bookingModel = require('../models/bookingModel');
+const bookingNotificationModel = require('../models/bookingNotificationModel');
 const paymentModel = require('../models/paymentModel');
 const loyaltyModel = require('../models/loyaltyModel');
 const emailService = require('../services/emailService');
@@ -265,7 +266,7 @@ async function getAuthorizedBooking(req, res, bookingId, { json = false } = {}) 
 }
 
 async function confirmPaidBooking(bookingId) {
-  await bookingModel.expirePendingPaymentBookings();
+  await bookingNotificationModel.expirePendingPaymentBookings();
   const current = await bookingModel.getBookingById(bookingId);
   if (!current) return;
   if (!['pending_payment', 'confirmed'].includes(current.status)) {
@@ -288,13 +289,13 @@ async function confirmPaidBooking(bookingId) {
   if (current.source === 'whatsapp') {
     try {
       const confirmedBooking = await bookingModel.getBookingById(bookingId);
-      const alreadySent = await bookingModel.hasSentWhatsAppNotification(bookingId, 'confirmation');
+      const alreadySent = await bookingNotificationModel.hasSentWhatsAppNotification(bookingId, 'confirmation');
       if (!alreadySent) {
         const result = await whatsappNotificationService.sendBookingConfirmation(confirmedBooking);
         if (result && result.skipped) {
           console.warn('[whatsapp] confirmation skipped for booking %s: %s', bookingId, result.reason);
         }
-        await bookingModel.recordWhatsAppNotification(
+        await bookingNotificationModel.recordWhatsAppNotification(
           confirmedBooking,
           'confirmation',
           `WhatsApp booking confirmation for booking #${bookingId}`,
@@ -306,7 +307,7 @@ async function confirmPaidBooking(bookingId) {
       try {
         const booking = await bookingModel.getBookingById(bookingId);
         if (booking) {
-          await bookingModel.recordWhatsAppNotification(
+          await bookingNotificationModel.recordWhatsAppNotification(
             booking,
             'confirmation',
             `WhatsApp booking confirmation for booking #${bookingId}`,
@@ -333,7 +334,7 @@ async function confirmPaidBooking(bookingId) {
       const recipients = bookingEmailRecipients(booking);
 
       for (const recipient of recipients) {
-        const alreadySent = await bookingModel.hasSentEmailNotification(
+        const alreadySent = await bookingNotificationModel.hasSentEmailNotification(
           bookingId,
           'confirmation',
           recipient.kind
@@ -346,7 +347,7 @@ async function confirmPaidBooking(bookingId) {
             recipient
           );
 
-          await bookingModel.recordEmailNotification(
+          await bookingNotificationModel.recordEmailNotification(
             booking,
             'confirmation',
             `confirmation email to ${recipient.kind} (${recipient.email}) for booking #${bookingId}`,
@@ -372,7 +373,7 @@ async function confirmPaidBooking(bookingId) {
 async function showCheckout(req, res) {
   const { bookingId } = req.params;
   try {
-    await bookingModel.expirePendingPaymentBookings();
+    await bookingNotificationModel.expirePendingPaymentBookings();
 
     // Show checkout only for an authorized booking.
     let booking = await getAuthorizedBooking(req, res, bookingId);
@@ -536,7 +537,7 @@ async function persistCheckoutSession(session) {
 async function createStripeIntent(req, res) {
   const bookingId = getBookingId(req);
   try {
-    await bookingModel.expirePendingPaymentBookings();
+    await bookingNotificationModel.expirePendingPaymentBookings();
     // Start card payment for this booking.
     let booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
     if (!booking) return;
@@ -562,7 +563,7 @@ async function confirmStripePayment(req, res) {
   try {
     if (!paymentIntentId) return res.status(400).json({ error: 'Missing paymentIntentId' });
 
-    await bookingModel.expirePendingPaymentBookings();
+    await bookingNotificationModel.expirePendingPaymentBookings();
     let booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
     if (!booking) return;
     if (booking.status !== 'pending_payment') {
@@ -613,7 +614,7 @@ async function confirmStripePayment(req, res) {
 async function createPayNowSession(req, res) {
   const { bookingId } = req.params;
   try {
-    await bookingModel.expirePendingPaymentBookings();
+    await bookingNotificationModel.expirePendingPaymentBookings();
     // Start PayNow QR checkout for this booking.
     let booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
     if (!booking) return;
@@ -760,7 +761,7 @@ async function applyVoucher(req, res) {
   const cvId = req.body.cvId ? parseInt(req.body.cvId, 10) : null;
 
   try {
-    await bookingModel.expirePendingPaymentBookings();
+    await bookingNotificationModel.expirePendingPaymentBookings();
 
     let booking = await getAuthorizedBooking(req, res, bookingId);
     if (!booking) return;

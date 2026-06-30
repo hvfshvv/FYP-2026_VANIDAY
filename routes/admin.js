@@ -1,57 +1,87 @@
+/*
+ * routes/admin.js
+ * Mounts all admin panel routes under /admin. Every route requires a
+ * logged-in admin user. Controllers are split by domain so each file
+ * stays focused on a single concern.
+ */
+
 const express = require('express');
 const router = express.Router();
 const { requireLogin, requireAdmin } = require('../middleware/auth');
-const adminController = require('../controllers/adminController');
+
+// ── CONTROLLER IMPORTS ─────────────────────────────────────────────────────
+
+const dashboardCtrl   = require('../controllers/adminDashboardController');
+const validationCtrl  = require('../controllers/adminValidationController');
+const merchantCtrl    = require('../controllers/adminMerchantController');
+const userCtrl        = require('../controllers/adminUserController');
+const campaignCtrl    = require('../controllers/adminCampaignController');
+
+// ── AUTH GUARD ─────────────────────────────────────────────────────────────
 
 // All admin routes require a logged-in admin user.
 router.use(requireLogin, requireAdmin);
 
-// Main admin dashboards and analytics pages.
-router.get('/dashboard', adminController.showDashboard);
-router.get('/revenue', adminController.showRevenueReport);
-router.get('/merchants', adminController.showMerchants);
-router.get('/platform-feedback', adminController.showPlatformFeedback);
-router.post('/merchants/:merchantId/feature', adminController.featureMerchantFromDashboard);
-router.post('/merchants/featured/:listingId/toggle', adminController.toggleFeaturedMerchantFromDashboard);
-router.post('/merchants/featured/:listingId/remove', adminController.removeFeaturedMerchantFromDashboard);
-router.get('/featured', adminController.showFeaturedMerchants);
-router.post('/featured/:listingId/toggle', adminController.toggleFeaturedMerchant);
-router.post('/featured/:listingId/remove', adminController.removeFeaturedMerchant);
-router.get('/customers', adminController.showCustomers);
-router.get('/validation', adminController.showValidationLogs);
-router.post('/validation/:logId/resolve', adminController.resolveValidationLog);
-router.post('/validation/:logId/reply', adminController.replyToWhatsAppSupport);
+// ── DASHBOARD & ANALYTICS ──────────────────────────────────────────────────
+
+router.get('/dashboard',         dashboardCtrl.showDashboard);
+router.get('/revenue',           dashboardCtrl.showRevenueReport);
+router.get('/merchants',         dashboardCtrl.showMerchants);
+router.get('/customers',         dashboardCtrl.showCustomers);
+router.get('/platform-feedback', dashboardCtrl.showPlatformFeedback);
+
+// Featured merchant actions triggered from the analytics leaderboard.
+router.post('/merchants/:merchantId/feature',               merchantCtrl.featureMerchantFromDashboard);
+router.post('/merchants/featured/:listingId/toggle',        merchantCtrl.toggleFeaturedMerchantFromDashboard);
+router.post('/merchants/featured/:listingId/remove',        merchantCtrl.removeFeaturedMerchantFromDashboard);
+
+// Dedicated featured merchants management page.
+router.get('/featured',                         merchantCtrl.showFeaturedMerchants);
+router.post('/featured/:listingId/toggle',      merchantCtrl.toggleFeaturedMerchant);
+router.post('/featured/:listingId/remove',      merchantCtrl.removeFeaturedMerchant);
+
+// ── VALIDATION & SUPPORT LOGS ──────────────────────────────────────────────
+
+router.get('/validation',                       validationCtrl.showValidationLogs);
+router.post('/validation/:logId/resolve',       validationCtrl.resolveValidationLog);
+router.post('/validation/:logId/reply',         validationCtrl.replyToWhatsAppSupport);
+
+// ── USER MANAGEMENT ────────────────────────────────────────────────────────
 
 // User management pages for customers and merchants.
-router.get('/user-management', adminController.showUserManagementHome);
-router.get('/user-management/customers', adminController.showManagedCustomers);
-router.get('/user-management/customers/:customerId/bookings', adminController.showCustomerBookings);
-router.post('/user-management/customers/:customerId/status', adminController.updateCustomerAccountStatus);
-router.get('/user-management/merchants', adminController.showManagedMerchants);
-router.get('/user-management/merchants/:merchantId/bookings', adminController.showMerchantBookings);
-router.post('/user-management/merchants/:merchantId/status', adminController.updateMerchantAccountStatus);
+router.get('/user-management',                                          userCtrl.showUserManagementHome);
+router.get('/user-management/customers',                                userCtrl.showManagedCustomers);
+router.get('/user-management/customers/:customerId/bookings',           userCtrl.showCustomerBookings);
+router.post('/user-management/customers/:customerId/status',            userCtrl.updateCustomerAccountStatus);
+router.get('/user-management/merchants',                                userCtrl.showManagedMerchants);
+router.get('/user-management/merchants/:merchantId/bookings',           userCtrl.showMerchantBookings);
+router.post('/user-management/merchants/:merchantId/status',            userCtrl.updateMerchantAccountStatus);
+
+// ── MERCHANT VALIDATIONS & PROMOTIONS ─────────────────────────────────────
 
 // Approval workflows for merchant registrations and promotions.
-router.get('/merchant-validations', adminController.showMerchantValidations);
-router.post('/merchant-validations/:merchantId/approve', adminController.approveMerchant);
-router.post('/merchant-validations/:merchantId/reject', adminController.rejectMerchant);
-router.get('/promotions', adminController.showPromotionApprovals);
-router.post('/promotions/:promoId/approve', adminController.approvePromotion);
-router.post('/promotions/:promoId/reject', adminController.rejectPromotion);
+router.get('/merchant-validations',                         merchantCtrl.showMerchantValidations);
+router.post('/merchant-validations/:merchantId/approve',    merchantCtrl.approveMerchant);
+router.post('/merchant-validations/:merchantId/reject',     merchantCtrl.rejectMerchant);
+router.get('/promotions',                                   merchantCtrl.showPromotionApprovals);
+router.post('/promotions/:promoId/approve',                 merchantCtrl.approvePromotion);
+router.post('/promotions/:promoId/reject',                  merchantCtrl.rejectPromotion);
+
+// ── CAMPAIGNS & LOYALTY ────────────────────────────────────────────────────
 
 // Campaign and voucher management.
-router.get('/campaigns', adminController.showCampaigns);
-router.get('/campaigns/vouchers', adminController.showVoucherCampaigns);
-router.post('/campaigns/vouchers/create', adminController.createCampaign);
-router.post('/campaigns/create', adminController.createCampaign);
-router.get('/campaigns/vouchers/:voucherId/edit', adminController.showEditCampaign);
-router.post('/campaigns/vouchers/:voucherId/edit', adminController.updateCampaign);
-router.post('/campaigns/vouchers/:voucherId/toggle', adminController.toggleCampaign);
-router.post('/campaigns/:voucherId/toggle', adminController.toggleCampaign);
-router.get('/campaigns/loyalty', adminController.showLoyaltyRewards);
-router.post('/campaigns/loyalty/create', adminController.createLoyaltyReward);
-router.get('/campaigns/loyalty/:rewardId/edit', adminController.showEditLoyaltyReward);
-router.post('/campaigns/loyalty/:rewardId/edit', adminController.updateLoyaltyReward);
-router.post('/campaigns/loyalty/:rewardId/toggle', adminController.toggleLoyaltyReward);
+router.get('/campaigns',                                campaignCtrl.showCampaigns);
+router.get('/campaigns/vouchers',                       campaignCtrl.showVoucherCampaigns);
+router.post('/campaigns/vouchers/create',               campaignCtrl.createCampaign);
+router.post('/campaigns/create',                        campaignCtrl.createCampaign);
+router.get('/campaigns/vouchers/:voucherId/edit',       campaignCtrl.showEditCampaign);
+router.post('/campaigns/vouchers/:voucherId/edit',      campaignCtrl.updateCampaign);
+router.post('/campaigns/vouchers/:voucherId/toggle',    campaignCtrl.toggleCampaign);
+router.post('/campaigns/:voucherId/toggle',             campaignCtrl.toggleCampaign);
+router.get('/campaigns/loyalty',                        campaignCtrl.showLoyaltyRewards);
+router.post('/campaigns/loyalty/create',                campaignCtrl.createLoyaltyReward);
+router.get('/campaigns/loyalty/:rewardId/edit',         campaignCtrl.showEditLoyaltyReward);
+router.post('/campaigns/loyalty/:rewardId/edit',        campaignCtrl.updateLoyaltyReward);
+router.post('/campaigns/loyalty/:rewardId/toggle',      campaignCtrl.toggleLoyaltyReward);
 
 module.exports = router;
