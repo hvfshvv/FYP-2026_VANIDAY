@@ -395,7 +395,8 @@ async function getBookingById(bookingId) {
             m.address AS merchant_address,
             COALESCE(c.full_name, b.guest_name) AS customer_name,
             COALESCE(c.email, b.guest_email) AS customer_email,
-            COALESCE(c.phone, b.guest_phone) AS customer_phone
+            COALESCE(c.phone, b.guest_phone) AS customer_phone,
+            GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), DATE_ADD(b.created_at, INTERVAL 5 MINUTE))) AS pending_remaining_seconds
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
