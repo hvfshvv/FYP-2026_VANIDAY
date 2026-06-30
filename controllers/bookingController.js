@@ -3,6 +3,8 @@ const qrModel = require('../models/qrModel');
 const merchantModel = require('../models/merchantModel');
 const authModel = require('../models/authModel');
 const bookingModel = require('../models/bookingModel');
+const slotModel = require('../models/slotModel');
+const bookingNotificationModel = require('../models/bookingNotificationModel');
 const staffModel = require('../models/staffModel');
 const cancellationPolicyModel = require('../models/cancellationPolicyModel');
 const notificationModel = require('../models/notificationModel');
@@ -102,7 +104,7 @@ function bookingRecipients(booking) {
 }
 
 async function recordLifecycleEmail(booking, notificationType, recipient, result) {
-  await bookingModel.recordEmailNotification(
+  await bookingNotificationModel.recordEmailNotification(
     booking,
     notificationType,
     `${notificationType} email to ${recipient.kind} (${recipient.email}) for booking #${booking.booking_id}`,
@@ -630,7 +632,7 @@ async function getAvailableSlots(req, res) {
 
   try {
     const { merchantId, serviceId, staffId, bookingDate } = req.query;
-    const slots = await bookingModel.getAvailableSlots({ merchantId, serviceId, staffId, bookingDate });
+    const slots = await slotModel.getAvailableSlots({ merchantId, serviceId, staffId, bookingDate });
     res.json(slots);
   } catch (err) {
     console.error(err);
@@ -649,7 +651,7 @@ async function getAvailableStaff(req, res) {
       bookingTime,
     } = req.query;
 
-    const staff = await bookingModel.getAvailableStaffForSlot({
+    const staff = await slotModel.getAvailableStaffForSlot({
       merchantId,
       serviceId,
       bookingDate,

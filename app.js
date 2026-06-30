@@ -16,7 +16,7 @@ const loyaltyRoutes     = require('./routes/loyalty');
 const notificationRoutes = require('./routes/notifications');
 const clientDiariesRoutes = require('./routes/clientDiaries');
 const reminderService   = require('./services/reminderService');
-const bookingModel      = require('./models/bookingModel');
+const bookingNotificationModel = require('./models/bookingNotificationModel');
 const notificationModel = require('./models/notificationModel');
 
 const app = express();
@@ -58,7 +58,7 @@ app.use(async (req, res, next) => {
     ];
 
     if (user.role === 'customer') {
-      tasks.push(bookingModel.countActivePendingPaymentBookings(user.customer_id || user.user_id));
+      tasks.push(bookingNotificationModel.countActivePendingPaymentBookings(user.customer_id || user.user_id));
     }
 
     const [unreadCount, assistantPreviewMessages, pendingPaymentCount = 0] = await Promise.all(tasks);
@@ -88,7 +88,7 @@ app.use('/client-diaries', clientDiariesRoutes);
 
 async function releaseExpiredPendingPayments() {
   try {
-    const released = await bookingModel.expirePendingPaymentBookings();
+    const released = await bookingNotificationModel.expirePendingPaymentBookings();
     if (released) {
       console.log(`[booking] Released ${released} expired pending payment slot(s).`);
     }
