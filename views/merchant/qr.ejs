@@ -28,6 +28,9 @@
               <a href="<%= qr.qr_image_path %>" download="uniday-merchant-<%= qr.merchant_id %>-booking-qr.png" class="btn btn-primary btn-pill w-100 mb-2">
                 <i class="bi bi-download me-2"></i>Download Booking QR
               </a>
+              <button type="button" onclick="printQR()" class="btn btn-outline-secondary btn-pill w-100 mb-2">
+                <i class="bi bi-printer me-2"></i>Print Booking QR
+              </button>
               <div class="mt-3 p-2 rounded-xl text-start" style="background:var(--accent-light);">
                 <p style="font-size:.75rem;color:var(--accent);margin-bottom:.1rem;"><i class="bi bi-link-45deg me-1"></i>Booking URL</p>
                 <p style="font-size:.78rem;font-family:var(--font-mono);font-weight:600;color:var(--ink);margin-bottom:0;word-break:break-all;"><%= qr.qr_url %></p>
@@ -104,5 +107,23 @@
     </div>
   </div>
 </div>
+
+<% if (qr) { %>
+<div id="qr-print-area">
+  <p style="font-size:1.2rem;font-weight:700;margin-bottom:1rem;"><%= qr.merchant_name || 'Our Salon' %></p>
+  <img src="<%= qr.qr_image_path %>" style="width:280px;height:280px;" alt="Booking QR Code" />
+  <p style="margin-top:1rem;font-size:.875rem;">Scan to book an appointment</p>
+</div>
+<% } %>
+
+<script>
+function printQR() {
+  const area = document.getElementById('qr-print-area');
+  if (!area) return;
+  area.style.display = 'block';
+  window.print();
+  area.style.display = 'none';
+}
+</script>
 
 <%- include('../partials/footer') %>

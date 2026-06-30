@@ -85,7 +85,7 @@ function finishLogin(req, res, user, next) {
     return res.redirect('/admin/dashboard');
   }
 
-  res.redirect(next ? next : '/');
+  res.redirect(next || '/');
 }
 
 function showLogin(req, res) {

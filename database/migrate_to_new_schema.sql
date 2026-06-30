@@ -22,257 +22,257 @@ USE `SOI-2026-2610-0035-mizyana`;
 -- =============================================================
 
 CREATE TABLE IF NOT EXISTS users (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
-    full_name VARCHAR(100) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    phone VARCHAR(20) NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    role ENUM('customer', 'merchant', 'admin') NOT NULL,
-    status ENUM('active', 'suspended') DEFAULT 'active',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  user_id INT AUTO_INCREMENT PRIMARY KEY,
+  full_name VARCHAR(100) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  phone VARCHAR(20) NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('customer', 'merchant', 'admin') NOT NULL,
+  status ENUM('active', 'suspended') DEFAULT 'active',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS merchant (
-    merchant_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    merchant_name VARCHAR(150) NOT NULL,
-    email VARCHAR(150) UNIQUE,
-    description TEXT,
-    category VARCHAR(100),
-    address TEXT,
-    business_uen VARCHAR(20),
-    contact_no VARCHAR(20),
-    profile_image VARCHAR(255),
-    is_featured BOOLEAN DEFAULT FALSE,
-    is_active BOOLEAN DEFAULT TRUE,
-    verification_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
-    verification_notes TEXT NULL,
-    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    verified_at DATETIME NULL,
-    verified_by INT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (verified_by) REFERENCES users(user_id)
+  merchant_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  merchant_name VARCHAR(150) NOT NULL,
+  email VARCHAR(150) UNIQUE,
+  description TEXT,
+  category VARCHAR(100),
+  address TEXT,
+  business_uen VARCHAR(20),
+  contact_no VARCHAR(20),
+  profile_image VARCHAR(255),
+  is_featured BOOLEAN DEFAULT FALSE,
+  is_active BOOLEAN DEFAULT TRUE,
+  verification_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  verification_notes TEXT NULL,
+  submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  verified_at DATETIME NULL,
+  verified_by INT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id),
+  FOREIGN KEY (verified_by) REFERENCES users(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS service (
-    service_id INT AUTO_INCREMENT PRIMARY KEY,
-    merchant_id INT NOT NULL,
-    service_name VARCHAR(150) NOT NULL,
-    description TEXT,
-    category VARCHAR(100),
-    price DECIMAL(10,2) NOT NULL,
-    duration_mins INT NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
+  service_id INT AUTO_INCREMENT PRIMARY KEY,
+  merchant_id INT NOT NULL,
+  service_name VARCHAR(150) NOT NULL,
+  description TEXT,
+  category VARCHAR(100),
+  price DECIMAL(10,2) NOT NULL,
+  duration_mins INT NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS staff (
-    staff_id INT AUTO_INCREMENT PRIMARY KEY,
-    merchant_id INT NOT NULL,
-    full_name VARCHAR(100) NOT NULL,
-    role VARCHAR(100),
-    bio TEXT,
-    profile_image VARCHAR(255),
-    experience_years INT,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
+  staff_id INT AUTO_INCREMENT PRIMARY KEY,
+  merchant_id INT NOT NULL,
+  full_name VARCHAR(100) NOT NULL,
+  role VARCHAR(100),
+  bio TEXT,
+  profile_image VARCHAR(255),
+  experience_years INT,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS staff_service (
-    staff_service_id INT AUTO_INCREMENT PRIMARY KEY,
-    staff_id INT NOT NULL,
-    service_id INT NOT NULL,
-    UNIQUE (staff_id, service_id),
-    FOREIGN KEY (staff_id) REFERENCES staff(staff_id),
-    FOREIGN KEY (service_id) REFERENCES service(service_id)
+  staff_service_id INT AUTO_INCREMENT PRIMARY KEY,
+  staff_id INT NOT NULL,
+  service_id INT NOT NULL,
+  UNIQUE (staff_id, service_id),
+  FOREIGN KEY (staff_id) REFERENCES staff(staff_id),
+  FOREIGN KEY (service_id) REFERENCES service(service_id)
 );
 
 CREATE TABLE IF NOT EXISTS merchant_availability (
-    availability_id INT AUTO_INCREMENT PRIMARY KEY,
-    merchant_id INT NOT NULL,
-    day_of_week ENUM('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday') NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
+  availability_id INT AUTO_INCREMENT PRIMARY KEY,
+  merchant_id INT NOT NULL,
+  day_of_week ENUM('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday') NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS time_slot (
-    slot_id INT AUTO_INCREMENT PRIMARY KEY,
-    merchant_id INT NOT NULL,
-    service_id INT NOT NULL,
-    staff_id INT NULL,
-    slot_date DATE NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    is_available BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
-    FOREIGN KEY (service_id) REFERENCES service(service_id),
-    FOREIGN KEY (staff_id) REFERENCES staff(staff_id)
+  slot_id INT AUTO_INCREMENT PRIMARY KEY,
+  merchant_id INT NOT NULL,
+  service_id INT NOT NULL,
+  staff_id INT NULL,
+  slot_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  is_available BOOLEAN DEFAULT TRUE,
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
+  FOREIGN KEY (service_id) REFERENCES service(service_id),
+  FOREIGN KEY (staff_id) REFERENCES staff(staff_id)
 );
 
 CREATE TABLE IF NOT EXISTS cancellation_policy (
-    policy_id INT AUTO_INCREMENT PRIMARY KEY,
-    merchant_id INT NOT NULL UNIQUE,
-    min_cancel_hours INT NOT NULL DEFAULT 6,
-    refund_percentage DECIMAL(5,2) NOT NULL DEFAULT 100.00,
-    allow_reschedule BOOLEAN DEFAULT TRUE,
-    is_active BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
+  policy_id INT AUTO_INCREMENT PRIMARY KEY,
+  merchant_id INT NOT NULL UNIQUE,
+  min_cancel_hours INT NOT NULL DEFAULT 6,
+  refund_percentage DECIMAL(5,2) NOT NULL DEFAULT 100.00,
+  allow_reschedule BOOLEAN DEFAULT TRUE,
+  is_active BOOLEAN DEFAULT TRUE,
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS qr_code (
-    qr_id INT AUTO_INCREMENT PRIMARY KEY,
-    merchant_id INT NOT NULL,
-    qr_token VARCHAR(255) NOT NULL UNIQUE,
-    qr_url VARCHAR(255) NOT NULL,
-    qr_image_path VARCHAR(255),
-    qr_type ENUM('booking', 'check_in', 'general') DEFAULT 'general',
-    is_active BOOLEAN DEFAULT TRUE,
-    generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
+  qr_id INT AUTO_INCREMENT PRIMARY KEY,
+  merchant_id INT NOT NULL,
+  qr_token VARCHAR(255) NOT NULL UNIQUE,
+  qr_url VARCHAR(255) NOT NULL,
+  qr_image_path VARCHAR(255),
+  qr_type ENUM('booking', 'check_in', 'general') DEFAULT 'general',
+  is_active BOOLEAN DEFAULT TRUE,
+  generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS voucher (
-    voucher_id INT AUTO_INCREMENT PRIMARY KEY,
-    merchant_id INT NULL,
-    voucher_code VARCHAR(50) NOT NULL UNIQUE,
-    voucher_type ENUM('merchant', 'platform') NOT NULL,
-    campaign_name VARCHAR(150),
-    discount_type ENUM('percent', 'fixed_amount') NOT NULL,
-    discount_value DECIMAL(10,2) NOT NULL,
-    min_spend DECIMAL(10,2),
-    usage_limit INT,
-    usage_per_customer INT,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
+  voucher_id INT AUTO_INCREMENT PRIMARY KEY,
+  merchant_id INT NULL,
+  voucher_code VARCHAR(50) NOT NULL UNIQUE,
+  voucher_type ENUM('merchant', 'platform') NOT NULL,
+  campaign_name VARCHAR(150),
+  discount_type ENUM('percent', 'fixed_amount') NOT NULL,
+  discount_value DECIMAL(10,2) NOT NULL,
+  min_spend DECIMAL(10,2),
+  usage_limit INT,
+  usage_per_customer INT,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS promotion (
-    promo_id INT AUTO_INCREMENT PRIMARY KEY,
-    merchant_id INT NOT NULL,
-    voucher_id INT NULL,
-    title VARCHAR(150) NOT NULL,
-    description TEXT,
-    image_path VARCHAR(255),
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
-    FOREIGN KEY (voucher_id) REFERENCES voucher(voucher_id)
+  promo_id INT AUTO_INCREMENT PRIMARY KEY,
+  merchant_id INT NOT NULL,
+  voucher_id INT NULL,
+  title VARCHAR(150) NOT NULL,
+  description TEXT,
+  image_path VARCHAR(255),
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
+  FOREIGN KEY (voucher_id) REFERENCES voucher(voucher_id)
 );
 
 CREATE TABLE IF NOT EXISTS featured_listing (
-    listing_id INT AUTO_INCREMENT PRIMARY KEY,
-    merchant_id INT NOT NULL,
-    promo_id INT NULL,
-    title VARCHAR(150) NOT NULL,
-    description TEXT,
-    image_path VARCHAR(255),
-    display_order INT DEFAULT 0,
-    is_visible BOOLEAN DEFAULT TRUE,
-    start_date DATE,
-    end_date DATE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
-    FOREIGN KEY (promo_id) REFERENCES promotion(promo_id)
+  listing_id INT AUTO_INCREMENT PRIMARY KEY,
+  merchant_id INT NOT NULL,
+  promo_id INT NULL,
+  title VARCHAR(150) NOT NULL,
+  description TEXT,
+  image_path VARCHAR(255),
+  display_order INT DEFAULT 0,
+  is_visible BOOLEAN DEFAULT TRUE,
+  start_date DATE,
+  end_date DATE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
+  FOREIGN KEY (promo_id) REFERENCES promotion(promo_id)
 );
 
 CREATE TABLE IF NOT EXISTS booking (
-    booking_id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT NULL,
-    guest_name VARCHAR(150) NULL,
-    guest_email VARCHAR(150) NULL,
-    guest_phone VARCHAR(30) NULL,
-    merchant_id INT NOT NULL,
-    service_id INT NOT NULL,
-    staff_id INT NULL,
-    slot_id INT NOT NULL UNIQUE,
-    voucher_id INT NULL,
-    original_booking_id INT NULL,
-    booking_type ENUM('advance', 'walk_in') DEFAULT 'advance',
-    source ENUM('web', 'qr', 'whatsapp') DEFAULT 'web',
-    status ENUM('pending_payment', 'confirmed', 'rescheduled', 'arrived', 'completed', 'cancelled', 'payment_failed', 'no_show') DEFAULT 'pending_payment',
-    checked_in_at DATETIME NULL,
-    arrival_method ENUM('qr', 'manual', 'whatsapp') NULL,
-    notes TEXT NULL,
-    total_amount DECIMAL(10,2) NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES users(user_id),
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
-    FOREIGN KEY (service_id) REFERENCES service(service_id),
-    FOREIGN KEY (staff_id) REFERENCES staff(staff_id),
-    FOREIGN KEY (slot_id) REFERENCES time_slot(slot_id),
-    FOREIGN KEY (voucher_id) REFERENCES voucher(voucher_id),
-    FOREIGN KEY (original_booking_id) REFERENCES booking(booking_id)
+  booking_id INT AUTO_INCREMENT PRIMARY KEY,
+  customer_id INT NULL,
+  guest_name VARCHAR(150) NULL,
+  guest_email VARCHAR(150) NULL,
+  guest_phone VARCHAR(30) NULL,
+  merchant_id INT NOT NULL,
+  service_id INT NOT NULL,
+  staff_id INT NULL,
+  slot_id INT NOT NULL UNIQUE,
+  voucher_id INT NULL,
+  original_booking_id INT NULL,
+  booking_type ENUM('advance', 'walk_in') DEFAULT 'advance',
+  source ENUM('web', 'qr', 'whatsapp') DEFAULT 'web',
+  status ENUM('pending_payment', 'confirmed', 'rescheduled', 'arrived', 'completed', 'cancelled', 'payment_failed', 'no_show') DEFAULT 'pending_payment',
+  checked_in_at DATETIME NULL,
+  arrival_method ENUM('qr', 'manual', 'whatsapp') NULL,
+  notes TEXT NULL,
+  total_amount DECIMAL(10,2) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (customer_id) REFERENCES users(user_id),
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
+  FOREIGN KEY (service_id) REFERENCES service(service_id),
+  FOREIGN KEY (staff_id) REFERENCES staff(staff_id),
+  FOREIGN KEY (slot_id) REFERENCES time_slot(slot_id),
+  FOREIGN KEY (voucher_id) REFERENCES voucher(voucher_id),
+  FOREIGN KEY (original_booking_id) REFERENCES booking(booking_id)
 );
 
 CREATE TABLE IF NOT EXISTS payment (
-    payment_id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id INT NOT NULL UNIQUE,
-    amount DECIMAL(10,2) NOT NULL,
-    currency VARCHAR(3) NOT NULL DEFAULT 'sgd',
-    payment_method ENUM('stripe', 'paypal', 'paynow', 'cash', 'wallet') NOT NULL,
-    payment_status ENUM('pending', 'paid', 'failed', 'refunded', 'partially_refunded') DEFAULT 'pending',
-    transaction_ref VARCHAR(255),
-    payment_ref VARCHAR(255),
-    stripe_payment_intent_id VARCHAR(255),
-    stripe_checkout_session_id VARCHAR(255),
-    stripe_latest_charge_id VARCHAR(255),
-    stripe_balance_transaction_id VARCHAR(255),
-    stripe_status VARCHAR(64),
-    receipt_url VARCHAR(512),
-    platform_hold_status ENUM('held', 'released_to_merchant', 'refunded') DEFAULT 'held',
-    merchant_payout_status ENUM('pending', 'paid', 'failed') DEFAULT 'pending',
-    merchant_payout_at DATETIME NULL,
-    refund_amount DECIMAL(10,2),
-    refund_status ENUM('none', 'pending', 'refunded', 'failed') DEFAULT 'none',
-    paid_at DATETIME,
-    refunded_at DATETIME,
-    FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
+  payment_id INT AUTO_INCREMENT PRIMARY KEY,
+  booking_id INT NOT NULL UNIQUE,
+  amount DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(3) NOT NULL DEFAULT 'sgd',
+  payment_method ENUM('stripe', 'paypal', 'paynow', 'cash', 'wallet') NOT NULL,
+  payment_status ENUM('pending', 'paid', 'failed', 'refunded', 'partially_refunded') DEFAULT 'pending',
+  transaction_ref VARCHAR(255),
+  payment_ref VARCHAR(255),
+  stripe_payment_intent_id VARCHAR(255),
+  stripe_checkout_session_id VARCHAR(255),
+  stripe_latest_charge_id VARCHAR(255),
+  stripe_balance_transaction_id VARCHAR(255),
+  stripe_status VARCHAR(64),
+  receipt_url VARCHAR(512),
+  platform_hold_status ENUM('held', 'released_to_merchant', 'refunded') DEFAULT 'held',
+  merchant_payout_status ENUM('pending', 'paid', 'failed') DEFAULT 'pending',
+  merchant_payout_at DATETIME NULL,
+  refund_amount DECIMAL(10,2),
+  refund_status ENUM('none', 'pending', 'refunded', 'failed') DEFAULT 'none',
+  paid_at DATETIME,
+  refunded_at DATETIME,
+  FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
 );
 
 CREATE TABLE IF NOT EXISTS voucher_redemption (
-    redemption_id INT AUTO_INCREMENT PRIMARY KEY,
-    voucher_id INT NOT NULL,
-    customer_id INT NOT NULL,
-    booking_id INT NOT NULL UNIQUE,
-    discount_amount DECIMAL(10,2) NOT NULL,
-    redeemed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (voucher_id) REFERENCES voucher(voucher_id),
-    FOREIGN KEY (customer_id) REFERENCES users(user_id),
-    FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
+  redemption_id INT AUTO_INCREMENT PRIMARY KEY,
+  voucher_id INT NOT NULL,
+  customer_id INT NOT NULL,
+  booking_id INT NOT NULL UNIQUE,
+  discount_amount DECIMAL(10,2) NOT NULL,
+  redeemed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (voucher_id) REFERENCES voucher(voucher_id),
+  FOREIGN KEY (customer_id) REFERENCES users(user_id),
+  FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
 );
 
 CREATE TABLE IF NOT EXISTS loyalty_wallet (
-    wallet_id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT NOT NULL UNIQUE,
-    points_balance INT DEFAULT 0,
-    cashback_balance DECIMAL(10,2) DEFAULT 0.00,
-    lifetime_points_earned INT DEFAULT 0,
-    lifetime_points_redeemed INT DEFAULT 0,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES users(user_id)
+  wallet_id INT AUTO_INCREMENT PRIMARY KEY,
+  customer_id INT NOT NULL UNIQUE,
+  points_balance INT DEFAULT 0,
+  cashback_balance DECIMAL(10,2) DEFAULT 0.00,
+  lifetime_points_earned INT DEFAULT 0,
+  lifetime_points_redeemed INT DEFAULT 0,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (customer_id) REFERENCES users(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS loyalty_reward (
-    reward_id INT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(150) NOT NULL,
-    description TEXT,
-    points_cost INT NOT NULL,
-    min_tier ENUM('Bronze','Silver','Gold','Platinum') NOT NULL DEFAULT 'Bronze',
-    value_label VARCHAR(50),
-    discount_type ENUM('percent','fixed_amount') NOT NULL,
-    discount_value DECIMAL(10,2) NOT NULL,
-    min_spend DECIMAL(10,2) NULL,
-    validity_months INT NOT NULL DEFAULT 3,
-    is_active BOOLEAN DEFAULT TRUE,
-    display_order INT DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  reward_id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(150) NOT NULL,
+  description TEXT,
+  points_cost INT NOT NULL,
+  min_tier ENUM('Bronze','Silver','Gold','Platinum') NOT NULL DEFAULT 'Bronze',
+  value_label VARCHAR(50),
+  discount_type ENUM('percent','fixed_amount') NOT NULL,
+  discount_value DECIMAL(10,2) NOT NULL,
+  min_spend DECIMAL(10,2) NULL,
+  validity_months INT NOT NULL DEFAULT 3,
+  is_active BOOLEAN DEFAULT TRUE,
+  display_order INT DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 INSERT INTO loyalty_reward
@@ -326,142 +326,142 @@ WHERE NOT EXISTS (
 );
 
 CREATE TABLE IF NOT EXISTS loyalty_transaction (
-    loyalty_transaction_id INT AUTO_INCREMENT PRIMARY KEY,
-    wallet_id INT NOT NULL,
-    booking_id INT NULL,
-    transaction_type ENUM('earn_points', 'redeem_points', 'earn_cashback', 'use_cashback', 'refund_cashback') NOT NULL,
-    points_amount INT,
-    cashback_amount DECIMAL(10,2),
-    description VARCHAR(255),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_loyalty_booking_transaction (booking_id, transaction_type),
-    FOREIGN KEY (wallet_id) REFERENCES loyalty_wallet(wallet_id),
-    FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
+  loyalty_transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+  wallet_id INT NOT NULL,
+  booking_id INT NULL,
+  transaction_type ENUM('earn_points', 'redeem_points', 'earn_cashback', 'use_cashback', 'refund_cashback') NOT NULL,
+  points_amount INT,
+  cashback_amount DECIMAL(10,2),
+  description VARCHAR(255),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_loyalty_booking_transaction (booking_id, transaction_type),
+  FOREIGN KEY (wallet_id) REFERENCES loyalty_wallet(wallet_id),
+  FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
 );
 
 CREATE TABLE IF NOT EXISTS notification (
-    notification_id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id INT NOT NULL,
-    user_id INT NOT NULL,
-    merchant_id INT NOT NULL,
-    notification_type ENUM('confirmation', 'reminder_24h', 'cancellation', 'reschedule', 'payment_receipt') NOT NULL,
-    channel ENUM('email', 'whatsapp') NOT NULL,
-    message TEXT NOT NULL,
-    status ENUM('pending', 'sent', 'failed') DEFAULT 'pending',
-    scheduled_at DATETIME,
-    sent_at DATETIME,
-    FOREIGN KEY (booking_id) REFERENCES booking(booking_id),
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
+  notification_id INT AUTO_INCREMENT PRIMARY KEY,
+  booking_id INT NOT NULL,
+  user_id INT NOT NULL,
+  merchant_id INT NOT NULL,
+  notification_type ENUM('confirmation', 'reminder_24h', 'cancellation', 'reschedule', 'payment_receipt') NOT NULL,
+  channel ENUM('email', 'whatsapp') NOT NULL,
+  message TEXT NOT NULL,
+  status ENUM('pending', 'sent', 'failed') DEFAULT 'pending',
+  scheduled_at DATETIME,
+  sent_at DATETIME,
+  FOREIGN KEY (booking_id) REFERENCES booking(booking_id),
+  FOREIGN KEY (user_id) REFERENCES users(user_id),
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS whatsapp_session (
-    session_id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT NULL,
-    phone VARCHAR(20) NOT NULL,
-    merchant_id INT NULL,
-    session_state VARCHAR(100),
-    temp_data JSON,
-    status ENUM('active', 'completed', 'abandoned') DEFAULT 'active',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES users(user_id),
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
+  session_id INT AUTO_INCREMENT PRIMARY KEY,
+  customer_id INT NULL,
+  phone VARCHAR(20) NOT NULL,
+  merchant_id INT NULL,
+  session_state VARCHAR(100),
+  temp_data JSON,
+  status ENUM('active', 'completed', 'abandoned') DEFAULT 'active',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (customer_id) REFERENCES users(user_id),
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS whatsapp_message (
-    message_id INT AUTO_INCREMENT PRIMARY KEY,
-    session_id INT NOT NULL,
-    booking_id INT NULL,
-    direction ENUM('inbound', 'outbound') NOT NULL,
-    message_type ENUM('enquiry', 'booking', 'confirmation', 'reminder', 'cancellation', 'reschedule') NOT NULL,
-    message_content TEXT NOT NULL,
-    status ENUM('sent', 'received', 'failed') DEFAULT 'sent',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (session_id) REFERENCES whatsapp_session(session_id),
-    FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
+  message_id INT AUTO_INCREMENT PRIMARY KEY,
+  session_id INT NOT NULL,
+  booking_id INT NULL,
+  direction ENUM('inbound', 'outbound') NOT NULL,
+  message_type ENUM('enquiry', 'booking', 'confirmation', 'reminder', 'cancellation', 'reschedule') NOT NULL,
+  message_content TEXT NOT NULL,
+  status ENUM('sent', 'received', 'failed') DEFAULT 'sent',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (session_id) REFERENCES whatsapp_session(session_id),
+  FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
 );
 
 CREATE TABLE IF NOT EXISTS validation_log (
-    log_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NULL,
-    booking_id INT NULL,
-    module VARCHAR(100) NOT NULL,
-    error_type VARCHAR(100) NOT NULL,
-    error_message TEXT NOT NULL,
-    is_resolved BOOLEAN DEFAULT FALSE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
+  log_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NULL,
+  booking_id INT NULL,
+  module VARCHAR(100) NOT NULL,
+  error_type VARCHAR(100) NOT NULL,
+  error_message TEXT NOT NULL,
+  is_resolved BOOLEAN DEFAULT FALSE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id),
+  FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
 );
 
 CREATE TABLE IF NOT EXISTS admin_action_log (
-    admin_log_id INT AUTO_INCREMENT PRIMARY KEY,
-    admin_id INT NOT NULL,
-    action_type VARCHAR(100) NOT NULL,
-    target_table VARCHAR(100),
-    target_id INT,
-    description TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (admin_id) REFERENCES users(user_id)
+  admin_log_id INT AUTO_INCREMENT PRIMARY KEY,
+  admin_id INT NOT NULL,
+  action_type VARCHAR(100) NOT NULL,
+  target_table VARCHAR(100),
+  target_id INT,
+  description TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (admin_id) REFERENCES users(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS favourite (
-    favourite_id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT NOT NULL,
-    merchant_id INT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (customer_id, merchant_id),
-    FOREIGN KEY (customer_id) REFERENCES users(user_id),
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
+  favourite_id INT AUTO_INCREMENT PRIMARY KEY,
+  customer_id INT NOT NULL,
+  merchant_id INT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (customer_id, merchant_id),
+  FOREIGN KEY (customer_id) REFERENCES users(user_id),
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS merchant_review (
-    review_id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id INT NOT NULL UNIQUE,
-    customer_id INT NOT NULL,
-    merchant_id INT NOT NULL,
-    service_id INT NOT NULL,
-    staff_id INT NULL,
-    rating INT NOT NULL,
-    review_text TEXT NULL,
-    merchant_reply TEXT NULL,
-    merchant_replied_at DATETIME NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (booking_id) REFERENCES booking(booking_id),
-    FOREIGN KEY (customer_id) REFERENCES users(user_id),
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
-    FOREIGN KEY (service_id) REFERENCES service(service_id),
-    FOREIGN KEY (staff_id) REFERENCES staff(staff_id),
-    CHECK (rating BETWEEN 1 AND 5)
+  review_id INT AUTO_INCREMENT PRIMARY KEY,
+  booking_id INT NOT NULL UNIQUE,
+  customer_id INT NOT NULL,
+  merchant_id INT NOT NULL,
+  service_id INT NOT NULL,
+  staff_id INT NULL,
+  rating INT NOT NULL,
+  review_text TEXT NULL,
+  merchant_reply TEXT NULL,
+  merchant_replied_at DATETIME NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (booking_id) REFERENCES booking(booking_id),
+  FOREIGN KEY (customer_id) REFERENCES users(user_id),
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
+  FOREIGN KEY (service_id) REFERENCES service(service_id),
+  FOREIGN KEY (staff_id) REFERENCES staff(staff_id),
+  CHECK (rating BETWEEN 1 AND 5)
 );
 
 CREATE TABLE IF NOT EXISTS platform_feedback (
-    feedback_id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id INT NULL UNIQUE,
-    customer_id INT NOT NULL,
-    rating INT NOT NULL,
-    feedback_type ENUM('booking_experience', 'payment', 'qr_checkin', 'whatsapp', 'general') DEFAULT 'general',
-    feedback_text TEXT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (booking_id) REFERENCES booking(booking_id),
-    FOREIGN KEY (customer_id) REFERENCES users(user_id),
-    CHECK (rating BETWEEN 1 AND 5)
+  feedback_id INT AUTO_INCREMENT PRIMARY KEY,
+  booking_id INT NULL UNIQUE,
+  customer_id INT NOT NULL,
+  rating INT NOT NULL,
+  feedback_type ENUM('booking_experience', 'payment', 'qr_checkin', 'whatsapp', 'general') DEFAULT 'general',
+  feedback_text TEXT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (booking_id) REFERENCES booking(booking_id),
+  FOREIGN KEY (customer_id) REFERENCES users(user_id),
+  CHECK (rating BETWEEN 1 AND 5)
 );
 
 CREATE TABLE IF NOT EXISTS customer_activity (
-    activity_id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT NOT NULL,
-    merchant_id INT NULL,
-    service_id INT NULL,
-    promo_id INT NULL,
-    activity_type ENUM('view_merchant','view_service','search','favourite','click_promo','booking') NOT NULL,
-    activity_value VARCHAR(255) NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES users(user_id),
-    FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
-    FOREIGN KEY (service_id) REFERENCES service(service_id),
-    FOREIGN KEY (promo_id) REFERENCES promotion(promo_id)
+  activity_id INT AUTO_INCREMENT PRIMARY KEY,
+  customer_id INT NOT NULL,
+  merchant_id INT NULL,
+  service_id INT NULL,
+  promo_id INT NULL,
+  activity_type ENUM('view_merchant','view_service','search','favourite','click_promo','booking') NOT NULL,
+  activity_value VARCHAR(255) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (customer_id) REFERENCES users(user_id),
+  FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id),
+  FOREIGN KEY (service_id) REFERENCES service(service_id),
+  FOREIGN KEY (promo_id) REFERENCES promotion(promo_id)
 );
 
 -- =============================================================

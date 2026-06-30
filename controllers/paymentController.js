@@ -838,4 +838,3 @@ module.exports = {
   downloadReceipt,
   applyVoucher,
 };
-

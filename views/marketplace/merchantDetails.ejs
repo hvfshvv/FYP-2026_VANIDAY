@@ -49,6 +49,10 @@
 
 <div class="section" style="padding-top:2.5rem;padding-bottom:2rem;border-bottom:1px solid var(--border);">
   <div class="container">
+    <a href="/marketplace" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
+      <i class="bi bi-arrow-left me-1"></i>Back to Marketplace
+    </a>
+
     <p class="section-label">Merchant</p>
 
     <h1 style="font-size:2rem;font-weight:800;color:var(--ink);margin-bottom:.25rem;">
@@ -63,47 +67,127 @@
 
 <div class="container" style="padding-top:2.5rem;padding-bottom:4rem;">
 
-  <p>
-    <strong>Category:</strong>
-    <%= merchant.service_categories || merchant.category || 'General' %>
-  </p>
-  <p>
-    <strong>Rating:</strong>
-    <% if (reviewCount) { %>
-      <span style="color:#f59e0b;">
-        <% [1,2,3,4,5].forEach(i => { %><i class="bi <%= starIcon(i) %>"></i><% }) %>
-      </span>
-      <%= averageRating.toFixed(1) %>/5 (<%= reviewCount %> review<%= reviewCount === 1 ? '' : 's' %>)
-    <% } else { %>
-      New merchant
-    <% } %>
-  </p>
+  <div class="row g-4 mb-4">
+    <div class="col-lg-4">
+      <% if (merchant.image_path) { %>
+        <img src="<%= merchant.image_path %>" class="w-100 rounded-xl" style="height:260px;object-fit:cover;" alt="<%= merchant.merchant_name %>" />
+      <% } else { %>
+        <div class="rounded-xl d-flex align-items-center justify-content-center" style="height:260px;background:var(--accent-light);">
+          <i class="bi bi-shop" style="font-size:3rem;color:var(--accent);"></i>
+        </div>
+      <% } %>
+    </div>
+    <div class="col-lg-8">
+      <div class="card border-0 p-4 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
 
-  <p>
-    <strong>Address:</strong>
-    <%= merchant.address || 'Singapore' %>
-  </p>
+        <!-- Rating -->
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <% if (reviewCount) { %>
+            <span style="color:#f59e0b;">
+              <% [1,2,3,4,5].forEach(i => { %><i class="bi <%= starIcon(i) %>"></i><% }) %>
+            </span>
+            <span style="font-weight:700;color:var(--ink);">
+              <%= averageRating.toFixed(1) %>
+            </span>
+            <span style="color:var(--muted);font-size:.875rem;">
+              (<%= reviewCount %> review<%= reviewCount === 1 ? '' : 's' %>)
+            </span>
+          <% } else { %>
+            <span class="badge" style="background:var(--accent-light);color:var(--accent);font-size:.8rem;font-weight:700;">New merchant</span>
+          <% } %>
+          <span class="badge ms-1" style="background:var(--accent-light);color:var(--accent);font-size:.78rem;">
+            <%= merchant.service_categories || merchant.category || 'General' %>
+          </span>
+        </div>
 
-  <div style="margin-bottom:1rem;">
-    <strong>Operating Hours:</strong>
-    <div style="color:var(--muted);margin-top:.25rem;">
-      <% operatingHoursLines(merchant).forEach(line => { %>
-        <div><i class="bi bi-clock me-1"></i><%= line %></div>
-      <% }) %>
+        <!-- Info rows -->
+        <div class="d-flex flex-column gap-2" style="font-size:.9rem;">
+          <div class="d-flex gap-2 align-items-start">
+            <i class="bi bi-geo-alt-fill flex-shrink-0 mt-1" style="color:var(--accent);"></i>
+            <span style="color:var(--ink);"><%= merchant.address || 'Singapore' %></span>
+          </div>
+          <div class="d-flex gap-2 align-items-start">
+            <i class="bi bi-telephone-fill flex-shrink-0 mt-1" style="color:var(--accent);"></i>
+            <span style="color:var(--ink);"><%= merchant.contact_no || 'Not provided' %></span>
+          </div>
+          <div class="d-flex gap-2 align-items-start">
+            <i class="bi bi-clock-fill flex-shrink-0 mt-1" style="color:var(--accent);"></i>
+            <div>
+              <% operatingHoursLines(merchant).forEach(line => { %>
+                <div style="color:var(--ink);"><%= line %></div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+
+        <% if (typeof cancellationPolicySummary !== 'undefined' && cancellationPolicySummary) { %>
+        <div class="rounded-xl p-3 mt-3" style="background:var(--accent-light);border:1px solid rgba(225,29,72,.12);">
+          <p class="section-label mb-1" style="font-size:.72rem;">Cancellation Policy</p>
+          <p style="color:var(--ink);font-weight:700;margin:0;font-size:.875rem;">
+            <i class="bi bi-hourglass-split me-2" style="color:var(--accent);"></i><%= cancellationPolicySummary %>
+          </p>
+        </div>
+        <% } %>
+
+      </div>
     </div>
   </div>
 
-  <p>
-    <strong>Contact:</strong>
-    <%= merchant.contact_no || 'Not provided' %>
-  </p>
-
-  <% if (typeof cancellationPolicySummary !== 'undefined' && cancellationPolicySummary) { %>
-  <div class="rounded-xl p-3 mt-4" style="background:var(--accent-light);border:1px solid rgba(225,29,72,.12);">
-    <p class="section-label mb-2">Cancellation Policy</p>
-    <p style="color:var(--ink);font-weight:700;margin:0;">
-      <i class="bi bi-hourglass-split me-2" style="color:var(--accent);"></i><%= cancellationPolicySummary %>
-    </p>
+  <% if (typeof merchantPromotions !== 'undefined' && merchantPromotions && merchantPromotions.length > 0) { %>
+  <%
+    const promoDay = value => {
+      if (!value) return 'Every day';
+      const vals = String(value).split(',').filter(Boolean);
+      if (!vals.length || vals.length === 7) return 'Every day';
+      if (vals.join(',') === 'sat,sun') return 'Weekends only';
+      if (vals.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
+      const names = { mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',sun:'Sun' };
+      return vals.map(d => names[d] || d).join(', ');
+    };
+  %>
+  <hr style="margin:0 0 2rem;">
+  <div class="section-header mb-3">
+    <div>
+      <p class="section-label">Current deals</p>
+      <h2 class="section-title">Active Promotions</h2>
+      <p class="section-sub">These merchant deals apply automatically when you book.</p>
+    </div>
+  </div>
+  <div style="position:relative;">
+    <button class="promo-carousel-nav promo-carousel-prev" onclick="shiftCarousel('promo-carousel-merchant',-1)" aria-label="Previous">
+      <i class="bi bi-chevron-left"></i>
+    </button>
+    <div class="promo-carousel" id="promo-carousel-merchant">
+      <% merchantPromotions.forEach(promo => { %>
+      <div class="promo-carousel-item">
+        <div class="promo-card h-100">
+          <% if (promo.image_path) { %>
+          <div class="promo-img-wrap"><img src="<%= promo.image_path %>" alt="<%= promo.title %>"/></div>
+          <% } %>
+          <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+            <div class="flex-grow-1">
+              <p class="promo-title mb-0"><%= promo.title %></p>
+              <% if (promo.service_name) { %>
+              <p class="small mb-0" style="color:var(--accent);font-weight:600;"><i class="bi bi-scissors me-1"></i><%= promo.service_name %></p>
+              <% } else { %>
+              <p class="small mb-0" style="color:var(--muted);">All services</p>
+              <% } %>
+            </div>
+            <div class="promo-discount flex-shrink-0"><%= Number(promo.discount_pct || 0).toFixed(0) %>%<br/><span style="font-size:.7rem;font-weight:700;">off</span></div>
+          </div>
+          <% if (promo.description) { %><p class="small text-muted mb-2 mt-1"><%= promo.description %></p><% } %>
+          <% if (promo.min_spend) { %>
+          <p class="small mb-1" style="color:var(--muted);"><i class="bi bi-wallet me-1"></i>Min. spend S$<%= Number(promo.min_spend).toFixed(2) %></p>
+          <% } %>
+          <p class="promo-date mt-auto mb-1"><i class="bi bi-calendar3 me-1"></i>Until <%= new Date(promo.end_date).toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'}) %></p>
+          <p class="promo-date mb-0"><i class="bi bi-calendar-week me-1"></i><%= promoDay(promo.applicable_days) %></p>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <button class="promo-carousel-nav promo-carousel-next" onclick="shiftCarousel('promo-carousel-merchant',1)" aria-label="Next">
+      <i class="bi bi-chevron-right"></i>
+    </button>
   </div>
   <% } %>
 
@@ -343,70 +427,6 @@
     </div>
   <% } %>
 
-  <div style="margin-top:2.5rem;">
-    <a href="/marketplace">
-      ← Back to Marketplace
-    </a>
-  </div>
-
-  <% if (typeof merchantPromotions !== 'undefined' && merchantPromotions && merchantPromotions.length > 0) { %>
-  <%
-    const promoDay = value => {
-      if (!value) return 'Every day';
-      const vals = String(value).split(',').filter(Boolean);
-      if (!vals.length || vals.length === 7) return 'Every day';
-      if (vals.join(',') === 'sat,sun') return 'Weekends only';
-      if (vals.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
-      const names = { mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',sun:'Sun' };
-      return vals.map(d => names[d] || d).join(', ');
-    };
-  %>
-  <hr style="margin:2.5rem 0;">
-  <div class="section-header mb-3">
-    <div>
-      <p class="section-label">Current deals</p>
-      <h2 class="section-title">Current Deals</h2>
-      <p class="section-sub">These merchant deals apply automatically when you book.</p>
-    </div>
-  </div>
-
-  <div style="position:relative;">
-    <button class="promo-carousel-nav promo-carousel-prev" onclick="shiftCarousel('promo-carousel-merchant',-1)" aria-label="Previous">
-      <i class="bi bi-chevron-left"></i>
-    </button>
-    <div class="promo-carousel" id="promo-carousel-merchant">
-      <% merchantPromotions.forEach(promo => { %>
-      <div class="promo-carousel-item">
-        <div class="promo-card h-100">
-          <% if (promo.image_path) { %>
-          <div class="promo-img-wrap"><img src="<%= promo.image_path %>" alt="<%= promo.title %>"/></div>
-          <% } %>
-          <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
-            <div class="flex-grow-1">
-              <p class="promo-title mb-0"><%= promo.title %></p>
-              <% if (promo.service_name) { %>
-              <p class="small mb-0" style="color:var(--accent);font-weight:600;"><i class="bi bi-scissors me-1"></i><%= promo.service_name %></p>
-              <% } else { %>
-              <p class="small mb-0" style="color:var(--muted);">All services</p>
-              <% } %>
-            </div>
-            <div class="promo-discount flex-shrink-0"><%= Number(promo.discount_pct || 0).toFixed(0) %>%<br/><span style="font-size:.7rem;font-weight:700;">off</span></div>
-          </div>
-          <% if (promo.description) { %><p class="small text-muted mb-2 mt-1"><%= promo.description %></p><% } %>
-          <% if (promo.min_spend) { %>
-          <p class="small mb-1" style="color:var(--muted);"><i class="bi bi-wallet me-1"></i>Min. spend S$<%= Number(promo.min_spend).toFixed(2) %></p>
-          <% } %>
-          <p class="promo-date mt-auto mb-1"><i class="bi bi-calendar3 me-1"></i>Until <%= new Date(promo.end_date).toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'}) %></p>
-          <p class="promo-date mb-0"><i class="bi bi-calendar-week me-1"></i><%= promoDay(promo.applicable_days) %></p>
-        </div>
-      </div>
-      <% }) %>
-    </div>
-    <button class="promo-carousel-nav promo-carousel-next" onclick="shiftCarousel('promo-carousel-merchant',1)" aria-label="Next">
-      <i class="bi bi-chevron-right"></i>
-    </button>
-  </div>
-  <% } %>
 
 </div>
 
