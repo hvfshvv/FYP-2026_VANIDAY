@@ -51,9 +51,9 @@ async function getTopRevenueService(merchantId, selectedPeriod) {
 // Highlights the staff member delivering the most completed work this month.
 async function getTopPerformingStaffThisMonth(merchantId, periodStart) {
   const [rows] = await db.query(
-     `SELECT st.staff_id, st.full_name, st.role,
-            COUNT(DISTINCT CASE WHEN b.status = 'completed' THEN b.booking_id END) AS completed_bookings,
-            COALESCE(SUM(CASE WHEN b.status = 'completed' AND p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS revenue
+    `SELECT st.staff_id, st.full_name, st.role,
+           COUNT(DISTINCT CASE WHEN b.status = 'completed' THEN b.booking_id END) AS completed_bookings,
+           COALESCE(SUM(CASE WHEN b.status = 'completed' AND p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS revenue
      FROM staff st
      JOIN booking b ON b.staff_id = st.staff_id
      JOIN time_slot ts ON ts.slot_id = b.slot_id

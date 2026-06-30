@@ -38,7 +38,6 @@ function resolveTier(lifetimeSpend) {
   };
 }
 
-// Adds locked/unlocked fields so the view knows which reward buttons to enable.
 async function ensureLoyaltyRewardSchema(connection = db) {
   if (loyaltyRewardSchemaReady) return;
 
