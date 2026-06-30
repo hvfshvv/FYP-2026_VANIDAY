@@ -1,4 +1,4 @@
-const bookingModel = require('../models/bookingModel');
+const bookingNotificationModel = require('../models/bookingNotificationModel');
 const emailService = require('./emailService');
 
 let running = false;
@@ -11,12 +11,12 @@ async function sendDueBookingEmailReminders() {
   let failed = 0;
 
   try {
-    const bookings = await bookingModel.getBookingsNeedingEmailReminders();
+    const bookings = await bookingNotificationModel.getBookingsNeedingEmailReminders();
 
     for (const booking of bookings) {
       try {
         const result = await emailService.sendBookingReminderEmail(booking);
-        await bookingModel.recordEmailNotification(
+        await bookingNotificationModel.recordEmailNotification(
           booking,
           'reminder_24h',
           `24-hour reminder email for booking #${booking.booking_id}`,
@@ -28,7 +28,7 @@ async function sendDueBookingEmailReminders() {
       } catch (err) {
         failed += 1;
         console.error('booking reminder email failed:', err);
-        await bookingModel.recordEmailNotification(
+        await bookingNotificationModel.recordEmailNotification(
           booking,
           'reminder_24h',
           `24-hour reminder email failed for booking #${booking.booking_id}`,
