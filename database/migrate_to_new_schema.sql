@@ -225,6 +225,7 @@ CREATE TABLE IF NOT EXISTS payment (
   stripe_latest_charge_id VARCHAR(255),
   stripe_balance_transaction_id VARCHAR(255),
   stripe_status VARCHAR(64),
+  payment_hold_expires_at DATETIME,
   receipt_url VARCHAR(512),
   platform_hold_status ENUM('held', 'released_to_merchant', 'refunded') DEFAULT 'held',
   merchant_payout_status ENUM('pending', 'paid', 'failed') DEFAULT 'pending',

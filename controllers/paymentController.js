@@ -19,6 +19,15 @@ const cancellationPolicyModel = require('../models/cancellationPolicyModel');
 const whatsappNotificationService = require('../services/whatsappNotificationService');
 const notificationModel = require('../models/notificationModel');
 
+const MIN_STRIPE_CHECKOUT_HOLD_MINUTES = 31;
+
+function getRedirectPaymentHoldMinutes() {
+  const configured = Number(process.env.REDIRECT_PAYMENT_HOLD_MINUTES);
+  return Number.isFinite(configured) && configured >= MIN_STRIPE_CHECKOUT_HOLD_MINUTES
+    ? Math.ceil(configured)
+    : MIN_STRIPE_CHECKOUT_HOLD_MINUTES;
+}
+
 function hasGuestBookingAccess(req, bookingId) {
   // Allow guests to pay only for bookings created in their session.
   return Array.isArray(req.session.guestBookingIds)
@@ -463,6 +472,31 @@ function extractStripePaymentDetails(intent) {
   };
 }
 
+async function rejectLatePaidPaymentIfReleased(bookingId, details, context) {
+  if (details.paymentStatus !== 'paid') return false;
+
+  await bookingNotificationModel.expirePendingPaymentBookings();
+  const booking = await bookingModel.getBookingById(bookingId);
+  const existing = await paymentModel.getPaymentByBooking(bookingId);
+  if (existing && existing.payment_status === 'paid') return false;
+
+  const releasedStatuses = ['payment_failed', 'cancelled'];
+  const holdExpired = booking
+    && booking.status === 'pending_payment'
+    && Number(booking.pending_remaining_seconds || 0) <= 0;
+
+  if (booking && !releasedStatuses.includes(booking.status) && !holdExpired) return false;
+
+  console.warn(
+    '[stripe] Refusing late %s payment for booking %s with status %s',
+    context,
+    bookingId,
+    booking ? booking.status : 'missing'
+  );
+  await paymentModel.updatePaymentStatus(bookingId, 'failed', details.paymentRef);
+  return true;
+}
+
 async function persistStripePaymentIntent(intent) {
   // Save Stripe card payment result and confirm paid bookings.
   const bookingId = intent.metadata && intent.metadata.booking_id;
@@ -483,6 +517,14 @@ async function persistStripePaymentIntent(intent) {
     balanceTransaction: details.balanceTransactionId,
     testModeKey: isTestModeKey(),
   });
+
+  if (await rejectLatePaidPaymentIfReleased(bookingId, details, 'PaymentIntent')) {
+    return {
+      bookingId,
+      details: { ...details, paymentStatus: 'failed' },
+      latePayment: true,
+    };
+  }
 
   await paymentModel.updateStripePaymentDetails(bookingId, details);
   if (details.paymentStatus === 'paid') {
@@ -510,7 +552,7 @@ async function persistCheckoutSession(session) {
     sessionId: session.id,
     paymentIntentId: paymentIntent ? paymentIntent.id : session.payment_intent,
     paymentStatus: session.payment_status,
-    selectedPaymentMethod: 'paynow',
+    selectedPaymentMethod: session.metadata?.payment_method || 'checkout',
     testModeKey: isTestModeKey(),
   });
 
@@ -526,6 +568,15 @@ async function persistCheckoutSession(session) {
     ...extractStripePaymentDetails(expandedIntent),
     checkoutSessionId: session.id,
   };
+
+  if (await rejectLatePaidPaymentIfReleased(bookingId, details, 'Checkout')) {
+    await paymentModel.updateStripeCheckoutSession(bookingId, session.id, details.paymentIntentId);
+    return {
+      bookingId,
+      details: { ...details, paymentStatus: 'failed' },
+      latePayment: true,
+    };
+  }
 
   await paymentModel.updateStripePaymentDetails(bookingId, details);
   if (details.paymentStatus === 'paid') {
@@ -625,21 +676,27 @@ async function createPayNowSession(req, res) {
     ({ booking } = await revalidateCheckoutDiscountsForPayment(booking));
     const amount = getBookingPayableAmount(booking);
     const baseUrl = getBaseUrl(req);
+    const redirectHoldMinutes = getRedirectPaymentHoldMinutes();
+    const checkoutExpiresAt = new Date(Date.now() + redirectHoldMinutes * 60 * 1000);
     const session = await createPayNowCheckoutSession({
       booking,
       amount,
       successUrl: `${baseUrl}/payment/success?booking_id=${bookingId}&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/payment/checkout/${bookingId}`,
       userId: req.session.user && req.session.user.user_id,
+      expiresAt: checkoutExpiresAt,
     });
 
     console.log('[stripe] selected payment method', {
       selectedPaymentMethod: 'paynow',
       checkoutSessionId: session.id,
       paymentIntentId: session.payment_intent,
+      holdMinutes: redirectHoldMinutes,
     });
 
-    await paymentModel.createOrUpdatePayment(bookingId, amount, 'paynow');
+    await paymentModel.createOrUpdatePayment(bookingId, amount, 'paynow', {
+      holdMinutes: redirectHoldMinutes,
+    });
     await paymentModel.updateStripeCheckoutSession(bookingId, session.id, session.payment_intent);
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {

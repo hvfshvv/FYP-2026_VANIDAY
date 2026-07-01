@@ -7,6 +7,7 @@
 
 const db = require('../config/db');
 const voucherModel = require('./voucherModel');
+const paymentModel = require('./paymentModel');
 
 // ── SCHEMA MIGRATION GUARD ─────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ async function ensureBookingPromoSchema() {
   }
 
   await voucherModel.ensureCustomerVoucherSchema();
+  await paymentModel.ensurePaymentHoldSchema();
   bookingPromoSchemaReady = true;
 }
 
@@ -202,11 +204,12 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
     const [expired] = await connection.query(
       `SELECT b.booking_id, b.slot_id
        FROM booking b
+       LEFT JOIN payment paid ON paid.booking_id = b.booking_id
+        AND paid.payment_status = 'paid'
        LEFT JOIN payment p ON p.booking_id = b.booking_id
-        AND p.payment_status = 'paid'
        WHERE b.status = 'pending_payment'
-         AND b.created_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)
-         AND p.payment_id IS NULL
+         AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL ? MINUTE)) < NOW()
+         AND paid.payment_id IS NULL
        FOR UPDATE`,
       [safeTtl]
     );
@@ -257,10 +260,11 @@ async function countActivePendingPaymentBookings(customerId, ttlMinutes = 5) {
 
   const [[row]] = await db.query(
     `SELECT COUNT(*) AS count
-     FROM booking
-     WHERE customer_id = ?
-       AND status = 'pending_payment'
-       AND created_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
+     FROM booking b
+     LEFT JOIN payment p ON p.booking_id = b.booking_id
+     WHERE b.customer_id = ?
+       AND b.status = 'pending_payment'
+       AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL ? MINUTE)) >= NOW()`,
     [customerId, safeTtl]
   );
 

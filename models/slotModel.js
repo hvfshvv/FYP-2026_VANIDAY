@@ -65,15 +65,19 @@ async function getAvailableStaffForSlot({
        AND ss.service_id = ?
        AND st.is_active = 1
        AND NOT EXISTS (
-         SELECT 1
-         FROM booking b
-         JOIN time_slot ts ON ts.slot_id = b.slot_id
-         WHERE b.staff_id = st.staff_id
-           AND ts.slot_date = ?
-           AND (
-             b.status IN ('confirmed', 'rescheduled', 'arrived')
-             OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
-           )
+          SELECT 1
+          FROM booking b
+          JOIN time_slot ts ON ts.slot_id = b.slot_id
+          LEFT JOIN payment p ON p.booking_id = b.booking_id
+          WHERE b.staff_id = st.staff_id
+            AND ts.slot_date = ?
+            AND (
+              b.status IN ('confirmed', 'rescheduled', 'arrived')
+              OR (
+                b.status = 'pending_payment'
+                AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+              )
+            )
            AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
            AND ts.end_time > ?
            ${excludeBookingFilter}
@@ -86,16 +90,20 @@ async function getAvailableStaffForSlot({
   // Legacy bookings with no staff_id hold a slot that must reduce available count.
   const [legacyRows] = await connection.query(
     `SELECT COUNT(*) AS legacy_count
-     FROM booking b
-     JOIN time_slot ts ON ts.slot_id = b.slot_id
-     WHERE b.merchant_id = ?
-       AND b.service_id = ?
-       AND b.staff_id IS NULL
-       AND ts.slot_date = ?
-       AND (
-         b.status IN ('confirmed', 'rescheduled', 'arrived')
-         OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
-       )
+      FROM booking b
+      JOIN time_slot ts ON ts.slot_id = b.slot_id
+      LEFT JOIN payment p ON p.booking_id = b.booking_id
+      WHERE b.merchant_id = ?
+        AND b.service_id = ?
+        AND b.staff_id IS NULL
+        AND ts.slot_date = ?
+        AND (
+          b.status IN ('confirmed', 'rescheduled', 'arrived')
+          OR (
+            b.status = 'pending_payment'
+            AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+          )
+        )
        AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
        AND ts.end_time > ?
        ${excludeBookingId ? 'AND b.booking_id <> ?' : ''}`,
@@ -167,10 +175,14 @@ async function assertNoCustomerBookingConflict(connection, {
     JOIN time_slot ts ON b.slot_id = ts.slot_id
     JOIN service s ON b.service_id = s.service_id
     JOIN merchant m ON b.merchant_id = m.merchant_id
+    LEFT JOIN payment p ON p.booking_id = b.booking_id
     WHERE b.customer_id = ?
       AND (
         b.status IN ('confirmed', 'rescheduled', 'arrived')
-        OR (b.status = 'pending_payment' AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE))
+        OR (
+          b.status = 'pending_payment'
+          AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+        )
       )
       AND ts.slot_date = ?
       AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
