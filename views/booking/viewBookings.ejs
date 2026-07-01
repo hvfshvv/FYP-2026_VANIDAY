@@ -44,6 +44,11 @@
   }
 
   function pendingExpiryIso(booking) {
+    if (booking.payment_hold_expires_at) {
+      const holdExpiresAt = new Date(booking.payment_hold_expires_at);
+      if (!Number.isNaN(holdExpiresAt.getTime())) return holdExpiresAt.toISOString();
+    }
+
     const createdAt = new Date(booking.created_at);
     if (Number.isNaN(createdAt.getTime())) return '';
     return new Date(createdAt.getTime() + 5 * 60 * 1000).toISOString();
