@@ -18,107 +18,9 @@ const categories = {
   8: 'Spa'
 };
 
-const demoMerchantsByCategory = {
-  Hair: [
-    { merchant_name: 'Luxe Hair Studio' },
-    { merchant_name: 'Glossy Locks' },
-    { merchant_name: 'The Hair Room' }
-  ],
-  Nails: [
-    { merchant_name: 'Nail Haven' },
-    { merchant_name: 'Blush Nail Bar' },
-    { merchant_name: 'Glossy Tips Studio' }
-  ],
-  Facial: [
-    { merchant_name: 'Glow Beauty Spa' },
-    { merchant_name: 'Pure Skin Studio' },
-    { merchant_name: 'Radiance Facial House' }
-  ],
-  Massage: [
-    { merchant_name: 'Calm Body Spa' },
-    { merchant_name: 'Zen Wellness Studio' },
-    { merchant_name: 'Relax & Restore' }
-  ],
-  Wellness: [
-    { merchant_name: 'Zen Wellness Studio' },
-    { merchant_name: 'Balance Wellness Loft' },
-    { merchant_name: 'Mindful Movement Studio' }
-  ],
-  Body: [
-    { merchant_name: 'Goddess Beauty Bar' },
-    { merchant_name: 'Smooth Body Studio' },
-    { merchant_name: 'Contour & Glow' }
-  ],
-  Aesthetics: [
-    { merchant_name: 'Pretty Lash Studio' },
-    { merchant_name: 'Brow & Lash Atelier' },
-    { merchant_name: 'Aesthetic Glow Lab' }
-  ],
-  Spa: [
-    { merchant_name: 'The Spa Sanctuary' },
-    { merchant_name: 'Urban Bliss Spa' },
-    { merchant_name: 'Serenity Spa House' }
-  ]
-};
-
-const demoServicesByCategory = {
-  Hair: [
-    { service_name: 'Haircut & Styling', price: 35, duration_mins: 45 },
-    { service_name: 'Hair Colouring', price: 88, duration_mins: 120 },
-    { service_name: 'Scalp Treatment', price: 68, duration_mins: 60 }
-  ],
-  Nails: [
-    { service_name: 'Classic Manicure', price: 28, duration_mins: 45 },
-    { service_name: 'Gel Manicure', price: 48, duration_mins: 60 },
-    { service_name: 'Nail Art Set', price: 68, duration_mins: 90 }
-  ],
-  Facial: [
-    { service_name: 'Hydrating Facial', price: 58, duration_mins: 60 },
-    { service_name: 'Deep Cleansing Facial', price: 78, duration_mins: 75 },
-    { service_name: 'Brightening Treatment', price: 88, duration_mins: 90 }
-  ],
-  Massage: [
-    { service_name: 'Relaxing Body Massage', price: 68, duration_mins: 60 },
-    { service_name: 'Deep Tissue Massage', price: 88, duration_mins: 75 },
-    { service_name: 'Aromatherapy Massage', price: 98, duration_mins: 90 }
-  ],
-  Wellness: [
-    { service_name: 'Yoga Class', price: 28, duration_mins: 60 },
-    { service_name: 'Pilates Session', price: 38, duration_mins: 60 },
-    { service_name: 'Reflexology', price: 45, duration_mins: 45 }
-  ],
-  Body: [
-    { service_name: 'Body Waxing', price: 40, duration_mins: 30 },
-    { service_name: 'Body Scrub', price: 65, duration_mins: 60 },
-    { service_name: 'Toning Treatment', price: 88, duration_mins: 75 }
-  ],
-  Aesthetics: [
-    { service_name: 'Lash Extensions', price: 88, duration_mins: 90 },
-    { service_name: 'Brow Shaping', price: 28, duration_mins: 30 },
-    { service_name: 'Lash Lift', price: 68, duration_mins: 60 }
-  ],
-  Spa: [
-    { service_name: 'Aromatherapy Facial', price: 85, duration_mins: 60 },
-    { service_name: 'Body Scrub & Wrap', price: 120, duration_mins: 90 },
-    { service_name: 'Luxury Spa Package', price: 158, duration_mins: 120 }
-  ]
-};
-
-const demoTimeSlots = [
-  { label: '10:00', start_time: '10:00:00' },
-  { label: '11:30', start_time: '11:30:00' },
-  { label: '14:00', start_time: '14:00:00' },
-  { label: '16:30', start_time: '16:30:00' }
-];
-
-const demoStaff = [
-  { full_name: 'Alex Tan', role: 'Senior Specialist' },
-  { full_name: 'Jamie Lee', role: 'Service Specialist' }
-];
-
 function getMainMenu() {
   return (
-    'Hi, welcome to Uniday! 💖\n' +
+    'Hi, welcome to Uniday!\n' +
     'What would you like to do today?\n\n' +
     '1. Book a Service\n' +
     '2. View Booking\n' +
@@ -531,50 +433,40 @@ async function getMerchantsForCategory(category) {
   try {
     const merchants = await merchantModel.getAllActiveMerchants(category);
 
-    if (merchants.length > 0) {
-      return merchants;
-    }
+    return merchants;
   } catch (error) {
     console.error('Failed to load merchants from database:', error.message);
   }
 
-  return demoMerchantsByCategory[category];
+  return [];
 }
 
-async function getServicesForMerchant(merchant, category) {
+async function getServicesForMerchant(merchant) {
   try {
     if (merchant.merchant_id) {
-      const services = await merchantModel.getMerchantServices(merchant.merchant_id);
-
-      if (services.length > 0) {
-        return services;
-      }
+      return await merchantModel.getMerchantServices(merchant.merchant_id);
     }
   } catch (error) {
     console.error('Failed to load services from database:', error.message);
   }
 
-  return demoServicesByCategory[category];
+  return [];
 }
 
 async function getTimeSlotsForDate(session, bookingDate) {
   try {
     if (session.merchant.merchant_id && session.service.service_id) {
-      const slots = await bookingModel.getAvailableSlots({
+      return await bookingModel.getAvailableSlots({
         merchantId: session.merchant.merchant_id,
         serviceId: session.service.service_id,
         bookingDate: bookingDate
       });
-
-      if (slots.length > 0) {
-        return slots;
-      }
     }
   } catch (error) {
     console.error('Failed to load time slots from database:', error.message);
   }
 
-  return demoTimeSlots;
+  return [];
 }
 
 async function getStaffForTimeSlot(session, selectedSlot) {
@@ -604,15 +496,13 @@ async function getStaffForTimeSlot(session, selectedSlot) {
         }
       }
 
-      if (availableStaff.length > 0) {
-        return availableStaff;
-      }
+      return availableStaff;
     }
   } catch (error) {
     console.error('Failed to load staff from database:', error.message);
   }
 
-  return demoStaff;
+  return [];
 }
 
 async function receiveMessage(req, res) {
@@ -869,6 +759,12 @@ async function receiveMessage(req, res) {
       if (category) {
         const merchants = await getMerchantsForCategory(category);
 
+        if (!merchants.length) {
+          delete userSessions[sender];
+          twiml.message('Sorry, we are unable to load merchants right now. Please try again later.');
+          return sendTwiml(res, twiml);
+        }
+
         saveSession(sender, {
           state: 'choosing_merchant',
           category: category,
@@ -885,7 +781,13 @@ async function receiveMessage(req, res) {
       const selectedMerchant = session.merchants[merchantNumber - 1];
 
       if (selectedMerchant) {
-        const services = await getServicesForMerchant(selectedMerchant, session.category);
+        const services = await getServicesForMerchant(selectedMerchant);
+
+        if (!services.length) {
+          delete userSessions[sender];
+          twiml.message('Sorry, we are unable to load services right now. Please try again later.');
+          return sendTwiml(res, twiml);
+        }
 
         saveSession(sender, {
           state: 'choosing_service',
@@ -958,6 +860,12 @@ async function receiveMessage(req, res) {
 
       if (selectedSlot) {
         const staff = await getStaffForTimeSlot(session, selectedSlot);
+
+        if (!staff.length) {
+          delete userSessions[sender];
+          twiml.message('Sorry, we are unable to load staff availability right now. Please try again later.');
+          return sendTwiml(res, twiml);
+        }
 
         saveSession(sender, {
           state: 'choosing_staff',
