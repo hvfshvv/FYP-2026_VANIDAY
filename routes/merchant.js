@@ -220,11 +220,14 @@ router.post('/bookings/:bookingId/arrived', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
   const returnTo = req.body.returnTo === '/merchant/bookings' ? '/merchant/bookings' : '/merchant/dashboard';
 
-  await bookingModel
+  const updated = await bookingModel
     .updateMerchantBookingStatus(req.params.bookingId, merchantId, 'arrived')
-    .catch(console.error);
+    .catch(() => 0);
 
-  res.redirect(returnTo);
+  const query = updated
+    ? `?success=${encodeURIComponent('Customer marked as arrived.')}`
+    : `?error=${encodeURIComponent('Arrival can only be marked at or after the appointment time.')}`;
+  res.redirect(`${returnTo}${query}`);
 });
 
 // Mark an arrived booking as completed.
@@ -232,11 +235,14 @@ router.post('/bookings/:bookingId/complete', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
   const returnTo = req.body.returnTo === '/merchant/bookings' ? '/merchant/bookings' : '/merchant/dashboard';
 
-  await bookingModel
+  const updated = await bookingModel
     .updateMerchantBookingStatus(req.params.bookingId, merchantId, 'completed')
-    .catch(console.error);
+    .catch(() => 0);
 
-  res.redirect(returnTo);
+  const query = updated
+    ? `?success=${encodeURIComponent('Booking marked as completed.')}`
+    : `?error=${encodeURIComponent('Only arrived bookings at or after the appointment time can be completed.')}`;
+  res.redirect(`${returnTo}${query}`);
 });
 
 // Mark a past confirmed appointment as a no-show.

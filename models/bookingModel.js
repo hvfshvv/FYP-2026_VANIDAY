@@ -247,11 +247,13 @@ async function updateMerchantBookingStatus(bookingId, merchantId, status) {
   const transitionRules = {
     arrived: {
       currentStatuses: ['confirmed', 'rescheduled'],
-      timeRule: '',
+      // Merchants cannot check customers in before the appointment starts.
+      timeRule: 'AND TIMESTAMP(ts.slot_date, ts.start_time) <= NOW()',
     },
     completed: {
       currentStatuses: ['arrived'],
-      timeRule: '',
+      // Also protect legacy/faulty early arrivals from being completed early.
+      timeRule: 'AND TIMESTAMP(ts.slot_date, ts.start_time) <= NOW()',
     },
     no_show: {
       currentStatuses: ['confirmed', 'rescheduled'],

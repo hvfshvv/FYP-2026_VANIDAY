@@ -118,7 +118,8 @@
                   bg: 'var(--accent-light)',
                   color: 'var(--accent)',
                 };
-                const canMarkNoShow = ['confirmed', 'rescheduled'].includes(booking.status) && isPastAppointment(booking);
+                const appointmentHasStarted = isPastAppointment(booking);
+                const canMarkNoShow = ['confirmed', 'rescheduled'].includes(booking.status) && appointmentHasStarted;
               %>
                 <tr>
                   <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= booking.booking_id %></td>
@@ -152,12 +153,18 @@
                   <td>
                     <div class="d-flex flex-wrap gap-1">
                     <% if (booking.status === 'confirmed' || booking.status === 'rescheduled') { %>
+                    <% if (appointmentHasStarted) { %>
                       <form action="/merchant/bookings/<%= booking.booking_id %>/arrived" method="POST" class="d-inline">
                         <input type="hidden" name="returnTo" value="/merchant/bookings">
                         <button class="btn btn-sm btn-outline-secondary btn-pill" style="font-size:.72rem;padding:.2rem .6rem;">
                           <i class="bi bi-person-check me-1"></i>Arrived
                         </button>
                       </form>
+                    <% } else { %>
+                      <span style="color:var(--muted);font-size:.72rem;" title="Available at the appointment time">
+                        <i class="bi bi-clock me-1"></i>Awaiting appointment
+                      </span>
+                    <% } %>
                     <% if (canMarkNoShow) { %>
                       <form action="/merchant/bookings/<%= booking.booking_id %>/no-show" method="POST" class="d-inline"
                             onsubmit="return confirm('Mark this appointment as a no-show?');">
@@ -166,13 +173,17 @@
                         </button>
                       </form>
                     <% } %>
-                    <% } else if (booking.status === 'arrived') { %>
+                    <% } else if (booking.status === 'arrived' && appointmentHasStarted) { %>
                       <form action="/merchant/bookings/<%= booking.booking_id %>/complete" method="POST" class="d-inline">
                         <input type="hidden" name="returnTo" value="/merchant/bookings">
                         <button class="btn btn-sm btn-pill" style="font-size:.72rem;padding:.2rem .6rem;background:var(--success);color:#fff;border:none;">
                           <i class="bi bi-check2-all me-1"></i>Complete
                         </button>
                       </form>
+                    <% } else if (booking.status === 'arrived') { %>
+                      <span style="color:var(--muted);font-size:.72rem;">
+                        <i class="bi bi-clock me-1"></i>Awaiting appointment
+                      </span>
                     <% } else { %>
                       <span style="color:var(--muted);font-size:.75rem;">-</span>
                     <% } %>
