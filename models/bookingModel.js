@@ -184,23 +184,32 @@ async function getBookingById(bookingId) {
             pr.title        AS promo_title,
             pr.discount_pct AS promo_discount_pct,
             COALESCE(vch_applied.campaign_name, vch_applied.voucher_code) AS voucher_name,
+            p_hold.payment_hold_expires_at,
             m.merchant_name,
             m.email AS merchant_email,
             m.address AS merchant_address,
             COALESCE(c.full_name, b.guest_name) AS customer_name,
             COALESCE(c.email, b.guest_email) AS customer_email,
             COALESCE(c.phone, b.guest_phone) AS customer_phone,
-            GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), DATE_ADD(b.created_at, INTERVAL 5 MINUTE))) AS pending_remaining_seconds
+            GREATEST(
+              0,
+              TIMESTAMPDIFF(
+                SECOND,
+                NOW(),
+                COALESCE(p_hold.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE))
+              )
+            ) AS pending_remaining_seconds
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
      LEFT JOIN staff st ON st.staff_id = b.staff_id
      LEFT JOIN customer c ON b.customer_id = c.customer_id
-     LEFT JOIN promotion pr ON pr.promo_id = b.applied_promo_id
-     LEFT JOIN customer_voucher cv_applied ON cv_applied.cv_id = b.applied_cv_id
-     LEFT JOIN voucher vch_applied ON vch_applied.voucher_id = cv_applied.voucher_id
-     WHERE b.booking_id = ?`,
+      LEFT JOIN promotion pr ON pr.promo_id = b.applied_promo_id
+      LEFT JOIN customer_voucher cv_applied ON cv_applied.cv_id = b.applied_cv_id
+      LEFT JOIN voucher vch_applied ON vch_applied.voucher_id = cv_applied.voucher_id
+      LEFT JOIN payment p_hold ON p_hold.booking_id = b.booking_id
+      WHERE b.booking_id = ?`,
     [bookingId]
   );
   return rows[0] || null;
@@ -674,14 +683,19 @@ async function getCustomerBookings(customerId) {
             p.payment_status,
             p.payment_ref,
             p.transaction_ref,
+            p.payment_hold_expires_at,
             CASE
               WHEN b.status = 'pending_payment'
-               AND b.created_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+               AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
               THEN 1 ELSE 0
             END AS pending_is_active,
             GREATEST(
               0,
-              TIMESTAMPDIFF(SECOND, NOW(), DATE_ADD(b.created_at, INTERVAL 5 MINUTE))
+              TIMESTAMPDIFF(
+                SECOND,
+                NOW(),
+                COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE))
+              )
             ) AS pending_remaining_seconds,
             COALESCE(CASE WHEN cp.is_active = 1 THEN cp.min_cancel_hours END, 6) AS min_cancel_hours,
             COALESCE(CASE WHEN cp.is_active = 1 THEN cp.refund_percentage END, 100.00) AS refund_percentage,

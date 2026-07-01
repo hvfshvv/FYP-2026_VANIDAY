@@ -43,7 +43,7 @@ async function retrievePaymentIntent(paymentIntentId) {
   });
 }
 
-async function createPayNowCheckoutSession({ booking, amount, successUrl, cancelUrl, userId }) {
+async function createPayNowCheckoutSession({ booking, amount, successUrl, cancelUrl, userId, expiresAt }) {
   assertStripeConfigured();
   const amountInCents = Math.round(Number(amount) * 100);
   if (!Number.isInteger(amountInCents) || amountInCents < 50) {
@@ -54,10 +54,11 @@ async function createPayNowCheckoutSession({ booking, amount, successUrl, cancel
     booking_id: String(booking.booking_id),
     merchant_name: booking.merchant_name || '',
     service_name: booking.service_name || '',
+    payment_method: 'paynow',
   };
   if (userId) metadata.user_id = String(userId);
 
-  const session = await stripe.checkout.sessions.create({
+  const sessionParams = {
     payment_method_types: ['paynow'],
     mode: 'payment',
     line_items: [{
@@ -78,7 +79,13 @@ async function createPayNowCheckoutSession({ booking, amount, successUrl, cancel
       capture_method: 'automatic',
       metadata,
     },
-  });
+  };
+
+  if (expiresAt) {
+    sessionParams.expires_at = Math.floor(new Date(expiresAt).getTime() / 1000);
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionParams);
 
   console.log('[stripe] created PayNow Checkout Session', {
     sessionId: session.id,
