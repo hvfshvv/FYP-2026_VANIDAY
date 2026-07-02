@@ -254,20 +254,21 @@ async function getAvailableVouchers(customerId) {
   }));
 }
 
-// Claims a voucher by ID — used when a customer clicks Claim on a browsed voucher.
-async function claimVoucherById(customerId, voucherId) {
+async function claimVoucherWithLookup(customerId, {
+  lookupSql,
+  lookupParams,
+  notFoundMessage,
+  customerLimitMessage,
+}) {
   await ensureCustomerVoucherSchema();
 
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
 
-    const [[voucher]] = await connection.query(
-      'SELECT * FROM voucher WHERE voucher_id = ? FOR UPDATE',
-      [voucherId]
-    );
+    const [[voucher]] = await connection.query(lookupSql, lookupParams);
 
-    if (!voucher)          throw new Error('Voucher not found.');
+    if (!voucher)          throw new Error(notFoundMessage);
     if (!voucher.is_active) throw new Error('This voucher is no longer active.');
 
     const [[{ today }]] = await connection.query("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d') AS today");
@@ -280,7 +281,7 @@ async function claimVoucherById(customerId, voucherId) {
         [customerId, voucher.voucher_id]
       );
       if (Number(claimed) >= voucher.usage_per_customer) {
-        throw new Error('You have already claimed this voucher.');
+        throw new Error(customerLimitMessage);
       }
     }
 
@@ -307,6 +308,16 @@ async function claimVoucherById(customerId, voucherId) {
   } finally {
     connection.release();
   }
+}
+
+// Claims a voucher by ID — used when a customer clicks Claim on a browsed voucher.
+async function claimVoucherById(customerId, voucherId) {
+  return claimVoucherWithLookup(customerId, {
+    lookupSql: 'SELECT * FROM voucher WHERE voucher_id = ? FOR UPDATE',
+    lookupParams: [voucherId],
+    notFoundMessage: 'Voucher not found.',
+    customerLimitMessage: 'You have already claimed this voucher.',
+  });
 }
 
 // Returns vouchers the customer has claimed, newest first.
@@ -397,60 +408,12 @@ async function markVoucherUsed(cvId, customerId) {
 // Claims a voucher by code for a signed-in customer.
 // Validates active status, date window, per-customer limit, and global limit.
 async function claimVoucher(customerId, voucherCode) {
-  await ensureCustomerVoucherSchema();
-
-  const connection = await db.getConnection();
-  try {
-    await connection.beginTransaction();
-
-    // Lock the voucher row to prevent concurrent over-claiming.
-    const [[voucher]] = await connection.query(
-      'SELECT * FROM voucher WHERE voucher_code = ? FOR UPDATE',
-      [voucherCode]
-    );
-
-    if (!voucher)          throw new Error('Voucher code not found.');
-    if (!voucher.is_active) throw new Error('This voucher is no longer active.');
-
-    const [[{ today }]] = await connection.query("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d') AS today");
-    if (formatDateOnly(voucher.start_date) > today) throw new Error('This voucher is not yet available.');
-    if (formatDateOnly(voucher.end_date)   < today) throw new Error('This voucher has expired.');
-
-    // Per-customer claim cap (null = unlimited).
-    if (voucher.usage_per_customer) {
-      const [[{ claimed }]] = await connection.query(
-        'SELECT COUNT(*) AS claimed FROM customer_voucher WHERE customer_id = ? AND voucher_id = ?',
-        [customerId, voucher.voucher_id]
-      );
-      if (Number(claimed) >= voucher.usage_per_customer) {
-        throw new Error('You have already claimed this voucher the maximum number of times.');
-      }
-    }
-
-    // Global claim cap (null = unlimited).
-    if (voucher.usage_limit) {
-      const [[{ total }]] = await connection.query(
-        'SELECT COUNT(*) AS total FROM customer_voucher WHERE voucher_id = ?',
-        [voucher.voucher_id]
-      );
-      if (Number(total) >= voucher.usage_limit) {
-        throw new Error('This voucher is fully claimed — no slots remaining.');
-      }
-    }
-
-    await connection.query(
-      'INSERT INTO customer_voucher (customer_id, voucher_id) VALUES (?, ?)',
-      [customerId, voucher.voucher_id]
-    );
-
-    await connection.commit();
-    return voucher;
-  } catch (err) {
-    await connection.rollback();
-    throw err;
-  } finally {
-    connection.release();
-  }
+  return claimVoucherWithLookup(customerId, {
+    lookupSql: 'SELECT * FROM voucher WHERE voucher_code = ? FOR UPDATE',
+    lookupParams: [voucherCode],
+    notFoundMessage: 'Voucher code not found.',
+    customerLimitMessage: 'You have already claimed this voucher the maximum number of times.',
+  });
 }
 
 module.exports = {
