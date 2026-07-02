@@ -77,6 +77,45 @@ function buildBookingConfirmationMessage(booking) {
   );
 }
 
+function buildBookingReminderMessage(booking) {
+  return (
+    'Reminder: you have an upcoming Uniday booking.\n\n' +
+    'Booking ID: ' + booking.booking_id + '\n' +
+    'Merchant: ' + booking.merchant_name + '\n' +
+    'Service: ' + booking.service_name + '\n' +
+    'Date: ' + formatDate(booking.booking_date) + '\n' +
+    'Time: ' + formatTime(booking.booking_time) + '\n' +
+    'Staff: ' + (booking.staff_name || 'Any Available Staff')
+  );
+}
+
+function buildBookingCancellationMessage(booking) {
+  return (
+    'Your Uniday booking has been cancelled.\n\n' +
+    'Booking ID: ' + booking.booking_id + '\n' +
+    'Merchant: ' + booking.merchant_name + '\n' +
+    'Service: ' + booking.service_name + '\n' +
+    'Date: ' + formatDate(booking.booking_date) + '\n' +
+    'Time: ' + formatTime(booking.booking_time)
+  );
+}
+
+function buildBookingRescheduledMessage(booking, previousBooking = null) {
+  const previousDate = previousBooking ? formatDate(previousBooking.booking_date) : null;
+  const previousTime = previousBooking ? formatTime(previousBooking.booking_time) : null;
+
+  return (
+    'Your Uniday booking has been rescheduled.\n\n' +
+    'Booking ID: ' + booking.booking_id + '\n' +
+    'Merchant: ' + booking.merchant_name + '\n' +
+    'Service: ' + booking.service_name + '\n' +
+    (previousDate && previousTime ? 'Previous: ' + previousDate + ' ' + previousTime + '\n' : '') +
+    'New date: ' + formatDate(booking.booking_date) + '\n' +
+    'New time: ' + formatTime(booking.booking_time) + '\n' +
+    'Staff: ' + (booking.staff_name || 'Any Available Staff')
+  );
+}
+
 async function sendBookingConfirmation(booking) {
   if (!booking || booking.source !== 'whatsapp') {
     return { skipped: true, reason: 'not_whatsapp_booking' };
@@ -97,6 +136,84 @@ async function sendBookingConfirmation(booking) {
   });
 
   return { skipped: false, sid: message.sid };
+}
+
+async function sendBookingReminder(booking) {
+  if (!booking || booking.source !== 'whatsapp') {
+    return { skipped: true, reason: 'not_whatsapp_booking' };
+  }
+
+  const client = getClient();
+  const from = process.env.TWILIO_WHATSAPP_NUMBER;
+  const to = toWhatsAppAddress(booking.customer_phone);
+
+  if (!client || !from || !to) {
+    return { skipped: true, reason: 'missing_twilio_config_or_phone' };
+  }
+
+  try {
+    const message = await client.messages.create({
+      from,
+      to,
+      body: buildBookingReminderMessage(booking)
+    });
+
+    return { skipped: false, sid: message.sid };
+  } catch (err) {
+    return { skipped: false, error: err.message || 'whatsapp_send_failed' };
+  }
+}
+
+async function sendBookingCancellation(booking) {
+  if (!booking || booking.source !== 'whatsapp') {
+    return { skipped: true, reason: 'not_whatsapp_booking' };
+  }
+
+  const client = getClient();
+  const from = process.env.TWILIO_WHATSAPP_NUMBER;
+  const to = toWhatsAppAddress(booking.customer_phone);
+
+  if (!client || !from || !to) {
+    return { skipped: true, reason: 'missing_twilio_config_or_phone' };
+  }
+
+  try {
+    const message = await client.messages.create({
+      from,
+      to,
+      body: buildBookingCancellationMessage(booking)
+    });
+
+    return { skipped: false, sid: message.sid };
+  } catch (err) {
+    return { skipped: false, error: err.message || 'whatsapp_send_failed' };
+  }
+}
+
+async function sendBookingRescheduled(booking, previousBooking = null) {
+  if (!booking || booking.source !== 'whatsapp') {
+    return { skipped: true, reason: 'not_whatsapp_booking' };
+  }
+
+  const client = getClient();
+  const from = process.env.TWILIO_WHATSAPP_NUMBER;
+  const to = toWhatsAppAddress(booking.customer_phone);
+
+  if (!client || !from || !to) {
+    return { skipped: true, reason: 'missing_twilio_config_or_phone' };
+  }
+
+  try {
+    const message = await client.messages.create({
+      from,
+      to,
+      body: buildBookingRescheduledMessage(booking, previousBooking)
+    });
+
+    return { skipped: false, sid: message.sid };
+  } catch (err) {
+    return { skipped: false, error: err.message || 'whatsapp_send_failed' };
+  }
 }
 
 async function sendSupportReply(phone, body) {
@@ -124,7 +241,13 @@ async function sendSupportReply(phone, body) {
 
 module.exports = {
   sendBookingConfirmation,
+  sendBookingReminder,
+  sendBookingCancellation,
+  sendBookingRescheduled,
   buildBookingConfirmationMessage,
+  buildBookingReminderMessage,
+  buildBookingCancellationMessage,
+  buildBookingRescheduledMessage,
   sendSupportReply,
   toWhatsAppAddress
 };
