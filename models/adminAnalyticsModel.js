@@ -116,11 +116,14 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
       rangeParams
     ).then(([rows]) => rows),
     db.query(
-      `SELECT v.campaign_name, v.voucher_code, COUNT(vr.redemption_id) AS redemptions, COALESCE(SUM(vr.discount_amount), 0) AS discount_given
+      `SELECT
+         v.campaign_name,
+         v.voucher_code,
+         COUNT(DISTINCT b.booking_id) AS redemptions,
+         COALESCE(SUM(CASE WHEN b.booking_id IS NOT NULL THEN b.voucher_discount_amount ELSE 0 END), 0) AS discount_given
        FROM voucher v
-       LEFT JOIN voucher_redemption vr ON vr.voucher_id = v.voucher_id
-       LEFT JOIN booking b ON b.booking_id = vr.booking_id
-       WHERE b.booking_id IS NULL OR ${bookingDateFilter}
+       LEFT JOIN customer_voucher cv ON cv.voucher_id = v.voucher_id AND cv.status = 'used'
+       LEFT JOIN booking b ON b.applied_cv_id = cv.cv_id AND ${bookingDateFilter}
        GROUP BY v.voucher_id, v.campaign_name, v.voucher_code
        ORDER BY redemptions DESC
        LIMIT 8`,
