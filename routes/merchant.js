@@ -21,6 +21,7 @@ const staffModel = require('../models/staffModel');
 const availabilityModel = require('../models/availabilityModel');
 const reviewModel = require('../models/reviewModel');
 const promotionModel = require('../models/promotionModel');
+const loyaltyModel = require('../models/loyaltyModel');
 
 // Every route in this file requires a logged-in, approved merchant account.
 router.use(requireLogin, requireMerchant);
@@ -226,7 +227,7 @@ router.post('/bookings/:bookingId/arrived', async (req, res) => {
 
   const query = updated
     ? `?success=${encodeURIComponent('Customer marked as arrived.')}`
-    : `?error=${encodeURIComponent('Arrival can only be marked at or after the appointment time.')}`;
+    : `?error=${encodeURIComponent('Arrival can only be marked from 15 minutes before the appointment time.')}`;
   res.redirect(`${returnTo}${query}`);
 });
 
@@ -239,9 +240,15 @@ router.post('/bookings/:bookingId/complete', async (req, res) => {
     .updateMerchantBookingStatus(req.params.bookingId, merchantId, 'completed')
     .catch(() => 0);
 
+  if (updated) {
+    await loyaltyModel.awardBookingPoints(req.params.bookingId).catch(err => {
+      console.error('Could not award completion points:', err);
+    });
+  }
+
   const query = updated
     ? `?success=${encodeURIComponent('Booking marked as completed.')}`
-    : `?error=${encodeURIComponent('Only arrived bookings at or after the appointment time can be completed.')}`;
+    : `?error=${encodeURIComponent('Only arrived bookings can be completed after the appointment end time.')}`;
   res.redirect(`${returnTo}${query}`);
 });
 

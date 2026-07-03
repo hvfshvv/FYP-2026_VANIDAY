@@ -418,7 +418,7 @@ async function getEarnedPointsForBooking(bookingId) {
   return transaction ? Number(transaction.points_amount || 0) : 0;
 }
 
-// Awards booking points once, after a paid booking is confirmed/completed.
+// Awards booking points once, after a paid booking has been completed.
 async function awardBookingPoints(bookingId) {
   const [[booking]] = await db.query(
     `SELECT b.booking_id, b.customer_id,
@@ -426,12 +426,13 @@ async function awardBookingPoints(bookingId) {
      FROM booking b
      JOIN payment p ON p.booking_id = b.booking_id
       AND p.payment_status = 'paid'
-     WHERE b.booking_id = ?`,
+     WHERE b.booking_id = ?
+       AND b.status = 'completed'`,
     [bookingId]
   );
 
   if (!booking) {
-    return { awarded: false, reason: 'not_paid' };
+    return { awarded: false, reason: 'not_paid_or_completed' };
   }
 
   if (!booking.customer_id) {
@@ -523,7 +524,7 @@ async function syncMissingBookingPointsForCustomer(customerId) {
       AND lt.booking_id = b.booking_id
       AND lt.transaction_type = 'earn_points'
      WHERE b.customer_id = ?
-       AND b.status IN ('confirmed', 'completed')
+       AND b.status = 'completed'
        AND lt.loyalty_transaction_id IS NULL
        AND FLOOR(COALESCE(p.amount, 0) * 0.1) > 0
      ORDER BY b.booking_id ASC`,

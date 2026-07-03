@@ -94,6 +94,13 @@
               You earned <strong><%= loyaltyEarned %> loyalty points</strong> from this booking.
             </p>
           </div>
+          <% } else if (booking && booking.customer_id) { %>
+          <div class="p-3 rounded-xl mb-4" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.15);">
+            <p class="small mb-0" style="color:var(--accent);">
+              <i class="bi bi-wallet2 me-1"></i>
+              Loyalty points will be added after the merchant marks this appointment as completed.
+            </p>
+          </div>
           <% } %>
 
           <% if (booking && typeof payment !== 'undefined' && payment && payment.payment_status === 'paid') { %>

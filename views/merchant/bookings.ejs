@@ -26,7 +26,7 @@
     return String(value || '').slice(0, 5);
   }
 
-  function isPastAppointment(booking) {
+  function appointmentDateTime(booking, time) {
     const date = booking.booking_date instanceof Date
       ? [
           booking.booking_date.getFullYear(),
@@ -34,8 +34,23 @@
           String(booking.booking_date.getDate()).padStart(2, '0'),
         ].join('-')
       : String(booking.booking_date || '').slice(0, 10);
-    const appointment = new Date(`${date}T${formatTime(booking.booking_time)}:00`);
-    return !Number.isNaN(appointment.getTime()) && appointment <= new Date();
+    return new Date(`${date}T${formatTime(time)}:00`);
+  }
+
+  function canMarkArrived(booking) {
+    const appointmentStart = appointmentDateTime(booking, booking.booking_time);
+    if (Number.isNaN(appointmentStart.getTime())) return false;
+    return new Date() >= new Date(appointmentStart.getTime() - 15 * 60 * 1000);
+  }
+
+  function hasAppointmentStarted(booking) {
+    const appointmentStart = appointmentDateTime(booking, booking.booking_time);
+    return !Number.isNaN(appointmentStart.getTime()) && appointmentStart <= new Date();
+  }
+
+  function hasAppointmentEnded(booking) {
+    const appointmentEnd = appointmentDateTime(booking, booking.booking_end_time);
+    return !Number.isNaN(appointmentEnd.getTime()) && appointmentEnd <= new Date();
   }
 %>
 
@@ -118,7 +133,9 @@
                   bg: 'var(--accent-light)',
                   color: 'var(--accent)',
                 };
-                const appointmentHasStarted = isPastAppointment(booking);
+                const arrivalAvailable = canMarkArrived(booking);
+                const appointmentHasStarted = hasAppointmentStarted(booking);
+                const appointmentHasEnded = hasAppointmentEnded(booking);
                 const canMarkNoShow = ['confirmed', 'rescheduled'].includes(booking.status) && appointmentHasStarted;
               %>
                 <tr>
@@ -153,7 +170,7 @@
                   <td>
                     <div class="d-flex flex-wrap gap-1">
                     <% if (booking.status === 'confirmed' || booking.status === 'rescheduled') { %>
-                    <% if (appointmentHasStarted) { %>
+                    <% if (arrivalAvailable) { %>
                       <form action="/merchant/bookings/<%= booking.booking_id %>/arrived" method="POST" class="d-inline">
                         <input type="hidden" name="returnTo" value="/merchant/bookings">
                         <button class="btn btn-sm btn-outline-secondary btn-pill" style="font-size:.72rem;padding:.2rem .6rem;">
@@ -161,7 +178,7 @@
                         </button>
                       </form>
                     <% } else { %>
-                      <span style="color:var(--muted);font-size:.72rem;" title="Available at the appointment time">
+                      <span style="color:var(--muted);font-size:.72rem;" title="Available 15 minutes before the appointment">
                         <i class="bi bi-clock me-1"></i>Awaiting appointment
                       </span>
                     <% } %>
@@ -173,7 +190,7 @@
                         </button>
                       </form>
                     <% } %>
-                    <% } else if (booking.status === 'arrived' && appointmentHasStarted) { %>
+                    <% } else if (booking.status === 'arrived' && appointmentHasEnded) { %>
                       <form action="/merchant/bookings/<%= booking.booking_id %>/complete" method="POST" class="d-inline">
                         <input type="hidden" name="returnTo" value="/merchant/bookings">
                         <button class="btn btn-sm btn-pill" style="font-size:.72rem;padding:.2rem .6rem;background:var(--success);color:#fff;border:none;">
@@ -182,7 +199,7 @@
                       </form>
                     <% } else if (booking.status === 'arrived') { %>
                       <span style="color:var(--muted);font-size:.72rem;">
-                        <i class="bi bi-clock me-1"></i>Awaiting appointment
+                        <i class="bi bi-clock me-1"></i>Awaiting appointment end
                       </span>
                     <% } else { %>
                       <span style="color:var(--muted);font-size:.75rem;">-</span>

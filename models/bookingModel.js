@@ -256,18 +256,18 @@ async function updateMerchantBookingStatus(bookingId, merchantId, status) {
   const transitionRules = {
     arrived: {
       currentStatuses: ['confirmed', 'rescheduled'],
-      // Merchants cannot check customers in before the appointment starts.
-      timeRule: 'AND TIMESTAMP(ts.slot_date, ts.start_time) <= NOW()',
+      // Merchants can check customers in from 15 minutes before the appointment.
+      timeRule: 'AND DATE_SUB(TIMESTAMP(ts.slot_date, ts.start_time), INTERVAL 15 MINUTE) <= DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)',
     },
     completed: {
       currentStatuses: ['arrived'],
-      // Also protect legacy/faulty early arrivals from being completed early.
-      timeRule: 'AND TIMESTAMP(ts.slot_date, ts.start_time) <= NOW()',
+      // Completion is allowed only after the booked time slot has ended.
+      timeRule: 'AND TIMESTAMP(ts.slot_date, ts.end_time) <= DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)',
     },
     no_show: {
       currentStatuses: ['confirmed', 'rescheduled'],
       // Only mark no-show after the appointment time has passed.
-      timeRule: 'AND TIMESTAMP(ts.slot_date, ts.start_time) <= NOW()',
+      timeRule: 'AND TIMESTAMP(ts.slot_date, ts.start_time) <= DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)',
     },
   };
   const rule = transitionRules[status];
@@ -561,6 +561,7 @@ async function getMerchantBookings(merchantId) {
     `SELECT b.*,
             ts.slot_date  AS booking_date,
             ts.start_time AS booking_time,
+            ts.end_time   AS booking_end_time,
             s.service_name,
             m.email AS merchant_email,
             m.address AS merchant_address,

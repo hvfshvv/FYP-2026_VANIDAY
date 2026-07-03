@@ -330,12 +330,6 @@ async function confirmPaidBooking(bookingId) {
   }
 
   try {
-    await loyaltyModel.awardBookingPoints(bookingId);
-  } catch (err) {
-    console.error('loyalty award failed:', err);
-  }
-
-  try {
     const booking = await bookingModel.getBookingById(bookingId);
     if (booking) {
       const baseUrl = (process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
@@ -793,14 +787,6 @@ async function paymentSuccess(req, res) {
     const existing = await paymentModel.getPaymentByBooking(booking_id);
     if (!existing || existing.payment_status !== 'paid') {
       return res.redirect(`/payment/checkout/${booking_id}`);
-    }
-
-    if (booking && booking.customer_id) {
-      try {
-        await loyaltyModel.awardBookingPoints(booking_id);
-      } catch (err) {
-        console.error('loyalty award on success page failed:', err);
-      }
     }
 
     const loyaltyEarned = booking && booking.customer_id
