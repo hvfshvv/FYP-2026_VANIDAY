@@ -54,9 +54,10 @@
       <a href="/favourite" class="nav-icon-action" aria-label="My Favourites" title="My Favourites">
         <i class="bi bi-heart"></i>
       </a>
-      <a href="/loyalty" class="nav-icon-action" aria-label="My Wallet" title="My Wallet">
+      <a href="/wallet" class="nav-icon-action" aria-label="Payment Wallet" title="Payment Wallet">
         <i class="bi bi-wallet2"></i>
       </a>
+      <a href="/loyalty" class="nav-icon-action" aria-label="Loyalty rewards" title="Loyalty rewards"><i class="bi bi-stars"></i></a>
       <% } %>
       <span class="nav-user-pill"><i class="bi bi-person-circle"></i><%= user.full_name.split(' ')[0] %></span>
       <a href="/auth/logout" class="btn btn-outline-secondary btn-sm btn-pill">Sign out</a>
@@ -85,7 +86,8 @@
     <% } %>
   </a>
   <a href="/favourite">My Favourites</a>
-  <a href="/loyalty">Wallet</a>
+  <a href="/wallet">Payment Wallet</a>
+  <a href="/loyalty">Loyalty Rewards</a>
   <% } %>
   <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
   <a href="/merchant/dashboard">Dashboard</a>

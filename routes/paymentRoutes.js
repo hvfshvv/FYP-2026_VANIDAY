@@ -8,6 +8,7 @@ router.post('/create-intent/:bookingId',     ctrl.createStripeIntent);
 router.post('/confirm-stripe/:bookingId',    ctrl.confirmStripePayment);
 router.post('/fail-stripe/:bookingId',       ctrl.markStripePaymentFailed);
 router.post('/paynow-session/:bookingId',    ctrl.createPayNowSession);
+router.post('/wallet/:bookingId',            ctrl.payWithWallet);
 router.post('/apply-voucher/:bookingId',     ctrl.applyVoucher);
 router.get('/success',                       ctrl.paymentSuccess);
 router.get('/receipt/:bookingId.pdf',        ctrl.downloadReceipt);

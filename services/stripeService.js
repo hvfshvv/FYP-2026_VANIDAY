@@ -36,6 +36,26 @@ async function createPaymentIntent(amount, booking) {
   return intent;
 }
 
+async function createWalletTopupIntent({ amount, customerId }) {
+  assertStripeConfigured();
+  const amountInCents = Math.round(Number(amount) * 100);
+  if (!Number.isInteger(amountInCents) || amountInCents < 500) {
+    throw new Error('Wallet top-up must be at least S$5.00');
+  }
+  return stripe.paymentIntents.create({
+    amount: amountInCents,
+    currency: 'sgd',
+    capture_method: 'automatic',
+    payment_method_types: ['card'],
+    metadata: {
+      purpose: 'wallet_topup',
+      customer_id: String(customerId),
+      payment_method: 'stripe',
+    },
+    description: `Uniday wallet top-up for customer ${customerId}`,
+  });
+}
+
 async function retrievePaymentIntent(paymentIntentId) {
   assertStripeConfigured();
   return stripe.paymentIntents.retrieve(paymentIntentId, {
@@ -98,6 +118,35 @@ async function createPayNowCheckoutSession({ booking, amount, successUrl, cancel
   return session;
 }
 
+async function createWalletPayNowSession({ amount, customerId, successUrl, cancelUrl }) {
+  assertStripeConfigured();
+  const amountInCents = Math.round(Number(amount) * 100);
+  if (!Number.isInteger(amountInCents) || amountInCents < 500) {
+    throw new Error('Wallet top-up must be at least S$5.00');
+  }
+  const metadata = {
+    purpose: 'wallet_topup',
+    customer_id: String(customerId),
+    payment_method: 'paynow',
+  };
+  return stripe.checkout.sessions.create({
+    payment_method_types: ['paynow'],
+    mode: 'payment',
+    line_items: [{
+      price_data: {
+        currency: 'sgd',
+        product_data: { name: 'Uniday payment wallet top-up' },
+        unit_amount: amountInCents,
+      },
+      quantity: 1,
+    }],
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata,
+    payment_intent_data: { metadata },
+  });
+}
+
 async function retrieveCheckoutSession(sessionId) {
   assertStripeConfigured();
   return stripe.checkout.sessions.retrieve(sessionId, {
@@ -124,7 +173,9 @@ function isTestModeKey() {
 
 module.exports = {
   createPaymentIntent,
+  createWalletTopupIntent,
   createPayNowCheckoutSession,
+  createWalletPayNowSession,
   retrieveCheckoutSession,
   retrievePaymentIntent,
   capturePaymentIntent,

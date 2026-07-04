@@ -7,6 +7,7 @@
   const cardErrorEl = document.getElementById('card-errors');
   const stripeButton = document.getElementById('stripe-pay-btn');
   const paynowButton = document.getElementById('paynow-pay-btn');
+  const walletButton = document.getElementById('wallet-pay-btn');
 
   if (!dataEl || !window.Stripe) {
     showError('Stripe could not load. Please refresh and try again.');
@@ -19,9 +20,11 @@
   let elements;
 
   window.switchTab = function (tab) {
-    ['stripe', 'paynow'].forEach(t => {
-      document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
-      document.getElementById(`panel-${t}`).classList.toggle('d-none', t !== tab);
+    ['stripe', 'paynow', 'wallet'].forEach(t => {
+      const tabEl = document.getElementById(`tab-${t}`);
+      const panelEl = document.getElementById(`panel-${t}`);
+      if (tabEl) tabEl.classList.toggle('active', t === tab);
+      if (panelEl) panelEl.classList.toggle('d-none', t !== tab);
     });
     hideError();
   };
@@ -198,6 +201,22 @@
       } catch (err) {
         showError(err.message);
         setLoading('paynow', false);
+      }
+    });
+  }
+
+  if (walletButton) {
+    walletButton.addEventListener('click', async () => {
+      setLoading('wallet', true);
+      hideError();
+      try {
+        const response = await fetch(`/payment/wallet/${BOOKING_ID}`, { method: 'POST' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Wallet payment failed.');
+        showSuccessThenRedirect(data.redirectUrl);
+      } catch (err) {
+        showError(err.message);
+        setLoading('wallet', false);
       }
     });
   }

@@ -11,6 +11,7 @@ const { buildReceiptPdf } = require('../services/receiptPdfService');
 const bookingModel = require('../models/bookingModel');
 const bookingNotificationModel = require('../models/bookingNotificationModel');
 const paymentModel = require('../models/paymentModel');
+const walletModel = require('../models/walletModel');
 const loyaltyModel = require('../models/loyaltyModel');
 const emailService = require('../services/emailService');
 const promotionModel = require('../models/promotionModel');
@@ -400,6 +401,7 @@ async function showCheckout(req, res) {
     const user = req.session.user;
     let voucherOptions = [];
     let appliedVoucher = null;
+    let paymentWallet = null;
 
     if (user && user.role === 'customer') {
       const synced = await syncCheckoutVoucher(
@@ -410,6 +412,7 @@ async function showCheckout(req, res) {
       booking = synced.booking;
       voucherOptions = synced.voucherOptions;
       appliedVoucher = synced.appliedVoucher;
+      paymentWallet = (await walletModel.getWalletSummary(user.customer_id || user.user_id)).wallet;
     }
 
     res.render('payment/checkout', {
@@ -422,6 +425,7 @@ async function showCheckout(req, res) {
       eligibleVouchers: voucherOptions,
       voucherOptions,
       appliedVoucher,
+      paymentWallet,
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
       webhookError: req.query.webhookError || null,
       voucherError: req.query.voucherError || null,
@@ -712,17 +716,45 @@ async function handleStripeWebhook(req, res) {
   try {
     console.log('[stripe] webhook event', { type: event.type });
     if (event.type === 'payment_intent.succeeded') {
-      await persistStripePaymentIntent(event.data.object);
+      if (event.data.object.metadata?.purpose === 'wallet_topup') {
+        const intent = event.data.object;
+        await walletModel.completeTopup({
+          customerId: Number(intent.metadata.customer_id),
+          amount: Number(intent.amount_received || intent.amount) / 100,
+          method: intent.metadata.payment_method || 'stripe',
+          externalReference: intent.id,
+        });
+      } else {
+        await persistStripePaymentIntent(event.data.object);
+      }
     } else if (event.type === 'payment_intent.payment_failed') {
-      const result = await persistStripePaymentIntent(event.data.object);
-      if (result) {
-        await paymentModel.updatePaymentStatus(result.bookingId, 'failed', event.data.object.id);
+      if (event.data.object.metadata?.purpose === 'wallet_topup') {
+        await walletModel.failTopup(event.data.object.id);
+      } else {
+        const result = await persistStripePaymentIntent(event.data.object);
+        if (result) {
+          await paymentModel.updatePaymentStatus(result.bookingId, 'failed', event.data.object.id);
+        }
       }
     } else if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
       const session = await retrieveCheckoutSession(event.data.object.id);
-      await persistCheckoutSession(session);
+      if (session.metadata?.purpose === 'wallet_topup' && session.payment_status === 'paid') {
+        const intent = session.payment_intent;
+        await walletModel.completeTopup({
+          customerId: Number(session.metadata.customer_id),
+          amount: Number(session.amount_total || (typeof intent === 'object' ? intent.amount_received : 0)) / 100,
+          method: 'paynow',
+          externalReference: session.id,
+        });
+      } else {
+        await persistCheckoutSession(session);
+      }
     } else if (event.type === 'checkout.session.async_payment_failed') {
       const session = await retrieveCheckoutSession(event.data.object.id);
+      if (session.metadata?.purpose === 'wallet_topup') {
+        await walletModel.failTopup(session.id);
+        return res.json({ received: true });
+      }
       const bookingId = session.metadata && session.metadata.booking_id;
       if (bookingId) {
         await paymentModel.updateStripeCheckoutSession(bookingId, session.id, session.payment_intent);
@@ -732,13 +764,46 @@ async function handleStripeWebhook(req, res) {
       const charge = event.data.object;
       if (charge.payment_intent) {
         const intent = await retrievePaymentIntent(charge.payment_intent);
-        await persistStripePaymentIntent(intent);
+        if (intent.metadata?.purpose === 'wallet_topup' && intent.status === 'succeeded') {
+          await walletModel.completeTopup({
+            customerId: Number(intent.metadata.customer_id),
+            amount: Number(intent.amount_received || intent.amount) / 100,
+            method: intent.metadata.payment_method || 'stripe',
+            externalReference: intent.id,
+          });
+        } else if (intent.metadata?.purpose !== 'wallet_topup') {
+          await persistStripePaymentIntent(intent);
+        }
       }
     }
     res.json({ received: true });
   } catch (err) {
     console.error('[stripe] webhook handling error:', err);
     res.status(500).json({ error: 'Webhook handling failed' });
+  }
+}
+
+async function payWithWallet(req, res) {
+  const { bookingId } = req.params;
+  try {
+    await bookingNotificationModel.expirePendingPaymentBookings();
+    let booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
+    if (!booking) return;
+    if (!req.session.user || req.session.user.role !== 'customer') {
+      return res.status(403).json({ error: 'Wallet payment is available to signed-in customers only.' });
+    }
+    ({ booking } = await revalidateCheckoutDiscountsForPayment(booking));
+    const amount = getBookingPayableAmount(booking);
+    await walletModel.payBooking({
+      customerId: req.session.user.customer_id || req.session.user.user_id,
+      bookingId,
+      amount,
+    });
+    await confirmPaidBooking(bookingId);
+    res.json({ success: true, redirectUrl: `/payment/success?booking_id=${bookingId}` });
+  } catch (err) {
+    console.error('payWithWallet error:', err);
+    res.status(400).json({ error: err.message || 'Wallet payment failed.' });
   }
 }
 
@@ -876,6 +941,7 @@ module.exports = {
   createStripeIntent,
   confirmStripePayment,
   createPayNowSession,
+  payWithWallet,
   markStripePaymentFailed,
   handleStripeWebhook,
   paymentSuccess,

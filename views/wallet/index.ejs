@@ -1,0 +1,173 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+<script src="https://js.stripe.com/v3/"></script>
+
+<main class="container py-5" style="max-width:980px;">
+  <div class="mb-4">
+    <div>
+      <p class="text-uppercase small mb-1" style="color:var(--accent);font-weight:800;letter-spacing:.08em;">Stored SGD balance</p>
+      <h2 class="mb-1" style="font-weight:800;">Payment Wallet</h2>
+      <p class="mb-0" style="color:var(--muted);">Top up securely, pay for bookings, and receive wallet refunds.</p>
+    </div>
+  </div>
+
+  <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <div id="wallet-error" class="alert alert-danger d-none"></div>
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <section class="card border-0 h-100" style="border-radius:24px;box-shadow:var(--shadow);">
+        <div class="card-body p-4">
+          <span class="small" style="color:var(--muted);">Available balance</span>
+          <div class="my-2" style="font:700 2.7rem var(--font-mono);color:var(--ink);">S$<%= Number(wallet.balance).toFixed(2) %></div>
+          <div class="small mb-4" style="color:var(--muted);">Lifetime top-ups: S$<%= Number(wallet.lifetime_topup).toFixed(2) %> · Spent: S$<%= Number(wallet.lifetime_spent).toFixed(2) %></div>
+
+          <h5 style="font-weight:800;">Top up wallet</h5>
+          <p class="small" style="color:var(--muted);">Choose an amount. Money is added only after Stripe confirms payment.</p>
+          <div class="d-grid gap-2" style="grid-template-columns:repeat(2,1fr);">
+            <% allowedTopups.forEach((amount, index) => { %>
+              <button type="button" class="btn <%= index === 1 ? 'btn-primary' : 'btn-outline-secondary' %> wallet-amount" data-amount="<%= amount %>">S$<%= amount %></button>
+            <% }) %>
+          </div>
+
+          <% if (bonusThreshold > 0 && bonusAmount > 0) { %>
+            <div class="mt-3 p-2 rounded" style="background:#f0fdf4;color:#166534;font-size:.82rem;">
+              <i class="bi bi-gift me-1"></i> Top up S$<%= bonusThreshold.toFixed(2) %> or more and receive S$<%= bonusAmount.toFixed(2) %> bonus credit.
+            </div>
+          <% } %>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="button" id="select-card" class="btn btn-primary flex-fill"><i class="bi bi-credit-card me-1"></i> Card</button>
+            <button type="button" id="select-paynow" class="btn btn-outline-secondary flex-fill"><i class="bi bi-qr-code me-1"></i> PayNow</button>
+          </div>
+          <div id="card-topup-panel">
+            <div id="wallet-card-element" class="mt-3 p-3 rounded" style="border:1.5px solid var(--border);background:#fff;"></div>
+            <button type="button" id="confirm-card-topup" class="btn btn-primary w-100 mt-3">
+              <span id="card-confirm-label"><i class="bi bi-lock me-1"></i> Top up S$20.00</span>
+              <span id="card-confirm-loading" class="d-none"><span class="spinner-border spinner-border-sm me-1"></span> Processing...</span>
+            </button>
+          </div>
+          <div id="paynow-topup-panel" class="d-none">
+            <div class="mt-3 p-3 rounded small" style="background:var(--surface);border:1.5px solid var(--border);color:var(--muted);">
+              You will continue to Stripe to approve the PayNow top-up.
+            </div>
+            <button type="button" id="confirm-paynow-topup" class="btn btn-primary w-100 mt-3">
+              <i class="bi bi-qr-code me-1"></i> Top up S$20.00 with PayNow
+            </button>
+          </div>
+          <p id="selected-label" class="small text-center mt-2 mb-0" style="color:var(--muted);">Selected amount: S$20.00</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-lg-7">
+      <section class="card border-0" style="border-radius:24px;box-shadow:var(--shadow);">
+        <div class="card-body p-4">
+          <h5 class="mb-3" style="font-weight:800;">Wallet activity</h5>
+          <% if (!transactions.length) { %>
+            <p class="py-5 text-center" style="color:var(--muted);">No wallet activity yet.</p>
+          <% } %>
+          <% transactions.forEach(tx => {
+            const outgoing = tx.transaction_type === 'payment';
+            const pending = tx.status === 'pending';
+          %>
+            <div class="d-flex justify-content-between align-items-center py-3 border-bottom gap-3">
+              <div>
+                <div style="font-weight:700;"><%= tx.description || tx.transaction_type %></div>
+                <div class="small" style="color:var(--muted);"><%= new Date(tx.created_at).toLocaleString('en-SG') %> · <%= tx.status %></div>
+              </div>
+              <span style="font-family:var(--font-mono);font-weight:700;color:<%= pending ? 'var(--muted)' : outgoing ? 'var(--danger)' : 'var(--success)' %>;">
+                <%= outgoing ? '-' : '+' %>S$<%= Number(tx.amount).toFixed(2) %>
+              </span>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  const amounts = document.querySelectorAll('.wallet-amount');
+  const errorBox = document.getElementById('wallet-error');
+  const label = document.getElementById('selected-label');
+  const cardSelector = document.getElementById('select-card');
+  const paynowSelector = document.getElementById('select-paynow');
+  const cardPanel = document.getElementById('card-topup-panel');
+  const paynowPanel = document.getElementById('paynow-topup-panel');
+  const cardConfirmLabel = document.getElementById('card-confirm-label');
+  const paynowConfirm = document.getElementById('confirm-paynow-topup');
+  let selectedAmount = 20;
+  const stripe = window.Stripe && '<%= stripePublishableKey || '' %>' ? Stripe('<%= stripePublishableKey || '' %>') : null;
+  const card = stripe ? stripe.elements().create('card', { hidePostalCode: true }) : null;
+  if (card) card.mount('#wallet-card-element');
+  amounts.forEach(button => button.addEventListener('click', () => {
+    selectedAmount = Number(button.dataset.amount);
+    amounts.forEach(item => { item.className = 'btn btn-outline-secondary wallet-amount'; });
+    button.className = 'btn btn-primary wallet-amount';
+    label.textContent = `Selected amount: S$${selectedAmount.toFixed(2)}`;
+    cardConfirmLabel.innerHTML = `<i class="bi bi-lock me-1"></i> Top up S$${selectedAmount.toFixed(2)}`;
+    paynowConfirm.innerHTML = `<i class="bi bi-qr-code me-1"></i> Top up S$${selectedAmount.toFixed(2)} with PayNow`;
+  }));
+
+  function selectMethod(method) {
+    const isCard = method === 'card';
+    cardSelector.className = `btn ${isCard ? 'btn-primary' : 'btn-outline-secondary'} flex-fill`;
+    paynowSelector.className = `btn ${isCard ? 'btn-outline-secondary' : 'btn-primary'} flex-fill`;
+    cardPanel.classList.toggle('d-none', !isCard);
+    paynowPanel.classList.toggle('d-none', isCard);
+    errorBox.classList.add('d-none');
+  }
+  cardSelector.addEventListener('click', () => selectMethod('card'));
+  paynowSelector.addEventListener('click', () => selectMethod('paynow'));
+
+  function showError(message) {
+    errorBox.textContent = message;
+    errorBox.classList.remove('d-none');
+  }
+  async function jsonPost(url, body) {
+    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Request failed.');
+    return data;
+  }
+
+  document.getElementById('confirm-card-topup').addEventListener('click', async function () {
+    this.disabled = true;
+    cardConfirmLabel.classList.add('d-none');
+    document.getElementById('card-confirm-loading').classList.remove('d-none');
+    errorBox.classList.add('d-none');
+    try {
+      if (!stripe || !card) throw new Error('Stripe is not configured.');
+      const setup = await jsonPost('/wallet/topup/card', { amount: selectedAmount });
+      const result = await stripe.confirmCardPayment(setup.clientSecret, {
+        payment_method: { card }
+      });
+      if (result.error) throw new Error(result.error.message);
+      const confirmed = await jsonPost('/wallet/topup/card/confirm', { paymentIntentId: result.paymentIntent.id });
+      window.location.href = confirmed.redirectUrl;
+    } catch (err) {
+      showError(err.message);
+      this.disabled = false;
+      cardConfirmLabel.classList.remove('d-none');
+      document.getElementById('card-confirm-loading').classList.add('d-none');
+    }
+  });
+
+  document.getElementById('confirm-paynow-topup').addEventListener('click', async function () {
+    this.disabled = true;
+    errorBox.classList.add('d-none');
+    try {
+      const data = await jsonPost('/wallet/topup/paynow', { amount: selectedAmount });
+      window.location.href = data.url;
+    } catch (err) {
+      showError(err.message);
+      this.disabled = false;
+    }
+  });
+})();
+</script>
+
+<%- include('../partials/footer') %>

@@ -9,6 +9,7 @@ const staffModel = require('../models/staffModel');
 const cancellationPolicyModel = require('../models/cancellationPolicyModel');
 const notificationModel = require('../models/notificationModel');
 const emailService = require('../services/emailService');
+const walletModel = require('../models/walletModel');
 
 // Power Automate webhook URL: paste your webhook URL here or set POWER_AUTOMATE_WEBHOOK_URL in .env
 const POWER_AUTOMATE_WEBHOOK_URL = process.env.POWER_AUTOMATE_WEBHOOK_URL || 'PASTE_YOUR_POWER_AUTOMATE_WEBHOOK_URL_HERE';
@@ -270,13 +271,24 @@ async function viewCustomerBookings(req, res) {
 
 async function cancelCustomerBooking(req, res) {
   try {
-    await bookingModel.cancelCustomerBooking(req.params.bookingId, req.session.user.customer_id);
+    const customerId = req.session.user.customer_id || req.session.user.user_id;
+    const beforeCancel = (await bookingModel.getCustomerBookings(customerId))
+      .find(item => String(item.booking_id) === String(req.params.bookingId));
+    await bookingModel.cancelCustomerBooking(req.params.bookingId, customerId);
+    const walletRefund = await walletModel.refundBooking({
+      customerId,
+      bookingId: req.params.bookingId,
+      refundPercentage: beforeCancel ? beforeCancel.refund_percentage : 100,
+    });
     const booking = await bookingModel.getBookingById(req.params.bookingId);
     if (booking) {
       await sendCancellationEmails(booking);
       await sendCancellationNotification(booking);
     }
-    res.redirect('/book/viewBookings?success=Booking cancelled successfully.');
+    const message = walletRefund.refunded
+      ? `Booking cancelled. S$${walletRefund.amount.toFixed(2)} was returned to your payment wallet.`
+      : 'Booking cancelled successfully.';
+    res.redirect('/book/viewBookings?success=' + encodeURIComponent(message));
   } catch (err) {
     console.error(err);
     res.redirect(`/book/viewBookings?error=${encodeURIComponent(err.message || 'Could not cancel booking.')}`);
