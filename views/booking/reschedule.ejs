@@ -96,6 +96,23 @@
   const bookingDate = document.getElementById('bookingDate');
   const bookingTime = document.getElementById('bookingTime');
   const sameSlotError = document.getElementById('sameSlotError');
+  const maxAdvanceBookingDays = 365;
+
+  function pad2(value) {
+    return String(value).padStart(2, '0');
+  }
+
+  function localDateValue(date = new Date()) {
+    return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+  }
+
+  function maxBookableDateValue() {
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + maxAdvanceBookingDays);
+    return localDateValue(maxDate);
+  }
+
+  bookingDate.max = maxBookableDateValue();
 
   function isSameSlot() {
     return bookingDate.value === currentDate && bookingTime.value.slice(0, 5) === currentTime;
@@ -103,6 +120,13 @@
 
   function validateChangedSlot() {
     const sameSlot = isSameSlot();
+    const tooFarAhead = bookingDate.value && bookingDate.value > bookingDate.max;
+    if (tooFarAhead) {
+      sameSlotError.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i>Bookings can only be made within the next 12 months.';
+      sameSlotError.style.display = 'block';
+      return false;
+    }
+    sameSlotError.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i>Please choose a different date or time from your current slot.';
     sameSlotError.style.display = sameSlot ? 'block' : 'none';
     return !sameSlot;
   }

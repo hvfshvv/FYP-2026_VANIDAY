@@ -180,6 +180,42 @@ async function sendEmailVerificationEmail(user, verificationUrl) {
   });
 }
 
+async function sendWelcomeEmail(user, verificationUrl) {
+  const name = user.full_name || 'there';
+  const text = [
+    `Hi ${name},`,
+    '',
+    'Welcome to Uniday. Your account has been created successfully.',
+    '',
+    'Use this secure link to verify your email and complete account protection:',
+    verificationUrl,
+    '',
+    'This link expires in 24 hours.',
+    '',
+    'Uniday',
+  ].join('\n');
+
+  return sendMailOrLog({
+    to: user.email,
+    subject: 'Welcome to Uniday',
+    text,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#18181B;">
+        <h2 style="color:#E11D48;margin:0 0 12px;">Welcome to Uniday</h2>
+        <p>Hi ${escapeHtml(name)}, your account has been created successfully.</p>
+        <p>Use this secure link to verify your email and complete account protection.</p>
+        <p>
+          <a href="${escapeHtml(verificationUrl)}" style="display:inline-block;background:#E11D48;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-weight:700;">
+            Verify email
+          </a>
+        </p>
+        <p style="color:#71717A;font-size:14px;">This link expires in 24 hours.</p>
+      </div>
+    `,
+    logLabel: 'Welcome email',
+  });
+}
+
 async function sendBookingConfirmationEmail(booking, receiptUrl = null, recipient = null) {
   const safeRecipient = recipient || {
     kind: 'customer',
@@ -338,6 +374,7 @@ async function sendBookingRescheduledEmail(booking, previousBooking, recipient) 
 module.exports = {
   sendPasswordResetEmail,
   sendEmailVerificationEmail,
+  sendWelcomeEmail,
   sendBookingConfirmationEmail,
   sendBookingReminderEmail,
   sendBookingCancellationEmail,

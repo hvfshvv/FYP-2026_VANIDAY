@@ -323,6 +323,7 @@ const initialServiceId = '<%= selectedServiceId %>';
 const initialTime = '<%= selectedBookingTime %>';
 const initialStaffId = '<%= selectedStaffId %>';
 const loggedInCustomer = <%= loggedInCustomer ? 'true' : 'false' %>;
+const maxAdvanceBookingDays = 365;
 
 function pad2(value) {
   return String(value).padStart(2, '0');
@@ -330,6 +331,12 @@ function pad2(value) {
 
 function localDateValue(date = new Date()) {
   return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+}
+
+function maxBookableDateValue() {
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + maxAdvanceBookingDays);
+  return localDateValue(maxDate);
 }
 
 function getSelectedDateTime() {
@@ -493,7 +500,9 @@ async function loadAvailableStaff() {
 function validateBookingDate() {
   const dateEl = document.getElementById('booking_date');
   const today = localDateValue();
+  const maxDate = maxBookableDateValue();
   dateEl.min = today;
+  dateEl.max = maxDate;
 
   if (dateEl.value && dateEl.value < today) {
     dateEl.value = today;
@@ -502,6 +511,15 @@ function validateBookingDate() {
     document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
     resetStaffOptions();
     setStep2Error('Please choose today or a future date.');
+    return false;
+  }
+  if (dateEl.value && dateEl.value > maxDate) {
+    dateEl.value = maxDate;
+    selectedTime = null;
+    document.getElementById('hidden_booking_time').value = '';
+    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+    resetStaffOptions();
+    setStep2Error('Bookings can only be made within the next 12 months.');
     return false;
   }
   return true;

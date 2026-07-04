@@ -8,7 +8,11 @@
 const db = require('../config/db');
 const voucherModel = require('./voucherModel');
 const cancellationPolicyModel = require('./cancellationPolicyModel');
-const { resolveAvailableStaffForBooking, assertNoCustomerBookingConflict } = require('./slotModel');
+const {
+  resolveAvailableStaffForBooking,
+  assertNoCustomerBookingConflict,
+  assertCurrentOrFutureSlot,
+} = require('./slotModel');
 const {
   ensureBookingPromoSchema,
   expirePendingPaymentBookings,
@@ -31,8 +35,6 @@ async function createBooking({
 }) {
   await expirePendingPaymentBookings();
 
-  // Import assertCurrentOrFutureSlot lazily here to avoid circular dependency issues.
-  const { assertCurrentOrFutureSlot } = require('./slotModel');
   assertCurrentOrFutureSlot(bookingDate, bookingTime);
 
   const connection = await db.getConnection();
@@ -457,10 +459,7 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
       throw new Error('This merchant does not allow rescheduling through the platform.');
     }
 
-    const requestedSlot = new Date(`${bookingDate}T${String(bookingTime).slice(0, 5)}:00`);
-    if (Number.isNaN(requestedSlot.getTime()) || requestedSlot < new Date()) {
-      throw new Error('Please choose a future date and time');
-    }
+    assertCurrentOrFutureSlot(bookingDate, bookingTime);
 
     const currentDate = formatDateValue(booking.slot_date);
     const currentTime = String(booking.start_time).slice(0, 5);

@@ -21,6 +21,7 @@
   const tierProgress = Math.min(100, (avgPoints / 2000) * 100);
   const qrTotal = (a.qrAccess || []).find(row => row.source === 'qr')?.total || 0;
   const reminderTotal = (a.reminders || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
+  const safeJson = value => JSON.stringify(value || {}).replace(/</g, '\\u003c');
 %>
 
 <style>
@@ -240,6 +241,29 @@
     background:var(--canvas);
     padding:.9rem;
   }
+  .summary-panel {
+    display:none;
+    border:1px solid rgba(225,29,72,.22);
+    border-radius:var(--r-lg);
+    background:var(--surface);
+    box-shadow:var(--shadow-sm);
+    padding:1.25rem;
+  }
+  .summary-panel.is-visible {
+    display:block;
+  }
+  .summary-panel__copy {
+    color:var(--ink);
+    line-height:1.7;
+    margin:0;
+    white-space:pre-line;
+  }
+  .summary-panel__meta {
+    color:var(--muted);
+    font-size:.8125rem;
+    font-weight:700;
+    margin-bottom:.75rem;
+  }
 </style>
 
 <main class="customer-admin" id="customerAdmin">
@@ -261,6 +285,9 @@
         <button type="button" class="btn btn-outline-secondary btn-pill" id="themeToggle">
           <i class="bi bi-moon-stars me-1"></i>Theme
         </button>
+        <button type="button" class="btn btn-outline-secondary btn-pill" id="summaryButton">
+          <i class="bi bi-file-earmark-text me-1"></i>Summarize Data
+        </button>
       </div>
     </div>
 
@@ -280,6 +307,20 @@
       <a href="#reviews">Reviews</a>
       <a href="#security">Security</a>
     </div>
+
+    <section class="summary-panel mb-4" id="summaryPanel" aria-live="polite">
+      <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-2">
+        <div>
+          <p class="section-label mb-1">Customer Data Summary</p>
+          <h4 class="customer-title">Data Analysis</h4>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm btn-pill" id="copySummaryButton">
+          <i class="bi bi-clipboard me-1"></i>Copy
+        </button>
+      </div>
+      <p class="summary-panel__meta" id="summaryMeta"></p>
+      <p class="summary-panel__copy" id="summaryOutput"></p>
+    </section>
 
     <section id="overview" class="section-anchor mb-5">
       <div class="row g-3">
@@ -678,6 +719,13 @@
   (function () {
     const dashboard = document.getElementById('customerAdmin');
     const toggle = document.getElementById('themeToggle');
+    const summaryButton = document.getElementById('summaryButton');
+    const summaryPanel = document.getElementById('summaryPanel');
+    const summaryMeta = document.getElementById('summaryMeta');
+    const summaryOutput = document.getElementById('summaryOutput');
+    const copySummaryButton = document.getElementById('copySummaryButton');
+    const analytics = <%- safeJson(a) %>;
+    const range = <%- safeJson(range) %>;
     const storedTheme = localStorage.getItem('adminCustomerTheme') || 'light';
     dashboard.dataset.theme = storedTheme;
 
@@ -685,6 +733,189 @@
       const nextTheme = dashboard.dataset.theme === 'dark' ? 'light' : 'dark';
       dashboard.dataset.theme = nextTheme;
       localStorage.setItem('adminCustomerTheme', nextTheme);
+    });
+
+    const number = value => Number(value || 0).toLocaleString('en-SG');
+    const money = value => 'S$' + Number(value || 0).toFixed(2);
+    const percent = value => Number(value || 0).toFixed(1) + '%';
+    const dateLabel = value => value
+      ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '-';
+    const text = value => String(value || '').replace(/_/g, ' ');
+    const listTop = (items, mapper, fallback) => {
+      const values = (items || []).slice(0, 3).map(mapper).filter(Boolean);
+      return values.length ? values.join(', ') : fallback;
+    };
+    const valuesFor = (items, key) => (items || [])
+      .map(item => Number(item[key] || 0))
+      .filter(value => Number.isFinite(value));
+    const statsFor = values => {
+      const nums = values.filter(value => Number.isFinite(value)).sort((a, b) => a - b);
+      if (!nums.length) return null;
+      const sum = nums.reduce((total, value) => total + value, 0);
+      const mean = sum / nums.length;
+      const median = nums.length % 2
+        ? nums[(nums.length - 1) / 2]
+        : (nums[(nums.length / 2) - 1] + nums[nums.length / 2]) / 2;
+      const counts = nums.reduce((acc, value) => {
+        const key = value.toFixed(2);
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+      const maxCount = Math.max(...Object.values(counts));
+      const mode = Object.entries(counts)
+        .filter(([, count]) => count === maxCount)
+        .map(([value]) => Number(value));
+      const variance = nums.reduce((total, value) => total + Math.pow(value - mean, 2), 0) / nums.length;
+      return {
+        count: nums.length,
+        mean,
+        median,
+        mode,
+        min: nums[0],
+        max: nums[nums.length - 1],
+        stdDev: Math.sqrt(variance),
+      };
+    };
+    const formatStat = (stats, formatter) => {
+      if (!stats) return 'not available from the current dashboard data';
+      const modeText = stats.mode.length > 3 ? 'multiple values' : stats.mode.map(formatter).join(', ');
+      return `mean ${formatter(stats.mean)}, median ${formatter(stats.median)}, mode ${modeText}, minimum ${formatter(stats.min)}, maximum ${formatter(stats.max)}, and standard deviation ${formatter(stats.stdDev)} across ${number(stats.count)} displayed aggregate value${stats.count === 1 ? '' : 's'}`;
+    };
+    const frequencyText = (items, labelKey, valueKey, fallback) => {
+      const total = (items || []).reduce((sum, row) => sum + Number(row[valueKey] || 0), 0);
+      if (!total) return fallback;
+      return (items || []).slice(0, 4).map(row => {
+        const value = Number(row[valueKey] || 0);
+        const share = (value / total) * 100;
+        return `${text(row[labelKey] || 'Unknown')} ${number(value)} (${percent(share)})`;
+      }).join(', ');
+    };
+
+    function buildCustomerSummary() {
+      const overview = analytics.overview || {};
+      const loyalty = analytics.loyaltySummary || {};
+      const security = analytics.security || {};
+      const totalCustomers = Number(overview.total_customers || 0);
+      const loyaltyMembers = Number(overview.loyalty_members || 0);
+      const loyaltyRate = totalCustomers ? (loyaltyMembers / totalCustomers) * 100 : 0;
+      const profileSpendStats = statsFor(valuesFor(analytics.accountProfiles, 'total_spent'));
+      const monthlySpendStats = statsFor(valuesFor(analytics.spendingTrend, 'total'));
+      const bookingFrequencyStats = statsFor(valuesFor(analytics.bookingFrequency, 'bookings'));
+      const profileText = listTop(
+        analytics.accountProfiles,
+        row => `${row.full_name || 'Customer'} with ${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'} and ${money(row.total_spent)} spent`,
+        'no customer profile rows'
+      );
+      const statusText = listTop(
+        analytics.bookingStatus,
+        row => `${number(row.total)} ${text(row.status)} booking${Number(row.total || 0) === 1 ? '' : 's'}`,
+        'no date-filtered booking status records'
+      );
+      const upcomingText = listTop(
+        analytics.upcomingBookings,
+        row => `${row.service_name || 'service'} for ${row.customer_name || 'a customer'} on ${dateLabel(row.slot_date)}`,
+        'no upcoming appointments listed'
+      );
+      const pastText = listTop(
+        analytics.pastBookings,
+        row => `${row.service_name || 'service'} on ${dateLabel(row.slot_date)}`,
+        'no past appointment history listed'
+      );
+      const spendText = listTop(
+        analytics.spendingTrend,
+        row => `${row.month_label}: ${money(row.total)}`,
+        'no paid spending trend in the selected dates'
+      );
+      const categoryText = listTop(
+        analytics.spendingCategories,
+        row => `${row.category || 'Uncategorised'} (${money(row.total)})`,
+        'no category spend recorded'
+      );
+      const merchantText = listTop(
+        analytics.mostVisitedMerchants,
+        row => `${row.merchant_name || 'Merchant'} with ${number(row.visits)} visit${Number(row.visits || 0) === 1 ? '' : 's'}`,
+        'no merchant visit leaders'
+      );
+      const serviceText = listTop(
+        analytics.favouriteServices,
+        row => `${row.service_name || 'Service'} (${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'})`,
+        'no favourite service leaders'
+      );
+      const loyaltyText = listTop(
+        analytics.loyaltyTransactions,
+        row => `${text(row.transaction_type)}: ${number(row.points)} points`,
+        'no loyalty transactions in the selected dates'
+      );
+      const voucherText = listTop(
+        analytics.availableVouchers,
+        row => `${row.campaign_name || row.voucher_code || 'Voucher'} ending ${dateLabel(row.end_date)}`,
+        'no active vouchers available'
+      );
+      const recommendedMerchantText = listTop(
+        analytics.recommendedMerchants,
+        row => `${row.merchant_name || 'Merchant'} (${Number(row.rating || 0).toFixed(1)}/5)`,
+        'no merchant recommendations'
+      );
+      const suggestedServiceText = listTop(
+        analytics.suggestedServices,
+        row => `${row.service_name || 'Service'} in ${row.category || 'Uncategorised'}`,
+        'no suggested services'
+      );
+      const promotionText = listTop(
+        analytics.behaviourPromotions,
+        row => row.campaign_name || row.voucher_code || 'Promotion',
+        'no behaviour-based promotions'
+      );
+      const reviewCount = Number((analytics.reviewSummary || {}).review_count || 0);
+      const avgRating = Number((analytics.reviewSummary || {}).avg_rating || 0).toFixed(1);
+      const feedbackText = listTop(
+        analytics.platformFeedback,
+        row => `${text(row.feedback_type || 'general')} (${number(row.total)})`,
+        'no platform feedback records'
+      );
+      const paymentText = listTop(
+        analytics.paymentMethods,
+        row => `${row.payment_method || 'Unknown'} (${number(row.total)} payment${Number(row.total || 0) === 1 ? '' : 's'})`,
+        'no payment method usage'
+      );
+      const statusFrequency = frequencyText(analytics.bookingStatus, 'status', 'total', 'no booking status frequency counts are available');
+      const categoryFrequency = frequencyText(analytics.spendingCategories, 'category', 'total', 'no category spending percentages are available');
+      const paymentFrequency = frequencyText(analytics.paymentMethods, 'payment_method', 'total', 'no payment method percentages are available');
+      const trendText = (analytics.spendingTrend || []).length > 1
+        ? `Monthly spending moves from ${money((analytics.spendingTrend || [])[0].total)} in ${(analytics.spendingTrend || [])[0].month_label} to ${money((analytics.spendingTrend || []).slice(-1)[0].total)} in ${(analytics.spendingTrend || []).slice(-1)[0].month_label}.`
+        : 'Monthly spending trend evidence is limited because fewer than two monthly points are available.';
+
+      return `Data Summary
+
+The customer analytics dataset covers the filtered period from ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}. It summarizes ${number(totalCustomers)} customer account${totalCustomers === 1 ? '' : 's'}, ${number(loyaltyMembers)} loyalty member${loyaltyMembers === 1 ? '' : 's'}, account profile rows, booking records, loyalty transactions, spending categories, recommendation signals, reviews, platform feedback, security status, and payment method usage. The displayed profile table is led by ${profileText}. The dataset is date-aligned to the selected range for booking, spending, loyalty, review, feedback, recommendation, and payment activity.
+
+Descriptive Statistics
+
+For spending in the displayed customer profiles, the distribution has ${formatStat(profileSpendStats, money)}. Monthly paid spending has ${formatStat(monthlySpendStats, money)}. Booking frequency by day has ${formatStat(bookingFrequencyStats, value => number(value) + ' booking' + (Math.round(value) === 1 ? '' : 's'))}. At the KPI level, customers generated ${money(overview.total_amount_spent)} in paid spending with an average order value of ${money(overview.average_order_value)}. Loyalty adoption is ${percent(loyaltyRate)}, reward point balances total ${number(overview.reward_points_balance)}, and wallet balances total ${number(loyalty.points_balance)} points.
+
+Frequency counts and percentages show booking status distribution as ${statusFrequency}. Spending category distribution is ${categoryFrequency}. Payment method distribution is ${paymentFrequency}. Loyalty tiers are distributed across ${number(loyalty.bronze_members)} bronze, ${number(loyalty.silver_members)} silver, and ${number(loyalty.gold_members)} gold member${Number(loyalty.gold_members || 0) === 1 ? '' : 's'}, while date-filtered loyalty movement includes ${loyaltyText}.
+
+Key Observations
+
+The main trend is that ${trendText} Booking activity is led by ${statusText}; upcoming appointment context includes ${upcomingText}, while recent history includes ${pastText}. Category and service patterns are concentrated around ${categoryText}, ${merchantText}, and ${serviceText}. Recommendation relationships worth investigating include merchants ${recommendedMerchantText}, suggested services ${suggestedServiceText}, and behaviour-based promotions ${promotionText}; active voucher opportunities include ${voucherText}. Reviews and support signals show ${number(reviewCount)} submitted review${reviewCount === 1 ? '' : 's'} with an average rating of ${avgRating}/5, while platform feedback is summarized as ${feedbackText}. Unusual findings to review include large gaps between the mean and median spending values, any maximum profile spend far above the median, and low-frequency categories with unexpectedly high revenue. Security status shows ${number(security.active_accounts)} active account${Number(security.active_accounts || 0) === 1 ? '' : 's'} and ${number(security.suspended_accounts)} suspended account${Number(security.suspended_accounts || 0) === 1 ? '' : 's'}, while payment usage is ${paymentText}. Overall, the dataset is sufficiently structured for follow-up analysis such as customer segmentation, spending trend analysis, recommendation tuning, and loyalty performance review.`;
+    }
+
+    summaryButton.addEventListener('click', function () {
+      summaryMeta.textContent = `Generated from the currently filtered dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
+      summaryOutput.textContent = buildCustomerSummary();
+      summaryPanel.classList.add('is-visible');
+      summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    copySummaryButton.addEventListener('click', async function () {
+      const value = summaryOutput.textContent || '';
+      if (!value) return;
+      await navigator.clipboard.writeText(value);
+      copySummaryButton.innerHTML = '<i class="bi bi-check2 me-1"></i>Copied';
+      setTimeout(() => {
+        copySummaryButton.innerHTML = '<i class="bi bi-clipboard me-1"></i>Copy';
+      }, 1600);
     });
   })();
 </script>

@@ -49,6 +49,23 @@ async function sendVerificationEmail(req, user) {
   }
 }
 
+async function sendWelcomeEmail(req, user) {
+  const token = await authModel.createEmailVerificationToken(user.user_id);
+  const verificationUrl = `${getBaseUrl(req)}/auth/verify-email/${token}`;
+
+  try {
+    const result = await emailService.sendWelcomeEmail(user, verificationUrl);
+    return {
+      ...result,
+      verificationUrl,
+    };
+  } catch (err) {
+    console.error('welcome email send failed:', err);
+    console.log(`Welcome verification link for ${user.email}: ${verificationUrl}`);
+    return { sent: false, verificationUrl };
+  }
+}
+
 async function buildSessionUser(user) {
   const sessionUser = {
     user_id: user.user_id,
@@ -315,18 +332,16 @@ async function register(req, res) {
       await qrService.ensureMerchantQRCodes(merchantId);
     }
 
-    if (isEmailVerificationRequired()) {
-      await sendVerificationEmail(req, newUser);
-    }
+    await sendWelcomeEmail(req, newUser);
     await notificationModel.notifySignup(newUser).catch(err => {
       console.error('signup notification failed:', err);
     });
 
     if (safeRole === 'merchant') {
-      return res.redirect(`/auth/login?registered=1${isEmailVerificationRequired() ? '&verify=1' : ''}`);
+      return res.redirect('/auth/login?registered=1&verify=1');
     }
 
-    res.redirect(`/auth/login?registered=1${isEmailVerificationRequired() ? '&verify=1' : ''}${next ? '&next=' + encodeURIComponent(next) : ''}`);
+    res.redirect(`/auth/login?registered=1&verify=1${next ? '&next=' + encodeURIComponent(next) : ''}`);
 
   } catch (err) {
     console.error(err);

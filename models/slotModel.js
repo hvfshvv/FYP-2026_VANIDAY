@@ -7,6 +7,7 @@
 
 const db = require('../config/db');
 const { expirePendingPaymentBookings } = require('./bookingNotificationModel');
+const MAX_ADVANCE_BOOKING_DAYS = 365;
 
 // ── STAFF AVAILABILITY ─────────────────────────────────────────────────────
 
@@ -22,6 +23,7 @@ async function getAvailableStaffForSlot({
   connection = db,
 }) {
   if (!merchantId || !serviceId || !bookingDate || !bookingTime) return [];
+  if (!isDateWithinAdvanceLimit(bookingDate)) return [];
 
   let safeDuration = Number(durationMins);
   if (!Number.isFinite(safeDuration) || safeDuration <= 0) {
@@ -210,10 +212,31 @@ async function assertNoCustomerBookingConflict(connection, {
 
 // ── SLOT VALIDATION ────────────────────────────────────────────────────────
 
-// Throws if the given date/time combination is in the past or missing.
+function dateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function maxBookableDateValue() {
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + MAX_ADVANCE_BOOKING_DAYS);
+  return dateInputValue(maxDate);
+}
+
+function isDateWithinAdvanceLimit(bookingDate) {
+  return Boolean(bookingDate) && String(bookingDate).slice(0, 10) <= maxBookableDateValue();
+}
+
+// Throws if the given date/time combination is in the past, too far ahead, or missing.
 function assertCurrentOrFutureSlot(bookingDate, bookingTime) {
   if (!bookingDate || !bookingTime) {
     throw new Error('Please choose a booking date and time.');
+  }
+
+  if (!isDateWithinAdvanceLimit(bookingDate)) {
+    throw new Error('Bookings can only be made within the next 12 months.');
   }
 
   const slot = new Date(`${bookingDate}T${String(bookingTime).slice(0, 5)}:00`);
@@ -230,6 +253,7 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
   await expirePendingPaymentBookings();
 
   if (!merchantId || !serviceId || !bookingDate) return [];
+  if (!isDateWithinAdvanceLimit(bookingDate)) return [];
 
   // Fetch service duration to compute slot end times and filter by available staff.
   const [[service]] = await db.query(
@@ -300,5 +324,7 @@ module.exports = {
   resolveAvailableStaffForBooking,
   assertNoCustomerBookingConflict,
   assertCurrentOrFutureSlot,
+  maxBookableDateValue,
+  isDateWithinAdvanceLimit,
   getAvailableSlots,
 };

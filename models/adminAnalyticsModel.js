@@ -399,9 +399,11 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
        JOIN time_slot ts ON ts.slot_id = b.slot_id
        WHERE u.role = 'customer'
          AND b.status NOT IN ('cancelled', 'completed', 'no_show')
+         AND DATE(ts.slot_date) BETWEEN ? AND ?
          AND CONCAT(ts.slot_date, ' ', ts.start_time) >= NOW()
        ORDER BY ts.slot_date ASC, ts.start_time ASC
-       LIMIT 8`
+       LIMIT 8`,
+      rangeParams
     ).then(([rows]) => rows),
     db.query(
       `SELECT b.booking_id, b.status, ts.slot_date, ts.start_time, u.full_name AS customer_name,
@@ -412,9 +414,11 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
        JOIN service s ON s.service_id = b.service_id
        JOIN time_slot ts ON ts.slot_id = b.slot_id
        WHERE u.role = 'customer'
+         AND DATE(ts.slot_date) BETWEEN ? AND ?
          AND (CONCAT(ts.slot_date, ' ', ts.start_time) < NOW() OR b.status IN ('completed', 'cancelled', 'no_show'))
        ORDER BY ts.slot_date DESC, ts.start_time DESC
-       LIMIT 8`
+       LIMIT 8`,
+      rangeParams
     ).then(([rows]) => rows),
     db.query(
       `SELECT b.status, COUNT(*) AS total
@@ -516,22 +520,24 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
       `SELECT m.merchant_name, COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
               COUNT(b.booking_id) AS bookings, COALESCE(AVG(r.rating), 0) AS rating
        FROM merchant m
-       LEFT JOIN booking b ON b.merchant_id = m.merchant_id
+       LEFT JOIN booking b ON b.merchant_id = m.merchant_id AND DATE(b.created_at) BETWEEN ? AND ?
        LEFT JOIN merchant_review r ON r.merchant_id = m.merchant_id
        GROUP BY m.merchant_id, m.merchant_name, m.category
        ORDER BY bookings DESC, rating DESC
-       LIMIT 8`
+       LIMIT 8`,
+      rangeParams
     ).then(([rows]) => rows),
     db.query(
       `SELECT s.service_name, m.merchant_name, COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category,
               COUNT(b.booking_id) AS bookings
        FROM service s
        JOIN merchant m ON m.merchant_id = s.merchant_id
-       LEFT JOIN booking b ON b.service_id = s.service_id
+       LEFT JOIN booking b ON b.service_id = s.service_id AND DATE(b.created_at) BETWEEN ? AND ?
        WHERE s.is_active = TRUE
        GROUP BY s.service_id, s.service_name, s.category, m.merchant_name, m.category
        ORDER BY bookings DESC
-       LIMIT 8`
+       LIMIT 8`,
+      rangeParams
     ).then(([rows]) => rows),
     db.query(
       `SELECT voucher_code, campaign_name, discount_type, discount_value, min_spend, end_date
@@ -553,8 +559,10 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
        JOIN users u ON u.user_id = r.customer_id
        JOIN merchant m ON m.merchant_id = r.merchant_id
        JOIN service s ON s.service_id = r.service_id
+       WHERE DATE(r.created_at) BETWEEN ? AND ?
        ORDER BY r.created_at DESC
-       LIMIT 8`
+       LIMIT 8`,
+      rangeParams
     ).then(([rows]) => rows),
     db.query(
       `SELECT feedback_type, COUNT(*) AS total, COALESCE(AVG(rating), 0) AS avg_rating

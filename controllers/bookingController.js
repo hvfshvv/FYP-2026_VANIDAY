@@ -46,6 +46,7 @@ function redirectMerchantAwayFromBooking(req, res) {
 
 function isCurrentOrFutureSlot(bookingDate, bookingTime) {
   if (!bookingDate || !bookingTime) return false;
+  if (!slotModel.isDateWithinAdvanceLimit(bookingDate)) return false;
   const slot = new Date(`${bookingDate}T${String(bookingTime).slice(0, 5)}:00`);
   return !Number.isNaN(slot.getTime()) && slot >= new Date();
 }
@@ -434,7 +435,9 @@ async function confirmBooking(req, res) {
         token,
         qr,
         services,
-        error: 'Please choose a booking date and time that is not in the past.',
+        error: slotModel.isDateWithinAdvanceLimit(booking_date)
+          ? 'Please choose a booking date and time that is not in the past.'
+          : 'Bookings can only be made within the next 12 months.',
         statusCode: 400,
       });
     }

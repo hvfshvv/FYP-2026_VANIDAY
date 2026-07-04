@@ -19,6 +19,7 @@
   const refundedAmount = Number(a.financial?.refunded_amount || 0);
   const profitMargin = grossRevenue ? ((grossRevenue - refundedAmount) / grossRevenue) * 100 : 0;
   const chartColors = ['#E11D48', '#FB7185', '#F59E0B', '#10B981', '#0EA5E9', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#64748B'];
+  const safeJson = value => JSON.stringify(value || {}).replace(/</g, '\\u003c');
 %>
 
 <style>
@@ -257,6 +258,29 @@
     color:var(--danger);
     background:var(--surface);
   }
+  .summary-panel {
+    display:none;
+    border:1px solid rgba(225,29,72,.22);
+    border-radius:var(--r-lg);
+    background:var(--surface);
+    box-shadow:var(--shadow-sm);
+    padding:1.25rem;
+  }
+  .summary-panel.is-visible {
+    display:block;
+  }
+  .summary-panel__copy {
+    color:var(--ink);
+    line-height:1.7;
+    margin:0;
+    white-space:pre-line;
+  }
+  .summary-panel__meta {
+    color:var(--muted);
+    font-size:.8125rem;
+    font-weight:700;
+    margin-bottom:.75rem;
+  }
 </style>
 
 <main class="merchant-analytics" id="merchantAnalytics" style="background:var(--canvas);min-height:80vh;padding:2.5rem 1rem;">
@@ -277,6 +301,9 @@
         </form>
         <button type="button" class="btn btn-outline-secondary btn-pill" id="themeToggle">
           <i class="bi bi-moon-stars me-1"></i>Theme
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-pill" id="summaryButton">
+          <i class="bi bi-file-earmark-text me-1"></i>Summarize Data
         </button>
       </div>
     </div>
@@ -309,6 +336,20 @@
       <a href="#finance">Finance</a>
       <a href="#insights">AI Insights</a>
     </div>
+
+    <section class="summary-panel mb-4" id="summaryPanel" aria-live="polite">
+      <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-2">
+        <div>
+          <p class="section-label mb-1">Merchant Data Summary</p>
+          <h4 class="analytics-title">Data Analysis</h4>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm btn-pill" id="copySummaryButton">
+          <i class="bi bi-clipboard me-1"></i>Copy
+        </button>
+      </div>
+      <p class="summary-panel__meta" id="summaryMeta"></p>
+      <p class="summary-panel__copy" id="summaryOutput"></p>
+    </section>
 
     <section id="overview" class="section-anchor mb-5">
       <div class="row g-3">
@@ -755,6 +796,13 @@
   (function () {
     const dashboard = document.getElementById('merchantAnalytics');
     const toggle = document.getElementById('themeToggle');
+    const summaryButton = document.getElementById('summaryButton');
+    const summaryPanel = document.getElementById('summaryPanel');
+    const summaryMeta = document.getElementById('summaryMeta');
+    const summaryOutput = document.getElementById('summaryOutput');
+    const copySummaryButton = document.getElementById('copySummaryButton');
+    const analytics = <%- safeJson(a) %>;
+    const range = <%- safeJson(range) %>;
     const storedTheme = localStorage.getItem('adminMerchantTheme') || 'light';
     dashboard.dataset.theme = storedTheme;
 
@@ -762,6 +810,147 @@
       const nextTheme = dashboard.dataset.theme === 'dark' ? 'light' : 'dark';
       dashboard.dataset.theme = nextTheme;
       localStorage.setItem('adminMerchantTheme', nextTheme);
+    });
+
+    const number = value => Number(value || 0).toLocaleString('en-SG');
+    const money = value => 'S$' + Number(value || 0).toFixed(2);
+    const percent = value => Number(value || 0).toFixed(1) + '%';
+    const dateLabel = value => value
+      ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '-';
+    const text = value => String(value || '').replace(/_/g, ' ');
+    const listTop = (items, mapper, fallback) => {
+      const values = (items || []).slice(0, 3).map(mapper).filter(Boolean);
+      return values.length ? values.join(', ') : fallback;
+    };
+    const valuesFor = (items, key) => (items || [])
+      .map(item => Number(item[key] || 0))
+      .filter(value => Number.isFinite(value));
+    const statsFor = values => {
+      const nums = values.filter(value => Number.isFinite(value)).sort((a, b) => a - b);
+      if (!nums.length) return null;
+      const sum = nums.reduce((total, value) => total + value, 0);
+      const mean = sum / nums.length;
+      const median = nums.length % 2
+        ? nums[(nums.length - 1) / 2]
+        : (nums[(nums.length / 2) - 1] + nums[nums.length / 2]) / 2;
+      const counts = nums.reduce((acc, value) => {
+        const key = value.toFixed(2);
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+      const maxCount = Math.max(...Object.values(counts));
+      const mode = Object.entries(counts)
+        .filter(([, count]) => count === maxCount)
+        .map(([value]) => Number(value));
+      const variance = nums.reduce((total, value) => total + Math.pow(value - mean, 2), 0) / nums.length;
+      return {
+        count: nums.length,
+        mean,
+        median,
+        mode,
+        min: nums[0],
+        max: nums[nums.length - 1],
+        stdDev: Math.sqrt(variance),
+      };
+    };
+    const formatStat = (stats, formatter) => {
+      if (!stats) return 'not available from the current dashboard data';
+      const modeText = stats.mode.length > 3 ? 'multiple values' : stats.mode.map(formatter).join(', ');
+      return `mean ${formatter(stats.mean)}, median ${formatter(stats.median)}, mode ${modeText}, minimum ${formatter(stats.min)}, maximum ${formatter(stats.max)}, and standard deviation ${formatter(stats.stdDev)} across ${number(stats.count)} displayed aggregate value${stats.count === 1 ? '' : 's'}`;
+    };
+    const frequencyText = (items, labelKey, valueKey, fallback) => {
+      const total = (items || []).reduce((sum, row) => sum + Number(row[valueKey] || 0), 0);
+      if (!total) return fallback;
+      return (items || []).slice(0, 4).map(row => {
+        const value = Number(row[valueKey] || 0);
+        const share = (value / total) * 100;
+        return `${text(row[labelKey] || 'Unknown')} ${number(value)} (${percent(share)})`;
+      }).join(', ');
+    };
+
+    function buildMerchantSummary() {
+      const overview = analytics.overview || {};
+      const financial = analytics.financial || {};
+      const segments = analytics.customerSegments || {};
+      const grossRevenue = Number(financial.gross_revenue || 0);
+      const refundedAmount = Number(financial.refunded_amount || 0);
+      const profitMargin = grossRevenue ? ((grossRevenue - refundedAmount) / grossRevenue) * 100 : 0;
+      const totalCustomers = Number(segments.total_customers || 0);
+      const returningCustomers = Number(segments.returning_customers || 0);
+      const retentionRate = totalCustomers ? (returningCustomers / totalCustomers) * 100 : 0;
+      const revenueStats = statsFor(valuesFor(analytics.revenueTrend, 'total'));
+      const categoryStats = statsFor(valuesFor(analytics.revenueByCategory, 'revenue'));
+      const serviceBookingStats = statsFor(valuesFor(analytics.topServices, 'bookings'));
+      const merchantRevenueStats = statsFor(valuesFor(analytics.topMerchants, 'revenue'));
+      const statusFrequency = frequencyText(analytics.bookingStatus, 'status', 'total', 'no booking status frequency counts are available');
+      const categoryFrequency = frequencyText(analytics.revenueByCategory, 'category', 'revenue', 'no category revenue percentages are available');
+      const paymentFrequency = frequencyText(analytics.paymentBreakdown, 'payment_method', 'total', 'no payment method percentages are available');
+      const channelFrequency = frequencyText(analytics.bookingChannelAnalytics, 'channel_label', 'total', 'no booking channel percentages are available');
+      const topServices = listTop(
+        analytics.topServices,
+        row => `${row.service_name || 'Service'} with ${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'} and ${money(row.revenue)} revenue`,
+        'no top-selling service rows'
+      );
+      const topMerchants = listTop(
+        analytics.topMerchants,
+        row => `${row.merchant_name || 'Merchant'} (${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'}, ${money(row.revenue)})`,
+        'no merchant leaderboard rows'
+      );
+      const peakSales = listTop(
+        analytics.peakSalesPeriods,
+        row => `${String(row.hour_label).padStart(2, '0')}:00 with ${money(row.revenue)}`,
+        'no peak sales period data'
+      );
+      const peakBookings = listTop(
+        analytics.peakBookingTimes,
+        row => `${row.day_label} ${String(row.hour_label).padStart(2, '0')}:00 with ${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'}`,
+        'no booking heatmap data'
+      );
+      const campaigns = listTop(
+        analytics.promotionPerformance,
+        row => `${row.campaign_name || row.voucher_code || 'Voucher'} with ${number(row.redemptions)} redemption${Number(row.redemptions || 0) === 1 ? '' : 's'}`,
+        'no promotion redemptions'
+      );
+      const loyalCustomers = listTop(
+        analytics.topCustomers,
+        row => `${row.full_name || 'Customer'} with ${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'} and ${money(row.lifetime_value)} CLV`,
+        'no repeat customer rows'
+      );
+      const trendText = (analytics.revenueTrend || []).length > 1
+        ? `Daily revenue moves from ${money((analytics.revenueTrend || [])[0].total)} on ${dateLabel((analytics.revenueTrend || [])[0].period_label)} to ${money((analytics.revenueTrend || []).slice(-1)[0].total)} on ${dateLabel((analytics.revenueTrend || []).slice(-1)[0].period_label)}.`
+        : 'Daily revenue trend evidence is limited because fewer than two daily points are available.';
+
+      return `Data Summary
+
+The merchant analytics dataset covers the filtered period from ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}. It summarizes booking activity, paid revenue, service performance, category revenue, customer retention, marketing channels, campaign performance, finance indicators, predictive planning signals, and merchant leaderboard rows. The dashboard contains ${number(overview.total_bookings)} booking${Number(overview.total_bookings || 0) === 1 ? '' : 's'}, ${money(overview.revenue_generated)} in generated revenue, ${number(overview.number_of_customers)} customer${Number(overview.number_of_customers || 0) === 1 ? '' : 's'}, and an average order value of ${money(overview.average_order_value)}. The visible leaderboard is led by ${topMerchants}.
+
+Descriptive Statistics
+
+For daily revenue, the distribution has ${formatStat(revenueStats, money)}. Revenue by category has ${formatStat(categoryStats, money)}. Top-service booking counts have ${formatStat(serviceBookingStats, value => number(value) + ' booking' + (Math.round(value) === 1 ? '' : 's'))}. Merchant leaderboard revenue has ${formatStat(merchantRevenueStats, money)}. Key KPI values show a booking conversion rate of ${percent(overview.booking_conversion_rate)}, cancellation/no-show rate of ${percent(overview.cancellation_no_show_rate)}, satisfaction rating of ${Number(overview.customer_satisfaction_rating || 0).toFixed(1)}/5, average lead time of ${(Number((analytics.leadTime || {}).avg_lead_hours || 0) / 24).toFixed(1)} days, retention rate of ${percent(retentionRate)}, profit margin of ${percent(profitMargin)}, refund amount of ${money(financial.refunded_amount)}, refund count of ${number(financial.refund_count)}, and estimated tax of ${money(financial.estimated_tax)}.
+
+Frequency counts and percentages show booking status distribution as ${statusFrequency}. Category revenue distribution is ${categoryFrequency}. Payment method distribution is ${paymentFrequency}. Booking channel distribution is ${channelFrequency}. Top-selling service concentration is led by ${topServices}, while promotion performance includes ${campaigns}.
+
+Key Observations
+
+The main revenue trend is that ${trendText} Peak sales periods are ${peakSales}, and booking demand patterns are strongest at ${peakBookings}. Customer relationships worth investigating include ${number(segments.new_customers)} new customer${Number(segments.new_customers || 0) === 1 ? '' : 's'}, ${number(segments.returning_customers)} returning customer${Number(segments.returning_customers || 0) === 1 ? '' : 's'}, and loyal customer rows led by ${loyalCustomers}. Patterns worth investigating include whether high-revenue categories also have high booking conversion, whether peak booking hours align with peak revenue hours, and whether campaigns with redemptions are tied to repeat-customer behaviour. Unusual findings to review include categories or merchants where maximum revenue sits far above the median, booking statuses with unexpectedly high cancellation/no-show percentages, and payment or channel categories with low frequency but high revenue. Overall, the dataset is sufficiently complete for further merchant performance analysis, revenue trend analysis, operational capacity planning, campaign evaluation, and predictive modelling.`;
+    }
+
+    summaryButton.addEventListener('click', function () {
+      summaryMeta.textContent = `Generated from the currently filtered merchant dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
+      summaryOutput.textContent = buildMerchantSummary();
+      summaryPanel.classList.add('is-visible');
+      summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    copySummaryButton.addEventListener('click', async function () {
+      const value = summaryOutput.textContent || '';
+      if (!value) return;
+      await navigator.clipboard.writeText(value);
+      copySummaryButton.innerHTML = '<i class="bi bi-check2 me-1"></i>Copied';
+      setTimeout(() => {
+        copySummaryButton.innerHTML = '<i class="bi bi-clipboard me-1"></i>Copy';
+      }, 1600);
     });
   })();
 </script>

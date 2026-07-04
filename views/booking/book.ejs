@@ -360,6 +360,7 @@
 <script>
   const bookingDate = document.getElementById('bookingDate');
   const bookingTime = document.getElementById('bookingTime');
+  const maxAdvanceBookingDays = 365;
 
   const serviceInputs =
     document.querySelectorAll('input[name="service_id"]');
@@ -394,6 +395,12 @@
     );
   }
 
+  function maxBookableDateValue() {
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + maxAdvanceBookingDays);
+    return localDateValue(maxDate);
+  }
+
   function selectedSlot() {
     if (!bookingDate.value || !bookingTime.value) {
       return null;
@@ -406,6 +413,7 @@
 
   function validateSlot() {
     bookingDate.min = localDateValue();
+    bookingDate.max = maxBookableDateValue();
 
     if (!bookingDate.value || !bookingTime.value) {
       error.style.display = 'none';
@@ -413,9 +421,16 @@
     }
 
     const slot = selectedSlot();
+    const withinBookingWindow = bookingDate.value <= bookingDate.max;
 
     const valid =
-      slot && slot >= new Date();
+      slot && slot >= new Date() && withinBookingWindow;
+
+    if (!withinBookingWindow) {
+      error.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Bookings can only be made within the next 12 months.';
+    } else {
+      error.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Please choose a date and time that is not in the past.';
+    }
 
     error.style.display =
       valid ? 'none' : 'block';
@@ -706,8 +721,14 @@
   }
 
   bookingDate.min = localDateValue();
+  bookingDate.max = maxBookableDateValue();
 
   bookingDate.addEventListener('change', () => {
+    if (bookingDate.value && bookingDate.value > bookingDate.max) {
+      bookingDate.value = bookingDate.max;
+      error.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Bookings can only be made within the next 12 months.';
+      error.style.display = 'block';
+    }
     loadAvailableSlots();
     updateSummary();
   });
