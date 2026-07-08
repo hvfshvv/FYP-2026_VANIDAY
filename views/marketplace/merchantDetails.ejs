@@ -254,7 +254,11 @@
               <% const isServiceFav = favouriteServiceIds && favouriteServiceIds.includes(service.service_id); %>
 
               <form
+                class="js-service-favourite-form"
                 action="<%= isServiceFav ? '/favourite/service/remove/' + service.service_id : '/favourite/service' %>"
+                data-add-url="/favourite/service"
+                data-remove-url="/favourite/service/remove/<%= service.service_id %>"
+                data-favourited="<%= isServiceFav ? '1' : '0' %>"
                 method="POST"
                 style="position:absolute;top:14px;right:14px;z-index:5;"
               >
@@ -446,7 +450,7 @@ document.addEventListener('click', event => {
     return;
   }
 
-  const button = event.target.closest('[data-service-category]');
+  const button = event.target.closest('.service-filter-link[data-service-category]');
   if (!button) return;
 
   const category = button.dataset.serviceCategory || '';
@@ -466,6 +470,56 @@ document.addEventListener('click', event => {
 
   if (emptyMessage) {
     emptyMessage.style.display = visibleCount ? 'none' : 'block';
+  }
+});
+
+document.addEventListener('submit', async (event) => {
+  const form = event.target.closest('.js-service-favourite-form');
+  if (!form) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const button = form.querySelector('button[type="submit"]');
+  const icon = form.querySelector('i');
+  if (button) button.disabled = true;
+
+  try {
+    const response = await fetch(form.action, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams(new FormData(form)),
+    });
+
+    if (response.redirected) {
+      window.location.href = response.url;
+      return;
+    }
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Could not update favourite.');
+    }
+
+    const favourited = Boolean(result.favourited);
+    form.dataset.favourited = favourited ? '1' : '0';
+    form.action = favourited
+      ? (form.dataset.removeUrl || result.removeUrl)
+      : (form.dataset.addUrl || result.addUrl);
+
+    if (icon) {
+      icon.classList.toggle('bi-heart-fill', favourited);
+      icon.classList.toggle('bi-heart', !favourited);
+    }
+  } catch (err) {
+    console.error(err);
+    alert(err.message || 'Could not update favourite.');
+  } finally {
+    if (button) button.disabled = false;
   }
 });
 </script>

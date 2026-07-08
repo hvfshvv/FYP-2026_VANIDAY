@@ -145,7 +145,11 @@
             <% const isFav = favouriteMerchantIds && favouriteMerchantIds.includes(listing.merchant_id); %>
 
             <form
+              class="js-merchant-favourite-form"
               action="<%= isFav ? '/favourite/merchant/remove/' + listing.merchant_id : '/favourite/merchant/' + listing.merchant_id %>"
+              data-add-url="/favourite/merchant/<%= listing.merchant_id %>"
+              data-remove-url="/favourite/merchant/remove/<%= listing.merchant_id %>"
+              data-favourited="<%= isFav ? '1' : '0' %>"
               method="POST"
               style="position:absolute;top:12px;right:12px;z-index:5;"
               onclick="event.stopPropagation();"
@@ -308,7 +312,11 @@
             <% const isFav = favouriteMerchantIds && favouriteMerchantIds.includes(merchant.merchant_id); %>
 
             <form
+              class="js-merchant-favourite-form"
               action="<%= isFav ? '/favourite/merchant/remove/' + merchant.merchant_id : '/favourite/merchant/' + merchant.merchant_id %>"
+              data-add-url="/favourite/merchant/<%= merchant.merchant_id %>"
+              data-remove-url="/favourite/merchant/remove/<%= merchant.merchant_id %>"
+              data-favourited="<%= isFav ? '1' : '0' %>"
               method="POST"
               style="position:absolute;top:12px;right:12px;z-index:5;"
               onclick="event.stopPropagation();"
@@ -521,5 +529,56 @@
   </div>
 
 </div>
+
+<script>
+document.addEventListener('submit', async (event) => {
+  const form = event.target.closest('.js-merchant-favourite-form');
+  if (!form) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const button = form.querySelector('button[type="submit"]');
+  const icon = form.querySelector('i');
+  if (button) button.disabled = true;
+
+  try {
+    const response = await fetch(form.action, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: new FormData(form),
+    });
+
+    if (response.redirected) {
+      window.location.href = response.url;
+      return;
+    }
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Could not update favourite.');
+    }
+
+    const favourited = Boolean(result.favourited);
+    form.dataset.favourited = favourited ? '1' : '0';
+    form.action = favourited
+      ? (form.dataset.removeUrl || result.removeUrl)
+      : (form.dataset.addUrl || result.addUrl);
+
+    if (icon) {
+      icon.classList.toggle('bi-heart-fill', favourited);
+      icon.classList.toggle('bi-heart', !favourited);
+    }
+  } catch (err) {
+    console.error(err);
+    alert(err.message || 'Could not update favourite.');
+  } finally {
+    if (button) button.disabled = false;
+  }
+});
+</script>
 
 <%- include('../partials/footer') %>
