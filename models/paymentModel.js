@@ -5,23 +5,109 @@ let paymentHoldSchemaReady = false;
 async function ensurePaymentHoldSchema() {
   if (paymentHoldSchemaReady) return;
 
-  const [[column]] = await db.query(
-    `SELECT COUNT(*) AS count
-     FROM INFORMATION_SCHEMA.COLUMNS
-     WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME = 'payment'
-       AND COLUMN_NAME = 'payment_hold_expires_at'`
-  );
+  const hasColumn = async columnName => {
+    const [[column]] = await db.query(
+      `SELECT COUNT(*) AS count
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'payment'
+         AND COLUMN_NAME = ?`,
+      [columnName]
+    );
+    return Number(column?.count || 0) > 0;
+  };
 
-  if (!Number(column?.count || 0)) {
+  const addColumnIfMissing = async (columnName, ddl) => {
+    if (await hasColumn(columnName)) return;
     try {
-      await db.query('ALTER TABLE payment ADD COLUMN payment_hold_expires_at DATETIME NULL AFTER stripe_status');
+      await db.query(ddl);
     } catch (err) {
       if (err.code !== 'ER_DUP_FIELDNAME') throw err;
     }
-  }
+  };
+
+  await addColumnIfMissing(
+    'payment_hold_expires_at',
+    'ALTER TABLE payment ADD COLUMN payment_hold_expires_at DATETIME NULL AFTER stripe_status'
+  );
+  await addColumnIfMissing(
+    'stripe_refund_id',
+    'ALTER TABLE payment ADD COLUMN stripe_refund_id VARCHAR(255) NULL AFTER refund_amount'
+  );
+  await addColumnIfMissing(
+    'stripe_refund_status',
+    'ALTER TABLE payment ADD COLUMN stripe_refund_status VARCHAR(64) NULL AFTER stripe_refund_id'
+  );
 
   paymentHoldSchemaReady = true;
+}
+
+async function ensurePaymentRefundSchema() {
+  await ensurePaymentHoldSchema();
+}
+
+async function getRefundedAmount(bookingId) {
+  await ensurePaymentRefundSchema();
+  const [[row]] = await db.query(
+    'SELECT COALESCE(refund_amount, 0) AS refund_amount FROM payment WHERE booking_id = ?',
+    [bookingId]
+  );
+  return Number(row?.refund_amount || 0);
+}
+
+async function markRefundPending(bookingId, amount) {
+  await ensurePaymentRefundSchema();
+  await db.query(
+    `UPDATE payment
+     SET refund_status = 'pending',
+         refund_amount = COALESCE(refund_amount, 0) + ?,
+         stripe_refund_status = NULL
+     WHERE booking_id = ?`,
+    [amount, bookingId]
+  );
+}
+
+async function markRefundFailed(bookingId, failedAmount, reason = null) {
+  await ensurePaymentRefundSchema();
+  await db.query(
+    `UPDATE payment
+     SET refund_status = 'failed',
+         refund_amount = GREATEST(COALESCE(refund_amount, 0) - ?, 0),
+         stripe_refund_status = ?
+     WHERE booking_id = ?`,
+    [failedAmount, reason ? String(reason).slice(0, 64) : 'failed', bookingId]
+  );
+}
+
+async function markRefundSucceeded(bookingId, {
+  stripeRefundId,
+  stripeRefundStatus,
+  totalRefundedAmount,
+  originalPaymentAmount,
+}) {
+  await ensurePaymentRefundSchema();
+  const paymentStatus = Number(totalRefundedAmount) >= Number(originalPaymentAmount) - 0.01
+    ? 'refunded'
+    : 'partially_refunded';
+
+  await db.query(
+    `UPDATE payment
+     SET payment_status = ?,
+         platform_hold_status = 'refunded',
+         refund_status = 'refunded',
+         refund_amount = ?,
+         stripe_refund_id = ?,
+         stripe_refund_status = ?,
+         refunded_at = NOW()
+     WHERE booking_id = ?`,
+    [
+      paymentStatus,
+      totalRefundedAmount,
+      stripeRefundId,
+      stripeRefundStatus,
+      bookingId,
+    ]
+  );
 }
 
 async function createPayment(bookingId, amount, method) {
@@ -128,10 +214,15 @@ async function getPaymentByBooking(bookingId) {
 
 module.exports = {
   ensurePaymentHoldSchema,
+  ensurePaymentRefundSchema,
   createPayment,
   createOrUpdatePayment,
   updatePaymentStatus,
   updateStripePaymentDetails,
   updateStripeCheckoutSession,
   getPaymentByBooking,
+  getRefundedAmount,
+  markRefundPending,
+  markRefundFailed,
+  markRefundSucceeded,
 };

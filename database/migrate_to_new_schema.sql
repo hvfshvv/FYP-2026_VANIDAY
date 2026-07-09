@@ -231,6 +231,8 @@ CREATE TABLE IF NOT EXISTS payment (
   merchant_payout_status ENUM('pending', 'paid', 'failed') DEFAULT 'pending',
   merchant_payout_at DATETIME NULL,
   refund_amount DECIMAL(10,2),
+  stripe_refund_id VARCHAR(255),
+  stripe_refund_status VARCHAR(64),
   refund_status ENUM('none', 'pending', 'refunded', 'failed') DEFAULT 'none',
   paid_at DATETIME,
   refunded_at DATETIME,

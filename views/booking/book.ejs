@@ -3,13 +3,13 @@
     (typeof merchant !== 'undefined' &&
       merchant &&
       merchant.merchant_name) ||
-    'Selected Merchant';
+    t('portalBooking.selectedMerchant');
 
   const merchantAddress =
     (typeof merchant !== 'undefined' &&
       merchant &&
       merchant.address) ||
-    'Singapore';
+    t('common.singapore');
 
   const bookingServices =
     (typeof serviceList !== 'undefined' &&
@@ -51,9 +51,9 @@
 
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
       <div>
-        <p class="section-label mb-2">Booking</p>
+        <p class="section-label mb-2"><%= t('bookings.section') %></p>
         <h2 style="font-weight:800; letter-spacing:-.03em; color:var(--ink); margin-bottom:.25rem;">
-          Complete Your Booking
+          <%= t('portalBooking.complete') %>
         </h2>
         <p style="color:var(--muted); margin:0;">
           <%= merchantName %> · <%= merchantAddress %>
@@ -61,7 +61,7 @@
       </div>
 
       <a href="/book/viewBookings" class="btn btn-outline-secondary btn-pill">
-        <i class="bi bi-clock-history me-1"></i>My Bookings
+        <i class="bi bi-clock-history me-1"></i><%= t('booking.myBookings') %>
       </a>
     </div>
 
@@ -73,7 +73,7 @@
 
     <% if (typeof cancellationPolicySummary !== 'undefined' && cancellationPolicySummary) { %>
       <div class="rounded-xl p-3 mb-4" style="background:#fff;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
-        <p class="section-label mb-2">Cancellation Policy</p>
+        <p class="section-label mb-2"><%= t('bookings.cancellationPolicy') %></p>
         <p style="color:var(--ink);font-weight:700;margin:0;">
           <i class="bi bi-hourglass-split me-2" style="color:var(--accent);"></i><%= cancellationPolicySummary %>
         </p>
@@ -89,11 +89,11 @@
         <div class="card border-0 mb-4" style="box-shadow:var(--shadow); border-radius:var(--r-xl);">
           <div class="card-body p-4">
             <h5 style="font-weight:800; color:var(--ink); margin-bottom:1rem;">
-              Select Service
+              <%= t('portalBooking.selectService') %>
             </h5>
 
             <% if (!bookingServices.length) { %>
-              <p style="color:var(--muted); margin:0;">No active services are available for this merchant.</p>
+              <p style="color:var(--muted); margin:0;"><%= t('portalBooking.noServices') %></p>
             <% } %>
 
             <% if (activeService) { %>
@@ -106,14 +106,14 @@
                     type="radio"
                     name="service_id"
                     value="<%= activeService.service_id %>"
-                    data-name="<%= activeService.service_name %>"
+                    data-name="<%= serviceText(activeService, 'name') || activeService.service_name %>"
                     data-price="<%= Number(activeService.price) %>"
                     data-duration="<%= activeService.duration_mins || 60 %>"
                     checked
                     required
                   />
                   <span style="font-weight:800; color:var(--ink); margin-left:.5rem;">
-                    <%= activeService.service_name %>
+                    <%= serviceText(activeService, 'name') || activeService.service_name %>
                   </span>
                 </span>
 
@@ -126,7 +126,7 @@
               <% if (otherServices.length) { %>
                 <details>
                   <summary style="cursor:pointer; font-weight:800; color:var(--accent); list-style:none;">
-                    <i class="bi bi-chevron-down me-1"></i>View other services
+                    <i class="bi bi-chevron-down me-1"></i><%= t('portalBooking.viewOtherServices') %>
                   </summary>
 
                   <div style="margin-top:.75rem;">
@@ -140,12 +140,12 @@
                             type="radio"
                             name="service_id"
                             value="<%= service.service_id %>"
-                            data-name="<%= service.service_name %>"
+                            data-name="<%= serviceText(service, 'name') || service.service_name %>"
                             data-price="<%= Number(service.price) %>"
                             data-duration="<%= service.duration_mins || 60 %>"
                           />
                           <span style="font-weight:700; color:var(--ink); margin-left:.5rem;">
-                            <%= service.service_name %>
+                            <%= serviceText(service, 'name') || service.service_name %>
                           </span>
                         </span>
 
@@ -165,13 +165,13 @@
         <div class="card border-0" style="box-shadow:var(--shadow); border-radius:var(--r-xl);">
           <div class="card-body p-4">
             <h5 style="font-weight:800; color:var(--ink); margin-bottom:1rem;">
-              Select Date &amp; Time
+              <%= t('portalBooking.selectDateTime') %>
             </h5>
 
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label" style="font-weight:600; font-size:.875rem;">
-                  Date
+                  <%= t('common.date') %>
                 </label>
                 <input
                   class="form-control rounded-xl"
@@ -184,7 +184,7 @@
 
               <div class="col-md-6">
                 <label class="form-label" style="font-weight:600; font-size:.875rem;">
-                  Time
+                  <%= t('common.time') %>
                 </label>
                 <select
                   class="form-control rounded-xl"
@@ -192,7 +192,7 @@
                   id="bookingTime"
                   required
                 >
-                  <option value="">Select a date first</option>
+                  <option value=""><%= t('portalBooking.selectDateFirst') %></option>
                 </select>
               </div>
             </div>
@@ -202,7 +202,7 @@
               style="display:none; color:var(--danger); font-size:.8125rem; margin-top:.75rem;"
             >
               <i class="bi bi-exclamation-circle me-1"></i>
-              Please choose a date and time that is not in the past.
+              <%= t('booking.validation.futureTime') %>
             </div>
           </div>
         </div>
@@ -212,7 +212,7 @@
           <div class="card-body p-4">
             <h5 style="font-weight:800; color:var(--ink); margin-bottom:1rem;">
               <i class="bi bi-person me-1"></i>
-              Select Staff (Optional)
+              <%= t('portalBooking.selectStaffOptional') %>
             </h5>
 
             <div class="row g-3" id="staffOptionsGrid">
@@ -220,7 +220,7 @@
                 <button
                   type="button"
                   class="staff-option selected d-flex flex-column align-items-center justify-content-center text-center h-100 p-3"
-                  data-staff-name="No Preference"
+                  data-staff-name="<%= t('common.noPreference') %>"
                   onclick="selectStaff(this)"
                   style="border:1px solid var(--accent); border-radius:var(--r); background:var(--accent-light); cursor:pointer; min-height:112px; width:100%;"
                 >
@@ -237,7 +237,7 @@
                   </span>
 
                   <span style="font-weight:700; color:var(--ink); font-size:.875rem;">
-                    No Preference
+                    <%= t('common.noPreference') %>
                   </span>
                 </button>
               </div>
@@ -276,7 +276,7 @@
               <% }) %>
             </div>
             <p id="staffAvailabilityNote" class="small mt-3 mb-0" style="color:var(--muted);">
-              Choose a date and time to see which staff are available.
+              <%= t('portalBooking.staffInitial') %>
             </p>
           </div>
         </div>
@@ -286,14 +286,14 @@
           <div class="card-body p-4">
             <h5 style="font-weight:800; color:var(--ink); margin-bottom:1rem;">
               <i class="bi bi-chat-left me-1"></i>
-              Special Requests
+              <%= t('portalBooking.specialRequests') %>
             </h5>
 
             <textarea
               name="special_requests"
               class="form-control rounded-xl"
               rows="4"
-              placeholder="Any special requests or notes..."
+              placeholder="<%= t('portalBooking.specialRequestsPlaceholder') %>"
               style="resize:vertical;"
             ></textarea>
           </div>
@@ -306,37 +306,37 @@
         <div class="card border-0" style="box-shadow:var(--shadow); border-radius:var(--r-xl); position:sticky; top:90px;">
           <div class="card-body p-4">
             <h5 style="font-weight:800; color:var(--ink); margin-bottom:1rem;">
-              Booking Summary
+              <%= t('booking.bookingSummary') %>
             </h5>
 
             <div class="mb-3">
-              <p style="color:var(--muted); font-size:.8rem; margin-bottom:.25rem;">Merchant</p>
+              <p style="color:var(--muted); font-size:.8rem; margin-bottom:.25rem;"><%= t('common.merchant') %></p>
               <p style="font-weight:700; color:var(--ink); margin:0;"><%= merchantName %></p>
             </div>
 
             <div class="mb-3">
-              <p style="color:var(--muted); font-size:.8rem; margin-bottom:.25rem;">Service</p>
+              <p style="color:var(--muted); font-size:.8rem; margin-bottom:.25rem;"><%= t('common.service') %></p>
               <p id="summaryService" style="font-weight:700; color:var(--ink); margin:0;">
-                <%= activeService ? activeService.service_name : 'No service selected' %>
+                <%= activeService ? (serviceText(activeService, 'name') || activeService.service_name) : t('portalBooking.noServiceSelected') %>
               </p>
             </div>
 
             <div class="mb-3">
-              <p style="color:var(--muted); font-size:.8rem; margin-bottom:.25rem;">Staff</p>
+              <p style="color:var(--muted); font-size:.8rem; margin-bottom:.25rem;"><%= t('common.staff') %></p>
               <p id="summaryStaff" style="font-weight:700; color:var(--ink); margin:0;">
-                No Preference
+                <%= t('common.noPreference') %>
               </p>
             </div>
 
             <div class="mb-3">
-              <p style="color:var(--muted); font-size:.8rem; margin-bottom:.25rem;">Date &amp; Time</p>
+              <p style="color:var(--muted); font-size:.8rem; margin-bottom:.25rem;"><%= t('booking.steps.dateTime') %></p>
               <p id="summaryDateTime" style="font-weight:700; color:var(--ink); margin:0;">
-                Select a date and time
+                <%= t('portalBooking.selectDateTimeSummary') %>
               </p>
             </div>
 
             <div class="d-flex justify-content-between align-items-center pt-3 mb-4" style="border-top:1px solid var(--border);">
-              <span style="font-weight:800; color:var(--ink);">Total</span>
+              <span style="font-weight:800; color:var(--ink);"><%= t('common.total') %></span>
               <span id="summaryTotal" style="font-family:var(--font-mono); font-weight:800; color:var(--accent); font-size:1.25rem;">
                 S$<%= activePrice.toFixed(2) %>
               </span>
@@ -348,7 +348,7 @@
               style="font-weight:800;"
               <%= !activeService ? 'disabled' : '' %>
             >
-              Proceed to Payment
+              <%= t('portalBooking.proceedPayment') %>
             </button>
           </div>
         </div>
@@ -467,8 +467,8 @@
     document.getElementById(
       'summaryStaff'
     ).textContent = selectedStaffOption
-      ? selectedStaffOption.dataset.staffName || 'No Preference'
-      : 'No Preference';
+      ? selectedStaffOption.dataset.staffName || window.t('common.noPreference')
+      : window.t('common.noPreference');
 
     document.getElementById(
       'summaryDateTime'
@@ -477,7 +477,7 @@
         ? bookingDate.value +
           ' at ' +
           bookingTime.value.slice(0, 5)
-        : 'Select a date and time';
+        : window.t('portalBooking.selectDateTimeSummary');
   }
 
   function selectStaff(button) {
@@ -523,7 +523,7 @@
           <button
             type="button"
             class="staff-option selected d-flex flex-column align-items-center justify-content-center text-center h-100 p-3"
-            data-staff-name="No Preference"
+            data-staff-name="${window.t('common.noPreference')}"
             onclick="selectStaff(this)"
             style="border:1px solid var(--accent); border-radius:var(--r); background:var(--accent-light); cursor:pointer; min-height:112px; width:100%; box-shadow:0 0 0 3px var(--accent-mid);"
           >
@@ -531,13 +531,13 @@
             <span style="display:inline-flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:999px; background:white; color:var(--accent); font-size:1.4rem; margin-bottom:.75rem;">
               <i class="bi bi-person"></i>
             </span>
-            <span style="font-weight:700; color:var(--ink); font-size:.875rem;">No Preference</span>
+            <span style="font-weight:700; color:var(--ink); font-size:.875rem;">${window.t('common.noPreference')}</span>
           </button>
         </div>
       `;
     }
 
-    const name = escapeHtml(member.full_name || 'Staff');
+    const name = escapeHtml(member.full_name || window.t('common.staff'));
     const role = member.role
       ? `<span style="font-size:.72rem; color:var(--muted); margin-top:.25rem;">${escapeHtml(member.role)}</span>`
       : '';
@@ -608,8 +608,8 @@
 
     if (note) {
       note.textContent = availableStaff.length
-        ? `${availableStaff.length} staff member${availableStaff.length === 1 ? '' : 's'} available for this time.`
-        : 'No staff are available for this time.';
+        ? window.t('booking.staffAvailable', { count: availableStaff.length, plural: availableStaff.length === 1 ? '' : 's' })
+        : window.t('booking.staffFallback');
       note.style.color = availableStaff.length ? 'var(--muted)' : 'var(--danger)';
     }
   }
@@ -624,7 +624,7 @@
       renderStaffOptions([]);
       const note = document.getElementById('staffAvailabilityNote');
       if (note) {
-        note.textContent = 'Choose a date and time to see which staff are available.';
+        note.textContent = window.t('portalBooking.staffInitial');
         note.style.color = 'var(--muted)';
       }
       return;
@@ -666,11 +666,11 @@
     const date = bookingDate.value;
 
     bookingTime.innerHTML =
-      '<option value="">Loading slots...</option>';
+      '<option value="">' + window.t('common.loading') + '</option>';
 
     if (!merchantId || !service || !date) {
       bookingTime.innerHTML =
-        '<option value="">Select a date first</option>';
+        '<option value="">' + window.t('portalBooking.selectDateFirst') + '</option>';
 
       return;
     }
@@ -694,7 +694,7 @@
 
       if (!slots.length) {
         bookingTime.innerHTML =
-          '<option value="">No slots available</option>';
+          '<option value="">' + window.t('booking.validation.noSlots') + '</option>';
 
         await loadAvailableStaff();
         updateSummary();
@@ -716,7 +716,7 @@
       console.error(err);
 
       bookingTime.innerHTML =
-        '<option value="">Unable to load slots</option>';
+        '<option value="">' + window.t('booking.validation.unableTimes') + '</option>';
     }
   }
 

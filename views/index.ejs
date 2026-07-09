@@ -5,14 +5,14 @@
   const promoDayNames = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
   const promoDayLabel = value => {
     const values = String(value || '').split(',').filter(Boolean);
-    if (!values.length || values.length === 7) return 'Every day';
-    if (values.join(',') === 'sat,sun') return 'Weekends only';
-    if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
+    if (!values.length || values.length === 7) return t('home.everyDay');
+    if (values.join(',') === 'sat,sun') return t('home.weekendsOnly');
+    if (values.join(',') === 'mon,tue,wed,thu,fri') return t('home.weekdaysOnly');
     return values.map(day => promoDayNames[day] || day).join(', ');
   };
   const ratingText = item => {
     const count = Number(item.review_count || 0);
-    if (!count) return 'New';
+    if (!count) return t('home.new');
     return Number(item.average_rating || 0).toFixed(1) + ' (' + count + ')';
   };
   const operatingHoursLines = item => {
@@ -33,7 +33,7 @@
       .filter(Boolean)
       .sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day));
 
-    if (!slots.length) return ['Operating hours not set'];
+    if (!slots.length) return [t('home.operatingHoursNotSet')];
 
     const groups = [];
     slots.forEach(slot => {
@@ -62,28 +62,28 @@
     <div class="hero-grid">
 
       <div class="anim-up">
-        <p class="hero-eyebrow">Singapore's beauty platform</p>
+        <p class="hero-eyebrow"><%= t('home.eyebrow') %></p>
         <h1 class="hero-title">
-          Beauty &amp; wellness,<br/>
-          <span style="color:var(--accent);">booked in seconds.</span>
+          <%= t('home.titleLine1') %><br/>
+          <span style="color:var(--accent);"><%= t('home.titleLine2') %></span>
         </h1>
         <p class="hero-sub">
-          Discover top salons, spas, and wellness studios. Scan a QR code at the shop, choose your service, pay securely — no app required.
+          <%= t('home.subtitle') %>
         </p>
         <div class="d-flex flex-wrap gap-2">
           <a href="#marketplace" class="btn btn-primary btn-pill btn-lg" onclick="scrollToCategories(event)">
-            <i class="bi bi-grid me-1"></i>Browse services
+            <i class="bi bi-grid me-1"></i><%= t('home.browseServices') %>
           </a>
           <% if (!user) { %>
           <a href="/auth/registerMer" class="btn btn-outline-secondary btn-pill btn-lg">
-            <i class="bi bi-shop me-1"></i>List your business
+            <i class="bi bi-shop me-1"></i><%= t('home.listBusiness') %>
           </a>
           <% } %>
         </div>
         <div class="hero-trust">
-          <span><i class="bi bi-check-circle-fill"></i>No app needed</span>
-          <span><i class="bi bi-check-circle-fill"></i>Instant booking</span>
-          <span><i class="bi bi-check-circle-fill"></i>Secure payments</span>
+          <span><i class="bi bi-check-circle-fill"></i><%= t('home.trustNoApp') %></span>
+          <span><i class="bi bi-check-circle-fill"></i><%= t('home.trustInstant') %></span>
+          <span><i class="bi bi-check-circle-fill"></i><%= t('home.trustSecure') %></span>
         </div>
       </div>
 
@@ -106,16 +106,16 @@
 
       <!-- Left: How it works -->
       <div class="col-lg-6 anim-up" style="border-right:1px solid rgba(255,255,255,.08);padding-right:3rem;">
-        <p class="section-label" style="color:rgba(255,255,255,.45);">Simple process</p>
-        <h2 class="section-title" style="color:#fff;letter-spacing:-.03em;">How Uniday works</h2>
+        <p class="section-label" style="color:rgba(255,255,255,.45);"><%= t('home.simpleProcess') %></p>
+        <h2 class="section-title" style="color:#fff;letter-spacing:-.03em;"><%= t('home.howItWorks') %></h2>
         <p style="color:rgba(255,255,255,.55);margin-bottom:2rem;max-width:44ch;line-height:1.65;font-size:1rem;">
-          From discovery to confirmed booking — the whole flow takes under five minutes.
+          <%= t('home.flowSubtitle') %>
         </p>
         <div class="d-flex flex-column gap-4">
           <% [
-            ['bi-search',        '01', 'Discover',  'Browse hundreds of salons and wellness studios across Singapore.'],
-            ['bi-calendar-check','02', 'Choose',    'Pick a service, date, and time that works for you.'],
-            ['bi-credit-card',   '03', 'Pay & go',  'Secure Stripe payment — confirmation lands in your inbox instantly.'],
+            ['bi-search',        '01', t('home.discover'),  t('home.discoverDesc')],
+            ['bi-calendar-check','02', t('home.choose'),    t('home.chooseDesc')],
+            ['bi-credit-card',   '03', t('home.payGo'),     t('home.payGoDesc')],
           ].forEach(([icon, num, title, desc]) => { %>
           <div class="d-flex align-items-start gap-3">
             <div class="icon-circle flex-shrink-0" style="background:rgba(225,29,72,.18);color:var(--accent);">
@@ -134,16 +134,16 @@
 
       <!-- Right: QR cashless booking -->
       <div class="col-lg-6 anim-up anim-up-2" style="padding-left:3rem;">
-        <p class="section-label" style="color:rgba(255,255,255,.45);">Key feature</p>
-        <h2 class="section-title" style="color:#fff;letter-spacing:-.03em;">QR-based cashless booking</h2>
+        <p class="section-label" style="color:rgba(255,255,255,.45);"><%= t('home.keyFeature') %></p>
+        <h2 class="section-title" style="color:#fff;letter-spacing:-.03em;"><%= t('home.qrBooking') %></h2>
         <p style="color:rgba(255,255,255,.55);margin-bottom:2rem;max-width:44ch;line-height:1.65;font-size:1rem;">
-          Walk in, scan the merchant's QR code, pick a service, and pay — all in under 60 seconds. No app, no hardware needed.
+          <%= t('home.qrBookingDesc') %>
         </p>
         <div class="d-flex flex-column gap-4">
           <% [
-            ['bi-phone',         'Scan',  "Point your phone camera at the merchant's QR code — no download needed."],
-            ['bi-calendar-check','Book',  'Choose your service and a time slot that fits your schedule.'],
-            ['bi-credit-card',   'Pay',   'Stripe-powered secure payment, confirmed instantly.'],
+            ['bi-phone',         t('home.scan'), t('home.scanDesc')],
+            ['bi-calendar-check',t('home.book'), t('home.bookDesc')],
+            ['bi-credit-card',   t('home.pay'),  t('home.payDesc')],
           ].forEach(([icon, title, desc]) => { %>
           <div class="d-flex align-items-start gap-3">
             <div class="icon-circle flex-shrink-0" style="background:rgba(225,29,72,.18);color:var(--accent);">
@@ -158,7 +158,7 @@
         </div>
         <% if (!user) { %>
         <a href="/auth/registerMer" class="btn btn-primary btn-pill mt-4">
-          <i class="bi bi-shop me-2"></i>List your business free
+          <i class="bi bi-shop me-2"></i><%= t('home.listBusinessFree') %>
         </a>
         <% } %>
       </div>
@@ -174,17 +174,17 @@
   <div class="container">
     <div class="deal-showcase-header">
       <div>
-        <p class="section-label">Current deals</p>
-        <h2 class="section-title">Current Deals</h2>
-        <p class="section-sub">Limited-time promotions from approved merchants.</p>
+        <p class="section-label"><%= t('home.currentDealsLabel') %></p>
+        <h2 class="section-title"><%= t('home.currentDeals') %></h2>
+        <p class="section-sub"><%= t('home.currentDealsSub') %></p>
       </div>
       <a href="#marketplace" class="deal-view-all">
-        View all <i class="bi bi-chevron-right"></i>
+        <%= t('home.viewAll') %> <i class="bi bi-chevron-right"></i>
       </a>
     </div>
 
     <div class="deal-showcase-wrap">
-      <button class="deal-showcase-nav deal-showcase-prev" onclick="shiftCarousel('deal-showcase-carousel',-1)" aria-label="Previous promotions">
+      <button class="deal-showcase-nav deal-showcase-prev" onclick="shiftCarousel('deal-showcase-carousel',-1)" aria-label="<%= t('home.previousPromotions') %>">
         <i class="bi bi-chevron-left"></i>
       </button>
 
@@ -193,20 +193,20 @@
           <article class="deal-showcase-slide promo-carousel-item">
             <a href="/marketplace/merchant/<%= promo.merchant_id %>" class="deal-showcase-card <%= promo.image_path ? 'has-image' : '' %>">
               <div class="deal-discount-block">
-                <span>Save</span>
+                <span><%= t('home.save') %></span>
                 <strong><%= Number(promo.discount_pct || 0).toFixed(0) %>%</strong>
-                <span>off</span>
+                <span><%= t('home.off') %></span>
                 <% if (promo.min_spend) { %>
-                  <small>Min S$<%= Number(promo.min_spend).toFixed(0) %></small>
+                  <small><%= t('home.minSpend', { amount: Number(promo.min_spend).toFixed(0) }) %></small>
                 <% } %>
               </div>
 
               <div class="deal-copy-block">
                 <span class="deal-kicker"><i class="bi bi-shop"></i><%= promo.merchant_name %></span>
                 <h3><%= promo.title %></h3>
-                <p><%= promo.description || 'Book this approved merchant deal before it ends.' %></p>
+                <p><%= promo.description || t('home.dealFallback') %></p>
                 <div class="deal-meta-row">
-                  <span><i class="bi bi-calendar3"></i>Until <%= new Date(promo.end_date).toLocaleDateString('en-SG',{day:'numeric',month:'short'}) %></span>
+                  <span><i class="bi bi-calendar3"></i><%= t('home.until', { date: new Date(promo.end_date).toLocaleDateString(lang === 'zh' ? 'zh-CN' : (lang === 'ta' ? 'ta-IN' : 'en-SG'), {day:'numeric',month:'short'}) }) %></span>
                   <span><i class="bi bi-calendar-week"></i><%= promoDayLabel(promo.applicable_days) %></span>
                 </div>
               </div>
@@ -225,7 +225,7 @@
         <% }) %>
       </div>
 
-      <button class="deal-showcase-nav deal-showcase-next" onclick="shiftCarousel('deal-showcase-carousel',1)" aria-label="Next promotions">
+      <button class="deal-showcase-nav deal-showcase-next" onclick="shiftCarousel('deal-showcase-carousel',1)" aria-label="<%= t('home.nextPromotions') %>">
         <i class="bi bi-chevron-right"></i>
       </button>
     </div>

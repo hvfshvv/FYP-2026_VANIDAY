@@ -21,9 +21,11 @@
     <% } %>
 
     <div class="row g-3 mb-5">
+      <% const activeWaitlists = Number(activeWaitlistCount || 0); %>
       <% [
         {href:'/merchant/services', icon:'bi-scissors', label:'Services', sub:'Add, edit, and publish services'},
         {href:'/merchant/bookings', icon:'bi-calendar-check', label:'Bookings', sub:'View and update appointments'},
+        {href:'/merchant/waitlists', icon:'bi-list-ol', label:'Waitlists', sub:'View customers waiting for full slots', badge:activeWaitlists},
         {href:'/merchant/staff', icon:'bi-people', label:'Staff', sub:'Manage employees and assignments'},
         {href:'/merchant/availability', icon:'bi-clock', label:'Availability', sub:'Set operating hours'},
         {href:'/merchant/promotions', icon:'bi-tag', label:'Promotions', sub:'Create and manage deals'},
@@ -35,7 +37,12 @@
       ].forEach(action => { %>
         <div class="col-6 col-md-4">
           <a href="<%= action.href %>" class="action-card h-100">
-            <div class="action-icon"><i class="bi <%= action.icon %>"></i></div>
+            <div class="d-flex justify-content-between align-items-start gap-2 w-100">
+              <div class="action-icon"><i class="bi <%= action.icon %>"></i></div>
+              <% if (Number(action.badge || 0) > 0) { %>
+                <span class="badge rounded-pill" style="background:var(--accent);color:#fff;"><%= action.badge %></span>
+              <% } %>
+            </div>
             <p style="font-weight:700;font-size:.875rem;color:var(--ink);margin-bottom:.1rem;"><%= action.label %></p>
             <p style="color:var(--muted);font-size:.72rem;margin:0;"><%= action.sub %></p>
           </a>

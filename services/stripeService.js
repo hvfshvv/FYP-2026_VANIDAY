@@ -159,6 +159,34 @@ async function capturePaymentIntent(paymentIntentId) {
   return stripe.paymentIntents.capture(paymentIntentId);
 }
 
+async function createRefund({ paymentIntentId = null, chargeId = null, amount, reason = 'requested_by_customer', metadata = {}, idempotencyKey = null }) {
+  assertStripeConfigured();
+
+  const amountInCents = Math.round(Number(amount) * 100);
+  if (!Number.isInteger(amountInCents) || amountInCents <= 0) {
+    throw new Error('Invalid refund amount');
+  }
+
+  if (!paymentIntentId && !chargeId) {
+    throw new Error('Missing Stripe payment intent or charge ID');
+  }
+
+  const refundParams = {
+    amount: amountInCents,
+    reason,
+    metadata,
+  };
+
+  if (paymentIntentId) {
+    refundParams.payment_intent = paymentIntentId;
+  } else {
+    refundParams.charge = chargeId;
+  }
+
+  const requestOptions = idempotencyKey ? { idempotencyKey } : undefined;
+  return stripe.refunds.create(refundParams, requestOptions);
+}
+
 function constructWebhookEvent(rawBody, signature) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
@@ -179,6 +207,7 @@ module.exports = {
   retrieveCheckoutSession,
   retrievePaymentIntent,
   capturePaymentIntent,
+  createRefund,
   constructWebhookEvent,
   isTestModeKey,
 };

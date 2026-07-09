@@ -8,6 +8,7 @@
 const db = require('../config/db');
 const { expirePendingPaymentBookings } = require('./bookingNotificationModel');
 const MAX_ADVANCE_BOOKING_DAYS = 365;
+const waitlistModel = require('./waitlistModel');
 
 // ── STAFF AVAILABILITY ─────────────────────────────────────────────────────
 
@@ -249,8 +250,9 @@ function assertCurrentOrFutureSlot(bookingDate, bookingTime) {
 // ── AVAILABLE SLOTS QUERY ──────────────────────────────────────────────────
 
 // Returns all bookable time slots within merchant opening hours for a given date and service.
-async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }) {
+async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate, includeUnavailable = false }) {
   await expirePendingPaymentBookings();
+  await waitlistModel.expireOffersAndPromote();
 
   if (!merchantId || !serviceId || !bookingDate) return [];
   if (!isDateWithinAdvanceLimit(bookingDate)) return [];
@@ -282,6 +284,9 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
   if (!availability) return [];
 
   const slots = [];
+  const waitlistCounts = includeUnavailable
+    ? await waitlistModel.getSlotWaitlistCounts({ merchantId, serviceId, bookingDate })
+    : new Map();
 
   const start = String(availability.start_time).slice(0, 5);
   const end = String(availability.end_time).slice(0, 5);
@@ -303,12 +308,18 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate }
         durationMins: service.duration_mins,
         staffId,
       });
+      const waitlist = waitlistCounts.get(timeValue) || { waitlist_count: 0, active_offer_count: 0 };
+      const hasBlockingOffer = Number(waitlist.active_offer_count || 0) > 0;
+      const isAvailable = availableStaff.length > 0 && !hasBlockingOffer;
 
-      if (availableStaff.length) {
+      if (isAvailable || includeUnavailable) {
         slots.push({
           start_time: timeValue + ':00',
           label: timeValue,
           available_staff_count: availableStaff.length,
+          is_available: isAvailable,
+          waitlist_count: Number(waitlist.waitlist_count || 0),
+          has_active_waitlist_offer: hasBlockingOffer,
         });
       }
     }

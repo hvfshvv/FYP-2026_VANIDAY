@@ -8,18 +8,18 @@
     <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:2.5rem;">
       <h3 style="font-weight:800;letter-spacing:-.025em;color:var(--ink);margin-bottom:.75rem;"><%= title %></h3>
       <p style="color:var(--muted);margin-bottom:2rem;line-height:1.65;">
-        This QR code link is no longer active. The merchant may have regenerated their QR code or temporarily paused bookings.
+        <%= t('invalid.message') %>
       </p>
       <div class="d-flex flex-column gap-2">
         <a href="/" class="btn btn-primary btn-pill">
-          <i class="bi bi-house me-2"></i>Back to Home
+          <i class="bi bi-house me-2"></i><%= t('invalid.backHome') %>
         </a>
         <a href="/marketplace" class="btn btn-outline-secondary btn-pill">
-          <i class="bi bi-grid me-2"></i>Browse Marketplace
+          <i class="bi bi-grid me-2"></i><%= t('invalid.browseMarketplace') %>
         </a>
       </div>
       <p style="color:var(--ghost);font-size:.8125rem;margin-top:1.5rem;margin-bottom:0;">
-        <i class="bi bi-info-circle me-1"></i>Ask the merchant for their latest QR code.
+        <i class="bi bi-info-circle me-1"></i><%= t('invalid.askMerchant') %>
       </p>
     </div>
   </div>

@@ -2,7 +2,7 @@
 
 <%
   function formatDate(value) {
-    return new Date(value).toLocaleDateString('en-SG', {
+    return new Date(value).toLocaleDateString(lang === 'zh' ? 'zh-CN' : (lang === 'ta' ? 'ta-IN' : 'en-SG'), {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -31,11 +31,11 @@
   <div class="container" style="max-width:720px;">
     <div class="mb-4">
       <a href="/book/viewBookings" class="text-decoration-none" style="color:var(--muted);font-weight:700;font-size:.875rem;">
-        <i class="bi bi-arrow-left me-1"></i>Back to bookings
+        <i class="bi bi-arrow-left me-1"></i><%= t('reschedule.back') %>
       </a>
-      <p class="section-label mb-2 mt-3">Bookings</p>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Reschedule Booking</h2>
-      <p style="color:var(--muted);margin:0;">Choose a new date and time for your appointment.</p>
+      <p class="section-label mb-2 mt-3"><%= t('reschedule.section') %></p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('reschedule.title') %></h2>
+      <p style="color:var(--muted);margin:0;"><%= t('reschedule.subtitle') %></p>
     </div>
 
     <% if (error) { %>
@@ -48,7 +48,7 @@
       <div class="mb-4 pb-4" style="border-bottom:1px solid var(--border);">
         <div class="d-flex flex-wrap justify-content-between gap-3">
           <div>
-            <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;"><%= booking.service_name %></h5>
+            <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;"><%= serviceText(booking, 'name') || booking.service_name %></h5>
             <p style="color:var(--muted);margin:0;">
               <i class="bi bi-shop me-1"></i><%= booking.merchant_name %>
               <% if (booking.merchant_address) { %>
@@ -57,7 +57,7 @@
             </p>
           </div>
           <div class="text-md-end">
-            <p style="color:var(--muted);font-size:.8rem;margin:0;">Current Slot</p>
+            <p style="color:var(--muted);font-size:.8rem;margin:0;"><%= t('reschedule.currentSlot') %></p>
             <p style="color:var(--ink);font-weight:800;margin:0;"><%= formatDate(booking.booking_date) %>, <%= formatTime(booking.booking_time) %></p>
           </div>
         </div>
@@ -66,22 +66,22 @@
       <form action="/book/<%= booking.booking_id %>/reschedule" method="POST">
         <div class="row g-3">
           <div class="col-md-6">
-            <label class="form-label" style="font-weight:600;font-size:.875rem;">New Date</label>
+            <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('reschedule.newDate') %></label>
             <input type="date" name="booking_date" id="bookingDate" class="form-control rounded-xl" min="<%= today %>" value="<%= dateInputValue(booking.booking_date) %>" required />
           </div>
           <div class="col-md-6">
-            <label class="form-label" style="font-weight:600;font-size:.875rem;">New Time</label>
+            <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('reschedule.newTime') %></label>
             <input type="time" name="booking_time" id="bookingTime" class="form-control rounded-xl" value="<%= formatTime(booking.booking_time) %>" required />
           </div>
         </div>
         <div id="sameSlotError" class="rounded-xl mt-3 p-3" style="display:none;background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
-          <i class="bi bi-exclamation-circle me-2"></i>Please choose a different date or time from your current slot.
+          <i class="bi bi-exclamation-circle me-2"></i><%= t('reschedule.sameSlotError') %>
         </div>
 
         <div class="d-flex flex-wrap justify-content-end gap-2 mt-4">
-          <a href="/book/viewBookings" class="btn btn-outline-secondary btn-pill">Cancel</a>
+          <a href="/book/viewBookings" class="btn btn-outline-secondary btn-pill"><%= t('reschedule.cancel') %></a>
           <button type="submit" class="btn btn-primary btn-pill">
-            <i class="bi bi-calendar-check me-2"></i>Save New Slot
+            <i class="bi bi-calendar-check me-2"></i><%= t('reschedule.save') %>
           </button>
         </div>
       </form>

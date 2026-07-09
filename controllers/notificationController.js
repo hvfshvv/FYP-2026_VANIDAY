@@ -1,42 +1,43 @@
 const notificationModel = require('../models/notificationModel');
+const { t } = require('../utils/i18n');
 
-function buildAssistantReply(question, user) {
+function buildAssistantReply(question, user, lang = 'en') {
   const text = String(question || '').toLowerCase();
-  const name = user.full_name ? user.full_name.split(' ')[0] : 'there';
+  const name = user.full_name ? user.full_name.split(' ')[0] : t(lang, 'assistantReplies.there');
 
   if (text.includes('cancel')) {
-    return `Hi ${name}, you can cancel an eligible booking from My Bookings. Open View bookings, choose the booking, then select Cancel. If the merchant has a cancellation policy, the app will check it before cancelling.`;
+    return t(lang, 'assistantReplies.cancel', { name });
   }
 
   if (text.includes('reschedule') || text.includes('change time') || text.includes('change date')) {
-    return `Hi ${name}, you can reschedule from My Bookings. Pick the booking, select Reschedule, then choose a new available date and time.`;
+    return t(lang, 'assistantReplies.reschedule', { name });
   }
 
   if (text.includes('pay') || text.includes('payment') || text.includes('checkout')) {
-    return `Hi ${name}, pending bookings can be paid from the checkout page or from My Bookings. Once payment succeeds, I will send a confirmation here automatically.`;
+    return t(lang, 'assistantReplies.payment', { name });
   }
 
   if (text.includes('confirm') || text.includes('confirmed')) {
-    return `Hi ${name}, confirmed bookings appear in My Bookings after payment is completed. I also send a confirmation message here when payment succeeds.`;
+    return t(lang, 'assistantReplies.confirm', { name });
   }
 
   if (text.includes('booking') || text.includes('appointment')) {
-    return `Hi ${name}, you can view all your appointments from View bookings. I will also message you here when bookings are created, confirmed, cancelled, or rescheduled.`;
+    return t(lang, 'assistantReplies.booking', { name });
   }
 
   if (text.includes('loyalty') || text.includes('point') || text.includes('wallet') || text.includes('voucher')) {
-    return `Hi ${name}, open Wallet to view loyalty points, vouchers, and recent reward activity. Paid bookings can earn loyalty points automatically.`;
+    return t(lang, 'assistantReplies.loyalty', { name });
   }
 
   if (text.includes('merchant') || text.includes('business')) {
-    return `Hi ${name}, merchant users can manage services, availability, promotions, staff, and bookings from the merchant dashboard after approval.`;
+    return t(lang, 'assistantReplies.merchant', { name });
   }
 
   if (text.includes('hello') || text.includes('hi') || text.includes('help')) {
-    return `Hi ${name}, I can help with booking, payment, cancellation, rescheduling, loyalty wallet, and account questions.`;
+    return t(lang, 'assistantReplies.help', { name });
   }
 
-  return `Hi ${name}, I can help with booking, payment, cancellation, rescheduling, loyalty wallet, and account questions. Try asking something like "How do I cancel my booking?"`;
+  return t(lang, 'assistantReplies.fallback', { name });
 }
 
 async function listNotifications(req, res) {
@@ -56,7 +57,7 @@ async function listNotifications(req, res) {
       title: 'Uniday Assistant',
       notifications: [],
       success: null,
-      error: 'Could not load notifications.',
+      error: res.locals.t('assistantReplies.loadError'),
       query: req.query,
     });
   }
@@ -75,7 +76,7 @@ async function markRead(req, res) {
 async function markAllRead(req, res) {
   try {
     await notificationModel.markAllRead(req.session.user.user_id);
-    res.redirect('/assistant?success=Messages marked as read.');
+    res.redirect('/assistant?success=' + encodeURIComponent(res.locals.t('assistantReplies.markedRead')));
   } catch (err) {
     console.error('notification mark-all-read failed:', err);
     res.redirect('/assistant');
@@ -88,12 +89,12 @@ async function askAssistant(req, res) {
   try {
     if (!question) {
       if (req.xhr || req.get('Accept')?.includes('application/json')) {
-        return res.status(400).json({ error: 'Please type a question.' });
+        return res.status(400).json({ error: res.locals.t('assistantReplies.typeQuestion') });
       }
-      return res.redirect('/assistant?error=' + encodeURIComponent('Please type a question.'));
+      return res.redirect('/assistant?error=' + encodeURIComponent(res.locals.t('assistantReplies.typeQuestion')));
     }
 
-    const answer = buildAssistantReply(question, req.session.user);
+    const answer = buildAssistantReply(question, req.session.user, req.language);
     await notificationModel.createAssistantExchange(req.session.user.user_id, question, answer);
 
     if (req.xhr || req.get('Accept')?.includes('application/json')) {
@@ -104,9 +105,9 @@ async function askAssistant(req, res) {
   } catch (err) {
     console.error('assistant question failed:', err);
     if (req.xhr || req.get('Accept')?.includes('application/json')) {
-      return res.status(500).json({ error: 'Assistant could not reply right now.' });
+      return res.status(500).json({ error: res.locals.t('assistantReplies.replyError') });
     }
-    res.redirect('/assistant?error=' + encodeURIComponent('Assistant could not reply right now.'));
+    res.redirect('/assistant?error=' + encodeURIComponent(res.locals.t('assistantReplies.replyError')));
   }
 }
 

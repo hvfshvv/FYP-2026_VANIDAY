@@ -32,35 +32,35 @@
           <div class="icon-circle-lg mx-auto mb-3">
             <i class="bi bi-credit-card" style="font-size:2rem;color:var(--accent);"></i>
           </div>
-          <h4 style="font-weight:800;letter-spacing:-.025em;color:var(--ink);margin-bottom:.25rem;">Confirm &amp; Pay</h4>
-          <p style="color:var(--muted);font-size:.875rem;">Review your booking before completing payment.</p>
+          <h4 style="font-weight:800;letter-spacing:-.025em;color:var(--ink);margin-bottom:.25rem;"><%= t('payment.confirmPay') %></h4>
+          <p style="color:var(--muted);font-size:.875rem;"><%= t('payment.reviewBeforePay') %></p>
         </div>
 
         <div id="checkout-timer-banner" class="d-none mb-3 p-3 rounded-xl text-center" style="background:#fff7ed;border:1.5px solid #fed7aa;">
           <i class="bi bi-hourglass-split me-1" style="color:#c2410c;"></i>
           <span style="font-weight:700;font-size:.875rem;color:#c2410c;">
-            Your slot is held for <span id="checkout-timer-display">5:00</span> — complete payment before time runs out.
+            <%- t('payment.slotHeld', { time: '<span id="checkout-timer-display">5:00</span>' }) %>
           </span>
         </div>
 
         <div id="checkout-expired-banner" class="d-none mb-3 p-3 rounded-xl text-center" style="background:#fef2f2;border:1.5px solid #fecaca;">
           <i class="bi bi-x-circle me-1" style="color:#dc2626;"></i>
           <span style="font-weight:700;font-size:.875rem;color:#dc2626;">
-            Your slot reservation has expired. <a href="/" style="color:#dc2626;">Make a new booking</a>.
+            <%= t('payment.slotExpired') %> <a href="/" style="color:#dc2626;"><%= t('payment.makeNewBooking') %></a>.
           </span>
         </div>
 
         <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:2rem;">
           <div class="p-3 rounded-xl mb-4" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.15);">
             <p style="font-weight:700;font-size:.8125rem;color:var(--accent);margin-bottom:.75rem;">
-              <i class="bi bi-calendar-check me-1"></i>Booking Summary
+              <i class="bi bi-calendar-check me-1"></i><%= t('payment.bookingSummary') %>
             </p>
-            <div class="summary-row"><span class="lbl">Merchant</span> <span class="val"><%= booking.merchant_name %></span></div>
-            <div class="summary-row"><span class="lbl">Service</span>  <span class="val"><%= booking.service_name %></span></div>
-            <div class="summary-row"><span class="lbl">Staff</span>    <span class="val"><%= booking.staff_name || 'Any Available Staff' %></span></div>
-            <div class="summary-row"><span class="lbl">Duration</span> <span class="val"><%= booking.duration_mins %> min</span></div>
-            <div class="summary-row"><span class="lbl">Date</span>     <span class="val"><%= new Date(booking.booking_date).toLocaleDateString('en-SG',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) %></span></div>
-            <div class="summary-row"><span class="lbl">Time</span>     <span class="val"><%= String(booking.booking_time).slice(0,5) %></span></div>
+            <div class="summary-row"><span class="lbl"><%= t('common.merchant') %></span> <span class="val"><%= booking.merchant_name %></span></div>
+            <div class="summary-row"><span class="lbl"><%= t('common.service') %></span>  <span class="val"><%= serviceText(booking, 'name') || booking.service_name %></span></div>
+            <div class="summary-row"><span class="lbl"><%= t('common.staff') %></span>    <span class="val"><%= booking.staff_name || t('common.anyAvailableStaff') %></span></div>
+            <div class="summary-row"><span class="lbl"><%= t('common.duration') %></span> <span class="val"><%= t('common.minutes', { count: booking.duration_mins }) %></span></div>
+            <div class="summary-row"><span class="lbl"><%= t('common.date') %></span>     <span class="val"><%= new Date(booking.booking_date).toLocaleDateString(lang === 'zh' ? 'zh-CN' : (lang === 'ta' ? 'ta-IN' : 'en-SG'),{weekday:'long',day:'numeric',month:'long',year:'numeric'}) %></span></div>
+            <div class="summary-row"><span class="lbl"><%= t('common.time') %></span>     <span class="val"><%= String(booking.booking_time).slice(0,5) %></span></div>
             <%
               const baseAmt      = checkoutBaseAmount;
               const discAmt      = Number(booking.discount_amount || 0);
@@ -68,35 +68,35 @@
               const hasPromo     = typeof appliedPromotion !== 'undefined' && appliedPromotion;
               const hasVoucher   = typeof appliedVoucher !== 'undefined' && appliedVoucher && voucherDiscAmt > 0;
             %>
-            <div class="summary-row"><span class="lbl">Original price</span><span class="val" style="font-family:var(--font-mono);">S$<%= baseAmt.toFixed(2) %></span></div>
+            <div class="summary-row"><span class="lbl"><%= t('payment.originalPrice') %></span><span class="val" style="font-family:var(--font-mono);">S$<%= baseAmt.toFixed(2) %></span></div>
             <% if (hasPromo) { %>
             <div class="summary-row">
               <span class="lbl" style="color:var(--success);font-weight:600;">
-                <i class="bi bi-tag-fill me-1"></i>Promotion discount: <%= appliedPromotion.title %> (<%= Number(appliedPromotion.discount_pct) %>% off)
+                <i class="bi bi-tag-fill me-1"></i><%= t('payment.promotionDiscount') %>: <%= appliedPromotion.title %> (<%= Number(appliedPromotion.discount_pct) %>% <%= t('home.off') %>)
               </span>
               <span class="val" style="color:var(--success);font-family:var(--font-mono);font-weight:700;">-S$<%= discAmt.toFixed(2) %></span>
             </div>
             <% } else { %>
             <div class="summary-row">
-              <span class="lbl">Promotion discount</span>
+              <span class="lbl"><%= t('payment.promotionDiscount') %></span>
               <span class="val" style="font-family:var(--font-mono);">-S$0.00</span>
             </div>
             <% } %>
             <% if (hasVoucher) { %>
             <div class="summary-row">
               <span class="lbl" style="color:#0369a1;font-weight:600;">
-                <i class="bi bi-ticket-perforated-fill me-1"></i>Voucher discount: <%= appliedVoucher.campaign_name || appliedVoucher.voucher_code %>
+                <i class="bi bi-ticket-perforated-fill me-1"></i><%= t('payment.voucherDiscount') %>: <%= appliedVoucher.campaign_name || appliedVoucher.voucher_code %>
               </span>
               <span class="val" style="color:#0369a1;font-family:var(--font-mono);font-weight:700;">-S$<%= voucherDiscAmt.toFixed(2) %></span>
             </div>
             <% } else { %>
             <div class="summary-row">
-              <span class="lbl">Voucher discount</span>
+              <span class="lbl"><%= t('payment.voucherDiscount') %></span>
               <span class="val" style="font-family:var(--font-mono);">-S$0.00</span>
             </div>
             <% } %>
             <div class="summary-row total">
-              <span style="font-weight:700;">Final total</span>
+              <span style="font-weight:700;"><%= t('payment.finalTotal') %></span>
               <span style="font-weight:700;color:var(--accent);font-size:1.2rem;font-family:var(--font-mono);">S$<%= payableAmount.toFixed(2) %></span>
             </div>
           </div>
@@ -104,7 +104,7 @@
           <% if (typeof cancellationPolicySummary !== 'undefined' && cancellationPolicySummary) { %>
           <div class="p-3 rounded-xl mb-4" style="background:#fff;border:1px solid var(--border);">
             <p style="font-weight:700;font-size:.8125rem;color:var(--accent);margin-bottom:.5rem;">
-              <i class="bi bi-hourglass-split me-1"></i>Cancellation Policy
+              <i class="bi bi-hourglass-split me-1"></i><%= t('payment.cancellationPolicy') %>
             </p>
             <p style="color:var(--ink);font-weight:700;margin:0;font-size:.875rem;"><%= cancellationPolicySummary %></p>
           </div>
@@ -147,11 +147,11 @@
           <% if (showVoucherSection) { %>
           <div class="mb-4">
             <p style="font-weight:700;color:var(--ink);font-size:.875rem;margin-bottom:.5rem;">
-              <i class="bi bi-ticket-perforated me-1" style="color:var(--accent);"></i>Apply Voucher
+              <i class="bi bi-ticket-perforated me-1" style="color:var(--accent);"></i><%= t('payment.applyVoucher') %>
             </p>
 
             <% if (!hasUsableVoucher) { %>
-            <p class="voucher-empty mb-2">No eligible vouchers for this booking</p>
+            <p class="voucher-empty mb-2"><%= t('payment.noEligibleVouchers') %></p>
             <% } %>
 
             <% if (checkoutVouchers.length > 0) { %>
@@ -233,13 +233,13 @@
             </div>
           <% } %>
 
-          <p style="font-weight:700;color:var(--ink);font-size:.875rem;margin-bottom:.75rem;">Payment Method</p>
+          <p style="font-weight:700;color:var(--ink);font-size:.875rem;margin-bottom:.75rem;"><%= t('payment.paymentMethod') %></p>
           <div class="d-flex gap-2 mb-4">
             <button type="button" id="tab-stripe" class="pay-tab active" onclick="switchTab('stripe')">
-              <i class="bi bi-credit-card me-1"></i>Credit / Debit Card
+              <i class="bi bi-credit-card me-1"></i><%= t('payment.card') %>
             </button>
             <button type="button" id="tab-paynow" class="pay-tab" onclick="switchTab('paynow')">
-              <i class="bi bi-qr-code me-1"></i>PayNow / NETS QR
+              <i class="bi bi-qr-code me-1"></i><%= t('payment.paynow') %>
             </button>
             <% if (paymentWallet) { %>
             <button type="button" id="tab-wallet" class="pay-tab" onclick="switchTab('wallet')">
@@ -250,7 +250,7 @@
 
           <div id="panel-stripe">
             <p class="small mb-2" style="color:var(--muted);">
-              <i class="bi bi-lock-fill me-1"></i>Card details are handled securely by Stripe. We never see your number.
+              <i class="bi bi-lock-fill me-1"></i><%= t('payment.stripeSecure') %>
             </p>
             <div id="card-element-wrap" class="mb-1">
               <div id="payment-element"></div>
@@ -259,41 +259,41 @@
 
             <div class="p-2 rounded-xl mb-3" style="background:#f0fdf4;border:1px solid #bbf7d0;font-size:.78rem;color:#166534;">
               <i class="bi bi-info-circle me-1"></i>
-              <strong>Test card:</strong> 4242 4242 4242 4242 &nbsp;|&nbsp; Any future date &nbsp;|&nbsp; Any 3-digit CVC
+              <strong><%= t('payment.testCard') %></strong> 4242 4242 4242 4242 &nbsp;|&nbsp; <%= t('payment.anyFutureDate') %> &nbsp;|&nbsp; <%= t('payment.anyCvc') %>
             </div>
 
             <button id="stripe-pay-btn" class="btn btn-primary btn-lg w-100 btn-pill py-3" style="font-size:1rem;font-weight:700;">
-              <span id="stripe-lbl"><i class="bi bi-lock me-2"></i>Pay S$<%= payableAmount.toFixed(2) %></span>
-              <span id="stripe-spin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Processing...</span>
+              <span id="stripe-lbl"><i class="bi bi-lock me-2"></i><%= t('payment.payAmount', { amount: payableAmount.toFixed(2) }) %></span>
+              <span id="stripe-spin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span><%= t('payment.processing') %></span>
             </button>
           </div>
 
           <div id="panel-paynow" class="d-none">
             <div class="p-3 rounded-xl mb-3" style="background:var(--surface);border:1.5px solid var(--border);">
               <div class="summary-row">
-                <span class="lbl">Amount</span>
+                <span class="lbl"><%= t('common.amount') %></span>
                 <span class="val" style="font-family:var(--font-mono);font-weight:700;color:var(--accent);">S$<%= payableAmount.toFixed(2) %></span>
               </div>
               <div class="summary-row">
-                <span class="lbl">Provider</span>
-                <span class="val">Stripe PayNow sandbox</span>
+                <span class="lbl"><%= t('common.provider') %></span>
+                <span class="val"><%= t('payment.paynowProvider') %></span>
               </div>
             </div>
 
             <ol class="small ps-3 mb-4" style="color:var(--muted);line-height:1.9;">
-              <li>Tap <strong>Continue with PayNow</strong> to open Stripe's secure checkout.</li>
-              <li>Choose <strong>PayNow</strong>, then click <strong>Generate QR code</strong>.</li>
-              <li>In test mode, use Stripe's PayNow test page to approve the payment.</li>
-              <li>After approval, Stripe will return you to Uniday with your booking confirmed.</li>
+              <li><%= t('payment.paynowStep1') %></li>
+              <li><%= t('payment.paynowStep2') %></li>
+              <li><%= t('payment.paynowStep3') %></li>
+              <li><%= t('payment.paynowStep4') %></li>
             </ol>
 
             <button id="paynow-pay-btn" class="btn btn-primary btn-lg w-100 btn-pill py-3" style="font-size:1rem;font-weight:700;">
-              <span id="paynow-lbl"><i class="bi bi-qr-code me-2"></i>Continue with PayNow</span>
-              <span id="paynow-spin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Opening Stripe...</span>
+              <span id="paynow-lbl"><i class="bi bi-qr-code me-2"></i><%= t('payment.continuePaynow') %></span>
+              <span id="paynow-spin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span><%= t('payment.openingStripe') %></span>
             </button>
 
             <p class="small text-center mt-2 mb-0" style="color:var(--muted);">
-              You will be redirected to Stripe's secure sandbox checkout for the QR code.
+              <%= t('payment.paynowRedirect') %>
             </p>
           </div>
 
@@ -317,7 +317,7 @@
 
           <p class="text-center small mt-4 mb-0" style="color:var(--muted);">
             <i class="bi bi-shield-check me-1" style="color:var(--success);"></i>
-            Payments are processed securely. Uniday does not store card details.
+            <%= t('payment.secureNotice') %>
           </p>
         </div>
       </div>
@@ -332,8 +332,8 @@
         <div class="icon-circle-lg mx-auto mb-3" style="background:var(--success-bg);">
           <i class="bi bi-check-lg" style="font-size:2rem;color:var(--success);"></i>
         </div>
-        <h5 style="font-weight:800;color:var(--success);margin-bottom:.35rem;">Payment Successful</h5>
-        <p class="mb-0" style="color:var(--muted);font-size:.9rem;">Your booking is confirmed. Redirecting...</p>
+        <h5 style="font-weight:800;color:var(--success);margin-bottom:.35rem;"><%= t('payment.paymentSuccessful') %></h5>
+        <p class="mb-0" style="color:var(--muted);font-size:.9rem;"><%= t('payment.redirecting') %></p>
       </div>
     </div>
   </div>

@@ -78,15 +78,22 @@ async function createArrivalQRForMerchant(merchantId, options = {}) {
   return createQRForMerchant(merchantId, 'check_in', options);
 }
 
-async function ensureQrImageExists(qr) {
+async function ensureQrImageExists(qr, options = {}) {
   if (!qr || !qr.qr_image_path) return qr;
 
   const fileName = path.basename(qr.qr_image_path);
   const filePath = path.join(QR_DIR, fileName);
+  const expectedQrUrl = buildQRUrl(qr.qr_type, qr.qr_token, options.baseUrl);
+  const needsUrlRefresh = qr.qr_url !== expectedQrUrl;
 
-  if (!fs.existsSync(filePath)) {
+  if (!fs.existsSync(filePath) || needsUrlRefresh) {
     fs.mkdirSync(QR_DIR, { recursive: true });
-    await QRCode.toFile(filePath, qr.qr_url, { width: 400, margin: 2 });
+    await QRCode.toFile(filePath, expectedQrUrl, { width: 400, margin: 2 });
+  }
+
+  if (needsUrlRefresh) {
+    await qrModel.updateQRUrl(qr.qr_id, expectedQrUrl);
+    qr.qr_url = expectedQrUrl;
   }
 
   return qr;
@@ -99,7 +106,7 @@ async function ensureBookingQRForMerchant(merchantId, options = {}) {
     deactivateExisting: false,
   });
 
-  return ensureQrImageExists(qr);
+  return ensureQrImageExists(qr, options);
 }
 
 async function ensureArrivalQRForMerchant(merchantId, options = {}) {
@@ -109,7 +116,7 @@ async function ensureArrivalQRForMerchant(merchantId, options = {}) {
     deactivateExisting: false,
   });
 
-  return ensureQrImageExists(qr);
+  return ensureQrImageExists(qr, options);
 }
 
 async function ensureMerchantQRCodes(merchantId, options = {}) {

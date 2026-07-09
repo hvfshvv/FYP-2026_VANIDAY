@@ -8,12 +8,13 @@ async function getActiveQRByMerchant(merchantId, type = 'booking') {
   const qrType = normalizeQRType(type);
   // Get the latest active QR code for this merchant.
   const [rows] = await db.query(
-    `SELECT *
-     FROM qr_code
-     WHERE merchant_id = ?
-       AND qr_type = ?
-       AND is_active = 1
-     ORDER BY generated_at DESC, qr_id DESC
+    `SELECT q.*, m.merchant_name, m.address
+     FROM qr_code q
+     JOIN merchant m ON q.merchant_id = m.merchant_id
+     WHERE q.merchant_id = ?
+       AND q.qr_type = ?
+       AND q.is_active = 1
+     ORDER BY q.generated_at DESC, q.qr_id DESC
      LIMIT 1`,
     [merchantId, qrType]
   );
@@ -67,10 +68,18 @@ async function insertQR(merchantId, token, imagePath, qrUrl, type = 'booking') {
   return result.insertId;
 }
 
+async function updateQRUrl(qrId, qrUrl) {
+  await db.query(
+    'UPDATE qr_code SET qr_url = ? WHERE qr_id = ?',
+    [qrUrl, qrId]
+  );
+}
+
 module.exports = {
   getActiveQRByMerchant,
   getQRByToken,
   getQRByTokenIncludingInactive,
   deactivateMerchantQRs,
   insertQR,
+  updateQRUrl,
 };

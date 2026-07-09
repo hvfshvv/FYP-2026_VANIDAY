@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<%= typeof lang !== 'undefined' ? lang : 'en' %>">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><%= typeof title !== 'undefined' ? title + ' — Uniday' : 'Uniday' %></title>
-  <meta name="description" content="Singapore's trusted beauty and wellness booking platform. Scan, book, pay in seconds." />
+  <title><%= typeof title !== 'undefined' ? title + ' - Uniday' : 'Uniday' %></title>
+  <meta name="description" content="<%= t('meta.description') %>" />
   <link rel="icon" type="image/png" href="/images/uniday-logo.png" />
   <link rel="apple-touch-icon" href="/images/uniday-logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,20 +16,20 @@
 </head>
 <body>
 
-<nav class="site-nav" role="navigation" aria-label="Main navigation">
+<nav class="site-nav" role="navigation" aria-label="<%= t('nav.main') %>">
   <div class="nav-inner">
     <%- include('unidayLogo', { className: 'nav-logo', size: 'md' }) %>
 
     <ul class="nav-links" role="list">
       <% if (!user || user.role === 'customer') { %>
-      <li><a href="/">Home</a></li>
-      <li><a href="/#featured-listings" onclick="scrollToMarketplace(event)">Marketplace</a></li>
-      <li><a href="/client-diaries">Client Diaries</a></li>
+      <li><a href="/"><%= t('nav.home') %></a></li>
+      <li><a href="/#featured-listings" onclick="scrollToMarketplace(event)"><%= t('nav.marketplace') %></a></li>
+      <li><a href="/client-diaries"><%= t('nav.clientDiaries') %></a></li>
       <% } %>
       <% if (user && user.role === 'customer') { %>
       <li>
         <a href="/book/viewBookings" class="nav-bookings-link">
-          View bookings
+          <%= t('nav.viewBookings') %>
           <% if (Number(locals.pendingPaymentCount || 0) > 0) { %>
           <span class="nav-pending-badge"><%= pendingPaymentCount %></span>
           <% } %>
@@ -37,90 +37,107 @@
       </li>
       <% } %>
       <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
-      <li><a href="/merchant/dashboard">Dashboard</a></li>
-      <li><a href="/merchant/services">Services</a></li>
-      <li><a href="/merchant/promotions">Promotions</a></li>
-      <li><a href="/merchant/reviews">Reviews</a></li>
+      <li><a href="/merchant/dashboard"><%= t('nav.dashboard') %></a></li>
+      <li><a href="/merchant/services"><%= t('nav.services') %></a></li>
+      <li><a href="/merchant/promotions"><%= t('nav.promotions') %></a></li>
+      <li><a href="/merchant/reviews"><%= t('nav.reviews') %></a></li>
       <% } %>
       <% if (user && user.role === 'admin') { %>
-      <li><a href="/admin/dashboard">Dashboard</a></li>
-      <li><a href="/admin/user-management">User Management</a></li>
+      <li><a href="/admin/dashboard"><%= t('nav.dashboard') %></a></li>
+      <li><a href="/admin/user-management"><%= t('nav.userManagement') %></a></li>
       <% } %>
     </ul>
 
     <div class="nav-actions">
+      <label class="language-switcher" title="<%= t('language.switcherLabel') %>">
+        <i class="bi bi-translate"></i>
+        <select id="languageSelect" aria-label="<%= t('language.switcherLabel') %>" onchange="changeUnidayLanguage(this.value)">
+          <% supportedLanguages.forEach(code => { %>
+          <option value="<%= code %>" <%= code === lang ? 'selected' : '' %>><%= languageLabels[code] %></option>
+          <% }) %>
+        </select>
+      </label>
       <% if (user) { %>
       <% if (user.role === 'customer') { %>
-      <a href="/favourite" class="nav-icon-action" aria-label="My Favourites" title="My Favourites">
+      <a href="/favourite" class="nav-icon-action" aria-label="<%= t('nav.myFavourites') %>" title="<%= t('nav.myFavourites') %>">
         <i class="bi bi-heart"></i>
       </a>
-      <a href="/wallet" class="nav-icon-action" aria-label="Payment Wallet" title="Payment Wallet">
+      <a href="/wallet" class="nav-icon-action" aria-label="<%= t('nav.myWallet') %>" title="<%= t('nav.myWallet') %>">
         <i class="bi bi-wallet2"></i>
       </a>
       <a href="/loyalty" class="nav-icon-action" aria-label="Loyalty rewards" title="Loyalty rewards"><i class="bi bi-stars"></i></a>
       <% } %>
       <span class="nav-user-pill"><i class="bi bi-person-circle"></i><%= user.full_name.split(' ')[0] %></span>
-      <a href="/auth/logout" class="btn btn-outline-secondary btn-sm btn-pill">Sign out</a>
+      <a href="/auth/logout" class="btn btn-outline-secondary btn-sm btn-pill"><%= t('nav.signOut') %></a>
       <% } else { %>
-      <a href="/auth/login" class="btn btn-outline-secondary btn-sm btn-pill">Sign In / Register</a>
+      <a href="/auth/login" class="btn btn-outline-secondary btn-sm btn-pill"><%= t('nav.signInRegister') %></a>
       <% } %>
     </div>
 
-    <button class="nav-hamburger" aria-label="Toggle menu" aria-expanded="false" id="hamburgerBtn" onclick="toggleMobileNav()">
+    <button class="nav-hamburger" aria-label="<%= t('nav.toggle') %>" aria-expanded="false" id="hamburgerBtn" onclick="toggleMobileNav()">
       <i class="bi bi-list" id="hamburger-icon"></i>
     </button>
   </div>
 </nav>
 
-<div class="nav-mobile" id="mobileNav" role="navigation" aria-label="Mobile navigation">
+<div class="nav-mobile" id="mobileNav" role="navigation" aria-label="<%= t('nav.mobile') %>">
+  <label class="language-switcher mobile-language-switcher">
+    <i class="bi bi-translate"></i>
+    <select aria-label="<%= t('language.switcherLabel') %>" onchange="changeUnidayLanguage(this.value)">
+      <% supportedLanguages.forEach(code => { %>
+      <option value="<%= code %>" <%= code === lang ? 'selected' : '' %>><%= languageLabels[code] %></option>
+      <% }) %>
+    </select>
+  </label>
   <% if (!user || user.role === 'customer') { %>
-  <a href="/">Home</a>
-  <a href="/#featured-listings" onclick="scrollToMarketplace(event)">Marketplace</a>
-  <a href="/client-diaries">Client Diaries</a>
+  <a href="/"><%= t('nav.home') %></a>
+  <a href="/#featured-listings" onclick="scrollToMarketplace(event)"><%= t('nav.marketplace') %></a>
+  <a href="/client-diaries"><%= t('nav.clientDiaries') %></a>
   <% } %>
   <% if (user && user.role === 'customer') { %>
   <a href="/book/viewBookings" class="nav-bookings-link">
-    View bookings
+    <%= t('nav.viewBookings') %>
     <% if (Number(locals.pendingPaymentCount || 0) > 0) { %>
     <span class="nav-pending-badge"><%= pendingPaymentCount %></span>
     <% } %>
   </a>
-  <a href="/favourite">My Favourites</a>
-  <a href="/wallet">Payment Wallet</a>
+  <a href="/favourite"><%= t('nav.myFavourites') %></a>
+  <a href="/wallet"><%= t('nav.wallet') %></a>
   <a href="/loyalty">Loyalty Rewards</a>
   <% } %>
   <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
-  <a href="/merchant/dashboard">Dashboard</a>
-  <a href="/merchant/services">Services</a>
-  <a href="/merchant/promotions">Promotions</a>
-  <a href="/merchant/reviews">Reviews</a>
+  <a href="/merchant/dashboard"><%= t('nav.dashboard') %></a>
+  <a href="/merchant/services"><%= t('nav.services') %></a>
+  <a href="/merchant/promotions"><%= t('nav.promotions') %></a>
+  <a href="/merchant/reviews"><%= t('nav.reviews') %></a>
   <% } %>
   <% if (user && user.role === 'admin') { %>
-  <a href="/admin/dashboard">Dashboard</a>
-  <a href="/admin/user-management">User Management</a>
+  <a href="/admin/dashboard"><%= t('nav.dashboard') %></a>
+  <a href="/admin/user-management"><%= t('nav.userManagement') %></a>
   <% } %>
   <% if (user) { %>
-  <a href="/auth/logout">Sign out</a>
+  <a href="/auth/logout"><%= t('nav.signOut') %></a>
   <% } else { %>
-  <a href="/auth/login">Sign In / Register</a>
+  <a href="/auth/login"><%= t('nav.signInRegister') %></a>
   <% } %>
 </div>
 
 <% if (!locals.hideCatNav) { %>
-<nav class="cat-strip" aria-label="Browse by category">
+<nav class="cat-strip" aria-label="<%= t('nav.browseByCategory') %>">
   <div class="cat-strip-inner">
     <% [
-      { icon:'bi-scissors',    label:'Hair'       },
-      { icon:'bi-brush',       label:'Nails'      },
-      { icon:'bi-droplet',     label:'Facial'     },
-      { icon:'bi-hand-index',  label:'Massage'    },
-      { icon:'bi-heart-pulse', label:'Wellness'   },
-      { icon:'bi-activity',    label:'Body'       },
-      { icon:'bi-eye',         label:'Aesthetics' },
-      { icon:'bi-droplet-half', label:'Spa'       },
+      { icon:'bi-scissors',     label:'Hair',       key:'hair'       },
+      { icon:'bi-brush',        label:'Nails',      key:'nails'      },
+      { icon:'bi-droplet',      label:'Facial',     key:'facial'     },
+      { icon:'bi-hand-index',   label:'Massage',    key:'massage'    },
+      { icon:'bi-heart-pulse',  label:'Wellness',   key:'wellness'   },
+      { icon:'bi-activity',     label:'Body',       key:'body'       },
+      { icon:'bi-eye',          label:'Aesthetics', key:'aesthetics' },
+      { icon:'bi-droplet-half', label:'Spa',        key:'spa'        },
     ].forEach(c => { %>
-    <a href="/?category=<%= encodeURIComponent(c.label) %>" class="cat-strip-link" aria-label="<%= c.label %> services">
-      <i class="bi <%= c.icon %>"></i><%= c.label %>
+    <% const categoryLabel = t('categories.' + c.key); %>
+    <a href="/?category=<%= encodeURIComponent(c.label) %>" class="cat-strip-link" aria-label="<%= t('categories.servicesLabel', { category: categoryLabel }) %>">
+      <i class="bi <%= c.icon %>"></i><%= categoryLabel %>
     </a>
     <% }) %>
   </div>
@@ -128,6 +145,61 @@
 <% } %>
 
 <script>
+window.UnidayI18n = <%- JSON.stringify(i18nClient).replace(/</g, '\\u003c') %>;
+
+function unidayGetNested(source, key) {
+  return String(key || '').split('.').filter(Boolean).reduce(function(value, part) {
+    return value && Object.prototype.hasOwnProperty.call(value, part) ? value[part] : undefined;
+  }, source);
+}
+
+window.t = function unidayTranslate(key, params, fallback) {
+  const data = window.UnidayI18n || {};
+  const value = unidayGetNested(data.translations || {}, key)
+    ?? unidayGetNested(data.fallback || {}, key)
+    ?? fallback
+    ?? key;
+  return String(value).replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, function(_, name) {
+    return params && params[name] !== undefined && params[name] !== null ? String(params[name]) : '';
+  });
+};
+
+function normalizeUnidayLanguage(value) {
+  const raw = String(value || '').toLowerCase();
+  if (raw.indexOf('zh') === 0) return 'zh';
+  if (raw.indexOf('ms') === 0) return 'ms';
+  if (raw.indexOf('ta') === 0) return 'ta';
+  return 'en';
+}
+
+function changeUnidayLanguage(language) {
+  const nextLanguage = normalizeUnidayLanguage(language);
+  localStorage.setItem('uniday_lang', nextLanguage);
+  const url = new URL(window.location.href);
+  url.searchParams.set('lang', nextLanguage);
+  window.location.href = url.toString();
+}
+
+(function detectPreferredLanguage() {
+  const data = window.UnidayI18n || {};
+  const supported = data.supported || ['en'];
+  const url = new URL(window.location.href);
+  const queryLanguage = url.searchParams.get('lang');
+  const savedLanguage = localStorage.getItem('uniday_lang');
+  const browserLanguage = normalizeUnidayLanguage(navigator.language || (navigator.languages && navigator.languages[0]));
+  const preferred = normalizeUnidayLanguage(savedLanguage || browserLanguage || 'en');
+
+  if (queryLanguage) {
+    localStorage.setItem('uniday_lang', normalizeUnidayLanguage(queryLanguage));
+    return;
+  }
+
+  if (supported.includes(preferred) && preferred !== data.lang) {
+    url.searchParams.set('lang', preferred);
+    window.location.replace(url.toString());
+  }
+})();
+
 function toggleMobileNav() {
   const nav  = document.getElementById('mobileNav');
   const icon = document.getElementById('hamburger-icon');

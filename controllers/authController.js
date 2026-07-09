@@ -28,6 +28,10 @@ function getBaseUrl(req) {
   return (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
 }
 
+function getRequestBaseUrl(req) {
+  return `${req.protocol}://${req.get('host')}`.replace(/\/$/, '');
+}
+
 function isEmailVerificationRequired() {
   return String(process.env.EMAIL_VERIFICATION_REQUIRED || 'true').toLowerCase() !== 'false';
 }
@@ -329,7 +333,9 @@ async function register(req, res) {
         category.trim()
       );
 
-      await qrService.ensureMerchantQRCodes(merchantId);
+      await qrService.ensureMerchantQRCodes(merchantId, {
+        baseUrl: getRequestBaseUrl(req),
+      });
     }
 
     await sendWelcomeEmail(req, newUser);

@@ -22,6 +22,7 @@ const availabilityModel = require('../models/availabilityModel');
 const reviewModel = require('../models/reviewModel');
 const promotionModel = require('../models/promotionModel');
 const loyaltyModel = require('../models/loyaltyModel');
+const waitlistModel = require('../models/waitlistModel');
 
 // Every route in this file requires a logged-in, approved merchant account.
 router.use(requireLogin, requireMerchant);
@@ -54,6 +55,7 @@ router.get('/dashboard', async (req, res) => {
     availability,
     reviewSummary,
     promotions,
+    activeWaitlistCount,
   ] = await Promise.all([
     bookingModel.getMerchantDashboardSummary(merchantId, periodStart).catch(() => ({})),
     isCurrentPeriod ? bookingModel.getMerchantTodaySchedule(merchantId).catch(() => []) : [],
@@ -66,6 +68,7 @@ router.get('/dashboard', async (req, res) => {
     availabilityModel.getAvailabilityByMerchant(merchantId).catch(() => []),
     reviewModel.getMerchantReviewSummary(merchantId, periodStart).catch(() => ({})),
     promotionModel.getMerchantPromotions(merchantId).catch(() => []),
+    waitlistModel.getMerchantActiveWaitlistCount(merchantId).catch(() => 0),
   ]);
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -131,6 +134,11 @@ router.get('/dashboard', async (req, res) => {
       label: 'No active services listed',
       href: '/merchant/services',
     },
+    Number(activeWaitlistCount || 0) > 0 && {
+      icon: 'bi-list-ol',
+      label: `${activeWaitlistCount} active waitlist request(s)`,
+      href: '/merchant/waitlists',
+    },
   ].filter(Boolean);
 
   res.render('merchant/dashboard', {
@@ -145,6 +153,7 @@ router.get('/dashboard', async (req, res) => {
     operations,
     dashboardMetrics,
     pendingActions,
+    activeWaitlistCount,
     selectedPeriod,
     currentPeriod,
     periodLabel,
@@ -155,11 +164,15 @@ router.get('/dashboard', async (req, res) => {
 // Management hub preserves all merchant setup and control functions.
 router.get('/manage', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
-  const merchant = await merchantModel.getMerchantProfile(merchantId).catch(() => null);
+  const [merchant, activeWaitlistCount] = await Promise.all([
+    merchantModel.getMerchantProfile(merchantId).catch(() => null),
+    waitlistModel.getMerchantActiveWaitlistCount(merchantId).catch(() => 0),
+  ]);
 
   res.render('merchant/manage', {
     title: 'Merchant Management',
     merchant,
+    activeWaitlistCount,
     imageSuccess: req.query.imageSuccess,
     imageError: req.query.imageError,
   });
@@ -183,6 +196,31 @@ router.get('/bookings', async (req, res) => {
     success: req.query.success,
     error: req.query.error,
   });
+});
+
+// Waitlist overview for fully booked slots.
+router.get('/waitlists', async (req, res) => {
+  const merchantId = req.session.user.merchant_id;
+  const waitlists = await waitlistModel.getMerchantWaitlists(merchantId).catch(() => []);
+
+  res.render('merchant/waitlists', {
+    title: 'Waitlists',
+    waitlists,
+    success: req.query.success,
+    error: req.query.error,
+  });
+});
+
+router.post('/waitlists/:waitlistId/remove', async (req, res) => {
+  const merchantId = req.session.user.merchant_id;
+
+  try {
+    await waitlistModel.removeMerchantWaitlist(req.params.waitlistId, merchantId);
+    res.redirect('/merchant/waitlists?success=' + encodeURIComponent('Waitlist request removed.'));
+  } catch (err) {
+    console.error(err);
+    res.redirect('/merchant/waitlists?error=' + encodeURIComponent(err.message || 'Could not remove waitlist request.'));
+  }
 });
 
 // Revenue report with summary, transactions and monthly chart data.

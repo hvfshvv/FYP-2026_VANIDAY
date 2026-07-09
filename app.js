@@ -19,6 +19,8 @@ const clientDiariesRoutes = require('./routes/clientDiaries');
 const reminderService   = require('./services/reminderService');
 const bookingNotificationModel = require('./models/bookingNotificationModel');
 const notificationModel = require('./models/notificationModel');
+const waitlistModel = require('./models/waitlistModel');
+const i18nMiddleware = require('./middleware/i18n');
 
 const app = express();
 
@@ -38,6 +40,8 @@ app.use(session({
   saveUninitialized: false,
   cookie: { secure: false, maxAge: 1000 * 60 * 60 * 24 }
 }));
+
+app.use(i18nMiddleware);
 
 // make session user available in all views
 app.use((req, res, next) => {
@@ -101,6 +105,20 @@ async function releaseExpiredPendingPayments() {
 
 releaseExpiredPendingPayments();
 setInterval(releaseExpiredPendingPayments, 60 * 1000);
+
+async function releaseExpiredWaitlistOffers() {
+  try {
+    const expired = await waitlistModel.expireOffersAndPromote();
+    if (expired) {
+      console.log(`[waitlist] Expired ${expired} waitlist offer(s).`);
+    }
+  } catch (err) {
+    console.error('[waitlist] Failed to expire waitlist offers:', err.message);
+  }
+}
+
+releaseExpiredWaitlistOffers();
+setInterval(releaseExpiredWaitlistOffers, 60 * 1000);
 
 app.use((req, res) => {
   res.status(404).render('404', { title: 'Page Not Found' });

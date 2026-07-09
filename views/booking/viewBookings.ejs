@@ -20,19 +20,28 @@
 
 <%
   const bookingList = Array.isArray(bookings) ? bookings : [];
+  const waitlistList = Array.isArray(waitlists) ? waitlists : [];
   const statusStyles = {
-    pending_payment: { label: 'Pending Payment', bg: 'var(--warn-bg)', color: 'var(--warn)' },
-    confirmed:       { label: 'Confirmed', bg: 'var(--success-bg)', color: 'var(--success)' },
-    rescheduled:     { label: 'Rescheduled', bg: '#EFF6FF', color: '#1D4ED8' },
-    arrived:         { label: 'Arrived', bg: 'var(--accent-light)', color: 'var(--accent)' },
-    completed:       { label: 'Completed', bg: 'var(--success-bg)', color: 'var(--success)' },
-    cancelled:       { label: 'Cancelled', bg: 'var(--danger-bg)', color: 'var(--danger)' },
-    payment_failed:  { label: 'Payment expired', bg: 'var(--danger-bg)', color: 'var(--danger)' },
-    no_show:         { label: 'No Show', bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    pending_payment: { label: t('bookings.pendingPayment'), bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    confirmed:       { label: t('bookings.confirmed'), bg: 'var(--success-bg)', color: 'var(--success)' },
+    rescheduled:     { label: t('bookings.rescheduled'), bg: '#EFF6FF', color: '#1D4ED8' },
+    arrived:         { label: t('bookings.arrived'), bg: 'var(--accent-light)', color: 'var(--accent)' },
+    completed:       { label: t('bookings.completed'), bg: 'var(--success-bg)', color: 'var(--success)' },
+    cancelled:       { label: t('bookings.cancelled'), bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    payment_failed:  { label: t('bookings.paymentExpired'), bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    no_show:         { label: t('bookings.noShow'), bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  };
+  const waitlistStatusStyles = {
+    waiting:   { label: t('bookings.waiting'), bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    offered:   { label: t('bookings.slotOpen'), bg: 'var(--success-bg)', color: 'var(--success)' },
+    confirmed: { label: t('bookings.confirmed'), bg: 'var(--success-bg)', color: 'var(--success)' },
+    expired:   { label: t('bookings.offerExpired'), bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    cancelled: { label: t('bookings.cancelled'), bg: 'var(--canvas)', color: 'var(--muted)' },
+    removed:   { label: t('bookings.removed'), bg: 'var(--canvas)', color: 'var(--muted)' },
   };
 
   function formatDate(value) {
-    return new Date(value).toLocaleDateString('en-SG', {
+    return new Date(value).toLocaleDateString(lang === 'zh' ? 'zh-CN' : (lang === 'ta' ? 'ta-IN' : 'en-SG'), {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -120,12 +129,12 @@
   <div class="container" style="max-width:980px;">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
       <div>
-        <p class="section-label mb-2">Bookings</p>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">My Booking History</h2>
-        <p style="color:var(--muted);margin:0;">View your past and current appointments from Uniday.</p>
+        <p class="section-label mb-2"><%= t('bookings.section') %></p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('bookings.title') %></h2>
+        <p style="color:var(--muted);margin:0;"><%= t('bookings.subtitle') %></p>
       </div>
       <a href="/marketplace" class="btn btn-primary btn-pill">
-        <i class="bi bi-calendar-plus me-2"></i>Book Again
+        <i class="bi bi-calendar-plus me-2"></i><%= t('bookings.bookAgain') %>
       </a>
     </div>
 
@@ -140,21 +149,82 @@
       </div>
     <% } %>
 
-    <% if (!bookingList.length) { %>
+    <% if (waitlistList.length) { %>
+      <p class="section-label mb-2"><%= t('bookings.waitlist') %></p>
+      <div class="card border-0 mb-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
+        <% waitlistList.forEach((entry, index) => {
+          const waitStatus = waitlistStatusStyles[entry.status] || waitlistStatusStyles.waiting;
+          const isActiveWaitlist = ['waiting', 'offered'].includes(entry.status);
+          const offerExpiresAt = entry.offer_expires_at ? new Date(entry.offer_expires_at).toISOString() : '';
+        %>
+        <div class="p-4" style="<%= index ? 'border-top:1px solid var(--border);' : '' %>">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div class="booking-entry-details flex-grow-1">
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <h5 style="font-weight:800;color:var(--ink);margin:0;"><%= serviceText(entry, 'name') || entry.service_name %></h5>
+                <span class="badge rounded-pill" style="background:<%= waitStatus.bg %>;color:<%= waitStatus.color %>;"><%= waitStatus.label %></span>
+                <% if (entry.status === 'waiting') { %>
+                <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);">
+                  <%= t('bookings.queueNumber', { number: entry.queue_position || 1 }) %>
+                </span>
+                <% } %>
+                <% if (entry.status === 'offered') { %>
+                <span class="badge rounded-pill waitlist-offer-timer" data-offer-expires-at="<%= offerExpiresAt %>" style="background:var(--accent-light);color:var(--accent);border:1px solid rgba(225,29,72,.2);">
+                  <i class="bi bi-hourglass-split me-1"></i><span data-waitlist-countdown>15:00</span> <%= t('bookings.left') %>
+                </span>
+                <% } %>
+              </div>
+              <p style="color:var(--muted);margin:0 0 .75rem;">
+                <i class="bi bi-shop me-1"></i><%= entry.merchant_name %>
+                <% if (entry.merchant_address) { %>
+                  <span style="margin-left:.5rem;"><i class="bi bi-geo-alt me-1"></i><%= entry.merchant_address %></span>
+                <% } %>
+              </p>
+              <div class="d-flex flex-wrap gap-3" style="color:var(--ink);font-size:.925rem;font-weight:600;">
+                <span><i class="bi bi-calendar3 me-1" style="color:var(--accent);"></i><%= formatDate(entry.booking_date) %></span>
+                <span><i class="bi bi-clock me-1" style="color:var(--accent);"></i><%= formatTime(entry.booking_time) %></span>
+                <span><i class="bi bi-list-ol me-1" style="color:var(--accent);"></i><%= entry.status === 'waiting' ? t('bookings.position', { number: entry.queue_position || 1 }) : waitStatus.label %></span>
+              </div>
+            </div>
+            <div class="booking-entry-actions">
+              <% if (entry.status === 'offered') { %>
+              <form action="/book/waitlist/<%= entry.waitlist_id %>/confirm" method="POST" class="mb-2">
+                <button class="btn btn-primary btn-sm btn-pill">
+                  <i class="bi bi-check2-circle me-1"></i><%= t('bookings.confirmSlot') %>
+                </button>
+              </form>
+              <% } %>
+              <% if (isActiveWaitlist) { %>
+              <form action="/book/waitlist/<%= entry.waitlist_id %>/cancel" method="POST" onsubmit="return confirm(<%- JSON.stringify(t('bookings.cancelWaitlistConfirm')) %>);">
+                <button class="btn btn-outline-danger btn-sm btn-pill">
+                  <i class="bi bi-x-circle me-1"></i><%= t('bookings.cancelWaitlist') %>
+                </button>
+              </form>
+              <% } else if (entry.confirmed_booking_id) { %>
+              <span class="badge rounded-pill" style="background:var(--success-bg);color:var(--success);"><%= t('bookings.bookingNumber', { number: entry.confirmed_booking_id }) %></span>
+              <% } %>
+            </div>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <% if (!bookingList.length && !waitlistList.length) { %>
       <div class="card border-0 text-center" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:3rem 1.5rem;">
         <div style="width:64px;height:64px;border-radius:999px;background:var(--accent-light);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:1.75rem;margin-bottom:1rem;">
           <i class="bi bi-calendar2-heart"></i>
         </div>
-        <h5 style="font-weight:800;color:var(--ink);">No bookings yet</h5>
-        <p style="color:var(--muted);margin:0 auto 1.25rem;max-width:420px;">Your appointments will appear here after you make a booking.</p>
-        <a href="/marketplace" class="btn btn-outline-secondary btn-pill">Explore merchants</a>
+        <h5 style="font-weight:800;color:var(--ink);"><%= t('bookings.noBookingsTitle') %></h5>
+        <p style="color:var(--muted);margin:0 auto 1.25rem;max-width:420px;"><%= t('bookings.noBookingsBody') %></p>
+        <a href="/marketplace" class="btn btn-outline-secondary btn-pill"><%= t('bookings.exploreMerchants') %></a>
       </div>
-    <% } else { %>
+    <% } else if (bookingList.length) { %>
       <% if (currentBookings.length) { %>
-      <p class="section-label mb-2">Current Bookings</p>
+      <p class="section-label mb-2"><%= t('bookings.currentBookings') %></p>
       <% } %>
       <% if (!currentBookings.length && historyBookings.length) { %>
-      <p class="section-label mb-2">History</p>
+      <p class="section-label mb-2"><%= t('bookings.history') %></p>
       <% } %>
       <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
         <% displayBookings.forEach((booking, index) => {
@@ -162,28 +232,28 @@
           const sectionIndex = startsHistory ? 0 : (index < currentBookings.length ? index : index - currentBookings.length);
           const bookingStatus = effectiveStatus(booking);
           const canContinuePayment = bookingStatus === 'pending_payment';
-          const status = statusStyles[bookingStatus] || { label: bookingStatus || 'Booked', bg: 'var(--accent-light)', color: 'var(--accent)' };
+          const status = statusStyles[bookingStatus] || { label: bookingStatus || t('bookings.booked'), bg: 'var(--accent-light)', color: 'var(--accent)' };
           const isPast = new Date(booking.booking_date) < new Date(new Date().toDateString());
           const canManage = !isPast && !['pending_payment', 'cancelled', 'payment_failed', 'completed', 'no_show'].includes(bookingStatus);
         %>
           <% if (startsHistory && historyBookings.length && currentBookings.length) { %>
             </div>
-            <p class="section-label mb-2 mt-4">History</p>
+            <p class="section-label mb-2 mt-4"><%= t('bookings.history') %></p>
             <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
           <% } %>
           <div class="p-4 booking-entry" <%= booking.status === 'pending_payment' ? 'data-pending-payment-entry' : '' %> style="<%= sectionIndex ? 'border-top:1px solid var(--border);' : '' %>">
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
               <div class="booking-entry-details flex-grow-1">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                  <h5 style="font-weight:800;color:var(--ink);margin:0;"><%= booking.service_name %></h5>
+                  <h5 style="font-weight:800;color:var(--ink);margin:0;"><%= serviceText(booking, 'name') || booking.service_name %></h5>
                   <span class="badge rounded-pill" data-status-badge style="background:<%= status.bg %>;color:<%= status.color %>;"><%= status.label %></span>
                   <% if (canContinuePayment) { %>
                     <span class="badge rounded-pill pending-payment-timer" data-expires-at="<%= pendingExpiryIso(booking) %>" data-remaining-seconds="<%= pendingRemainingSeconds(booking) %>" style="background:var(--accent-light);color:var(--accent);border:1px solid rgba(225,29,72,.2);">
-                      <i class="bi bi-hourglass-split me-1"></i><span data-countdown>--:--</span> left
+                      <i class="bi bi-hourglass-split me-1"></i><span data-countdown>--:--</span> <%= t('bookings.left') %>
                     </span>
                   <% } %>
                   <% if (isPast) { %>
-                    <span class="badge rounded-pill" style="background:var(--canvas);color:var(--muted);border:1px solid var(--border);">Past</span>
+                    <span class="badge rounded-pill" style="background:var(--canvas);color:var(--muted);border:1px solid var(--border);"><%= t('bookings.past') %></span>
                   <% } %>
                 </div>
                 <p style="color:var(--muted);margin:0 0 .75rem;">
@@ -195,14 +265,14 @@
                 <div class="d-flex flex-wrap gap-3" style="color:var(--ink);font-size:.925rem;font-weight:600;">
                   <span><i class="bi bi-calendar3 me-1" style="color:var(--accent);"></i><%= formatDate(booking.booking_date) %></span>
                   <span><i class="bi bi-clock me-1" style="color:var(--accent);"></i><%= formatTime(booking.booking_time) %></span>
-                  <span><i class="bi bi-person-badge me-1" style="color:var(--accent);"></i><%= booking.staff_name || 'Any Available Staff' %></span>
-                  <span><i class="bi bi-hourglass-split me-1" style="color:var(--accent);"></i><%= booking.duration_mins || 60 %> mins</span>
+                  <span><i class="bi bi-person-badge me-1" style="color:var(--accent);"></i><%= booking.staff_name || t('bookings.anyAvailableStaff') %></span>
+                  <span><i class="bi bi-hourglass-split me-1" style="color:var(--accent);"></i><%= t('bookings.mins', { count: booking.duration_mins || 60 }) %></span>
                 </div>
                 <% if (canManage) { %>
                 <div class="mt-3 rounded-xl p-3" style="background:var(--canvas);border:1px solid var(--border);">
-                  <p style="color:var(--muted);font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem;">Cancellation Policy</p>
+                  <p style="color:var(--muted);font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem;"><%= t('bookings.cancellationPolicy') %></p>
                   <p style="color:var(--ink);font-size:.875rem;font-weight:700;margin-bottom:.35rem;">
-                    Cancel at least <%= booking.min_cancel_hours || 6 %> hours before your appointment for <%= Number(booking.refund_percentage || 100).toFixed(0) %>% refund.
+                    <%= t('bookings.cancelPolicyText', { hours: booking.min_cancel_hours || 6, refund: Number(booking.refund_percentage || 100).toFixed(0) }) %>
                   </p>
                   <span
                     class="badge rounded-pill cancellation-policy-timer"
@@ -210,36 +280,36 @@
                     style="background:<%= canCancelByPolicy(booking) ? 'var(--accent-light)' : 'var(--danger-bg)' %>;color:<%= canCancelByPolicy(booking) ? 'var(--accent)' : 'var(--danger)' %>;"
                   >
                     <i class="bi bi-hourglass-split me-1"></i>
-                    <span data-cancel-countdown><%= canCancelByPolicy(booking) ? 'Cancel window open' : 'Cancellation window closed' %></span>
+                    <span data-cancel-countdown><%= canCancelByPolicy(booking) ? t('bookings.cancelWindowOpen') : t('bookings.cancelWindowClosed') %></span>
                   </span>
                 </div>
                 <% } %>
               </div>
 
               <div class="booking-entry-actions">
-                <p style="color:var(--muted);font-size:.8rem;margin:0;">Total</p>
+                <p style="color:var(--muted);font-size:.8rem;margin:0;"><%= t('bookings.total') %></p>
                 <p style="color:var(--ink);font-weight:800;font-size:1.2rem;margin:0 0 .75rem;">S$<%= Number(booking.payable_amount || booking.total_amount || 0).toFixed(2) %></p>
                 <% if (canContinuePayment) { %>
-                  <a href="/payment/checkout/<%= booking.booking_id %>" class="btn btn-primary btn-sm btn-pill" data-payment-action>Continue Payment</a>
+                  <a href="/payment/checkout/<%= booking.booking_id %>" class="btn btn-primary btn-sm btn-pill" data-payment-action><%= t('bookings.continuePayment') %></a>
                 <% } else if (bookingStatus !== 'payment_failed' && booking.payment_status === 'paid') { %>
                   <div class="d-flex flex-column gap-2 align-items-end">
                     <a href="/payment/receipt/<%= booking.booking_id %>.pdf" class="btn btn-outline-secondary btn-sm btn-pill" download>
-                      <i class="bi bi-download me-1"></i>Download Receipt
+                      <i class="bi bi-download me-1"></i><%= t('bookings.downloadReceipt') %>
                     </a>
                   </div>
                 <% } else { %>
-                  <span class="badge rounded-pill" style="background:var(--canvas);color:var(--muted);border:1px solid var(--border);">Receipt unavailable</span>
+                  <span class="badge rounded-pill" style="background:var(--canvas);color:var(--muted);border:1px solid var(--border);"><%= t('bookings.receiptUnavailable') %></span>
                 <% } %>
                 <% if (canManage) { %>
                   <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
                     <% if (Number(booking.allow_reschedule) === 1) { %>
                     <a href="/book/<%= booking.booking_id %>/reschedule" class="btn btn-outline-secondary btn-sm btn-pill">
-                      <i class="bi bi-calendar-event me-1"></i>Reschedule
+                      <i class="bi bi-calendar-event me-1"></i><%= t('bookings.reschedule') %>
                     </a>
                     <% } %>
-                    <form action="/book/<%= booking.booking_id %>/cancel" method="POST" onsubmit="return confirm('Cancel this booking?');">
+                    <form action="/book/<%= booking.booking_id %>/cancel" method="POST" onsubmit="return confirm(<%- JSON.stringify(t('bookings.cancelBookingConfirm')) %>);">
                       <button type="submit" class="btn btn-outline-danger btn-sm btn-pill" data-cancel-button <%= canCancelByPolicy(booking) ? '' : 'disabled' %>>
-                        <i class="bi bi-x-circle me-1"></i>Cancel
+                        <i class="bi bi-x-circle me-1"></i><%= t('bookings.cancel') %>
                       </button>
                     </form>
                   </div>
@@ -247,11 +317,11 @@
                   <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
                     <% if (!booking.merchant_review_id) { %>
                     <a href="/book/<%= booking.booking_id %>/review" class="btn btn-primary btn-sm btn-pill">
-                      <i class="bi bi-star me-1"></i>Leave Review +2/3 pts
+                      <i class="bi bi-star me-1"></i><%= t('bookings.leaveReview') %>
                     </a>
                     <% } else { %>
                     <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);">
-                      <i class="bi bi-star-fill me-1"></i>Reviewed
+                      <i class="bi bi-star-fill me-1"></i><%= t('bookings.reviewed') %>
                     </span>
                     <% } %>
                   </div>
@@ -266,6 +336,34 @@
 </main>
 
 <script>
+  (() => {
+    const timers = Array.from(document.querySelectorAll('.waitlist-offer-timer'));
+    if (!timers.length) return;
+
+    const render = () => {
+      timers.forEach(timer => {
+        const output = timer.querySelector('[data-waitlist-countdown]');
+        const expiresAt = new Date(timer.dataset.offerExpiresAt || '').getTime();
+        const remaining = expiresAt - Date.now();
+
+        if (Number.isNaN(expiresAt) || remaining <= 0) {
+          if (output) output.textContent = window.t('bookings.expired');
+          timer.style.background = 'var(--danger-bg)';
+          timer.style.color = 'var(--danger)';
+          return;
+        }
+
+        const totalSeconds = Math.ceil(remaining / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = String(totalSeconds % 60).padStart(2, '0');
+        if (output) output.textContent = `${minutes}:${seconds}`;
+      });
+    };
+
+    render();
+    setInterval(render, 1000);
+  })();
+
   (() => {
     const timers = Array.from(document.querySelectorAll('.pending-payment-timer'));
     if (!timers.length) return;
@@ -296,12 +394,12 @@
           const paymentAction = entry ? entry.querySelector('[data-payment-action]') : null;
 
           if (statusBadge) {
-            statusBadge.textContent = 'Payment expired';
+            statusBadge.textContent = window.t('bookings.paymentExpired');
             statusBadge.style.background = 'var(--danger-bg)';
             statusBadge.style.color = 'var(--danger)';
           }
           if (paymentAction) paymentAction.remove();
-          timer.innerHTML = '<i class="bi bi-hourglass-bottom me-1"></i>Expired';
+          timer.innerHTML = '<i class="bi bi-hourglass-bottom me-1"></i>' + window.t('bookings.expired');
           if (!reloadScheduled) {
             reloadScheduled = true;
             setTimeout(() => window.location.reload(), 1500);
@@ -324,9 +422,9 @@
       const hours = Math.floor((totalMinutes % 1440) / 60);
       const minutes = totalMinutes % 60;
 
-      if (days > 0) return `${days}d ${hours}h left to cancel`;
-      if (hours > 0) return `${hours}h ${minutes}m left to cancel`;
-      return `${minutes}m left to cancel`;
+      if (days > 0) return window.t('bookings.daysHoursLeftToCancel', { days, hours });
+      if (hours > 0) return window.t('bookings.hoursMinutesLeftToCancel', { hours, minutes });
+      return window.t('bookings.minutesLeftToCancel', { minutes });
     };
 
     const render = () => {
@@ -338,7 +436,7 @@
         const cancelButton = entry ? entry.querySelector('[data-cancel-button]') : null;
 
         if (Number.isNaN(deadline) || remaining <= 0) {
-          if (output) output.textContent = 'Cancellation window closed';
+          if (output) output.textContent = window.t('bookings.cancelWindowClosed');
           timer.style.background = 'var(--danger-bg)';
           timer.style.color = 'var(--danger)';
           if (cancelButton) cancelButton.disabled = true;

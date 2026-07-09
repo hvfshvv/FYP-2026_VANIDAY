@@ -8,9 +8,10 @@
   const stripeButton = document.getElementById('stripe-pay-btn');
   const paynowButton = document.getElementById('paynow-pay-btn');
   const walletButton = document.getElementById('wallet-pay-btn');
+  const translate = window.t || function (_key, _params, fallback) { return fallback || _key; };
 
   if (!dataEl || !window.Stripe) {
-    showError('Stripe could not load. Please refresh and try again.');
+    showError(translate('payment.errors.stripeLoad', null, 'Stripe could not load. Please refresh and try again.'));
     return;
   }
 
@@ -34,7 +35,7 @@
   async function initStripe() {
     // Load Stripe payment form for this booking.
     if (!STRIPE_KEY) {
-      showError('Stripe publishable key is missing. Add STRIPE_PUBLISHABLE_KEY to .env.');
+      showError(translate('payment.errors.missingStripeKey', null, 'Stripe publishable key is missing. Add STRIPE_PUBLISHABLE_KEY to .env.'));
       if (stripeButton) stripeButton.disabled = true;
       return;
     }
@@ -48,7 +49,7 @@
         body: JSON.stringify({ bookingId: BOOKING_ID }),
       });
       const intentData = await intentRes.json();
-      if (!intentRes.ok) throw new Error(intentData.error || 'Could not initialise payment.');
+      if (!intentRes.ok) throw new Error(intentData.error || translate('payment.errors.initialisePayment', null, 'Could not initialise payment.'));
 
       elements = stripe.elements({
         clientSecret: intentData.clientSecret,
@@ -128,7 +129,7 @@
       body: JSON.stringify({ paymentIntentId }),
     });
     const confirmData = await confirmRes.json();
-    if (!confirmRes.ok) throw new Error(confirmData.error || 'Failed to save payment result.');
+    if (!confirmRes.ok) throw new Error(confirmData.error || translate('payment.errors.savePayment', null, 'Failed to save payment result.'));
     return confirmData;
   }
 
@@ -149,7 +150,7 @@
       hideError();
 
       try {
-        if (!stripe || !elements) throw new Error('Payment form is still loading. Please try again.');
+        if (!stripe || !elements) throw new Error(translate('payment.errors.formLoading', null, 'Payment form is still loading. Please try again.'));
 
         const submitResult = await elements.submit();
         if (submitResult.error) throw new Error(submitResult.error.message);
@@ -195,7 +196,7 @@
         const res = await fetch(`/payment/paynow-session/${BOOKING_ID}`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to initialise PayNow payment.');
-        if (!data.url) throw new Error('Stripe did not return a PayNow checkout URL.');
+        if (!data.url) throw new Error(translate('payment.errors.noPaynowUrl', null, 'Stripe did not return a PayNow checkout URL.'));
         console.log('[stripe] redirecting to PayNow Checkout Session', { checkoutSessionId: data.sessionId });
         window.location.href = data.url;
       } catch (err) {

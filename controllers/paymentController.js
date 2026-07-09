@@ -253,22 +253,22 @@ async function revalidateCheckoutDiscountsForPayment(booking) {
 async function getAuthorizedBooking(req, res, bookingId, { json = false } = {}) {
   // Load booking and confirm the current user can access it.
   if (!bookingId) {
-    if (json) res.status(400).json({ error: 'Missing booking id' });
-    else res.status(400).send('Missing booking id.');
+    if (json) res.status(400).json({ error: res.locals.t('messages.missingBookingId') });
+    else res.status(400).send(res.locals.t('messages.missingBookingId'));
     return null;
   }
 
   const booking = await bookingModel.getBookingById(bookingId);
 
   if (!booking) {
-    if (json) res.status(404).json({ error: 'Booking not found' });
+    if (json) res.status(404).json({ error: res.locals.t('messages.bookingNotFound') });
     else res.redirect('/');
     return null;
   }
 
   if (!canAccessBooking(req, booking)) {
-    if (json) res.status(403).json({ error: 'You do not have access to this booking' });
-    else res.status(403).send('You do not have access to this booking.');
+    if (json) res.status(403).json({ error: res.locals.t('messages.noBookingAccess') });
+    else res.status(403).send(res.locals.t('messages.noBookingAccess'));
     return null;
   }
 
@@ -384,7 +384,7 @@ async function showCheckout(req, res) {
     if (!booking) return;
 
     if (booking.status !== 'pending_payment') {
-      const message = 'This payment session has expired or is no longer payable. Please make a new booking.';
+      const message = res.locals.t('messages.paymentNoLongerPayable');
       if (req.session.user && req.session.user.role === 'customer') {
         return res.redirect('/book/viewBookings?error=' + encodeURIComponent(message));
       }
@@ -416,7 +416,7 @@ async function showCheckout(req, res) {
     }
 
     res.render('payment/checkout', {
-      title: 'Checkout',
+      title: res.locals.t('titles.checkoutTitle'),
       booking,
       payment,
       appliedPromotion,
@@ -591,7 +591,7 @@ async function createStripeIntent(req, res) {
     let booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
     if (!booking) return;
     if (booking.status !== 'pending_payment') {
-      return res.status(410).json({ error: 'This payment session has expired. Please make a new booking.' });
+      return res.status(410).json({ error: res.locals.t('messages.paymentNoLongerPayable') });
     }
 
     ({ booking } = await revalidateCheckoutDiscountsForPayment(booking));
@@ -602,7 +602,7 @@ async function createStripeIntent(req, res) {
     res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id });
   } catch (err) {
     console.error('createStripeIntent error:', err);
-    res.status(err.statusCode || 500).json({ error: err.statusCode ? err.message : 'Failed to initialise payment' });
+    res.status(err.statusCode || 500).json({ error: err.statusCode ? err.message : res.locals.t('payment.errors.initialisePayment') });
   }
 }
 
@@ -616,13 +616,13 @@ async function confirmStripePayment(req, res) {
     let booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
     if (!booking) return;
     if (booking.status !== 'pending_payment') {
-      return res.status(410).json({ error: 'This payment session has expired. Please make a new booking.' });
+      return res.status(410).json({ error: res.locals.t('messages.paymentNoLongerPayable') });
     }
 
     let intent = await retrievePaymentIntent(paymentIntentId);
     // Make sure the Stripe payment belongs to this booking.
     if (String(intent.metadata.booking_id) !== String(bookingId)) {
-      return res.status(400).json({ error: 'Payment does not match this booking' });
+      return res.status(400).json({ error: res.locals.t('messages.noBookingAccess') });
     }
 
     console.log('[stripe] confirm result', {
@@ -639,14 +639,14 @@ async function confirmStripePayment(req, res) {
     }
 
     if (intent.status !== 'succeeded') {
-      return res.status(400).json({ error: 'Payment has not succeeded' });
+      return res.status(400).json({ error: res.locals.t('payment.errors.paymentNotSucceeded', null, 'Payment has not succeeded') });
     }
 
     ({ booking } = await revalidateCheckoutDiscountsForPayment(booking));
     const expectedAmount = getBookingPayableAmount(booking);
     const paidAmount = Number(intent.amount_received || intent.amount || 0) / 100;
     if (Math.abs(paidAmount - expectedAmount) > 0.01) {
-      return res.status(400).json({ error: 'Payment amount no longer matches checkout total.' });
+      return res.status(400).json({ error: res.locals.t('payment.errors.amountMismatch', null, 'Payment amount no longer matches checkout total.') });
     }
 
     // Save successful payment and send customer to success page.
@@ -656,7 +656,7 @@ async function confirmStripePayment(req, res) {
     res.json({ success: true, redirectUrl: `/payment/success?booking_id=${bookingId}` });
   } catch (err) {
     console.error('confirmStripePayment error:', err);
-    res.status(500).json({ error: 'Failed to confirm payment' });
+    res.status(500).json({ error: res.locals.t('payment.errors.confirmPayment', null, 'Failed to confirm payment') });
   }
 }
 
@@ -668,7 +668,7 @@ async function createPayNowSession(req, res) {
     let booking = await getAuthorizedBooking(req, res, bookingId, { json: true });
     if (!booking) return;
     if (booking.status !== 'pending_payment') {
-      return res.status(410).json({ error: 'This payment session has expired. Please make a new booking.' });
+      return res.status(410).json({ error: res.locals.t('messages.paymentNoLongerPayable') });
     }
 
     ({ booking } = await revalidateCheckoutDiscountsForPayment(booking));
@@ -699,7 +699,7 @@ async function createPayNowSession(req, res) {
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
     console.error('createPayNowSession error:', err);
-    res.status(err.statusCode || 500).json({ error: err.statusCode ? err.message : 'Failed to initialise PayNow payment' });
+    res.status(err.statusCode || 500).json({ error: err.statusCode ? err.message : res.locals.t('payment.errors.initialisePaynow', null, 'Failed to initialise PayNow payment') });
   }
 }
 
@@ -857,7 +857,7 @@ async function paymentSuccess(req, res) {
     const loyaltyEarned = booking && booking.customer_id
       ? await loyaltyModel.getEarnedPointsForBooking(booking_id).catch(() => 0)
       : 0;
-    res.render('payment/success', { title: 'Payment Successful', booking, payment: existing, loyaltyEarned });
+    res.render('payment/success', { title: res.locals.t('titles.paymentSuccessTitle'), booking, payment: existing, loyaltyEarned });
   } catch (err) {
     console.error('paymentSuccess error:', err);
     res.redirect('/');
@@ -875,7 +875,7 @@ async function applyVoucher(req, res) {
     if (!booking) return;
 
     if (booking.status !== 'pending_payment') {
-      return res.redirect('/book/viewBookings?error=' + encodeURIComponent('This payment session is no longer payable.'));
+      return res.redirect('/book/viewBookings?error=' + encodeURIComponent(res.locals.t('messages.paymentNoLongerPayable')));
     }
 
     const user = req.session.user;
@@ -897,11 +897,11 @@ async function applyVoucher(req, res) {
     const voucher = voucherOptions.find(v => Number(v.cv_id) === cvId);
 
     if (!voucher) {
-      return res.redirect(`/payment/checkout/${bookingId}?voucherError=` + encodeURIComponent('This voucher is not available for this booking.'));
+      return res.redirect(`/payment/checkout/${bookingId}?voucherError=` + encodeURIComponent(res.locals.t('payment.voucherUnavailable', null, 'This voucher is not available for this booking.')));
     }
 
     if (!voucher.isUsable) {
-      return res.redirect(`/payment/checkout/${bookingId}?voucherError=` + encodeURIComponent(voucher.unavailableReason || 'This voucher is not eligible for this booking.'));
+      return res.redirect(`/payment/checkout/${bookingId}?voucherError=` + encodeURIComponent(voucher.unavailableReason || res.locals.t('payment.voucherIneligible', null, 'This voucher is not eligible for this booking.')));
     }
 
     await bookingModel.applyVoucher(bookingId, cvId, voucher.discountAmount);

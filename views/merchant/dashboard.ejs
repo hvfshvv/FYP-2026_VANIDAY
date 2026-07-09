@@ -161,6 +161,7 @@
   const schedule = Array.isArray(todaySchedule) ? todaySchedule : [];
   const revenueTrend = Array.isArray(monthlyRevenue) ? monthlyRevenue : [];
   const actions = Array.isArray(pendingActions) ? pendingActions : [];
+  const activeWaitlists = Number(activeWaitlistCount || 0);
   const cancellationRate = Number(metrics.cancellationRate || 0);
   const hasFinalOutcomes = Number(bookings.month_completed || 0) + Number(bookings.month_cancelled || 0) + Number(bookings.month_no_show || 0) > 0;
   const hasReliableCancellationSample = Number(metrics.monthlyFinishedBookings || 0) >= 5;
@@ -584,12 +585,18 @@
         {href:'/merchant/availability', icon:'bi-clock', label:'Manage Availability'},
         {href:'/merchant/promotions', icon:'bi-tag', label:'Manage Promotions'},
         {href:'/merchant/qr', icon:'bi-qr-code', label:'Manage QR Code'},
+        {href:'/merchant/waitlists', icon:'bi-list-ol', label:'View Waitlists', badge:activeWaitlists},
         {href:'/#featured-listings', icon:'bi-star', label:'View Featured Listing'},
         {href:'/merchant/revenue?month=' + selectedPeriod, icon:'bi-graph-up', label:'View Revenue Report'},
       ].forEach(action => { %>
         <div class="col-6 col-md-3">
           <a href="<%= action.href %>" class="action-card h-100">
-            <div class="action-icon"><i class="bi <%= action.icon %>"></i></div>
+            <div class="d-flex justify-content-between align-items-start gap-2 w-100">
+              <div class="action-icon"><i class="bi <%= action.icon %>"></i></div>
+              <% if (Number(action.badge || 0) > 0) { %>
+                <span class="badge rounded-pill" style="background:var(--accent);color:#fff;"><%= action.badge %></span>
+              <% } %>
+            </div>
             <p style="font-weight:700;font-size:.82rem;color:var(--ink);margin:0;"><%= action.label %></p>
           </a>
         </div>

@@ -6,35 +6,36 @@
   const selectedDate = state.booking_date || '';
   const selectedBookingTime = state.booking_time ? String(state.booking_time).slice(0,5) : '';
   const selectedStaffId = state.staff_id || '';
+  const shouldAutoJoinWaitlist = state.waitlist === '1' || state.waitlist === 'true';
 %>
 <%- include('../partials/header') %>
 
-<div class="container py-4" style="max-width:900px;">
-  <div class="d-flex justify-content-end mb-3">
+<div class="container py-4 booking-shell">
+  <div class="booking-top-actions">
     <a href="/book/viewBookings" class="btn btn-outline-secondary btn-pill">
-      <i class="bi bi-clock-history me-1"></i>My Bookings
+      <i class="bi bi-clock-history me-1"></i><%= t('booking.myBookings') %>
     </a>
   </div>
 
-  <div id="mobile-summary-bar" class="mobile-summary-bar d-lg-none" style="display:none!important;">
-    <span id="msb-service">—</span>
-    <span id="msb-price" class="msb-price">—</span>
-  </div>
-
   <!-- Merchant Banner -->
-  <div class="mb-4" style="background:var(--ink);border-radius:var(--r-xl);padding:1.5rem 2rem;">
-    <div class="d-flex align-items-center gap-3">
-      <div class="icon-circle flex-shrink-0" style="background:rgba(255,255,255,.1);">
+  <div class="booking-merchant-hero">
+    <div class="booking-merchant-main">
+      <div class="booking-merchant-icon">
         <i class="bi bi-shop" style="font-size:1.4rem;color:#fff;"></i>
       </div>
       <div>
-        <h4 style="font-weight:800;color:#fff;margin-bottom:.1rem;letter-spacing:-.025em;"><%= qr.merchant_name %></h4>
-        <p style="color:rgba(255,255,255,.55);font-size:.875rem;margin-bottom:.4rem;"><i class="bi bi-geo-alt me-1"></i><%= qr.address || 'Singapore' %></p>
-        <span class="badge" style="background:rgba(225,29,72,.2);color:var(--accent);border:1px solid rgba(225,29,72,.3);font-size:.75rem;">
-          <i class="bi bi-qr-code me-1"></i>QR Scan Booking
-        </span>
+        <h4><%= qr.merchant_name %></h4>
+        <p><i class="bi bi-geo-alt me-1"></i><%= qr.address || t('common.singapore') %></p>
       </div>
     </div>
+    <span class="booking-qr-badge">
+      <i class="bi bi-qr-code me-1"></i><%= t('booking.qrScanBooking') %>
+    </span>
+  </div>
+
+  <div id="mobile-summary-bar" class="mobile-summary-bar" style="display:none!important;">
+    <span id="msb-service">—</span>
+    <span id="msb-price" class="msb-price">—</span>
   </div>
 
   <% if (error) { %>
@@ -43,26 +44,26 @@
   </div>
   <% } %>
 
-  <div class="row g-4">
+  <div class="row g-4 booking-layout">
 
     <!-- LEFT: Booking Wizard -->
-    <div class="col-lg-7">
+    <div class="col-lg-8">
 
       <!-- Step Indicator -->
       <div class="step-indicator mb-4">
         <div class="step-item">
           <div class="step-bubble active" id="bubble-1">1</div>
-          <div class="step-label active" id="label-1">Service</div>
+          <div class="step-label active" id="label-1"><%= t('booking.steps.service') %></div>
         </div>
         <div class="step-line" id="line-1"></div>
         <div class="step-item">
           <div class="step-bubble" id="bubble-2">2</div>
-          <div class="step-label" id="label-2">Date &amp; Time</div>
+          <div class="step-label" id="label-2"><%= t('booking.steps.dateTime') %></div>
         </div>
         <div class="step-line" id="line-2"></div>
         <div class="step-item">
           <div class="step-bubble" id="bubble-3">3</div>
-          <div class="step-label" id="label-3">Your Details</div>
+          <div class="step-label" id="label-3"><%= t('booking.steps.details') %></div>
         </div>
       </div>
 
@@ -75,22 +76,22 @@
 
             <!-- STEP 1 -->
             <div class="step-panel active" id="step-1">
-              <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">Choose a Service</h5>
-              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">Tap to select what you'd like to book today.</p>
+              <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('booking.chooseService') %></h5>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;"><%= t('booking.chooseServiceHint') %></p>
 
               <% services.forEach(s => { %>
               <div class="service-card"
                 data-service-id="<%= s.service_id %>"
-                data-service-name="<%= s.service_name %>"
+                data-service-name="<%= serviceText(s, 'name') %>"
                 data-price="<%= s.price %>"
                 data-duration="<%= s.duration_mins %>"
                 data-selected="<%= String(s.service_id) === String(selectedServiceId) ? '1' : '0' %>"
                 onclick="selectService(this)">
                 <div>
-                  <p style="font-weight:700;margin-bottom:.1rem;color:var(--ink);"><%= s.service_name %></p>
-                  <small style="color:var(--muted);"><i class="bi bi-clock me-1"></i><%= s.duration_mins %> min</small>
+                  <p style="font-weight:700;margin-bottom:.1rem;color:var(--ink);"><%= serviceText(s, 'name') %></p>
+                  <small style="color:var(--muted);"><i class="bi bi-clock me-1"></i><%= t('common.minutes', { count: s.duration_mins }) %></small>
                   <% if (s.description) { %>
-                  <br/><small style="color:var(--muted);"><%= s.description %></small>
+                  <br/><small style="color:var(--muted);"><%= serviceText(s, 'description') %></small>
                   <% } %>
                 </div>
                 <div class="text-end">
@@ -101,211 +102,216 @@
               <% }) %>
 
               <div id="step1-error" style="display:none;color:var(--danger);font-size:.8125rem;margin-top:.75rem;">
-                <i class="bi bi-exclamation-circle me-1"></i>Please select a service to continue.
+                <i class="bi bi-exclamation-circle me-1"></i><%= t('booking.selectServiceError') %>
               </div>
               <button type="button" class="btn btn-primary btn-pill w-100 mt-4" style="font-weight:700;" onclick="nextStep(1)">
-                Continue <i class="bi bi-arrow-right ms-1"></i>
+                <%= t('common.continue') %> <i class="bi bi-arrow-right ms-1"></i>
               </button>
             </div>
 
             <!-- STEP 2 -->
             <div class="step-panel" id="step-2">
-              <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">Pick a Date &amp; Time</h5>
-              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">Choose when you'd like your appointment.</p>
+              <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('booking.pickDateTime') %></h5>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;"><%= t('booking.pickDateTimeHint') %></p>
 
               <div class="mb-4">
-                <label class="form-label" style="font-weight:600;font-size:.875rem;">Date</label>
+                <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('common.date') %></label>
                 <input type="date" name="booking_date" id="booking_date" class="form-control rounded-xl"
                   min="<%= new Date().toISOString().slice(0,10) %>" value="<%= selectedDate %>" required onchange="validateBookingDate(); updateAvailableTimes(); updateSummary(); updateAuthLinks()" />
               </div>
 
               <div class="mb-3">
-                <label class="form-label" style="font-weight:600;font-size:.875rem;">Available Times</label>
+                <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('booking.availableTimes') %></label>
                 <div class="time-grid">
                   <div class="time-empty" id="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">
-                    Select a service and date to view available times.
+                    <%= t('booking.selectServiceDate') %>
                   </div>
                 </div>
                 <div id="step2-error" style="display:none;color:var(--danger);font-size:.8125rem;margin-top:.75rem;">
-                  <i class="bi bi-exclamation-circle me-1"></i>Please pick both a date and a time.
+                  <i class="bi bi-exclamation-circle me-1"></i><%= t('booking.pickDateTimeError') %>
                 </div>
               </div>
 
               <div class="mb-3">
                 <label class="form-label" style="font-weight:600;font-size:.875rem;">
-                  Select Staff <span style="color:var(--muted);font-weight:400;">(optional)</span>
+                  <%= t('booking.selectStaff') %> <span style="color:var(--muted);font-weight:400;">(<%= t('booking.optional') %>)</span>
                 </label>
                 <div class="row g-2" id="staffOptionsGrid">
                   <div class="col-12">
                     <div class="time-empty" style="color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">
-                      Pick a time to see available staff.
+                      <%= t('booking.pickTimeForStaff') %>
                     </div>
                   </div>
                 </div>
                 <p id="staffAvailabilityNote" class="small mt-2 mb-0" style="color:var(--muted);">
-                  Choose a date and time to see which staff are available.
+                  <%= t('booking.staffAvailabilityInitial') %>
                 </p>
               </div>
 
               <div class="d-flex gap-2 mt-4">
                 <button type="button" class="btn btn-outline-secondary btn-pill w-50" style="font-weight:600;" onclick="prevStep(2)">
-                  <i class="bi bi-arrow-left me-1"></i>Back
+                  <i class="bi bi-arrow-left me-1"></i><%= t('common.back') %>
                 </button>
                 <button type="button" class="btn btn-primary btn-pill w-50" style="font-weight:700;" onclick="nextStep(2)">
-                  Continue <i class="bi bi-arrow-right ms-1"></i>
+                  <%= t('common.continue') %> <i class="bi bi-arrow-right ms-1"></i>
                 </button>
               </div>
             </div>
 
             <!-- STEP 3 -->
             <div class="step-panel" id="step-3">
-              <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">Your Details</h5>
+              <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('booking.details') %></h5>
               <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">
                 <% if (loggedInCustomer) { %>
                 <i class="bi bi-person-check-fill me-1" style="color:var(--success);"></i>
-                Logged in as <strong><%= user.full_name %></strong> — details pre-filled for you.
+                <%- t('booking.loggedInAs', { name: '<strong>' + user.full_name + '</strong>' }) %>
                 <% } else { %>
-                No account needed — just your contact info.
+                <%= t('booking.guestHint') %>
                 <% } %>
               </p>
 
               <% if (!loggedInCustomer) { %>
               <div class="p-3 rounded-xl mb-3" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.15);">
                 <p style="font-weight:700;color:var(--accent);font-size:.875rem;margin-bottom:.35rem;">
-                  <i class="bi bi-stars me-1"></i>Member benefits
+                  <i class="bi bi-stars me-1"></i><%= t('booking.memberBenefits') %>
                 </p>
-                <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.75rem;">Guest bookings are confirmed after payment, but they do not appear in member booking history and do not earn loyalty points.</p>
+                <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.75rem;"><%= t('booking.guestBenefits') %></p>
                 <div class="d-flex flex-column gap-2">
                   <label style="font-size:.875rem;color:var(--ink);font-weight:600;">
                     <input type="radio" name="booking_mode" value="guest" <%= state.booking_mode !== 'register' ? 'checked' : '' %> />
-                    Continue as guest
+                    <%= t('booking.continueGuest') %>
                   </label>
                   <label style="font-size:.875rem;color:var(--ink);font-weight:600;">
                     <input type="radio" name="booking_mode" value="register" <%= state.booking_mode === 'register' ? 'checked' : '' %> />
-                    Create an account before payment
+                    <%= t('booking.createAccountBeforePayment') %>
                   </label>
                 </div>
                 <div class="d-flex flex-wrap gap-2 mt-3">
                   <a href="<%= loginUrl %>" id="loginForPointsLink" class="btn btn-outline-secondary btn-sm btn-pill">
-                    <i class="bi bi-box-arrow-in-right me-1"></i>Log in for points
+                    <i class="bi bi-box-arrow-in-right me-1"></i><%= t('booking.loginForPoints') %>
                   </a>
                   <a href="<%= registerUrl %>" id="registerForPointsLink" class="btn btn-outline-secondary btn-sm btn-pill">
-                    <i class="bi bi-person-plus me-1"></i>Register
+                    <i class="bi bi-person-plus me-1"></i><%= t('booking.register') %>
                   </a>
                 </div>
               </div>
               <div id="member-email-warning" class="rounded-xl p-3 mb-3" style="display:none;background:var(--warn-bg);color:var(--warn);font-size:.875rem;">
                 <i class="bi bi-exclamation-circle me-2"></i>
-                This email is already registered. Please log in to continue and earn loyalty points.
+                <%= t('booking.emailRegistered') %>
               </div>
               <% } %>
 
               <div class="mb-3">
-                <label class="form-label" style="font-weight:600;font-size:.875rem;">Full Name</label>
+                <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('booking.fullName') %></label>
                 <input type="text" name="full_name" class="form-control rounded-xl"
-                  placeholder="e.g. Sarah Lim"
+                  placeholder="<%= t('booking.fullNamePlaceholder') %>"
                   value="<%= loggedInCustomer ? user.full_name : (state.full_name || '') %>" required />
               </div>
               <div class="mb-3">
-                <label class="form-label" style="font-weight:600;font-size:.875rem;">Phone Number</label>
+                <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('booking.phoneNumber') %></label>
                 <div class="input-group">
                   <span class="input-group-text"><i class="bi bi-telephone me-1"></i>+65</span>
-                  <input type="text" name="phone" class="form-control" placeholder="9XXXXXXX"
+                  <input type="text" name="phone" class="form-control" placeholder="<%= t('booking.phonePlaceholder') %>"
                     value="<%= loggedInCustomer && user.phone ? user.phone.replace('+65','').trim() : (state.phone || '') %>" required />
                 </div>
               </div>
               <div class="mb-4">
                 <label class="form-label" style="font-weight:600;font-size:.875rem;">
-                  Email <span style="color:var(--muted);font-weight:400;font-size:.8125rem;">(confirmation sent here)</span>
+                  <%= t('booking.email') %> <span style="color:var(--muted);font-weight:400;font-size:.8125rem;">(<%= t('booking.emailHelp') %>)</span>
                 </label>
                 <input type="email" name="email" id="booking_email" class="form-control rounded-xl"
-                  placeholder="you@example.com"
+                  placeholder="<%= t('booking.emailPlaceholder') %>"
                   value="<%= loggedInCustomer ? user.email : (state.email || '') %>" <%= loggedInCustomer ? 'readonly' : '' %> required />
                 <% if (loggedInCustomer) { %>
-                <p style="color:var(--muted);font-size:.75rem;margin:.4rem 0 0;">Member bookings use your logged-in account email.</p>
+                <p style="color:var(--muted);font-size:.75rem;margin:.4rem 0 0;"><%= t('booking.memberEmailLocked') %></p>
                 <% } %>
               </div>
 
               <!-- Booking summary before submit -->
               <div class="p-3 rounded-xl mb-4" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.15);">
                 <p style="font-weight:700;font-size:.8125rem;color:var(--accent);margin-bottom:.75rem;">
-                  <i class="bi bi-calendar-check me-1"></i>Booking Summary
+                  <i class="bi bi-calendar-check me-1"></i><%= t('booking.bookingSummary') %>
                 </p>
-                <div class="summary-row"><span class="lbl">Service</span><span class="val" id="confirm-service" style="font-weight:700;">—</span></div>
-                <div class="summary-row"><span class="lbl">Date</span><span class="val" id="confirm-date">—</span></div>
-                <div class="summary-row"><span class="lbl">Time</span><span class="val" id="confirm-time">—</span></div>
-                <div class="summary-row"><span class="lbl">Staff</span><span class="val" id="confirm-staff">No Preference</span></div>
+                <div class="summary-row"><span class="lbl"><%= t('common.service') %></span><span class="val" id="confirm-service" style="font-weight:700;">-</span></div>
+                <div class="summary-row"><span class="lbl"><%= t('common.date') %></span><span class="val" id="confirm-date">-</span></div>
+                <div class="summary-row"><span class="lbl"><%= t('common.time') %></span><span class="val" id="confirm-time">-</span></div>
+                <div class="summary-row"><span class="lbl"><%= t('common.staff') %></span><span class="val" id="confirm-staff"><%= t('common.noPreference') %></span></div>
                 <div class="summary-row total">
-                  <span style="font-weight:700;">Total</span>
-                  <span style="font-weight:700;color:var(--accent);font-family:var(--font-mono);" id="confirm-price">—</span>
+                  <span style="font-weight:700;"><%= t('common.total') %></span>
+                  <span style="font-weight:700;color:var(--accent);font-family:var(--font-mono);" id="confirm-price">-</span>
                 </div>
               </div>
 
               <div class="d-flex gap-2">
                 <button type="button" class="btn btn-outline-secondary btn-pill w-50" style="font-weight:600;" onclick="prevStep(3)">
-                  <i class="bi bi-arrow-left me-1"></i>Back
+                  <i class="bi bi-arrow-left me-1"></i><%= t('common.back') %>
                 </button>
                 <button type="submit" class="btn btn-primary btn-pill w-50" style="font-weight:700;">
-                  <i class="bi bi-lock me-1"></i>Confirm &amp; Pay
+                  <i class="bi bi-lock me-1"></i><%= t('booking.confirmPay') %>
                 </button>
               </div>
             </div>
 
           </form>
+          <form action="/book/<%= qr.qr_token %>/waitlist" method="POST" id="waitlistForm" class="d-none">
+            <input type="hidden" name="service_id" id="waitlist_service_id" />
+            <input type="hidden" name="booking_date" id="waitlist_booking_date" />
+            <input type="hidden" name="booking_time" id="waitlist_booking_time" />
+          </form>
         </div>
       </div>
       <p class="text-center small mt-3" style="color:var(--muted);">
         <i class="bi bi-shield-check me-1" style="color:var(--success);"></i>
-        Secure cashless payment via Stripe — no app or hardware needed
+        <%= t('booking.securePayment') %>
       </p>
     </div>
 
     <!-- RIGHT: Live Summary Panel -->
-    <div class="col-lg-5 d-none d-lg-block">
+    <div class="col-lg-4 d-none d-lg-block">
       <div style="position:sticky;top:80px;">
         <div class="summary-panel">
           <p style="font-weight:700;color:var(--accent);margin-bottom:1rem;">
-            <i class="bi bi-receipt me-2"></i>Booking Summary
+            <i class="bi bi-receipt me-2"></i><%= t('booking.bookingSummary') %>
           </p>
           <div class="summary-row">
-            <span class="lbl">Merchant</span>
+            <span class="lbl"><%= t('common.merchant') %></span>
             <span class="val"><%= qr.merchant_name %></span>
           </div>
           <div class="summary-row">
-            <span class="lbl">Service</span>
-            <span class="val" id="sum-service" style="color:var(--muted);font-style:italic;">Not selected</span>
+            <span class="lbl"><%= t('common.service') %></span>
+            <span class="val" id="sum-service" style="color:var(--muted);font-style:italic;"><%= t('common.notSelected') %></span>
           </div>
           <div class="summary-row">
-            <span class="lbl">Duration</span>
+            <span class="lbl"><%= t('common.duration') %></span>
             <span class="val" id="sum-duration" style="color:var(--muted);">—</span>
           </div>
           <div class="summary-row">
-            <span class="lbl">Date</span>
-            <span class="val" id="sum-date" style="color:var(--muted);font-style:italic;">Not selected</span>
+            <span class="lbl"><%= t('common.date') %></span>
+            <span class="val" id="sum-date" style="color:var(--muted);font-style:italic;"><%= t('common.notSelected') %></span>
           </div>
           <div class="summary-row">
-            <span class="lbl">Time</span>
+            <span class="lbl"><%= t('common.time') %></span>
             <span class="val" id="sum-time" style="color:var(--muted);">—</span>
           </div>
           <div class="summary-row">
-            <span class="lbl">Staff</span>
-            <span class="val" id="sum-staff" style="color:var(--muted);">No Preference</span>
+            <span class="lbl"><%= t('common.staff') %></span>
+            <span class="val" id="sum-staff" style="color:var(--muted);"><%= t('common.noPreference') %></span>
           </div>
           <div class="summary-row total">
-            <span style="font-weight:700;">Total</span>
+            <span style="font-weight:700;"><%= t('common.total') %></span>
             <span style="font-weight:700;font-size:1.1rem;color:var(--accent);font-family:var(--font-mono);" id="sum-price">—</span>
           </div>
         </div>
 
         <div class="card border-0 p-3 mt-3" style="box-shadow:var(--shadow-sm);border-radius:var(--r-lg);">
           <p style="font-weight:700;font-size:.875rem;color:var(--ink);margin-bottom:.5rem;">
-            <i class="bi bi-info-circle me-1" style="color:var(--accent);"></i>Good to know
+            <i class="bi bi-info-circle me-1" style="color:var(--accent);"></i><%= t('booking.goodToKnow') %>
           </p>
           <ul style="font-size:.8125rem;color:var(--muted);margin-bottom:0;padding-left:1.25rem;">
-            <li>Payment is processed securely via Stripe</li>
-            <li>You'll receive an email confirmation after paying</li>
-            <li>Cancellation follows the merchant's published policy</li>
-            <li>Scan the QR when you arrive to confirm</li>
+            <li><%= t('booking.goodPayment') %></li>
+            <li><%= t('booking.goodEmail') %></li>
+            <li><%= t('booking.goodCancellation') %></li>
+            <li><%= t('booking.goodArrival') %></li>
           </ul>
         </div>
       </div>
@@ -318,12 +324,14 @@
 let selectedService = null;
 let selectedTime    = null;
 let selectedStaffId = '';
-let selectedStaffName = 'No Preference';
+let selectedStaffName = window.t('common.noPreference');
 const initialServiceId = '<%= selectedServiceId %>';
 const initialTime = '<%= selectedBookingTime %>';
 const initialStaffId = '<%= selectedStaffId %>';
+const initialWaitlist = <%= shouldAutoJoinWaitlist ? 'true' : 'false' %>;
 const loggedInCustomer = <%= loggedInCustomer ? 'true' : 'false' %>;
 const maxAdvanceBookingDays = 365;
+const dateLocale = { en: 'en-SG', ms: 'ms-SG', zh: 'zh-CN', ta: 'ta-IN' }['<%= lang %>'] || 'en-SG';
 
 function pad2(value) {
   return String(value).padStart(2, '0');
@@ -367,7 +375,7 @@ function escapeHtml(value) {
 function staffOptionTemplate(member, selected = false) {
   const isAnyStaff = !member;
   const value = isAnyStaff ? '' : member.staff_id;
-  const name = isAnyStaff ? 'No Preference' : escapeHtml(member.full_name || 'Staff');
+  const name = isAnyStaff ? window.t('common.noPreference') : escapeHtml(member.full_name || window.t('common.staff'));
   const role = !isAnyStaff && member.role
     ? `<span style="font-size:.72rem;color:var(--muted);margin-top:.2rem;">${escapeHtml(member.role)}</span>`
     : '';
@@ -415,7 +423,7 @@ function setStaffSelection(button) {
     input.checked = true;
     selectedStaffId = input.value;
   }
-  selectedStaffName = button.dataset.staffName || 'No Preference';
+  selectedStaffName = button.dataset.staffName || window.t('common.noPreference');
 }
 
 function selectStaff(button) {
@@ -424,16 +432,16 @@ function selectStaff(button) {
   updateAuthLinks();
 }
 
-function resetStaffOptions(message = 'Choose a date and time to see which staff are available.') {
+function resetStaffOptions(message = window.t('booking.staffAvailabilityInitial')) {
   selectedStaffId = '';
-  selectedStaffName = 'No Preference';
+  selectedStaffName = window.t('common.noPreference');
   const grid = document.getElementById('staffOptionsGrid');
   const note = document.getElementById('staffAvailabilityNote');
   if (grid) {
     grid.innerHTML = `
       <div class="col-12">
         <div class="time-empty" style="color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">
-          Pick a time to see available staff.
+          ${window.t('booking.pickTimeForStaff')}
         </div>
       </div>
     `;
@@ -462,8 +470,8 @@ function renderStaffOptions(availableStaff) {
 
   if (note) {
     note.textContent = staff.length
-      ? `${staff.length} staff member${staff.length === 1 ? '' : 's'} available for this time.`
-      : 'No specific staff are available; no preference will assign any available staff.';
+      ? window.t('booking.staffAvailable', { count: staff.length, plural: staff.length === 1 ? '' : 's' })
+      : window.t('booking.staffFallback');
     note.style.color = staff.length ? 'var(--muted)' : 'var(--warn)';
   }
 
@@ -493,7 +501,7 @@ async function loadAvailableStaff() {
     renderStaffOptions(availableStaff);
   } catch (err) {
     console.error(err);
-    resetStaffOptions('Unable to load available staff.');
+    resetStaffOptions(window.t('booking.validation.unableStaff'));
   }
 }
 
@@ -510,7 +518,7 @@ function validateBookingDate() {
     document.getElementById('hidden_booking_time').value = '';
     document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
     resetStaffOptions();
-    setStep2Error('Please choose today or a future date.');
+    setStep2Error(window.t('booking.validation.todayFuture'));
     return false;
   }
   if (dateEl.value && dateEl.value > maxDate) {
@@ -536,11 +544,11 @@ async function updateAvailableTimes() {
   updateSummary();
 
   if (!date || !selectedService) {
-    grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">Select a service and date to view available times.</div>';
+    grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">' + window.t('booking.selectServiceDate') + '</div>';
     return;
   }
 
-  grid.innerHTML = '<div class="time-loading"><div class="time-loading-spinner"></div>Loading times…</div>';
+  grid.innerHTML = '<div class="time-loading"><div class="time-loading-spinner"></div>' + window.t('common.loading') + '</div>';
 
   const params = new URLSearchParams({
     merchantId,
@@ -553,29 +561,69 @@ async function updateAvailableTimes() {
     const slots = await response.json();
 
     if (!slots.length) {
-      grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">No slots available for this date.</div>';
-      resetStaffOptions('No staff are available for this date.');
+      grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">' + window.t('booking.validation.noSlots') + '</div>';
+      resetStaffOptions(window.t('booking.validation.noStaffDate'));
       return;
     }
 
     grid.innerHTML = slots.map(slot => {
       const time = String(slot.start_time).slice(0, 5);
-      return `<div class="time-btn" data-time="${time}" onclick="selectTime(this,'${time}')">${slot.label || time}</div>`;
+      const label = slot.label || time;
+      const isAvailable = slot.is_available !== false;
+      if (isAvailable) {
+        return `<div class="time-btn" data-time="${time}" onclick="selectTime(this,'${time}')">${label}</div>`;
+      }
+
+      const queue = Number(slot.waitlist_count || 0);
+      const queueLabel = queue ? window.t('booking.waitlist.waiting', { count: queue }) : window.t('booking.waitlist.join');
+      const reason = slot.has_active_waitlist_offer
+        ? window.t('booking.waitlist.reserved')
+        : window.t('booking.waitlist.fullyBooked');
+      return `
+        <button type="button" class="time-btn waitlist" data-time="${time}" onclick="joinWaitlistForSlot('${time}')">
+          <span>${label}</span>
+          <small>${reason} · ${queueLabel}</small>
+        </button>
+      `;
     }).join('');
   } catch (err) {
     console.error(err);
-    grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--danger);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">Unable to load available times.</div>';
+    grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--danger);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">' + window.t('booking.validation.unableTimes') + '</div>';
   }
+}
+
+function joinWaitlistForSlot(time) {
+  const date = document.getElementById('booking_date').value;
+  if (!selectedService || !date || !time) {
+    setStep2Error(window.t('booking.validation.serviceDateForWaitlist'));
+    return;
+  }
+
+  if (!loggedInCustomer) {
+    const params = new URLSearchParams({
+      serviceId: selectedService.id,
+      bookingDate: date,
+      bookingTime: time,
+      waitlist: '1',
+    });
+    window.location.href = '/auth/login?next=' + encodeURIComponent(window.location.pathname + '?' + params.toString());
+    return;
+  }
+
+  document.getElementById('waitlist_service_id').value = selectedService.id;
+  document.getElementById('waitlist_booking_date').value = date;
+  document.getElementById('waitlist_booking_time').value = time;
+  document.getElementById('waitlistForm').submit();
 }
 
 function validateSelectedDateTime() {
   if (!validateBookingDate()) return false;
   if (!document.getElementById('booking_date').value || !selectedTime) {
-    setStep2Error('Please pick both a date and a time.');
+    setStep2Error(window.t('booking.pickDateTimeError'));
     return false;
   }
   if (getSelectedDateTime() < new Date()) {
-    setStep2Error('Please choose a time that is on or after the current date and time.');
+    setStep2Error(window.t('booking.validation.futureTime'));
     return false;
   }
   clearStep2Error();
@@ -603,7 +651,7 @@ function selectService(el) {
 
 function selectTime(el, time) {
   if (el.classList.contains('disabled')) {
-    setStep2Error('Please choose a time that is on or after the current date and time.');
+    setStep2Error(window.t('booking.validation.futureTime'));
     return;
   }
   document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
@@ -616,26 +664,34 @@ function selectTime(el, time) {
   updateAuthLinks();
 }
 
+function updateMobileSummaryBar() {
+  const bar = document.getElementById('mobile-summary-bar');
+  if (!bar) return;
+
+  if (!selectedService || window.innerWidth >= 992) {
+    bar.style.setProperty('display', 'none', 'important');
+    return;
+  }
+
+  document.getElementById('msb-service').textContent = selectedService.name;
+  document.getElementById('msb-price').textContent   = 'S$' + selectedService.price.toFixed(2);
+  bar.style.setProperty('display', 'flex', 'important');
+}
+
 function updateSummary() {
   if (selectedService) {
     document.getElementById('sum-service').textContent   = selectedService.name;
     document.getElementById('sum-service').style.cssText = 'font-weight:600;font-style:normal;';
-    document.getElementById('sum-duration').textContent  = selectedService.duration + ' min';
+    document.getElementById('sum-duration').textContent  = window.t('common.minutes', { count: selectedService.duration });
     document.getElementById('sum-price').textContent     = 'S$' + selectedService.price.toFixed(2);
     document.getElementById('confirm-service').textContent = selectedService.name;
     document.getElementById('confirm-price').textContent   = 'S$' + selectedService.price.toFixed(2);
-
-    const bar = document.getElementById('mobile-summary-bar');
-    if (bar) {
-      bar.style.setProperty('display', 'flex', 'important');
-      document.getElementById('msb-service').textContent = selectedService.name;
-      document.getElementById('msb-price').textContent   = 'S$' + selectedService.price.toFixed(2);
-    }
   }
+  updateMobileSummaryBar();
   const dateEl = document.getElementById('booking_date');
   if (dateEl && dateEl.value) {
     const d = new Date(dateEl.value + 'T00:00:00');
-    const fmt = d.toLocaleDateString('en-SG', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+    const fmt = d.toLocaleDateString(dateLocale, { weekday:'short', day:'numeric', month:'short', year:'numeric' });
     document.getElementById('sum-date').textContent     = fmt;
     document.getElementById('sum-date').style.cssText   = 'font-weight:600;font-style:normal;';
     document.getElementById('confirm-date').textContent = fmt;
@@ -645,12 +701,12 @@ function updateSummary() {
     document.getElementById('sum-time').style.cssText   = 'font-weight:600;';
     document.getElementById('confirm-time').textContent = selectedTime;
   } else {
-    document.getElementById('sum-time').textContent     = '—';
+    document.getElementById('sum-time').textContent     = '-';
     document.getElementById('sum-time').style.cssText   = 'color:var(--muted);';
-    document.getElementById('confirm-time').textContent = '—';
+    document.getElementById('confirm-time').textContent = '-';
   }
 
-  const staffText = selectedStaffName || 'No Preference';
+  const staffText = selectedStaffName || window.t('common.noPreference');
   document.getElementById('sum-staff').textContent = staffText;
   document.getElementById('sum-staff').style.cssText = 'font-weight:600;';
   document.getElementById('confirm-staff').textContent = staffText;
@@ -722,7 +778,15 @@ if (initialServiceCard) {
 validateBookingDate();
 updateAvailableTimes().then(() => {
   if (!initialTime) return;
-  const initialTimeButton = document.querySelector('.time-btn[data-time="' + initialTime + '"]');
+  if (initialWaitlist && loggedInCustomer) {
+    const waitlistButton = document.querySelector('.time-btn.waitlist[data-time="' + initialTime + '"]');
+    if (waitlistButton) {
+      joinWaitlistForSlot(initialTime);
+    }
+    return;
+  }
+
+  const initialTimeButton = document.querySelector('.time-btn:not(.waitlist)[data-time="' + initialTime + '"]');
   if (initialTimeButton) {
     selectedStaffId = initialStaffId;
     selectTime(initialTimeButton, initialTime);
@@ -751,6 +815,8 @@ if (emailInput && !loggedInCustomer) {
     }, 350);
   });
 }
+
+window.addEventListener('resize', updateMobileSummaryBar);
 
 document.getElementById('bookingForm').addEventListener('submit', function(event) {
   if (!validateSelectedDateTime()) {
