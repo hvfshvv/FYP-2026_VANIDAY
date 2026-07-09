@@ -99,18 +99,27 @@ async function verifyEmailToken(token) {
     await connection.beginTransaction();
 
     const [[verificationToken]] = await connection.query(
-      `SELECT evt.*, u.email, u.full_name
+      `SELECT evt.*, u.email, u.full_name, u.email_verified_at,
+              (evt.used_at IS NULL AND evt.expires_at > NOW()) AS is_usable
        FROM email_verification_token evt
        JOIN users u ON u.user_id = evt.user_id
        WHERE evt.token_hash = ?
-         AND evt.used_at IS NULL
-         AND evt.expires_at > NOW()
        LIMIT 1
        FOR UPDATE`,
       [tokenHash]
     );
 
     if (!verificationToken) {
+      await connection.rollback();
+      return null;
+    }
+
+    if (!verificationToken.is_usable) {
+      if (verificationToken.email_verified_at) {
+        await connection.commit();
+        return verificationToken;
+      }
+
       await connection.rollback();
       return null;
     }
