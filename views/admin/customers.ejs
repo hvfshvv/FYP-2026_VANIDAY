@@ -21,6 +21,57 @@
   const tierProgress = Math.min(100, (avgPoints / 2000) * 100);
   const qrTotal = (a.qrAccess || []).find(row => row.source === 'qr')?.total || 0;
   const reminderTotal = (a.reminders || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
+  const firstSpendingMonth = (a.spendingTrend || [])[0];
+  const lastSpendingMonth = (a.spendingTrend || []).slice(-1)[0];
+  const topSpendCategory = (a.spendingCategories || [])[0];
+  const topVisitedMerchant = (a.mostVisitedMerchants || [])[0];
+  const topFavouriteService = (a.favouriteServices || [])[0];
+  const topBookingDay = (a.bookingFrequency || [])[0];
+  const spendingTrendDirection = firstSpendingMonth && lastSpendingMonth
+    ? Number(lastSpendingMonth.total || 0) - Number(firstSpendingMonth.total || 0)
+    : 0;
+  const customerChartInsights = [
+    {
+      title: 'Spending momentum',
+      icon: 'bi-graph-up-arrow',
+      body: firstSpendingMonth && lastSpendingMonth
+        ? `Customer spending ${spendingTrendDirection >= 0 ? 'is gaining' : 'has softened'} from ${money(firstSpendingMonth.total)} in ${firstSpendingMonth.month_label} to ${money(lastSpendingMonth.total)} in ${lastSpendingMonth.month_label}. Read this as demand momentum, not only revenue.`
+        : 'More monthly paid booking data is needed before the spending trend can show momentum.',
+    },
+    {
+      title: 'Category demand',
+      icon: 'bi-stars',
+      body: topSpendCategory
+        ? `${topSpendCategory.category} leads customer spend at ${money(topSpendCategory.total)}. In the current beauty and wellness market, category leaders should feed personalized recommendations, bundles, and homepage placement.`
+        : 'Category spend is not available yet, so recommendation and campaign targeting should stay broad.',
+    },
+    {
+      title: 'Habit signals',
+      icon: 'bi-heart-pulse',
+      body: topVisitedMerchant || topFavouriteService
+        ? `${topVisitedMerchant ? topVisitedMerchant.merchant_name + ' is the strongest merchant habit signal' : 'Merchant habit data is still thin'}${topFavouriteService ? `, while ${topFavouriteService.service_name} leads service preference` : ''}. These are the best inputs for AI-style repeat booking reminders.`
+        : 'Merchant and service habit signals are still thin, so repeat booking recommendations need more activity.',
+    },
+    {
+      title: 'Loyalty health',
+      icon: 'bi-award',
+      body: loyaltyRate
+        ? `Loyalty adoption is ${percent(loyaltyRate)} with average tier progress at ${percent(tierProgress)}. If points are earned faster than redeemed, customers may need timely voucher prompts instead of generic discounts.`
+        : 'Loyalty adoption is low or unavailable, so the dashboard should treat rewards as an activation opportunity.',
+    },
+    {
+      title: 'Timing opportunity',
+      icon: 'bi-calendar-week',
+      body: topBookingDay
+        ? `${topBookingDay.day_label} has the most bookings. Use this to time reminders before peak days and push off-peak promotions when demand is quieter.`
+        : 'Booking frequency by day is not available yet, so promotion timing cannot be personalized.',
+    },
+    {
+      title: 'Market lens',
+      icon: 'bi-lightbulb',
+      body: 'Beauty and wellness demand is moving toward personalized, evidence-backed self-care. These charts should guide tailored journeys: right service, right merchant, right reward, right time.',
+    },
+  ];
   const safeJson = value => JSON.stringify(value || {}).replace(/</g, '\\u003c');
 %>
 
@@ -263,6 +314,46 @@
     font-size:.8125rem;
     font-weight:700;
     margin-bottom:.75rem;
+  }
+  .ai-insight-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+    gap:.85rem;
+  }
+  .ai-insight-card {
+    background:var(--surface);
+    border:1px solid rgba(225,29,72,.2);
+    border-radius:var(--r-lg);
+    box-shadow:var(--shadow-sm);
+    padding:1rem;
+    height:100%;
+  }
+  .ai-insight-card__top {
+    display:flex;
+    align-items:center;
+    gap:.65rem;
+    margin-bottom:.65rem;
+  }
+  .ai-insight-card__top i {
+    width:36px;
+    height:36px;
+    display:grid;
+    place-items:center;
+    border-radius:50%;
+    color:var(--accent);
+    background:var(--accent-light);
+    flex:0 0 auto;
+  }
+  .ai-insight-card h6 {
+    color:var(--ink);
+    font-weight:800;
+    margin:0;
+  }
+  .ai-insight-card p {
+    color:var(--muted);
+    line-height:1.6;
+    margin:0;
+    font-size:.9rem;
   }
 </style>
 
@@ -598,6 +689,23 @@
       </div>
     </section>
 
+    <section id="ai-chart-insights" class="section-anchor mb-5">
+      <p class="section-label mb-1">AI Chart Interpretation</p>
+      <h4 class="customer-title mb-2">What The Customer Charts Mean</h4>
+      <p style="color:var(--muted);max-width:860px;margin-bottom:1rem;">These insights translate the visible chart patterns into customer behaviour, retention, and market opportunities.</p>
+      <div class="ai-insight-grid">
+        <% customerChartInsights.forEach(insight => { %>
+          <article class="ai-insight-card">
+            <div class="ai-insight-card__top">
+              <i class="bi <%= insight.icon %>"></i>
+              <h6><%= insight.title %></h6>
+            </div>
+            <p><%= insight.body %></p>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+
     <section id="recommendations" class="section-anchor mb-5">
       <p class="section-label mb-1">Personalized Recommendations</p>
       <h4 class="customer-title mb-3">Merchant, Service &amp; Promotion Suggestions</h4>
@@ -885,20 +993,92 @@
       const trendText = (analytics.spendingTrend || []).length > 1
         ? `Monthly spending moves from ${money((analytics.spendingTrend || [])[0].total)} in ${(analytics.spendingTrend || [])[0].month_label} to ${money((analytics.spendingTrend || []).slice(-1)[0].total)} in ${(analytics.spendingTrend || []).slice(-1)[0].month_label}.`
         : 'Monthly spending trend evidence is limited because fewer than two monthly points are available.';
+      const bookingTotal = (analytics.bookingStatus || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
+      const categoryTotal = (analytics.spendingCategories || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
+      const paymentTotal = (analytics.paymentMethods || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
+      const tierTotal = Number(loyalty.bronze_members || 0) + Number(loyalty.silver_members || 0) + Number(loyalty.gold_members || 0);
+      const topCustomer = (analytics.accountProfiles || [])[0];
+      const inactiveDisplayedCustomers = (analytics.accountProfiles || []).filter(row =>
+        Number(row.total_spent || 0) <= 0 || Number(row.bookings || 0) <= 0
+      ).length;
+      const topCategory = (analytics.spendingCategories || [])[0];
+      const topPayment = (analytics.paymentMethods || [])[0];
+      const topStatus = (analytics.bookingStatus || [])[0];
+      const completed = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'completed');
+      const cancelled = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'cancelled');
+      const paymentFailed = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase().includes('payment_failed'));
+      const firstMonth = (analytics.spendingTrend || [])[0];
+      const lastMonth = (analytics.spendingTrend || []).slice(-1)[0];
+      const totalDayBookings = (analytics.bookingFrequency || []).reduce((sum, row) => sum + Number(row.bookings || 0), 0);
+      const avgBookingsPerDay = (analytics.bookingFrequency || []).length
+        ? totalDayBookings / (analytics.bookingFrequency || []).length
+        : 0;
+      const share = (value, total) => total ? percent((Number(value || 0) / total) * 100) : '0.0%';
+      const statusShare = row => row ? `${number(row.total)} (${share(row.total, bookingTotal)})` : 'not enough data';
+      const topCustomerText = topCustomer
+        ? `${topCustomer.full_name || 'The leading customer'} accounted for ${number(topCustomer.bookings)} booking${Number(topCustomer.bookings || 0) === 1 ? '' : 's'} and ${money(topCustomer.total_spent)} in spending`
+        : 'No high-value customer pattern is visible yet';
+      const spendingDistributionText = profileSpendStats
+        ? `Customer spending is uneven: the average displayed customer spend is ${money(profileSpendStats.mean)}, while the median is ${money(profileSpendStats.median)} and the standard deviation is ${money(profileSpendStats.stdDev)}.`
+        : 'Customer spending distribution cannot be calculated from the current data.';
+      const monthTrendText = firstMonth && lastMonth
+        ? `Monthly paid spending moved from ${money(firstMonth.total)} in ${firstMonth.month_label} to ${money(lastMonth.total)} in ${lastMonth.month_label}.`
+        : 'Monthly spending needs at least two months of paid data before a trend can be interpreted.';
+      const categoryInsight = topCategory
+        ? `${topCategory.category} generated ${money(topCategory.total)}, representing ${share(topCategory.total, categoryTotal)} of category spending.`
+        : 'No service category is leading yet because category spending is unavailable.';
+      const paymentInsight = topPayment
+        ? `${topPayment.payment_method || 'Unknown'} is the most used payment method with ${share(topPayment.total, paymentTotal)} of recorded payments.`
+        : 'Payment behaviour is not available yet.';
+      const loyaltyInsight = tierTotal
+        ? `Loyalty tier distribution is ${share(loyalty.bronze_members, tierTotal)} Bronze, ${share(loyalty.silver_members, tierTotal)} Silver, and ${share(loyalty.gold_members, tierTotal)} Gold.`
+        : 'Loyalty tier distribution is not available yet.';
 
       return `Data Summary
 
-The customer analytics dataset covers the filtered period from ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}. It summarizes ${number(totalCustomers)} customer account${totalCustomers === 1 ? '' : 's'}, ${number(loyaltyMembers)} loyalty member${loyaltyMembers === 1 ? '' : 's'}, account profile rows, booking records, loyalty transactions, spending categories, recommendation signals, reviews, platform feedback, security status, and payment method usage. The displayed profile table is led by ${profileText}. The dataset is date-aligned to the selected range for booking, spending, loyalty, review, feedback, recommendation, and payment activity.
+The dashboard analyses customer activity between ${dateLabel(range.startDate)} and ${dateLabel(range.endDate)}, covering ${number(totalCustomers)} customer account${totalCustomers === 1 ? '' : 's'} and ${number(loyaltyMembers)} loyalty member${loyaltyMembers === 1 ? '' : 's'}. During this period, customers generated ${money(overview.total_amount_spent)} in completed payments with an average order value of ${money(overview.average_order_value)}.
+
+The most important pattern is revenue concentration. ${topCustomerText}. This suggests the platform is currently relying on a small group of active customers, while ${number(inactiveDisplayedCustomers)} displayed customer profile${inactiveDisplayedCustomers === 1 ? '' : 's'} show little or no purchasing activity.
 
 Descriptive Statistics
 
-For spending in the displayed customer profiles, the distribution has ${formatStat(profileSpendStats, money)}. Monthly paid spending has ${formatStat(monthlySpendStats, money)}. Booking frequency by day has ${formatStat(bookingFrequencyStats, value => number(value) + ' booking' + (Math.round(value) === 1 ? '' : 's'))}. At the KPI level, customers generated ${money(overview.total_amount_spent)} in paid spending with an average order value of ${money(overview.average_order_value)}. Loyalty adoption is ${percent(loyaltyRate)}, reward point balances total ${number(overview.reward_points_balance)}, and wallet balances total ${number(loyalty.points_balance)} points.
+${spendingDistributionText} This means average spend alone may overstate platform health if most customers are inactive.
 
-Frequency counts and percentages show booking status distribution as ${statusFrequency}. Spending category distribution is ${categoryFrequency}. Payment method distribution is ${paymentFrequency}. Loyalty tiers are distributed across ${number(loyalty.bronze_members)} bronze, ${number(loyalty.silver_members)} silver, and ${number(loyalty.gold_members)} gold member${Number(loyalty.gold_members || 0) === 1 ? '' : 's'}, while date-filtered loyalty movement includes ${loyaltyText}.
+${monthTrendText} Booking activity averages ${number(avgBookingsPerDay.toFixed(1))} bookings across active booking days, although demand varies by day.
 
-Key Observations
+Business Insights
 
-The main trend is that ${trendText} Booking activity is led by ${statusText}; upcoming appointment context includes ${upcomingText}, while recent history includes ${pastText}. Category and service patterns are concentrated around ${categoryText}, ${merchantText}, and ${serviceText}. Recommendation relationships worth investigating include merchants ${recommendedMerchantText}, suggested services ${suggestedServiceText}, and behaviour-based promotions ${promotionText}; active voucher opportunities include ${voucherText}. Reviews and support signals show ${number(reviewCount)} submitted review${reviewCount === 1 ? '' : 's'} with an average rating of ${avgRating}/5, while platform feedback is summarized as ${feedbackText}. Unusual findings to review include large gaps between the mean and median spending values, any maximum profile spend far above the median, and low-frequency categories with unexpectedly high revenue. Security status shows ${number(security.active_accounts)} active account${Number(security.active_accounts || 0) === 1 ? '' : 's'} and ${number(security.suspended_accounts)} suspended account${Number(security.suspended_accounts || 0) === 1 ? '' : 's'}, while payment usage is ${paymentText}. Overall, the dataset is sufficiently structured for follow-up analysis such as customer segmentation, spending trend analysis, recommendation tuning, and loyalty performance review.`;
+Customer Spending
+- Revenue is heavily dependent on a small number of active customers.
+- Many registered users are not converting into paid bookings.
+- Action: run reactivation offers for inactive customers and repeat-booking reminders for customers with previous spend.
+
+Booking Performance
+- The largest booking outcome is ${topStatus ? `${text(topStatus.status)} at ${statusShare(topStatus)}` : 'not available'}.
+- Completed bookings account for ${statusShare(completed)}, cancelled bookings account for ${statusShare(cancelled)}, and payment failed bookings account for ${statusShare(paymentFailed)}.
+- Action: review payment failure points, reminder timing, and cancellation reasons to improve completed transactions.
+
+Service Performance
+- ${categoryInsight}
+- Current service preference is led by ${serviceText}.
+- Action: use the strongest category for cross-selling, and promote weaker categories through bundles or targeted vouchers.
+
+Payment Behaviour
+- ${paymentInsight}
+- Action: protect the strongest payment flow first, then use wallet incentives only where they improve repeat purchases.
+
+Loyalty Programme
+- Loyalty adoption is ${percent(loyaltyRate)}. ${loyaltyInsight}
+- Action: if most members remain Bronze, adjust rewards so customers see a clearer reason to book again and progress tiers.
+
+Customer Satisfaction
+- Customers submitted ${number(reviewCount)} review${reviewCount === 1 ? '' : 's'} with an average rating of ${avgRating}/5.
+- Feedback themes include ${feedbackText}.
+- Action: keep the service experience strong, but investigate booking and payment feedback because friction there can reduce conversion.
+
+Key Business Observations
+
+The dashboard shows good signs in customer satisfaction and loyalty enrolment, but revenue is not yet broad-based. The main risk is that a few customers drive most spending while many accounts remain inactive. Booking cancellations and payment failures should be treated as operational leakage. The strongest categories and favourite services should be used for personalized recommendations, while loyalty rewards should be redesigned or promoted to encourage repeat bookings and movement into higher tiers.`;
     }
 
     summaryButton.addEventListener('click', function () {

@@ -19,6 +19,73 @@
   const refundedAmount = Number(a.financial?.refunded_amount || 0);
   const profitMargin = grossRevenue ? ((grossRevenue - refundedAmount) / grossRevenue) * 100 : 0;
   const chartColors = ['#E11D48', '#FB7185', '#F59E0B', '#10B981', '#0EA5E9', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#64748B'];
+  const revenueStart = (a.revenueTrend || [])[0];
+  const revenueEnd = (a.revenueTrend || []).slice(-1)[0];
+  const revenueDelta = revenueStart && revenueEnd ? Number(revenueEnd.total || 0) - Number(revenueStart.total || 0) : 0;
+  const topRevenueCategory = (a.revenueByCategory || [])[0];
+  const topService = (a.topServices || [])[0];
+  const topPaymentMethod = (a.paymentBreakdown || [])[0];
+  const topCampaign = (a.promotionPerformance || [])[0];
+  const topStatus = (a.bookingStatus || [])[0];
+  const topChannel = (a.bookingChannelAnalytics || [])[0];
+  const bestHour = (a.peakBookingTimes || [])[0];
+  const bestSalesHour = (a.peakSalesPeriods || [])[0];
+  const merchantChartInsights = [
+    {
+      title: 'Revenue direction',
+      icon: 'bi-graph-up-arrow',
+      body: revenueStart && revenueEnd
+        ? `Paid revenue ${revenueDelta >= 0 ? 'is trending up' : 'is trending down'} from ${money(revenueStart.total)} on ${dateLabel(revenueStart.period_label)} to ${money(revenueEnd.total)} on ${dateLabel(revenueEnd.period_label)}. Treat this as demand momentum, not just a cash total.`
+        : 'More paid revenue days are needed before the chart can show a reliable direction.',
+    },
+    {
+      title: 'Category strategy',
+      icon: 'bi-stars',
+      body: topRevenueCategory
+        ? `${topRevenueCategory.category} leads category revenue at ${money(topRevenueCategory.revenue)}. This category should get stronger marketplace placement, campaign testing, and merchant coaching.`
+        : 'Category revenue is not available yet, so campaigns should stay broad until paid booking data grows.',
+    },
+    {
+      title: 'Service-market fit',
+      icon: 'bi-bag-check',
+      body: topService
+        ? `${topService.service_name} is the strongest service signal with ${number(topService.bookings)} bookings and ${money(topService.revenue)} revenue. Use it as a benchmark for similar merchants and bundles.`
+        : 'Top service data is still thin, so the platform cannot confidently identify service-market fit yet.',
+    },
+    {
+      title: 'Operational risk',
+      icon: 'bi-shield-exclamation',
+      body: topStatus
+        ? `${String(topStatus.status || 'unknown').replace('_', ' ')} is the largest booking status group. A high cancel/no-show mix means lost capacity; a high confirmed/completed mix means stable operations.`
+        : 'Booking status mix is unavailable, so cancellation and no-show risk cannot be estimated yet.',
+    },
+    {
+      title: 'Peak coverage',
+      icon: 'bi-clock-history',
+      body: bestHour || bestSalesHour
+        ? `${bestHour ? `Bookings peak on ${bestHour.day_label} around ${String(bestHour.hour_label).padStart(2, '0')}:00` : 'Booking peak data is limited'}${bestSalesHour ? `, while sales peak around ${String(bestSalesHour.hour_label).padStart(2, '0')}:00` : ''}. Align staff and promo timing to both demand and revenue peaks.`
+        : 'Peak hour data is still missing, so staffing recommendations should remain manual.',
+    },
+    {
+      title: 'Digital conversion',
+      icon: 'bi-phone',
+      body: topChannel || topPaymentMethod
+        ? `${topChannel ? topChannel.channel_label + ' is the leading booking source' : 'Booking source data is limited'}${topPaymentMethod ? `, and ${topPaymentMethod.payment_method || 'Unknown'} leads payment usage` : ''}. This shows where the customer journey is easiest today.`
+        : 'Booking channel and payment method data are not available yet, so checkout optimization needs more activity.',
+    },
+    {
+      title: 'Promotion quality',
+      icon: 'bi-megaphone',
+      body: topCampaign && Number(topCampaign.redemptions || 0) > 0
+        ? `${topCampaign.campaign_name || topCampaign.voucher_code} is the strongest promotion by redemption. Next, check whether it creates repeat visits or only one-time discount traffic.`
+        : 'Promotions have little or no redemption yet, so test smaller personalized offers instead of broad discounts.',
+    },
+    {
+      title: 'Market lens',
+      icon: 'bi-lightbulb',
+      body: 'Beauty and wellness platforms are moving toward personalized recommendations, mobile-first booking, loyalty, and trusted self-care experiences. The charts should guide which merchants to feature and which customers to retain.',
+    },
+  ];
   const safeJson = value => JSON.stringify(value || {}).replace(/</g, '\\u003c');
 %>
 
@@ -280,6 +347,46 @@
     font-size:.8125rem;
     font-weight:700;
     margin-bottom:.75rem;
+  }
+  .ai-insight-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+    gap:.85rem;
+  }
+  .ai-insight-card {
+    background:var(--surface);
+    border:1px solid rgba(225,29,72,.2);
+    border-radius:var(--r-lg);
+    box-shadow:var(--shadow-sm);
+    padding:1rem;
+    height:100%;
+  }
+  .ai-insight-card__top {
+    display:flex;
+    align-items:center;
+    gap:.65rem;
+    margin-bottom:.65rem;
+  }
+  .ai-insight-card__top i {
+    width:36px;
+    height:36px;
+    display:grid;
+    place-items:center;
+    border-radius:50%;
+    color:var(--accent);
+    background:var(--accent-light);
+    flex:0 0 auto;
+  }
+  .ai-insight-card h6 {
+    color:var(--ink);
+    font-weight:800;
+    margin:0;
+  }
+  .ai-insight-card p {
+    color:var(--muted);
+    line-height:1.6;
+    margin:0;
+    font-size:.9rem;
   }
 </style>
 
@@ -702,9 +809,22 @@
 
     <section id="insights" class="section-anchor mb-5">
       <p class="section-label mb-1">Predictive / AI Insights</p>
+      <h4 class="analytics-title mb-2">What The Merchant Charts Mean</h4>
+      <p style="color:var(--muted);max-width:900px;margin-bottom:1rem;">These insights translate the chart patterns into revenue, demand, operations, and market decisions.</p>
+      <div class="ai-insight-grid mb-3">
+        <% merchantChartInsights.forEach(insight => { %>
+          <article class="ai-insight-card">
+            <div class="ai-insight-card__top">
+              <i class="bi <%= insight.icon %>"></i>
+              <h6><%= insight.title %></h6>
+            </div>
+            <p><%= insight.body %></p>
+          </article>
+        <% }) %>
+      </div>
       <h4 class="analytics-title mb-3">Planning Signals</h4>
       <div class="row g-3">
-        <% const bestHour = (a.peakBookingTimes || [])[0]; const bestCategory = (a.revenueByCategory || [])[0]; const topService = (a.topServices || [])[0]; %>
+        <% const bestCategory = (a.revenueByCategory || [])[0]; %>
         <% [
           { title:'Sales forecasting', body: grossRevenue > 0 ? `Current filtered gross revenue is ${money(grossRevenue)}.` : 'More paid payment history is needed for forecasting.' },
           { title:'Demand prediction', body: bestHour ? `Demand is strongest on ${bestHour.day_label} around ${String(bestHour.hour_label).padStart(2, '0')}:00.` : 'More bookings are needed to detect demand patterns.' },
@@ -920,20 +1040,95 @@
       const trendText = (analytics.revenueTrend || []).length > 1
         ? `Daily revenue moves from ${money((analytics.revenueTrend || [])[0].total)} on ${dateLabel((analytics.revenueTrend || [])[0].period_label)} to ${money((analytics.revenueTrend || []).slice(-1)[0].total)} on ${dateLabel((analytics.revenueTrend || []).slice(-1)[0].period_label)}.`
         : 'Daily revenue trend evidence is limited because fewer than two daily points are available.';
+      const bookingTotal = (analytics.bookingStatus || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
+      const categoryTotal = (analytics.revenueByCategory || []).reduce((sum, row) => sum + Number(row.revenue || 0), 0);
+      const channelTotal = (analytics.bookingChannelAnalytics || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
+      const paymentTotal = (analytics.paymentBreakdown || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
+      const topMerchant = (analytics.topMerchants || [])[0];
+      const topCategory = (analytics.revenueByCategory || [])[0];
+      const topService = (analytics.topServices || [])[0];
+      const topStatus = (analytics.bookingStatus || [])[0];
+      const topPayment = (analytics.paymentBreakdown || [])[0];
+      const topChannel = (analytics.bookingChannelAnalytics || [])[0];
+      const topCampaign = (analytics.promotionPerformance || [])[0];
+      const completed = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'completed');
+      const cancelled = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'cancelled');
+      const noShow = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'no_show');
+      const firstRevenueDay = (analytics.revenueTrend || [])[0];
+      const lastRevenueDay = (analytics.revenueTrend || []).slice(-1)[0];
+      const share = (value, total) => total ? percent((Number(value || 0) / total) * 100) : '0.0%';
+      const statusShare = row => row ? `${number(row.total)} (${share(row.total, bookingTotal)})` : 'not enough data';
+      const topMerchantText = topMerchant
+        ? `${topMerchant.merchant_name || 'The leading merchant'} generated ${money(topMerchant.revenue)} from ${number(topMerchant.bookings)} booking${Number(topMerchant.bookings || 0) === 1 ? '' : 's'}`
+        : 'No leading merchant can be identified yet';
+      const revenueDistributionText = revenueStats
+        ? `Daily revenue averages ${money(revenueStats.mean)}, with a median of ${money(revenueStats.median)} and standard deviation of ${money(revenueStats.stdDev)}.`
+        : 'Daily revenue distribution cannot be calculated from the current data.';
+      const revenueTrendText = firstRevenueDay && lastRevenueDay
+        ? `Daily revenue moved from ${money(firstRevenueDay.total)} on ${dateLabel(firstRevenueDay.period_label)} to ${money(lastRevenueDay.total)} on ${dateLabel(lastRevenueDay.period_label)}.`
+        : 'Revenue needs at least two paid days before a trend can be interpreted.';
+      const categoryInsight = topCategory
+        ? `${topCategory.category} generated ${money(topCategory.revenue)}, representing ${share(topCategory.revenue, categoryTotal)} of category revenue.`
+        : 'No revenue-leading category is available yet.';
+      const serviceInsight = topService
+        ? `${topService.service_name} is the top service with ${number(topService.bookings)} booking${Number(topService.bookings || 0) === 1 ? '' : 's'} and ${money(topService.revenue)} revenue.`
+        : 'No top-selling service is available yet.';
+      const paymentInsight = topPayment
+        ? `${topPayment.payment_method || 'Unknown'} is the leading payment method with ${share(topPayment.total, paymentTotal)} of recorded payments.`
+        : 'Payment method usage is not available yet.';
+      const channelInsight = topChannel
+        ? `${topChannel.channel_label || 'The leading channel'} contributes ${share(topChannel.total, channelTotal)} of bookings.`
+        : 'Booking source data is not available yet.';
+      const campaignInsight = topCampaign && Number(topCampaign.redemptions || 0) > 0
+        ? `${topCampaign.campaign_name || topCampaign.voucher_code || 'The leading campaign'} produced ${number(topCampaign.redemptions)} redemption${Number(topCampaign.redemptions || 0) === 1 ? '' : 's'}.`
+        : 'Promotion redemptions are still low or unavailable.';
 
       return `Data Summary
 
-The merchant analytics dataset covers the filtered period from ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}. It summarizes booking activity, paid revenue, service performance, category revenue, customer retention, marketing channels, campaign performance, finance indicators, predictive planning signals, and merchant leaderboard rows. The dashboard contains ${number(overview.total_bookings)} booking${Number(overview.total_bookings || 0) === 1 ? '' : 's'}, ${money(overview.revenue_generated)} in generated revenue, ${number(overview.number_of_customers)} customer${Number(overview.number_of_customers || 0) === 1 ? '' : 's'}, and an average order value of ${money(overview.average_order_value)}. The visible leaderboard is led by ${topMerchants}.
+The dashboard analyses merchant performance between ${dateLabel(range.startDate)} and ${dateLabel(range.endDate)}. During this period, merchants recorded ${number(overview.total_bookings)} booking${Number(overview.total_bookings || 0) === 1 ? '' : 's'}, generated ${money(overview.revenue_generated)} in paid revenue, served ${number(overview.number_of_customers)} customer${Number(overview.number_of_customers || 0) === 1 ? '' : 's'}, and achieved an average order value of ${money(overview.average_order_value)}.
+
+The strongest performance is concentrated around the leaderboard and category leaders. ${topMerchantText}. This indicates that merchant revenue is not evenly distributed and that top-performing merchants should be used as benchmarks for service mix, pricing, customer experience, and listing quality.
 
 Descriptive Statistics
 
-For daily revenue, the distribution has ${formatStat(revenueStats, money)}. Revenue by category has ${formatStat(categoryStats, money)}. Top-service booking counts have ${formatStat(serviceBookingStats, value => number(value) + ' booking' + (Math.round(value) === 1 ? '' : 's'))}. Merchant leaderboard revenue has ${formatStat(merchantRevenueStats, money)}. Key KPI values show a booking conversion rate of ${percent(overview.booking_conversion_rate)}, cancellation/no-show rate of ${percent(overview.cancellation_no_show_rate)}, satisfaction rating of ${Number(overview.customer_satisfaction_rating || 0).toFixed(1)}/5, average lead time of ${(Number((analytics.leadTime || {}).avg_lead_hours || 0) / 24).toFixed(1)} days, retention rate of ${percent(retentionRate)}, profit margin of ${percent(profitMargin)}, refund amount of ${money(financial.refunded_amount)}, refund count of ${number(financial.refund_count)}, and estimated tax of ${money(financial.estimated_tax)}.
+${revenueDistributionText} ${revenueTrendText}
 
-Frequency counts and percentages show booking status distribution as ${statusFrequency}. Category revenue distribution is ${categoryFrequency}. Payment method distribution is ${paymentFrequency}. Booking channel distribution is ${channelFrequency}. Top-selling service concentration is led by ${topServices}, while promotion performance includes ${campaigns}.
+Booking conversion is ${percent(overview.booking_conversion_rate)}, while cancellation/no-show risk is ${percent(overview.cancellation_no_show_rate)}. Customer satisfaction is ${Number(overview.customer_satisfaction_rating || 0).toFixed(1)}/5, retention is ${percent(retentionRate)}, average lead time is ${(Number((analytics.leadTime || {}).avg_lead_hours || 0) / 24).toFixed(1)} days, and profit margin is ${percent(profitMargin)} after recorded refunds.
 
-Key Observations
+Business Insights
 
-The main revenue trend is that ${trendText} Peak sales periods are ${peakSales}, and booking demand patterns are strongest at ${peakBookings}. Customer relationships worth investigating include ${number(segments.new_customers)} new customer${Number(segments.new_customers || 0) === 1 ? '' : 's'}, ${number(segments.returning_customers)} returning customer${Number(segments.returning_customers || 0) === 1 ? '' : 's'}, and loyal customer rows led by ${loyalCustomers}. Patterns worth investigating include whether high-revenue categories also have high booking conversion, whether peak booking hours align with peak revenue hours, and whether campaigns with redemptions are tied to repeat-customer behaviour. Unusual findings to review include categories or merchants where maximum revenue sits far above the median, booking statuses with unexpectedly high cancellation/no-show percentages, and payment or channel categories with low frequency but high revenue. Overall, the dataset is sufficiently complete for further merchant performance analysis, revenue trend analysis, operational capacity planning, campaign evaluation, and predictive modelling.`;
+Revenue Performance
+- ${categoryInsight}
+- ${serviceInsight}
+- Action: feature high-revenue categories and use top services as templates for bundles, upsells, and campaign creative.
+
+Booking Performance
+- The largest booking outcome is ${topStatus ? `${text(topStatus.status)} at ${statusShare(topStatus)}` : 'not available'}.
+- Completed bookings account for ${statusShare(completed)}, cancelled bookings account for ${statusShare(cancelled)}, and no-shows account for ${statusShare(noShow)}.
+- Action: investigate merchants or services with high cancellation/no-show rates and improve reminders, deposits, or rescheduling flows.
+
+Customer Retention
+- The period includes ${number(segments.new_customers)} new customer${Number(segments.new_customers || 0) === 1 ? '' : 's'} and ${number(segments.returning_customers)} returning customer${Number(segments.returning_customers || 0) === 1 ? '' : 's'}.
+- Retention is ${percent(retentionRate)}, which shows whether merchants are building repeat demand or relying mainly on first-time bookings.
+- Action: target low-repeat customer segments with win-back vouchers and personalized service reminders.
+
+Marketing And Channels
+- ${channelInsight}
+- ${campaignInsight}
+- Action: invest more in channels that convert to paid bookings, and judge campaigns by repeat bookings rather than redemptions alone.
+
+Payment And Finance
+- ${paymentInsight}
+- Refunds total ${money(financial.refunded_amount)} across ${number(financial.refund_count)} refund${Number(financial.refund_count || 0) === 1 ? '' : 's'}.
+- Action: maintain the most reliable payment method, monitor refund reasons, and protect checkout reliability during peak periods.
+
+Operational Planning
+- Peak sales periods are ${peakSales}; peak booking demand is ${peakBookings}.
+- Action: align staff coverage, featured listings, and promotions with both booking peaks and revenue peaks.
+
+Key Business Observations
+
+The merchant dashboard shows where the platform is generating value and where revenue may be leaking. Strong categories and services should be promoted more aggressively, while cancellation/no-show patterns need operational attention. Retention should be monitored closely because a marketplace that depends only on new customers will need constant acquisition spend. The best next step is to connect high-performing merchants, high-revenue services, booking channels, and repeat customers into targeted campaigns rather than broad promotions.`;
     }
 
     summaryButton.addEventListener('click', function () {
