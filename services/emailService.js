@@ -33,6 +33,10 @@ function getFromAddress() {
   return process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@uniday.local';
 }
 
+function normalizeRecipient(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
 function shouldLogSmtpDebug() {
   return String(process.env.SMTP_DEBUG || '').toLowerCase() === 'true';
 }
@@ -92,26 +96,42 @@ function bookingHtmlRows(booking) {
 }
 
 async function sendMailOrLog({ to, subject, text, html, logLabel }) {
-  if (!to) return { sent: false, reason: 'NO_RECIPIENT' };
+  const recipient = normalizeRecipient(to);
+  if (!recipient) return { sent: false, reason: 'NO_RECIPIENT' };
 
   const transporter = createTransporter();
 
   if (!transporter) {
-    console.log(`${logLabel || 'Email'} for ${to}:\n${text}`);
+    console.log(`${logLabel || 'Email'} for ${recipient}:\n${text}`);
     return { sent: false, reason: 'SMTP_NOT_CONFIGURED' };
   }
 
   const info = await transporter.sendMail({
     from: getFromAddress(),
-    to,
+    to: recipient,
     subject,
     text,
     html,
   });
 
+  const accepted = (info.accepted || []).map(normalizeRecipient);
+  const rejected = (info.rejected || []).map(normalizeRecipient);
+  const recipientAccepted = accepted.includes(recipient);
+
+  if (!recipientAccepted || rejected.includes(recipient)) {
+    console.error('[email] recipient rejected', {
+      to: recipient,
+      subject,
+      accepted: info.accepted,
+      rejected: info.rejected,
+      response: info.response,
+    });
+    return { sent: false, reason: 'RECIPIENT_REJECTED', accepted: info.accepted, rejected: info.rejected };
+  }
+
   if (shouldLogSmtpDebug()) {
     console.log('[email] sent', {
-      to,
+      to: recipient,
       subject,
       messageId: info.messageId,
       accepted: info.accepted,
@@ -120,7 +140,7 @@ async function sendMailOrLog({ to, subject, text, html, logLabel }) {
     });
   }
 
-  return { sent: true };
+  return { sent: true, accepted: info.accepted, rejected: info.rejected };
 }
 
 async function sendPasswordResetEmail(user, resetUrl) {

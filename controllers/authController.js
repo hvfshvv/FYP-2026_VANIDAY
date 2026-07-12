@@ -406,14 +406,23 @@ async function requestPasswordReset(req, res) {
 
     if (user) {
       const token = await authModel.createPasswordResetToken(user.user_id);
-      return res.redirect(`/auth/reset-password/${token}`);
+      const resetUrl = `${getBaseUrl(req)}/auth/reset-password/${token}`;
+      const result = await emailService.sendPasswordResetEmail(user, resetUrl);
+
+      return res.render('auth/forgotPassword', {
+        title: 'Forgot Password',
+        error: null,
+        resetLink: result.sent ? null : resetUrl,
+        resetEmailSent: result.sent,
+        submitted: true,
+      });
     }
 
     res.render('auth/forgotPassword', {
       title: 'Forgot Password',
       error: null,
       resetLink: null,
-      resetEmailSent: false,
+      resetEmailSent: true,
       submitted: true,
     });
   } catch (err) {
@@ -445,7 +454,16 @@ async function startPasswordResetFromLogin(req, res) {
     }
 
     const token = await authModel.createPasswordResetToken(user.user_id);
-    res.redirect(`/auth/reset-password/${token}`);
+    const resetUrl = `${getBaseUrl(req)}/auth/reset-password/${token}`;
+    const result = await emailService.sendPasswordResetEmail(user, resetUrl);
+
+    res.render('auth/forgotPassword', {
+      title: 'Forgot Password',
+      error: null,
+      resetLink: result.sent ? null : resetUrl,
+      resetEmailSent: result.sent,
+      submitted: true,
+    });
   } catch (err) {
     console.error(err);
     res.render('auth/login', {
