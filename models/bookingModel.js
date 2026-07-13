@@ -8,7 +8,6 @@
 const db = require('../config/db');
 const voucherModel = require('./voucherModel');
 const cancellationPolicyModel = require('./cancellationPolicyModel');
-const waitlistModel = require('./waitlistModel');
 const {
   resolveAvailableStaffForBooking,
   assertNoCustomerBookingConflict,
@@ -33,7 +32,6 @@ async function createBooking({
   guestName = null,
   guestEmail = null,
   guestPhone = null,
-  waitlistId = null,
 }) {
   await expirePendingPaymentBookings();
 
@@ -57,14 +55,6 @@ async function createBooking({
     if (!svc) {
       throw new Error('Selected service is not available for this merchant');
     }
-
-    await waitlistModel.assertNoBlockingOffer({
-      merchantId,
-      serviceId,
-      bookingDate,
-      bookingTime,
-      waitlistId,
-    });
 
     if (customerId) {
       // Check if customer already has an overlapping active booking.
@@ -163,10 +153,14 @@ async function createBooking({
   }
 }
 
-// Acquires a row lock on the customer record to serialise concurrent booking attempts.
+// Acquires a row lock on the customer account to serialise concurrent booking attempts.
 async function lockCustomerForBooking(connection, customerId) {
   const [[customer]] = await connection.query(
-    'SELECT customer_id FROM customer WHERE customer_id = ? FOR UPDATE',
+    `SELECT user_id AS customer_id
+     FROM users
+     WHERE user_id = ?
+       AND role = 'customer'
+     FOR UPDATE`,
     [customerId]
   );
 
@@ -216,7 +210,7 @@ async function getBookingById(bookingId) {
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
      LEFT JOIN staff st ON st.staff_id = b.staff_id
-     LEFT JOIN customer c ON b.customer_id = c.customer_id
+     LEFT JOIN users c ON b.customer_id = c.user_id
       LEFT JOIN promotion pr ON pr.promo_id = b.applied_promo_id
       LEFT JOIN customer_voucher cv_applied ON cv_applied.cv_id = b.applied_cv_id
       LEFT JOIN voucher vch_applied ON vch_applied.voucher_id = cv_applied.voucher_id
@@ -386,17 +380,6 @@ async function markCustomerArrivedForMerchant(customerId, merchantId) {
 // ── CANCELLATION ───────────────────────────────────────────────────────────
 
 // Cancels a customer booking, enforcing the merchant's cancellation policy window.
-async function offerWaitlistForReleasedSlot(booking, releaseReason) {
-  await waitlistModel.offerNextForSlot({
-    merchantId: booking.merchant_id,
-    serviceId: booking.service_id,
-    bookingDate: booking.slot_date,
-    bookingTime: booking.start_time,
-  }).catch(err => {
-    console.error(`[waitlist] failed to offer ${releaseReason} slot:`, err.message || err);
-  });
-}
-
 async function cancelCustomerBooking(bookingId, customerId) {
   const connection = await db.getConnection();
 
@@ -405,7 +388,7 @@ async function cancelCustomerBooking(bookingId, customerId) {
     await lockCustomerForBooking(connection, customerId);
 
     const [[booking]] = await connection.query(
-      `SELECT b.booking_id, b.slot_id, b.status, b.merchant_id, b.service_id, ts.slot_date, ts.start_time
+      `SELECT b.booking_id, b.slot_id, b.status, b.merchant_id, ts.slot_date, ts.start_time
        FROM booking b
        JOIN time_slot ts ON b.slot_id = ts.slot_id
        WHERE b.booking_id = ? AND b.customer_id = ?
@@ -440,8 +423,6 @@ async function cancelCustomerBooking(bookingId, customerId) {
     await connection.query('UPDATE time_slot SET is_available = TRUE WHERE slot_id = ?', [booking.slot_id]);
 
     await connection.commit();
-    await offerWaitlistForReleasedSlot(booking, 'cancelled');
-    return booking;
   } catch (err) {
     await connection.rollback();
     throw err;
@@ -567,8 +548,6 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
     );
 
     await connection.commit();
-    await offerWaitlistForReleasedSlot(booking, 'rescheduled');
-    return booking;
   } catch (err) {
     await connection.rollback();
     throw err;
@@ -596,7 +575,7 @@ async function getMerchantBookings(merchantId) {
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
-     LEFT JOIN customer c ON b.customer_id = c.customer_id
+     LEFT JOIN users c ON b.customer_id = c.user_id
      WHERE b.merchant_id = ?
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [merchantId]
@@ -671,7 +650,7 @@ async function getMerchantTodaySchedule(merchantId) {
      JOIN time_slot ts ON ts.slot_id = b.slot_id
      JOIN service s ON s.service_id = b.service_id
      LEFT JOIN staff st ON st.staff_id = b.staff_id
-     LEFT JOIN customer c ON c.customer_id = b.customer_id
+     LEFT JOIN users c ON c.user_id = b.customer_id
      WHERE b.merchant_id = ?
        AND ts.slot_date = CURDATE()
        AND ts.start_time >= CURTIME()

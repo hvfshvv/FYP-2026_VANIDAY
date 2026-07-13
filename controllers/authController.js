@@ -28,10 +28,6 @@ function getBaseUrl(req) {
   return (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
 }
 
-function getRequestBaseUrl(req) {
-  return `${req.protocol}://${req.get('host')}`.replace(/\/$/, '');
-}
-
 function isEmailVerificationRequired() {
   return String(process.env.EMAIL_VERIFICATION_REQUIRED || 'true').toLowerCase() !== 'false';
 }
@@ -80,8 +76,13 @@ async function buildSessionUser(user) {
   };
 
   if (user.role === 'customer') {
-    const customer = await authModel.getCustomerByUserId(user.user_id);
-    sessionUser.customer_id = customer ? customer.customer_id : null;
+    await authModel.ensureCustomerProfile(
+      user.user_id,
+      user.full_name,
+      user.email,
+      user.phone || null
+    );
+    sessionUser.customer_id = user.user_id;
   }
 
   if (user.role === 'merchant') {
@@ -333,9 +334,7 @@ async function register(req, res) {
         category.trim()
       );
 
-      await qrService.ensureMerchantQRCodes(merchantId, {
-        baseUrl: getRequestBaseUrl(req),
-      });
+      await qrService.ensureMerchantQRCodes(merchantId);
     }
 
     await sendWelcomeEmail(req, newUser);
@@ -406,23 +405,14 @@ async function requestPasswordReset(req, res) {
 
     if (user) {
       const token = await authModel.createPasswordResetToken(user.user_id);
-      const resetUrl = `${getBaseUrl(req)}/auth/reset-password/${token}`;
-      const result = await emailService.sendPasswordResetEmail(user, resetUrl);
-
-      return res.render('auth/forgotPassword', {
-        title: 'Forgot Password',
-        error: null,
-        resetLink: result.sent ? null : resetUrl,
-        resetEmailSent: result.sent,
-        submitted: true,
-      });
+      return res.redirect(`/auth/reset-password/${token}`);
     }
 
     res.render('auth/forgotPassword', {
       title: 'Forgot Password',
       error: null,
       resetLink: null,
-      resetEmailSent: true,
+      resetEmailSent: false,
       submitted: true,
     });
   } catch (err) {
@@ -454,16 +444,7 @@ async function startPasswordResetFromLogin(req, res) {
     }
 
     const token = await authModel.createPasswordResetToken(user.user_id);
-    const resetUrl = `${getBaseUrl(req)}/auth/reset-password/${token}`;
-    const result = await emailService.sendPasswordResetEmail(user, resetUrl);
-
-    res.render('auth/forgotPassword', {
-      title: 'Forgot Password',
-      error: null,
-      resetLink: result.sent ? null : resetUrl,
-      resetEmailSent: result.sent,
-      submitted: true,
-    });
+    res.redirect(`/auth/reset-password/${token}`);
   } catch (err) {
     console.error(err);
     res.render('auth/login', {

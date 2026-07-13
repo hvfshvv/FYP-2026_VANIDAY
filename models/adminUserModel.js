@@ -304,7 +304,7 @@ async function getMerchantBookingsForAdmin(merchantId) {
      FROM booking b
      JOIN time_slot ts ON ts.slot_id = b.slot_id
      JOIN service s ON s.service_id = b.service_id
-     LEFT JOIN customer c ON c.customer_id = b.customer_id
+     LEFT JOIN users c ON c.user_id = b.customer_id
      LEFT JOIN payment p ON p.booking_id = b.booking_id
      WHERE b.merchant_id = ?
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,

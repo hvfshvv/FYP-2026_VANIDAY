@@ -8,9 +8,8 @@ async function findUserByEmail(email) {
 
 async function findCustomerUserByEmail(email) {
   const [rows] = await db.query(
-    `SELECT u.*, c.customer_id
+    `SELECT u.*, u.user_id AS customer_id
      FROM users u
-     JOIN customer c ON c.user_id = u.user_id
      WHERE u.email = ?
        AND u.role = 'customer'
      LIMIT 1`,
@@ -28,6 +27,10 @@ async function createUser(full_name, email, passwordHash, phone, role) {
 }
 
 async function createCustomerProfile(userId, fullName, email, phone, dateOfBirth = null) {
+  await setUserDateOfBirthIfSupported(userId, dateOfBirth);
+
+  if (!(await tableExists('customer'))) return;
+
   await db.query(
     `INSERT INTO customer (customer_id, user_id, full_name, email, phone, date_of_birth)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -48,15 +51,22 @@ async function createMerchantProfile(userId, merchantName, email, phone, address
 
 async function getCustomerByUserId(userId) {
   const [rows] = await db.query(
-    'SELECT * FROM customer WHERE user_id = ?',
+    `SELECT u.*, u.user_id AS customer_id
+     FROM users u
+     WHERE u.user_id = ?
+       AND u.role = 'customer'
+     LIMIT 1`,
     [userId]
   );
   return rows[0] || null;
 }
 
 async function ensureCustomerProfile(userId, fullName, email, phone) {
-  const existing = await getCustomerByUserId(userId);
-  if (existing) return existing;
+  const existingUser = await getCustomerByUserId(userId);
+  if (existingUser) {
+    await ensureLegacyCustomerRow(existingUser, fullName, email, phone);
+    return existingUser;
+  }
 
   await createCustomerProfile(userId, fullName, email, phone);
 
@@ -72,6 +82,62 @@ async function ensureCustomerProfile(userId, fullName, email, phone) {
 async function getMerchantByUserId(userId) {
   const [rows] = await db.query('SELECT * FROM merchant WHERE user_id = ?', [userId]);
   return rows[0] || null;
+}
+
+async function tableExists(tableName) {
+  const [[row]] = await db.query(
+    `SELECT COUNT(*) AS count
+     FROM INFORMATION_SCHEMA.TABLES
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?`,
+    [tableName]
+  );
+
+  return Number(row?.count || 0) > 0;
+}
+
+async function columnExists(tableName, columnName) {
+  const [[row]] = await db.query(
+    `SELECT COUNT(*) AS count
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME = ?`,
+    [tableName, columnName]
+  );
+
+  return Number(row?.count || 0) > 0;
+}
+
+async function setUserDateOfBirthIfSupported(userId, dateOfBirth) {
+  if (!dateOfBirth) return;
+  if (!(await columnExists('users', 'date_of_birth'))) return;
+
+  await db.query(
+    'UPDATE users SET date_of_birth = ? WHERE user_id = ?',
+    [dateOfBirth, userId]
+  );
+}
+
+async function ensureLegacyCustomerRow(user, fullName = null, email = null, phone = null) {
+  if (!(await tableExists('customer'))) return;
+
+  await db.query(
+    `INSERT INTO customer (customer_id, user_id, full_name, email, phone)
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       user_id = VALUES(user_id),
+       full_name = VALUES(full_name),
+       email = VALUES(email),
+       phone = VALUES(phone)`,
+    [
+      user.user_id,
+      user.user_id,
+      fullName || user.full_name,
+      email || user.email,
+      phone || user.phone || null,
+    ]
+  );
 }
 
 function hashToken(token) {
@@ -99,27 +165,18 @@ async function verifyEmailToken(token) {
     await connection.beginTransaction();
 
     const [[verificationToken]] = await connection.query(
-      `SELECT evt.*, u.email, u.full_name, u.email_verified_at,
-              (evt.used_at IS NULL AND evt.expires_at > NOW()) AS is_usable
+      `SELECT evt.*, u.email, u.full_name
        FROM email_verification_token evt
        JOIN users u ON u.user_id = evt.user_id
        WHERE evt.token_hash = ?
+         AND evt.used_at IS NULL
+         AND evt.expires_at > NOW()
        LIMIT 1
        FOR UPDATE`,
       [tokenHash]
     );
 
     if (!verificationToken) {
-      await connection.rollback();
-      return null;
-    }
-
-    if (!verificationToken.is_usable) {
-      if (verificationToken.email_verified_at) {
-        await connection.commit();
-        return verificationToken;
-      }
-
       await connection.rollback();
       return null;
     }

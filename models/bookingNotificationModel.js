@@ -8,7 +8,6 @@
 const db = require('../config/db');
 const voucherModel = require('./voucherModel');
 const paymentModel = require('./paymentModel');
-const waitlistModel = require('./waitlistModel');
 
 // ── SCHEMA MIGRATION GUARD ─────────────────────────────────────────────────
 
@@ -160,7 +159,7 @@ async function getBookingsNeedingEmailReminders() {
      JOIN time_slot ts ON b.slot_id = ts.slot_id
      JOIN service s ON b.service_id = s.service_id
      JOIN merchant m ON b.merchant_id = m.merchant_id
-     LEFT JOIN customer c ON b.customer_id = c.customer_id
+     LEFT JOIN users c ON b.customer_id = c.user_id
      -- LEFT JOIN excludes bookings that already received a sent reminder
      LEFT JOIN notification n ON n.booking_id = b.booking_id
        AND n.notification_type = 'reminder_24h'
@@ -203,9 +202,8 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
 
     // Find bookings that exceeded the TTL without a payment — lock for safe update.
     const [expired] = await connection.query(
-      `SELECT b.booking_id, b.slot_id, b.merchant_id, b.service_id, ts.slot_date, ts.start_time
+      `SELECT b.booking_id, b.slot_id
        FROM booking b
-       JOIN time_slot ts ON ts.slot_id = b.slot_id
        LEFT JOIN payment paid ON paid.booking_id = b.booking_id
         AND paid.payment_status = 'paid'
        LEFT JOIN payment p ON p.booking_id = b.booking_id
@@ -233,14 +231,6 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
       [bookingIds]
     );
 
-    await connection.query(
-      `UPDATE payment
-       SET payment_status = 'failed'
-       WHERE booking_id IN (?)
-         AND payment_status <> 'paid'`,
-      [bookingIds]
-    );
-
     if (slotIds.length) {
       // Return all freed slot rows back to available so other customers can book them.
       await connection.query(
@@ -250,18 +240,6 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
     }
 
     await connection.commit();
-
-    for (const booking of expired) {
-      await waitlistModel.offerNextForSlot({
-        merchantId: booking.merchant_id,
-        serviceId: booking.service_id,
-        bookingDate: booking.slot_date,
-        bookingTime: booking.start_time,
-      }).catch(err => {
-        console.error('[waitlist] failed to offer expired payment slot:', err.message || err);
-      });
-    }
-
     return expired.length;
   } catch (err) {
     await connection.rollback();

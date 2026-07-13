@@ -16,6 +16,10 @@ function getSelectedCategory(req) {
   return normalizeServiceCategory(req.query.category);
 }
 
+function currentCustomerId(req) {
+  return req.session.user.customer_id || req.session.user.user_id;
+}
+
 async function showHome(req, res) {
   try {
     const [featured, promotions] = await Promise.all([
@@ -48,7 +52,7 @@ async function showMarketplace(req, res) {
 
     if (req.session.user && req.session.user.role === 'customer') {
       const favourites = await favouriteModel.getFavouriteMerchants(
-        req.session.user.customer_id
+        currentCustomerId(req)
       );
 
       favouriteMerchantIds = favourites.map(f => f.merchant_id);
@@ -113,7 +117,7 @@ async function showMerchantDetails(req, res) {
     if (req.session.user && req.session.user.role === 'customer') {
       favouriteServiceIds =
         await favouriteModel.getFavouriteServiceIds(
-          req.session.user.customer_id,
+          currentCustomerId(req),
           merchantId
         );
     }

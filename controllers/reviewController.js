@@ -24,6 +24,10 @@ function detectedImageMime(buffer) {
   return null;
 }
 
+function currentCustomerId(req) {
+  return req.session.user.customer_id || req.session.user.user_id;
+}
+
 function handleReviewUpload(req, res, next) {
   upload.single('review_image')(req, res, err => {
     if (!err) return next();
@@ -36,7 +40,7 @@ function handleReviewUpload(req, res, next) {
 
 async function showBookingReview(req, res) {
   try {
-    const customerId = req.session.user.customer_id;
+    const customerId = currentCustomerId(req);
     const booking = await reviewModel.getCompletedBookingForReview(
       req.params.bookingId,
       customerId
@@ -63,7 +67,7 @@ async function showBookingReview(req, res) {
 }
 
 async function submitBookingReview(req, res) {
-  const customerId = req.session.user.customer_id;
+  const customerId = currentCustomerId(req);
   const formValues = req.body || {};
 
   try {
