@@ -51,7 +51,7 @@ async function ensureWaitlistSchema() {
       INDEX idx_waitlist_customer_status (customer_id, status, joined_at),
       INDEX idx_waitlist_offer_expiry (status, offer_expires_at),
       CONSTRAINT fk_waitlist_customer
-        FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
+        FOREIGN KEY (customer_id) REFERENCES users(user_id)
         ON DELETE CASCADE,
       CONSTRAINT fk_waitlist_merchant
         FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)
@@ -70,7 +70,7 @@ async function ensureWaitlistSchema() {
 
 async function getCustomerUserId(customerId, connection = db) {
   const [[customer]] = await connection.query(
-    'SELECT user_id FROM customer WHERE customer_id = ? LIMIT 1',
+    "SELECT user_id FROM users WHERE user_id = ? AND role = 'customer' LIMIT 1",
     [customerId]
   );
   return customer?.user_id || null;
@@ -287,7 +287,13 @@ async function offerNextForSlot(slot) {
 
     return next.waitlist_id;
   } catch (err) {
-    await connection.rollback();
+    try {
+      await connection.rollback();
+    } catch (rollbackErr) {
+      if (!['ECONNRESET', 'PROTOCOL_CONNECTION_LOST'].includes(err.code)) {
+        console.error('[waitlist] Rollback failed:', rollbackErr.message);
+      }
+    }
     throw err;
   } finally {
     connection.release();
@@ -467,7 +473,7 @@ async function getMerchantWaitlists(merchantId) {
                 AND same_slot.status IN ('waiting', 'offered')
             ) AS waiting_count
      FROM waitlist w
-     JOIN customer c ON c.customer_id = w.customer_id
+     JOIN users c ON c.user_id = w.customer_id AND c.role = 'customer'
      JOIN service s ON s.service_id = w.service_id
      WHERE w.merchant_id = ?
      ORDER BY w.booking_date ASC, w.booking_time ASC,

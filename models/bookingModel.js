@@ -8,6 +8,7 @@
 const db = require('../config/db');
 const voucherModel = require('./voucherModel');
 const cancellationPolicyModel = require('./cancellationPolicyModel');
+const waitlistModel = require('./waitlistModel');
 const {
   resolveAvailableStaffForBooking,
   assertNoCustomerBookingConflict,
@@ -32,10 +33,18 @@ async function createBooking({
   guestName = null,
   guestEmail = null,
   guestPhone = null,
+  waitlistId = null,
 }) {
   await expirePendingPaymentBookings();
 
   assertCurrentOrFutureSlot(bookingDate, bookingTime);
+  await waitlistModel.assertNoBlockingOffer({
+    merchantId,
+    serviceId,
+    bookingDate,
+    bookingTime,
+    waitlistId,
+  });
 
   const connection = await db.getConnection();
 
@@ -382,13 +391,15 @@ async function markCustomerArrivedForMerchant(customerId, merchantId) {
 // Cancels a customer booking, enforcing the merchant's cancellation policy window.
 async function cancelCustomerBooking(bookingId, customerId) {
   const connection = await db.getConnection();
+  let releasedSlot = null;
 
   try {
     await connection.beginTransaction();
     await lockCustomerForBooking(connection, customerId);
 
     const [[booking]] = await connection.query(
-      `SELECT b.booking_id, b.slot_id, b.status, b.merchant_id, ts.slot_date, ts.start_time
+      `SELECT b.booking_id, b.slot_id, b.status, b.merchant_id, b.service_id,
+              ts.slot_date, ts.start_time
        FROM booking b
        JOIN time_slot ts ON b.slot_id = ts.slot_id
        WHERE b.booking_id = ? AND b.customer_id = ?
@@ -423,11 +434,16 @@ async function cancelCustomerBooking(bookingId, customerId) {
     await connection.query('UPDATE time_slot SET is_available = TRUE WHERE slot_id = ?', [booking.slot_id]);
 
     await connection.commit();
+    releasedSlot = booking;
   } catch (err) {
     await connection.rollback();
     throw err;
   } finally {
     connection.release();
+  }
+
+  if (releasedSlot) {
+    await waitlistModel.offerNextForSlot(releasedSlot);
   }
 }
 
@@ -436,6 +452,7 @@ async function cancelCustomerBooking(bookingId, customerId) {
 // Moves a booking to a new date/time, freeing the old slot and claiming a new one.
 async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, bookingTime) {
   const connection = await db.getConnection();
+  let releasedSlot = null;
 
   try {
     await connection.beginTransaction();
@@ -464,6 +481,12 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
     }
 
     assertCurrentOrFutureSlot(bookingDate, bookingTime);
+    await waitlistModel.assertNoBlockingOffer({
+      merchantId: booking.merchant_id,
+      serviceId: booking.service_id,
+      bookingDate,
+      bookingTime,
+    });
 
     const currentDate = formatDateValue(booking.slot_date);
     const currentTime = String(booking.start_time).slice(0, 5);
@@ -548,11 +571,16 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
     );
 
     await connection.commit();
+    releasedSlot = booking;
   } catch (err) {
     await connection.rollback();
     throw err;
   } finally {
     connection.release();
+  }
+
+  if (releasedSlot) {
+    await waitlistModel.offerNextForSlot(releasedSlot);
   }
 }
 

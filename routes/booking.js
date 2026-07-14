@@ -21,6 +21,7 @@ router.post('/:bookingId/review', requireLogin, reviewCtrl.handleReviewUpload, r
 
 router.get('/', requireLogin, ctrl.showPortalBookingPage);
 router.post('/confirm', requireLogin, ctrl.confirmPortalBooking);
+router.post('/waitlist', requireLogin, ctrl.joinWaitlistFromPortal);
 
 router.get('/arrival/:token', ctrl.confirmArrivalByQR);
 

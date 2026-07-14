@@ -8,6 +8,7 @@
 const db = require('../config/db');
 const voucherModel = require('./voucherModel');
 const paymentModel = require('./paymentModel');
+const waitlistModel = require('./waitlistModel');
 
 // ── SCHEMA MIGRATION GUARD ─────────────────────────────────────────────────
 
@@ -202,8 +203,10 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
 
     // Find bookings that exceeded the TTL without a payment — lock for safe update.
     const [expired] = await connection.query(
-      `SELECT b.booking_id, b.slot_id
+      `SELECT b.booking_id, b.slot_id, b.merchant_id, b.service_id,
+              ts.slot_date AS booking_date, ts.start_time AS booking_time
        FROM booking b
+       JOIN time_slot ts ON ts.slot_id = b.slot_id
        LEFT JOIN payment paid ON paid.booking_id = b.booking_id
         AND paid.payment_status = 'paid'
        LEFT JOIN payment p ON p.booking_id = b.booking_id
@@ -240,9 +243,23 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
     }
 
     await connection.commit();
+
+    for (const slot of expired) {
+      await waitlistModel.offerNextForSlot(slot).catch(err => {
+        console.error('[waitlist] Failed to offer a released payment slot:', err.message);
+      });
+    }
     return expired.length;
   } catch (err) {
-    await connection.rollback();
+    // Preserve the original network/query error if the connection died before
+    // MySQL could accept the rollback command.
+    try {
+      await connection.rollback();
+    } catch (rollbackErr) {
+      if (!['ECONNRESET', 'PROTOCOL_CONNECTION_LOST'].includes(err.code)) {
+        console.error('[booking] Rollback failed:', rollbackErr.message);
+      }
+    }
     throw err;
   } finally {
     connection.release();

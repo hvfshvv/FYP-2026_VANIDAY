@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS waitlist (
   INDEX idx_waitlist_customer_status (customer_id, status, joined_at),
   INDEX idx_waitlist_offer_expiry (status, offer_expires_at),
   CONSTRAINT fk_waitlist_customer
-    FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
+    FOREIGN KEY (customer_id) REFERENCES users(user_id)
     ON DELETE CASCADE,
   CONSTRAINT fk_waitlist_merchant
     FOREIGN KEY (merchant_id) REFERENCES merchant(merchant_id)

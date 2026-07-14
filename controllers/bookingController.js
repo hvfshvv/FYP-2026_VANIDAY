@@ -10,6 +10,7 @@ const cancellationPolicyModel = require('../models/cancellationPolicyModel');
 const notificationModel = require('../models/notificationModel');
 const emailService = require('../services/emailService');
 const walletModel = require('../models/walletModel');
+const waitlistModel = require('../models/waitlistModel');
 
 // Power Automate webhook URL: paste your webhook URL here or set POWER_AUTOMATE_WEBHOOK_URL in .env
 const POWER_AUTOMATE_WEBHOOK_URL = process.env.POWER_AUTOMATE_WEBHOOK_URL || 'PASTE_YOUR_POWER_AUTOMATE_WEBHOOK_URL_HERE';
@@ -203,7 +204,7 @@ async function confirmPortalBooking(req, res) {
       bookingDate: booking_date,
       bookingTime: booking_time,
       staffId:     staff_id || null,
-      source:      'portal',
+      source:      'marketplace',
     });
     await sendBookingCreatedNotification(bookingId);
 
@@ -257,10 +258,14 @@ async function confirmPortalBooking(req, res) {
 async function viewCustomerBookings(req, res) {
   try {
     const customerId = req.session.user.customer_id || req.session.user.user_id;
-    const bookings = await bookingModel.getCustomerBookings(customerId);
+    const [bookings, waitlists] = await Promise.all([
+      bookingModel.getCustomerBookings(customerId),
+      waitlistModel.getCustomerWaitlists(customerId),
+    ]);
     res.render('booking/viewBookings', {
       title: 'My Bookings',
       bookings,
+      waitlists,
       success: req.query.success,
       error: req.query.error,
     });
@@ -269,8 +274,93 @@ async function viewCustomerBookings(req, res) {
     res.render('booking/viewBookings', {
       title: 'My Bookings',
       bookings: [],
+      waitlists: [],
       error: 'Could not load your bookings. Please try again.',
     });
+  }
+}
+
+async function joinWaitlistFromQR(req, res) {
+  const { token } = req.params;
+
+  try {
+    const qr = await qrModel.getQRByToken(token);
+    if (!qr) throw new Error('This booking QR code is invalid or no longer active.');
+
+    const result = await waitlistModel.joinWaitlist({
+      customerId: currentCustomerId(req),
+      merchantId: qr.merchant_id,
+      serviceId: req.body.service_id,
+      bookingDate: req.body.booking_date,
+      bookingTime: req.body.booking_time,
+    });
+
+    const message = result.alreadyJoined
+      ? 'You are already on the waitlist for this slot.'
+      : 'You joined the waitlist successfully.';
+    res.redirect('/book/viewBookings?success=' + encodeURIComponent(message));
+  } catch (err) {
+    console.error(err);
+    res.redirect(`/book/${encodeURIComponent(token)}?error=${encodeURIComponent(err.message || 'Could not join the waitlist.')}`);
+  }
+}
+
+async function joinWaitlistFromPortal(req, res) {
+  try {
+    const { merchant_id, service_id, booking_date, booking_time } = req.body;
+    const result = await waitlistModel.joinWaitlist({
+      customerId: currentCustomerId(req),
+      merchantId: merchant_id,
+      serviceId: service_id,
+      bookingDate: booking_date,
+      bookingTime: booking_time,
+    });
+
+    const message = result.alreadyJoined
+      ? 'You are already on the waitlist for this slot.'
+      : 'You joined the waitlist successfully.';
+    res.redirect('/book/viewBookings?success=' + encodeURIComponent(message));
+  } catch (err) {
+    console.error(err);
+    res.redirect('/book/viewBookings?error=' + encodeURIComponent(err.message || 'Could not join the waitlist.'));
+  }
+}
+
+async function confirmWaitlistOffer(req, res) {
+  try {
+    const customerId = currentCustomerId(req);
+    const entry = await waitlistModel.getWaitlistByIdForCustomer(req.params.waitlistId, customerId);
+
+    if (!entry || entry.status !== 'offered' || !entry.offer_expires_at || new Date(entry.offer_expires_at) < new Date()) {
+      throw new Error('This waitlist offer is no longer available.');
+    }
+
+    const bookingId = await bookingModel.createBooking({
+      customerId,
+      serviceId: entry.service_id,
+      merchantId: entry.merchant_id,
+      bookingDate: bookingModel.formatDateValue(entry.booking_date),
+      bookingTime: String(entry.booking_time).slice(0, 5),
+      source: 'web',
+      waitlistId: entry.waitlist_id,
+    });
+
+    await waitlistModel.markConfirmed(entry.waitlist_id, bookingId);
+    await sendBookingCreatedNotification(bookingId);
+    res.redirect(`/payment/checkout/${bookingId}`);
+  } catch (err) {
+    console.error(err);
+    res.redirect('/book/viewBookings?error=' + encodeURIComponent(err.message || 'Could not confirm the waitlist offer.'));
+  }
+}
+
+async function cancelWaitlistRequest(req, res) {
+  try {
+    await waitlistModel.cancelCustomerWaitlist(req.params.waitlistId, currentCustomerId(req));
+    res.redirect('/book/viewBookings?success=' + encodeURIComponent('Waitlist request cancelled.'));
+  } catch (err) {
+    console.error(err);
+    res.redirect('/book/viewBookings?error=' + encodeURIComponent(err.message || 'Could not cancel the waitlist request.'));
   }
 }
 
@@ -651,7 +741,13 @@ async function getAvailableSlots(req, res) {
 
   try {
     const { merchantId, serviceId, staffId, bookingDate } = req.query;
-    const slots = await slotModel.getAvailableSlots({ merchantId, serviceId, staffId, bookingDate });
+    const slots = await slotModel.getAvailableSlots({
+      merchantId,
+      serviceId,
+      staffId,
+      bookingDate,
+      includeUnavailable: true,
+    });
     res.json(slots);
   } catch (err) {
     console.error(err);
@@ -697,5 +793,9 @@ module.exports = {
   rescheduleCustomerBooking,
   confirmArrival,
   getAvailableSlots,
-  getAvailableStaff
+  getAvailableStaff,
+  joinWaitlistFromQR,
+  joinWaitlistFromPortal,
+  confirmWaitlistOffer,
+  cancelWaitlistRequest,
 };

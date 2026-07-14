@@ -80,7 +80,7 @@
       </div>
     <% } %>
 
-    <form action="/book/confirm" method="POST" class="row g-4">
+    <form action="/book/confirm" method="POST" class="row g-4" id="portalBookingForm">
       <input type="hidden" name="merchant_id" value="<%= merchant ? merchant.merchant_id : '' %>" />
 
       <section class="col-lg-7">
@@ -343,6 +343,7 @@
             </div>
 
             <button
+              id="bookingSubmitButton"
               class="btn btn-primary btn-pill w-100 py-2"
               type="submit"
               style="font-weight:800;"
@@ -478,6 +479,16 @@
           ' at ' +
           bookingTime.value.slice(0, 5)
         : window.t('portalBooking.selectDateTimeSummary');
+  }
+
+  function updateBookingAction() {
+    const selectedOption = bookingTime.options[bookingTime.selectedIndex];
+    const isWaitlist = selectedOption && selectedOption.dataset.available === 'false';
+    const submitButton = document.getElementById('bookingSubmitButton');
+    submitButton.textContent = isWaitlist ? 'Join Waitlist' : window.t('portalBooking.proceedPayment');
+    submitButton.classList.toggle('btn-outline-primary', isWaitlist);
+    submitButton.classList.toggle('btn-primary', !isWaitlist);
+    return isWaitlist;
   }
 
   function selectStaff(button) {
@@ -702,14 +713,33 @@
       }
 
       bookingTime.innerHTML = slots.map(slot => {
+        const time = String(slot.start_time).slice(0, 5);
+        const isAvailable = slot.is_available !== false;
+        const queue = Number(slot.waitlist_count || 0);
+        const suffix = isAvailable
+          ? ''
+          : ` — Fully booked · ${queue ? queue + ' waiting' : 'Join waitlist'}`;
         return `
-          <option value="${slot.start_time}">
-            ${slot.label}
+          <option value="${slot.start_time}" data-available="${isAvailable ? 'true' : 'false'}">
+            ${slot.label || time}${suffix}
           </option>
         `;
       }).join('');
 
-      await loadAvailableStaff();
+      // Keep full slots visible in chronological order, but default to the
+      // next slot that can actually be booked. Joining a waitlist should be
+      // an explicit choice made by opening the dropdown and selecting it.
+      const firstAvailableOption = Array.from(bookingTime.options)
+        .find(option => option.dataset.available === 'true');
+      if (firstAvailableOption) {
+        bookingTime.value = firstAvailableOption.value;
+      }
+
+      if (updateBookingAction()) {
+        renderStaffOptions([]);
+      } else {
+        await loadAvailableStaff();
+      }
       updateSummary();
 
     } catch (err) {
@@ -735,7 +765,11 @@
 
   bookingTime.addEventListener('change', () => {
     validateSlot();
-    loadAvailableStaff();
+    if (updateBookingAction()) {
+      renderStaffOptions([]);
+    } else {
+      loadAvailableStaff();
+    }
     updateSummary();
   });
 
@@ -760,11 +794,17 @@
     });
   });
 
-  document.querySelector('form').addEventListener(
+  document.getElementById('portalBookingForm').addEventListener(
     'submit',
     event => {
       if (!validateSlot()) {
         event.preventDefault();
+        return;
+      }
+
+      const selectedOption = bookingTime.options[bookingTime.selectedIndex];
+      if (selectedOption && selectedOption.dataset.available === 'false') {
+        event.currentTarget.action = '/book/waitlist';
       }
     }
   );
