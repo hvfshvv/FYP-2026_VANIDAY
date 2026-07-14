@@ -6,7 +6,6 @@ const { requireLogin } = require('../middleware/auth');
 router.use(requireLogin);
 
 router.get('/', ctrl.listNotifications);
-router.post('/ask', ctrl.askAssistant);
 router.post('/read-all', ctrl.markAllRead);
 router.post('/:notificationId/read', ctrl.markRead);
 

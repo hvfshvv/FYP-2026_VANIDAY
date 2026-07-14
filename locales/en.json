@@ -278,6 +278,7 @@
     "section": "Bookings",
     "title": "My Booking History",
     "subtitle": "View your past and current appointments from Uniday.",
+    "bookNow": "Book Now",
     "bookAgain": "Book Again",
     "waitlist": "Waitlist",
     "queueNumber": "Queue #{{number}}",

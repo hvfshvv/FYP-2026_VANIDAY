@@ -134,7 +134,7 @@
         <p style="color:var(--muted);margin:0;"><%= t('bookings.subtitle') %></p>
       </div>
       <a href="/marketplace" class="btn btn-primary btn-pill">
-        <i class="bi bi-calendar-plus me-2"></i><%= t('bookings.bookAgain') %>
+        <i class="bi bi-calendar-plus me-2"></i><%= t('bookings.bookNow') %>
       </a>
     </div>
 
@@ -313,17 +313,22 @@
                       </button>
                     </form>
                   </div>
-                <% } else if (booking.status === 'completed') { %>
+                <% } else { %>
                   <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
-                    <% if (!booking.merchant_review_id) { %>
-                    <a href="/book/<%= booking.booking_id %>/review" class="btn btn-primary btn-sm btn-pill">
-                      <i class="bi bi-star me-1"></i><%= t('bookings.leaveReview') %>
-                    </a>
-                    <% } else { %>
-                    <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);">
-                      <i class="bi bi-star-fill me-1"></i><%= t('bookings.reviewed') %>
-                    </span>
+                    <% if (booking.status === 'completed') { %>
+                      <% if (!booking.merchant_review_id) { %>
+                      <a href="/book/<%= booking.booking_id %>/review" class="btn btn-primary btn-sm btn-pill">
+                        <i class="bi bi-star me-1"></i><%= t('bookings.leaveReview') %>
+                      </a>
+                      <% } else { %>
+                      <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);">
+                        <i class="bi bi-star-fill me-1"></i><%= t('bookings.reviewed') %>
+                      </span>
+                      <% } %>
                     <% } %>
+                    <a href="/book/<%= booking.booking_id %>/rebook" class="btn btn-outline-primary btn-sm btn-pill mt-2">
+                      <i class="bi bi-arrow-clockwise me-1"></i><%= t('bookings.bookAgain') %>
+                    </a>
                   </div>
                 <% } %>
               </div>

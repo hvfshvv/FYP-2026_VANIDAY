@@ -53,24 +53,18 @@ app.use((req, res, next) => {
 app.use(async (req, res, next) => {
   res.locals.pendingPaymentCount = 0;
   res.locals.unreadNotificationCount = 0;
-  res.locals.assistantPreviewMessages = [];
   const user = req.session.user;
   if (!user) return next();
 
   try {
-    const tasks = [
-      notificationModel.countUnreadForUser(user.user_id),
-      notificationModel.getUnreadForUser(user.user_id, 3),
-    ];
+    const unreadCount = await notificationModel.countUnreadForUser(user.user_id);
 
     if (user.role === 'customer') {
-      tasks.push(bookingNotificationModel.countActivePendingPaymentBookings(user.customer_id || user.user_id));
+      const pendingPaymentCount = await bookingNotificationModel.countActivePendingPaymentBookings(user.customer_id || user.user_id);
+      res.locals.pendingPaymentCount = pendingPaymentCount;
     }
 
-    const [unreadCount, assistantPreviewMessages, pendingPaymentCount = 0] = await Promise.all(tasks);
     res.locals.unreadNotificationCount = unreadCount;
-    res.locals.assistantPreviewMessages = assistantPreviewMessages;
-    res.locals.pendingPaymentCount = pendingPaymentCount;
   } catch (err) {
     console.error('[app] Failed to load navigation counters:', err.message);
   }
@@ -90,7 +84,6 @@ app.use('/favourite', favouriteRoutes);
 app.use('/loyalty',    loyaltyRoutes);
 app.use('/wallet',     walletRoutes);
 app.use('/notifications', notificationRoutes);
-app.use('/assistant', notificationRoutes);
 app.use('/client-diaries', clientDiariesRoutes);
 
 async function releaseExpiredPendingPayments() {

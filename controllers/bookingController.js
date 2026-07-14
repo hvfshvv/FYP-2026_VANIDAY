@@ -475,7 +475,7 @@ async function showBookingPage(req, res) {
 async function showPortalBookingPage(req, res) {
   if (redirectMerchantAwayFromBooking(req, res)) return;
 
-  const { merchantId, serviceId } = req.query;
+  const { merchantId, serviceId, staffId } = req.query;
 
   try {
     const merchant = merchantId ? await merchantModel.getMerchantById(merchantId) : null;
@@ -500,6 +500,7 @@ async function showPortalBookingPage(req, res) {
       serviceList,
       selectedService,
       staff,
+      selectedStaffId: staffId || '',
       cancellationPolicy,
       cancellationPolicySummary: cancellationPolicy
         ? cancellationPolicyModel.getPolicySummary(cancellationPolicy)
@@ -511,6 +512,30 @@ async function showPortalBookingPage(req, res) {
   } catch (err) {
     console.error(err);
     res.status(500).send('Error loading booking page');
+  }
+}
+
+async function rebookBooking(req, res) {
+  try {
+    const customerId = currentCustomerId(req);
+    const booking = await bookingModel.getCustomerBookingById(req.params.bookingId, customerId);
+
+    if (!booking) {
+      return res.redirect('/book/viewBookings?error=' + encodeURIComponent('Booking not found.'));
+    }
+
+    const query = new URLSearchParams({
+      merchantId: String(booking.merchant_id),
+      serviceId: String(booking.service_id),
+    });
+    if (booking.staff_id) {
+      query.set('staffId', String(booking.staff_id));
+    }
+
+    res.redirect('/book?' + query.toString());
+  } catch (err) {
+    console.error(err);
+    res.redirect('/book/viewBookings?error=' + encodeURIComponent('Unable to rebook this appointment.'));
   }
 }
 
@@ -791,6 +816,7 @@ module.exports = {
   cancelCustomerBooking,
   showRescheduleBooking,
   rescheduleCustomerBooking,
+  rebookBooking,
   confirmArrival,
   getAvailableSlots,
   getAvailableStaff,

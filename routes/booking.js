@@ -22,7 +22,7 @@ router.post('/:bookingId/review', requireLogin, reviewCtrl.handleReviewUpload, r
 router.get('/', requireLogin, ctrl.showPortalBookingPage);
 router.post('/confirm', requireLogin, ctrl.confirmPortalBooking);
 router.post('/waitlist', requireLogin, ctrl.joinWaitlistFromPortal);
-
+router.get('/:bookingId/rebook', requireLogin, ctrl.rebookBooking);
 router.get('/arrival/:token', ctrl.confirmArrivalByQR);
 
 // Keep QR booking public only if walk-in QR guests are allowed

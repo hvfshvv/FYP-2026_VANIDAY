@@ -219,7 +219,7 @@
               <div class="col-md-4">
                 <button
                   type="button"
-                  class="staff-option selected d-flex flex-column align-items-center justify-content-center text-center h-100 p-3"
+                  class="staff-option <%= !selectedStaffId ? 'selected' : '' %> d-flex flex-column align-items-center justify-content-center text-center h-100 p-3"
                   data-staff-name="<%= t('common.noPreference') %>"
                   onclick="selectStaff(this)"
                   style="border:1px solid var(--accent); border-radius:var(--r); background:var(--accent-light); cursor:pointer; min-height:112px; width:100%;"
@@ -228,7 +228,7 @@
                     type="radio"
                     name="staff_id"
                     value=""
-                    checked
+                    <%= !selectedStaffId ? 'checked' : '' %>
                     style="position:absolute; opacity:0;"
                   >
 
@@ -246,7 +246,7 @@
                 <div class="col-md-4">
                   <button
                     type="button"
-                    class="staff-option d-flex flex-column align-items-center justify-content-center text-center h-100 p-3"
+                    class="staff-option <%= String(member.staff_id) === String(selectedStaffId) ? 'selected' : '' %> d-flex flex-column align-items-center justify-content-center text-center h-100 p-3"
                     data-staff-name="<%= member.full_name %>"
                     onclick="selectStaff(this)"
                     style="border:1px solid var(--border); border-radius:var(--r); background:var(--surface); cursor:pointer; min-height:112px; width:100%;"
@@ -255,6 +255,7 @@
                       type="radio"
                       name="staff_id"
                       value="<%= member.staff_id %>"
+                      <%= String(member.staff_id) === String(selectedStaffId) ? 'checked' : '' %>
                       style="position:absolute; opacity:0;"
                     >
 
