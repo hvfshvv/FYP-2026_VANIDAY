@@ -116,6 +116,18 @@ function buildBookingRescheduledMessage(booking, previousBooking = null) {
   );
 }
 
+function buildWaitlistOfferMessage(entry, confirmUrl = null) {
+  return (
+    'Good news! A Uniday waitlist slot is now available.\n\n' +
+    'Merchant: ' + entry.merchant_name + '\n' +
+    'Service: ' + entry.service_name + '\n' +
+    'Date: ' + formatDate(entry.booking_date) + '\n' +
+    'Time: ' + formatTime(entry.booking_time) + '\n\n' +
+    'You have ' + Number(entry.offer_minutes || 15) + ' minutes to confirm it from My Bookings.' +
+    (confirmUrl ? '\n\nOpen My Bookings: ' + confirmUrl : '')
+  );
+}
+
 async function sendBookingConfirmation(booking) {
   if (!booking || booking.source !== 'whatsapp') {
     return { skipped: true, reason: 'not_whatsapp_booking' };
@@ -216,6 +228,28 @@ async function sendBookingRescheduled(booking, previousBooking = null) {
   }
 }
 
+async function sendWaitlistOffer(entry, confirmUrl = null) {
+  const client = getClient();
+  const from = process.env.TWILIO_WHATSAPP_NUMBER;
+  const to = toWhatsAppAddress(entry && entry.customer_phone);
+
+  if (!client || !from || !to) {
+    return { skipped: true, reason: 'missing_twilio_config_or_phone' };
+  }
+
+  try {
+    const message = await client.messages.create({
+      from,
+      to,
+      body: buildWaitlistOfferMessage(entry, confirmUrl)
+    });
+
+    return { skipped: false, sid: message.sid };
+  } catch (err) {
+    return { skipped: false, error: err.message || 'whatsapp_send_failed' };
+  }
+}
+
 async function sendSupportReply(phone, body) {
   const client = getClient();
   const from = process.env.TWILIO_WHATSAPP_NUMBER;
@@ -248,6 +282,8 @@ module.exports = {
   buildBookingReminderMessage,
   buildBookingCancellationMessage,
   buildBookingRescheduledMessage,
+  buildWaitlistOfferMessage,
+  sendWaitlistOffer,
   sendSupportReply,
   toWhatsAppAddress
 };

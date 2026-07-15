@@ -1,10 +1,11 @@
 const db = require('../config/db');
 const notificationModel = require('./notificationModel');
+const waitlistNotificationService = require('../services/waitlistNotificationService');
 
 let schemaReady = false;
 
 const ACTIVE_STATUSES = ['waiting', 'offered'];
-const OFFER_MINUTES = 15;
+const OFFER_MINUTES = 30;
 
 function formatDateValue(value) {
   if (value instanceof Date) {
@@ -78,10 +79,14 @@ async function getCustomerUserId(customerId, connection = db) {
 
 async function getSlotLabel(waitlistId, connection = db) {
   const [[row]] = await connection.query(
-    `SELECT w.*, m.merchant_name, s.service_name
+    `SELECT w.*, m.merchant_name, s.service_name,
+            u.full_name AS customer_name,
+            u.email AS customer_email,
+            u.phone AS customer_phone
      FROM waitlist w
      JOIN merchant m ON m.merchant_id = w.merchant_id
      JOIN service s ON s.service_id = w.service_id
+     JOIN users u ON u.user_id = w.customer_id AND u.role = 'customer'
      WHERE w.waitlist_id = ?
      LIMIT 1`,
     [waitlistId]
@@ -99,6 +104,7 @@ async function getSlotLabel(waitlistId, connection = db) {
     ...row,
     dateLabel: date,
     timeLabel: formatTimeValue(row.booking_time),
+    offer_minutes: OFFER_MINUTES,
   };
 }
 
@@ -284,6 +290,9 @@ async function offerNextForSlot(slot) {
       `Good news: a ${entry.service_name} slot at ${entry.merchant_name} opened for ${entry.dateLabel} at ${entry.timeLabel}. You have ${OFFER_MINUTES} minutes to confirm it from My Bookings.`,
       'waitlist_offer'
     );
+    await waitlistNotificationService.sendWaitlistOffer(entry).catch(err => {
+      console.error('[waitlist] Failed to send external waitlist offer notification:', err.message);
+    });
 
     return next.waitlist_id;
   } catch (err) {

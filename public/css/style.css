@@ -188,6 +188,7 @@ a:hover { color: var(--accent-dark); }
 }
 .mobile-language-switcher select { flex: 1; text-align: right; }
 .nav-icon-action {
+  position: relative;
   width: 2.25rem;
   height: 2.25rem;
   display: inline-flex;
@@ -206,6 +207,23 @@ a:hover { color: var(--accent-dark); }
   transform: translateY(-1px);
 }
 .nav-icon-action i { font-size: 1rem; }
+.nav-notification-badge {
+  position: absolute;
+  top: -.35rem;
+  right: -.35rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 .3rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 800;
+  border: 2px solid var(--surface);
+}
 .nav-user-pill {
   height: 2.25rem;
   display: inline-flex;

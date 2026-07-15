@@ -66,6 +66,12 @@
         <i class="bi bi-wallet2"></i>
       </a>
       <a href="/loyalty" class="nav-icon-action" aria-label="Loyalty rewards" title="Loyalty rewards"><i class="bi bi-stars"></i></a>
+      <a href="/notifications" class="nav-icon-action nav-notification-action" aria-label="Notifications" title="Notifications">
+        <i class="bi bi-bell"></i>
+        <% if (Number(locals.unreadNotificationCount || 0) > 0) { %>
+        <span class="nav-notification-badge"><%= unreadNotificationCount %></span>
+        <% } %>
+      </a>
       <% } %>
       <span class="nav-user-pill"><i class="bi bi-person-circle"></i><%= user.full_name.split(' ')[0] %></span>
       <a href="/auth/logout" class="btn btn-outline-secondary btn-sm btn-pill"><%= t('nav.signOut') %></a>
@@ -104,6 +110,12 @@
   <a href="/favourite"><%= t('nav.myFavourites') %></a>
   <a href="/wallet"><%= t('nav.wallet') %></a>
   <a href="/loyalty">Loyalty Rewards</a>
+  <a href="/notifications">
+    Notifications
+    <% if (Number(locals.unreadNotificationCount || 0) > 0) { %>
+    <span class="nav-pending-badge"><%= unreadNotificationCount %></span>
+    <% } %>
+  </a>
   <% } %>
   <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
   <a href="/merchant/dashboard"><%= t('nav.dashboard') %></a>

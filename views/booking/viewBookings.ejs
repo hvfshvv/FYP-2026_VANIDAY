@@ -170,7 +170,7 @@
                 <% } %>
                 <% if (entry.status === 'offered') { %>
                 <span class="badge rounded-pill waitlist-offer-timer" data-offer-expires-at="<%= offerExpiresAt %>" style="background:var(--accent-light);color:var(--accent);border:1px solid rgba(225,29,72,.2);">
-                  <i class="bi bi-hourglass-split me-1"></i><span data-waitlist-countdown>15:00</span> <%= t('bookings.left') %>
+                  <i class="bi bi-hourglass-split me-1"></i><span data-waitlist-countdown>--:--</span> <%= t('bookings.left') %>
                 </span>
                 <% } %>
               </div>

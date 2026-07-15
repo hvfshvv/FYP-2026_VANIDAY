@@ -281,33 +281,6 @@ async function viewCustomerBookings(req, res) {
   }
 }
 
-async function joinWaitlistFromQR(req, res) {
-  const { token } = req.params;
-
-  try {
-    if (redirectMerchantAwayFromBooking(req, res)) return;
-
-    const qr = await qrModel.getQRByToken(token);
-    if (!qr) throw new Error('This booking QR code is invalid or no longer active.');
-
-    const result = await waitlistModel.joinWaitlist({
-      customerId: currentCustomerId(req),
-      merchantId: qr.merchant_id,
-      serviceId: req.body.service_id,
-      bookingDate: req.body.booking_date,
-      bookingTime: req.body.booking_time,
-    });
-
-    const message = result.alreadyJoined
-      ? 'You are already on the waitlist for this slot.'
-      : 'You joined the waitlist successfully.';
-    res.redirect('/book/viewBookings?success=' + encodeURIComponent(message));
-  } catch (err) {
-    console.error(err);
-    res.redirect(`/book/${encodeURIComponent(token)}?error=${encodeURIComponent(err.message || 'Could not join the waitlist.')}`);
-  }
-}
-
 async function joinWaitlistFromPortal(req, res) {
   try {
     const { merchant_id, service_id, booking_date, booking_time } = req.body;

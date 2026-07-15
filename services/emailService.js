@@ -402,6 +402,50 @@ async function sendBookingRescheduledEmail(booking, previousBooking, recipient) 
   });
 }
 
+async function sendWaitlistOfferEmail(entry, confirmUrl = null) {
+  const customerName = entry.customer_name || 'there';
+  const date = formatDate(entry.booking_date);
+  const time = formatTime(entry.booking_time);
+  const minutes = Number(entry.offer_minutes || 15);
+  const text = [
+    `Hi ${customerName},`,
+    '',
+    `Good news: a ${entry.service_name} slot at ${entry.merchant_name} is now available.`,
+    `Date: ${date}`,
+    `Time: ${time}`,
+    '',
+    `You have ${minutes} minutes to confirm this slot from My Bookings.`,
+    confirmUrl ? `Open My Bookings: ${confirmUrl}` : null,
+    '',
+    'Uniday',
+  ].filter(Boolean).join('\n');
+
+  return sendMailOrLog({
+    to: entry.customer_email,
+    subject: `Slot available: ${entry.service_name}`,
+    text,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#18181B;">
+        <h2 style="color:#E11D48;margin:0 0 12px;">Your waitlist slot is available</h2>
+        <p>Hi ${escapeHtml(customerName)}, a <strong>${escapeHtml(entry.service_name)}</strong> slot at <strong>${escapeHtml(entry.merchant_name)}</strong> is now available.</p>
+        <table style="border-collapse:collapse;width:100%;max-width:520px;background:#fff;border:1px solid #F3E8EC;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="padding:8px 12px;color:#71717A;border-bottom:1px solid #F3E8EC;">Date</td>
+            <td style="padding:8px 12px;font-weight:700;border-bottom:1px solid #F3E8EC;">${escapeHtml(date)}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;color:#71717A;border-bottom:1px solid #F3E8EC;">Time</td>
+            <td style="padding:8px 12px;font-weight:700;border-bottom:1px solid #F3E8EC;">${escapeHtml(time)}</td>
+          </tr>
+        </table>
+        <p style="color:#71717A;font-size:14px;">You have ${minutes} minutes to confirm this slot from My Bookings.</p>
+        ${confirmUrl ? `<p><a href="${escapeHtml(confirmUrl)}" style="display:inline-block;background:#E11D48;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-weight:700;">Open My Bookings</a></p>` : ''}
+      </div>
+    `,
+    logLabel: 'Waitlist slot offer',
+  });
+}
+
 module.exports = {
   sendPasswordResetEmail,
   sendEmailVerificationEmail,
@@ -410,4 +454,5 @@ module.exports = {
   sendBookingReminderEmail,
   sendBookingCancellationEmail,
   sendBookingRescheduledEmail,
+  sendWaitlistOfferEmail,
 };
