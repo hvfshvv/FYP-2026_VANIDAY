@@ -14,6 +14,7 @@ const RESCHEDULED_BOOKING_STATUS_FILE = path.join(__dirname, 'add_rescheduled_bo
 const VOUCHER_CHECKOUT_FILE = path.join(__dirname, 'add_voucher_checkout_fields.sql');
 const IN_APP_NOTIFICATIONS_FILE = path.join(__dirname, 'add_in_app_notifications.sql');
 const PAYMENT_WALLET_FILE = path.join(__dirname, 'add_payment_wallet.sql');
+const CONSOLIDATE_SCHEMA_FILE = path.join(__dirname, 'consolidate_schema.sql');
 
 function currentSchemaSql() {
   const migration = fs.readFileSync(MIGRATION_FILE, 'utf8');
@@ -61,6 +62,8 @@ async function setup() {
   await conn.query(inAppNotificationsSql);
   const paymentWalletSql = fs.readFileSync(PAYMENT_WALLET_FILE, 'utf8');
   await conn.query(paymentWalletSql);
+  const consolidateSchemaSql = fs.readFileSync(CONSOLIDATE_SCHEMA_FILE, 'utf8');
+  await conn.query(consolidateSchemaSql);
   await conn.query('SET FOREIGN_KEY_CHECKS = 1');
 
   console.log('Stabilization migrations executed successfully.');

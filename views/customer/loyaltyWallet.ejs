@@ -188,7 +188,12 @@
 
       <div class="col-lg-5">
         <div class="wallet-panel">
-          <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Recent activity</h5>
+          <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+            <h5 style="font-weight:800;color:var(--ink);margin:0;">Recent activity</h5>
+            <a href="/loyalty/history" class="btn btn-outline-secondary btn-sm btn-pill">
+              View all
+            </a>
+          </div>
           <!-- Recent point activity, newest first. -->
           <% if (!transactions.length) { %>
             <div class="text-center py-4">

@@ -18,6 +18,10 @@ function calculatePoints(amount) {
   return Math.max(0, Math.floor(Number(amount || 0) * 0.1));
 }
 
+function getReviewBonusPoints(hasReviewImage) {
+  return hasReviewImage ? PHOTO_REVIEW_BONUS_POINTS : REVIEW_BONUS_POINTS;
+}
+
 // Converts tier names into numbers so tiers can be compared.
 function getTierRank(tierName) {
   return ['Bronze', 'Silver', 'Gold', 'Platinum'].indexOf(tierName);
@@ -252,7 +256,7 @@ async function ensureWallet(customerId, connection = db) {
   }
 
   await connection.query(
-    `INSERT INTO loyalty_wallet (customer_id, points_balance, lifetime_points_earned)
+    `INSERT INTO wallet (customer_id, points_balance, lifetime_points_earned)
      VALUES (?, 0, 0)
      ON DUPLICATE KEY UPDATE customer_id = VALUES(customer_id)`,
     [customerId]
@@ -260,7 +264,7 @@ async function ensureWallet(customerId, connection = db) {
 
   const [[wallet]] = await connection.query(
     `SELECT *
-     FROM loyalty_wallet
+     FROM wallet
      WHERE customer_id = ?`,
     [customerId]
   );
@@ -294,12 +298,13 @@ async function getWalletSummary(customerId) {
   const rewards = await getLoyaltyRewards();
 
   const [transactions] = await db.query(
-    `SELECT loyalty_transaction_id, booking_id, transaction_type, points_amount,
-            cashback_amount, description, created_at
-     FROM loyalty_transaction
+    `SELECT transaction_id AS loyalty_transaction_id, booking_id, transaction_type, points_amount,
+            description, created_at
+     FROM transactions
      WHERE wallet_id = ?
-     ORDER BY created_at DESC, loyalty_transaction_id DESC
-     LIMIT 12`,
+       AND asset_type = 'points'
+     ORDER BY created_at DESC, transaction_id DESC
+     LIMIT 5`,
     [wallet.wallet_id]
   );
 
@@ -310,6 +315,20 @@ async function getWalletSummary(customerId) {
     rewards: decorateRewards(rewards, tier.name, wallet.points_balance),
     transactions,
   };
+}
+
+async function getPointTransactionHistory(customerId) {
+  const wallet = await ensureWallet(customerId);
+  const [transactions] = await db.query(
+    `SELECT transaction_id, booking_id, transaction_type, points_amount,
+            description, created_at
+     FROM transactions
+     WHERE wallet_id = ?
+       AND asset_type = 'points'
+     ORDER BY created_at DESC, transaction_id DESC`,
+    [wallet.wallet_id]
+  );
+  return { wallet, transactions };
 }
 
 // Redeems a reward in a transaction so points cannot be double-spent.
@@ -335,7 +354,7 @@ async function redeemReward(customerId, rewardId) {
     await ensureWallet(customerId, connection);
     const [[wallet]] = await connection.query(
       `SELECT *
-       FROM loyalty_wallet
+       FROM wallet
        WHERE customer_id = ?
        FOR UPDATE`,
       [customerId]
@@ -375,9 +394,9 @@ async function redeemReward(customerId, rewardId) {
     );
 
     await connection.query(
-      `INSERT INTO loyalty_transaction
-         (wallet_id, transaction_type, points_amount, description)
-       VALUES (?, 'redeem_points', ?, ?)`,
+      `INSERT INTO transactions
+         (wallet_id, asset_type, transaction_type, points_amount, status, description, completed_at)
+       VALUES (?, 'points', 'redeem_points', ?, 'completed', ?, NOW())`,
       [
         wallet.wallet_id,
         -reward.pointsCost,
@@ -386,7 +405,7 @@ async function redeemReward(customerId, rewardId) {
     );
 
     await connection.query(
-      `UPDATE loyalty_wallet
+      `UPDATE wallet
        SET points_balance = points_balance - ?,
            lifetime_points_redeemed = lifetime_points_redeemed + ?,
            updated_at = NOW()
@@ -408,9 +427,10 @@ async function redeemReward(customerId, rewardId) {
 async function getEarnedPointsForBooking(bookingId) {
   const [[transaction]] = await db.query(
     `SELECT lt.points_amount
-     FROM loyalty_transaction lt
+     FROM transactions lt
      WHERE lt.booking_id = ?
        AND lt.transaction_type = 'earn_points'
+       AND lt.asset_type = 'points'
      LIMIT 1`,
     [bookingId]
   );
@@ -450,9 +470,9 @@ async function awardBookingPoints(bookingId) {
     await connection.beginTransaction();
 
     const [[existing]] = await connection.query(
-      `SELECT lt.loyalty_transaction_id
-       FROM loyalty_transaction lt
-       JOIN loyalty_wallet lw ON lt.wallet_id = lw.wallet_id
+      `SELECT lt.transaction_id
+       FROM transactions lt
+       JOIN wallet lw ON lt.wallet_id = lw.wallet_id
        WHERE lt.booking_id = ?
          AND lt.transaction_type = 'earn_points'
          AND lw.customer_id = ?
@@ -467,7 +487,7 @@ async function awardBookingPoints(bookingId) {
     }
 
     await connection.query(
-      `INSERT INTO loyalty_wallet (customer_id, points_balance, lifetime_points_earned)
+      `INSERT INTO wallet (customer_id, points_balance, lifetime_points_earned)
        VALUES (?, 0, 0)
        ON DUPLICATE KEY UPDATE customer_id = VALUES(customer_id)`,
       [booking.customer_id]
@@ -475,26 +495,27 @@ async function awardBookingPoints(bookingId) {
 
     const [[wallet]] = await connection.query(
       `SELECT wallet_id
-       FROM loyalty_wallet
+       FROM wallet
        WHERE customer_id = ?
        FOR UPDATE`,
       [booking.customer_id]
     );
 
     await connection.query(
-      `INSERT INTO loyalty_transaction
-         (wallet_id, booking_id, transaction_type, points_amount, description)
-       VALUES (?, ?, 'earn_points', ?, ?)`,
+      `INSERT INTO transactions
+         (wallet_id, booking_id, asset_type, transaction_type, points_amount, status, idempotency_key, description, completed_at)
+       VALUES (?, ?, 'points', 'earn_points', ?, 'completed', ?, ?, NOW())`,
       [
         wallet.wallet_id,
         booking.booking_id,
         points,
+        `booking-points:${booking.booking_id}`,
         `Earned ${points} points for booking #${booking.booking_id}`,
       ]
     );
 
     await connection.query(
-      `UPDATE loyalty_wallet
+      `UPDATE wallet
        SET points_balance = points_balance + ?,
            lifetime_points_earned = lifetime_points_earned + ?,
            updated_at = NOW()
@@ -518,14 +539,14 @@ async function syncMissingBookingPointsForCustomer(customerId) {
      FROM booking b
      JOIN payment p ON p.booking_id = b.booking_id
       AND p.payment_status = 'paid'
-     LEFT JOIN loyalty_wallet lw ON lw.customer_id = b.customer_id
-     LEFT JOIN loyalty_transaction lt
+     LEFT JOIN wallet lw ON lw.customer_id = b.customer_id
+     LEFT JOIN transactions lt
        ON lt.wallet_id = lw.wallet_id
       AND lt.booking_id = b.booking_id
       AND lt.transaction_type = 'earn_points'
      WHERE b.customer_id = ?
        AND b.status = 'completed'
-       AND lt.loyalty_transaction_id IS NULL
+       AND lt.transaction_id IS NULL
        AND FLOOR(COALESCE(p.amount, 0) * 0.1) > 0
      ORDER BY b.booking_id ASC`,
     [customerId]
@@ -552,7 +573,7 @@ async function awardReviewBonusPoints(customerId, bookingId, connection = db, po
 
   const [[wallet]] = await connection.query(
     `SELECT wallet_id
-     FROM loyalty_wallet
+     FROM wallet
      WHERE customer_id = ?`,
     [customerId]
   );
@@ -564,14 +585,14 @@ async function awardReviewBonusPoints(customerId, bookingId, connection = db, po
   const description = `Earned ${safePoints} points for reviewing booking #${bookingId}`;
 
   await connection.query(
-    `INSERT INTO loyalty_transaction
-       (wallet_id, transaction_type, points_amount, description)
-     VALUES (?, 'earn_points', ?, ?)`,
-    [wallet.wallet_id, safePoints, description]
+    `INSERT INTO transactions
+       (wallet_id, booking_id, asset_type, transaction_type, points_amount, status, idempotency_key, description, completed_at)
+     VALUES (?, ?, 'points', 'review_bonus', ?, 'completed', ?, ?, NOW())`,
+    [wallet.wallet_id, bookingId, safePoints, `review-bonus:${bookingId}`, description]
   );
 
   await connection.query(
-    `UPDATE loyalty_wallet
+    `UPDATE wallet
      SET points_balance = points_balance + ?,
          lifetime_points_earned = lifetime_points_earned + ?,
          updated_at = NOW()
@@ -584,10 +605,12 @@ async function awardReviewBonusPoints(customerId, bookingId, connection = db, po
 
 module.exports = {
   calculatePoints,
+  getReviewBonusPoints,
   awardBookingPoints,
   awardReviewBonusPoints,
   syncMissingBookingPointsForCustomer,
   getWalletSummary,
+  getPointTransactionHistory,
   redeemReward,
   getLoyaltyRewards,
   getLoyaltyRewardById,

@@ -31,7 +31,7 @@ async function getMerchantById(merchantId) {
        ) AS operating_hours
      FROM merchant m
      JOIN users u ON u.user_id = m.user_id
-     LEFT JOIN merchant_review r ON r.merchant_id = m.merchant_id
+     LEFT JOIN reviews r ON r.merchant_id = m.merchant_id AND r.review_target = 'merchant'
      WHERE m.merchant_id = ?
        AND m.is_active = 1
        AND m.verification_status = 'approved'
@@ -101,7 +101,7 @@ async function getAllActiveMerchants(category = null) {
     FROM merchant m
     JOIN users u ON u.user_id = m.user_id
     LEFT JOIN service s ON s.merchant_id = m.merchant_id AND s.is_active = 1
-    LEFT JOIN merchant_review r ON r.merchant_id = m.merchant_id
+    LEFT JOIN reviews r ON r.merchant_id = m.merchant_id AND r.review_target = 'merchant'
     WHERE m.is_active = 1
       AND u.status = 'active'
       AND m.verification_status = 'approved'

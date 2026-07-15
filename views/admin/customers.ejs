@@ -558,9 +558,9 @@
                 <div class="mini-bar"><span style="width:<%= barWidth(loyalty.points_balance, Math.max(1, Number(loyalty.points_earned || 1))) %>%;"></span></div>
               </div>
               <div class="visual-tile">
-                <p style="color:var(--muted);margin:0 0 .35rem;">Cashback balance</p>
-                <p class="stat-value" style="font-size:1.45rem;color:var(--success);"><%= money(loyalty.cashback_balance) %></p>
-                <div class="mini-bar"><span style="width:<%= barWidth(loyalty.cashback_balance, Math.max(1, Number(loyalty.cashback_balance || 1))) %>%;background:var(--success);"></span></div>
+                <p style="color:var(--muted);margin:0 0 .35rem;">Stored wallet balance</p>
+                <p class="stat-value" style="font-size:1.45rem;color:var(--success);"><%= money(loyalty.money_balance) %></p>
+                <div class="mini-bar"><span style="width:<%= barWidth(loyalty.money_balance, Math.max(1, Number(loyalty.money_balance || 1))) %>%;background:var(--success);"></span></div>
               </div>
               <div class="visual-tile">
                 <p style="color:var(--muted);margin:0 0 .35rem;">Tier progress</p>

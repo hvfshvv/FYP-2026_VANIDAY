@@ -89,7 +89,7 @@ async function getManagedCustomers(search = '') {
      ) bs ON bs.customer_id = u.user_id
      LEFT JOIN (
        SELECT customer_id, COALESCE(SUM(points_balance), 0) AS points_balance
-       FROM loyalty_wallet
+       FROM wallet
        GROUP BY customer_id
      ) ls ON ls.customer_id = u.user_id
      WHERE u.role = 'customer'
@@ -319,7 +319,7 @@ async function getMerchantBookingsForAdmin(merchantId) {
 // Returns filtered platform feedback entries with linked booking and merchant context.
 async function getPlatformFeedback({ type = 'all', rating = 'all', search = '' } = {}) {
   const params = [];
-  const clauses = [];
+  const clauses = ["pf.review_target = 'platform'"];
 
   if (type && type !== 'all') {
     clauses.push('pf.feedback_type = ?');
@@ -336,7 +336,7 @@ async function getPlatformFeedback({ type = 'all', rating = 'all', search = '' }
     'u.email',
     'm.merchant_name',
     's.service_name',
-    'pf.feedback_text',
+    'pf.review_text',
   ]);
   if (filter.clause) {
     clauses.push(filter.clause.replace(/^\s*AND\s+/i, ''));
@@ -347,12 +347,12 @@ async function getPlatformFeedback({ type = 'all', rating = 'all', search = '' }
 
   const [rows] = await db.query(
     `SELECT
-       pf.feedback_id,
+       pf.review_id AS feedback_id,
        pf.booking_id,
        pf.customer_id,
        pf.rating,
        pf.feedback_type,
-       pf.feedback_text,
+       pf.review_text AS feedback_text,
        pf.created_at,
        u.full_name AS customer_name,
        u.email AS customer_email,
@@ -363,14 +363,14 @@ async function getPlatformFeedback({ type = 'all', rating = 'all', search = '' }
        ts.start_time AS booking_time,
        m.merchant_name,
        s.service_name
-     FROM platform_feedback pf
+     FROM reviews pf
      JOIN users u ON u.user_id = pf.customer_id
      LEFT JOIN booking b ON b.booking_id = pf.booking_id
      LEFT JOIN time_slot ts ON ts.slot_id = b.slot_id
      LEFT JOIN merchant m ON m.merchant_id = b.merchant_id
      LEFT JOIN service s ON s.service_id = b.service_id
      ${whereSql}
-     ORDER BY pf.created_at DESC, pf.feedback_id DESC`,
+     ORDER BY pf.created_at DESC, pf.review_id DESC`,
     params
   );
 
@@ -385,12 +385,14 @@ async function getPlatformFeedbackSummary() {
        COALESCE(AVG(rating), 0) AS average_rating,
        SUM(CASE WHEN rating >= 4 THEN 1 ELSE 0 END) AS positive_count,
        SUM(CASE WHEN rating <= 2 THEN 1 ELSE 0 END) AS low_rating_count
-     FROM platform_feedback`
+     FROM reviews
+     WHERE review_target = 'platform'`
   );
 
   const [byType] = await db.query(
     `SELECT feedback_type, COUNT(*) AS total, COALESCE(AVG(rating), 0) AS average_rating
-     FROM platform_feedback
+     FROM reviews
+     WHERE review_target = 'platform'
      GROUP BY feedback_type
      ORDER BY total DESC, feedback_type ASC`
   );
@@ -572,7 +574,7 @@ async function getFeaturedMerchantListings() {
      JOIN merchant m ON m.merchant_id = fl.merchant_id
      LEFT JOIN booking b ON b.merchant_id = m.merchant_id
      LEFT JOIN payment p ON p.booking_id = b.booking_id
-     LEFT JOIN merchant_review r ON r.booking_id = b.booking_id
+     LEFT JOIN reviews r ON r.booking_id = b.booking_id AND r.review_target = 'merchant'
      GROUP BY
        fl.listing_id, fl.merchant_id, fl.title, fl.description,
        fl.display_order, fl.is_visible, fl.created_at,

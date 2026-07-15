@@ -20,15 +20,11 @@ function normalizePolicy(row = {}) {
 
 async function createDefaultPolicies(connection = db) {
   await connection.query(
-    `INSERT INTO cancellation_policy
-       (merchant_id, min_cancel_hours, refund_percentage, allow_reschedule, is_active)
-     SELECT merchant_id, ?, ?, ?, ?
-     FROM merchant m
-     WHERE NOT EXISTS (
-       SELECT 1
-       FROM cancellation_policy cp
-       WHERE cp.merchant_id = m.merchant_id
-     )`,
+    `UPDATE merchant
+     SET min_cancel_hours = COALESCE(min_cancel_hours, ?),
+         refund_percentage = COALESCE(refund_percentage, ?),
+         allow_reschedule = COALESCE(allow_reschedule, ?),
+         cancellation_policy_active = COALESCE(cancellation_policy_active, ?)`,
     [
       DEFAULT_POLICY.min_cancel_hours,
       DEFAULT_POLICY.refund_percentage,
@@ -40,35 +36,15 @@ async function createDefaultPolicies(connection = db) {
 
 async function getPolicyByMerchantId(merchantId, connection = db) {
   const [[policy]] = await connection.query(
-    `SELECT *
-     FROM cancellation_policy
+    `SELECT merchant_id AS policy_id, merchant_id, min_cancel_hours, refund_percentage,
+            allow_reschedule, cancellation_policy_active AS is_active
+     FROM merchant
      WHERE merchant_id = ?
-     ORDER BY policy_id ASC
      LIMIT 1`,
     [merchantId]
   );
 
-  if (policy) {
-    return normalizePolicy(policy);
-  }
-
-  await connection.query(
-    `INSERT INTO cancellation_policy
-       (merchant_id, min_cancel_hours, refund_percentage, allow_reschedule, is_active)
-     VALUES (?, ?, ?, ?, ?)`,
-    [
-      merchantId,
-      DEFAULT_POLICY.min_cancel_hours,
-      DEFAULT_POLICY.refund_percentage,
-      DEFAULT_POLICY.allow_reschedule,
-      DEFAULT_POLICY.is_active,
-    ]
-  );
-
-  return normalizePolicy({
-    merchant_id: merchantId,
-    ...DEFAULT_POLICY,
-  });
+  return policy ? normalizePolicy(policy) : null;
 }
 
 async function updatePolicy(merchantId, {
@@ -88,14 +64,12 @@ async function updatePolicy(merchantId, {
     throw new Error('Refund percentage must be between 0 and 100.');
   }
 
-  await getPolicyByMerchantId(merchantId);
-
   await db.query(
-    `UPDATE cancellation_policy
+    `UPDATE merchant
      SET min_cancel_hours = ?,
          refund_percentage = ?,
          allow_reschedule = ?,
-         is_active = ?
+         cancellation_policy_active = ?
      WHERE merchant_id = ?`,
     [
       hours,

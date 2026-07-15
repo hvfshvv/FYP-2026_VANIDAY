@@ -1,51 +1,22 @@
 const db = require('../config/db');
 
-let schemaReady = false;
-
 async function ensureSchema(connection = db) {
-  if (schemaReady) return;
-  await connection.query(`CREATE TABLE IF NOT EXISTS payment_wallet (
-    wallet_id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT NOT NULL UNIQUE,
-    balance DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    currency VARCHAR(3) NOT NULL DEFAULT 'sgd',
-    lifetime_topup DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    lifetime_spent DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES users(user_id)
-  )`);
-  await connection.query(`CREATE TABLE IF NOT EXISTS wallet_transaction (
-    wallet_transaction_id INT AUTO_INCREMENT PRIMARY KEY,
-    wallet_id INT NOT NULL,
-    booking_id INT NULL,
-    transaction_type ENUM('topup','payment','refund','bonus') NOT NULL,
-    amount DECIMAL(10,2) NOT NULL,
-    status ENUM('pending','completed','failed') NOT NULL DEFAULT 'pending',
-    payment_method ENUM('stripe','paynow','wallet','system') NULL,
-    external_reference VARCHAR(255) NULL,
-    idempotency_key VARCHAR(255) NOT NULL,
-    description VARCHAR(255) NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    completed_at DATETIME NULL,
-    UNIQUE KEY uq_wallet_transaction_idempotency (idempotency_key),
-    KEY idx_wallet_transaction_wallet_created (wallet_id, created_at),
-    KEY idx_wallet_transaction_booking (booking_id),
-    FOREIGN KEY (wallet_id) REFERENCES payment_wallet(wallet_id),
-    FOREIGN KEY (booking_id) REFERENCES booking(booking_id)
-  )`);
-  schemaReady = true;
+  const [[walletTable]] = await connection.query("SHOW TABLES LIKE 'wallet'");
+  const [[transactionsTable]] = await connection.query("SHOW TABLES LIKE 'transactions'");
+  if (!walletTable || !transactionsTable) {
+    throw new Error('Unified wallet schema is missing. Run database/consolidate_schema.sql first.');
+  }
 }
 
 async function ensureWallet(customerId, connection = db) {
   await ensureSchema(connection);
   await connection.query(
-    `INSERT INTO payment_wallet (customer_id) VALUES (?)
+    `INSERT INTO wallet (customer_id) VALUES (?)
      ON DUPLICATE KEY UPDATE customer_id = VALUES(customer_id)`,
     [customerId]
   );
   const [[wallet]] = await connection.query(
-    'SELECT * FROM payment_wallet WHERE customer_id = ?',
+    'SELECT *, money_balance AS balance FROM wallet WHERE customer_id = ?',
     [customerId]
   );
   return wallet;
@@ -55,10 +26,11 @@ async function getWalletSummary(customerId) {
   const wallet = await ensureWallet(customerId);
   const [transactions] = await db.query(
     `SELECT wt.*, b.booking_id
-     FROM wallet_transaction wt
+     FROM transactions wt
      LEFT JOIN booking b ON b.booking_id = wt.booking_id
      WHERE wt.wallet_id = ?
-     ORDER BY wt.created_at DESC, wt.wallet_transaction_id DESC
+       AND wt.asset_type = 'money'
+     ORDER BY wt.created_at DESC, wt.transaction_id DESC
      LIMIT 30`,
     [wallet.wallet_id]
   );
@@ -68,9 +40,9 @@ async function getWalletSummary(customerId) {
 async function createPendingTopup(customerId, amount, method, externalReference) {
   const wallet = await ensureWallet(customerId);
   await db.query(
-    `INSERT INTO wallet_transaction
-       (wallet_id, transaction_type, amount, status, payment_method, external_reference, idempotency_key, description)
-     VALUES (?, 'topup', ?, 'pending', ?, ?, ?, ?)
+    `INSERT INTO transactions
+       (wallet_id, asset_type, transaction_type, amount, status, payment_method, external_reference, idempotency_key, description)
+     VALUES (?, 'money', 'topup', ?, 'pending', ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE external_reference = VALUES(external_reference)`,
     [wallet.wallet_id, amount, method, externalReference, `topup:${externalReference}`, `S$${Number(amount).toFixed(2)} wallet top-up`]
   );
@@ -89,12 +61,12 @@ async function completeTopup({ customerId, amount, method, externalReference }) 
     await connection.beginTransaction();
     await ensureWallet(customerId, connection);
     const [[wallet]] = await connection.query(
-      'SELECT * FROM payment_wallet WHERE customer_id = ? FOR UPDATE',
+      'SELECT *, money_balance AS balance FROM wallet WHERE customer_id = ? FOR UPDATE',
       [customerId]
     );
     const key = `topup:${externalReference}`;
     const [[existing]] = await connection.query(
-      'SELECT * FROM wallet_transaction WHERE idempotency_key = ? FOR UPDATE',
+      'SELECT * FROM transactions WHERE idempotency_key = ? FOR UPDATE',
       [key]
     );
     if (existing && existing.status === 'completed') {
@@ -106,29 +78,29 @@ async function completeTopup({ customerId, amount, method, externalReference }) 
     }
     if (!existing) {
       await connection.query(
-        `INSERT INTO wallet_transaction
-          (wallet_id, transaction_type, amount, status, payment_method, external_reference, idempotency_key, description)
-         VALUES (?, 'topup', ?, 'pending', ?, ?, ?, ?)`,
+        `INSERT INTO transactions
+          (wallet_id, asset_type, transaction_type, amount, status, payment_method, external_reference, idempotency_key, description)
+         VALUES (?, 'money', 'topup', ?, 'pending', ?, ?, ?, ?)`,
         [wallet.wallet_id, amount, method, externalReference, key, `S$${Number(amount).toFixed(2)} wallet top-up`]
       );
     }
     await connection.query(
-      `UPDATE wallet_transaction SET status='completed', completed_at=NOW()
+      `UPDATE transactions SET status='completed', completed_at=NOW()
        WHERE idempotency_key=?`,
       [key]
     );
     const bonus = getBonusAmount(amount);
     await connection.query(
-      `UPDATE payment_wallet
-       SET balance=balance+?, lifetime_topup=lifetime_topup+?, updated_at=NOW()
+      `UPDATE wallet
+       SET money_balance=money_balance+?, lifetime_topup=lifetime_topup+?, updated_at=NOW()
        WHERE wallet_id=?`,
       [Number(amount) + bonus, amount, wallet.wallet_id]
     );
     if (bonus > 0) {
       await connection.query(
-        `INSERT INTO wallet_transaction
-          (wallet_id, transaction_type, amount, status, payment_method, external_reference, idempotency_key, description, completed_at)
-         VALUES (?, 'bonus', ?, 'completed', 'system', ?, ?, ?, NOW())
+        `INSERT INTO transactions
+          (wallet_id, asset_type, transaction_type, amount, status, payment_method, external_reference, idempotency_key, description, completed_at)
+         VALUES (?, 'money', 'bonus', ?, 'completed', 'system', ?, ?, ?, NOW())
          ON DUPLICATE KEY UPDATE idempotency_key=VALUES(idempotency_key)`,
         [wallet.wallet_id, bonus, externalReference, `${key}:bonus`, `Promotional top-up bonus`]
       );
@@ -147,7 +119,7 @@ async function completeTopup({ customerId, amount, method, externalReference }) 
 async function failTopup(externalReference) {
   await ensureSchema();
   await db.query(
-    `UPDATE wallet_transaction SET status='failed'
+    `UPDATE transactions SET status='failed'
      WHERE idempotency_key=? AND status='pending'`,
     [`topup:${externalReference}`]
   );
@@ -167,7 +139,7 @@ async function payBooking({ customerId, bookingId, amount }) {
     if (booking.status !== 'pending_payment') throw new Error('This booking is no longer payable.');
     await ensureWallet(customerId, connection);
     const [[wallet]] = await connection.query(
-      'SELECT * FROM payment_wallet WHERE customer_id=? FOR UPDATE',
+      'SELECT *, money_balance AS balance FROM wallet WHERE customer_id=? FOR UPDATE',
       [customerId]
     );
     if (Number(wallet.balance) + 0.0001 < Number(amount)) {
@@ -175,13 +147,13 @@ async function payBooking({ customerId, bookingId, amount }) {
     }
     const key = `booking-payment:${bookingId}`;
     const [txResult] = await connection.query(
-      `INSERT INTO wallet_transaction
-        (wallet_id, booking_id, transaction_type, amount, status, payment_method, idempotency_key, description, completed_at)
-       VALUES (?, ?, 'payment', ?, 'completed', 'wallet', ?, ?, NOW())`,
+      `INSERT INTO transactions
+        (wallet_id, booking_id, asset_type, transaction_type, amount, status, payment_method, idempotency_key, description, completed_at)
+       VALUES (?, ?, 'money', 'payment', ?, 'completed', 'wallet', ?, ?, NOW())`,
       [wallet.wallet_id, bookingId, amount, key, `Payment for booking #${bookingId}`]
     );
     await connection.query(
-      `UPDATE payment_wallet SET balance=balance-?, lifetime_spent=lifetime_spent+?, updated_at=NOW()
+      `UPDATE wallet SET money_balance=money_balance-?, lifetime_spent=lifetime_spent+?, updated_at=NOW()
        WHERE wallet_id=?`,
       [amount, amount, wallet.wallet_id]
     );
@@ -218,12 +190,12 @@ async function refundBooking({ customerId, bookingId, refundPercentage = 100 }) 
     }
     await ensureWallet(customerId, connection);
     const [[wallet]] = await connection.query(
-      'SELECT * FROM payment_wallet WHERE customer_id=? FOR UPDATE',
+      'SELECT *, money_balance AS balance FROM wallet WHERE customer_id=? FOR UPDATE',
       [customerId]
     );
     const key = `booking-refund:${bookingId}`;
     const [[existing]] = await connection.query(
-      'SELECT * FROM wallet_transaction WHERE idempotency_key=? FOR UPDATE',
+      'SELECT * FROM transactions WHERE idempotency_key=? FOR UPDATE',
       [key]
     );
     if (existing) {
@@ -234,13 +206,13 @@ async function refundBooking({ customerId, bookingId, refundPercentage = 100 }) 
     const amount = Number((Number(payment.amount) * percent / 100).toFixed(2));
     if (amount > 0) {
       await connection.query(
-        `INSERT INTO wallet_transaction
-          (wallet_id, booking_id, transaction_type, amount, status, payment_method, idempotency_key, description, completed_at)
-         VALUES (?, ?, 'refund', ?, 'completed', 'wallet', ?, ?, NOW())`,
+        `INSERT INTO transactions
+          (wallet_id, booking_id, asset_type, transaction_type, amount, status, payment_method, idempotency_key, description, completed_at)
+         VALUES (?, ?, 'money', 'refund', ?, 'completed', 'wallet', ?, ?, NOW())`,
         [wallet.wallet_id, bookingId, amount, key, `Refund for booking #${bookingId}`]
       );
       await connection.query(
-        'UPDATE payment_wallet SET balance=balance+?, updated_at=NOW() WHERE wallet_id=?',
+        'UPDATE wallet SET money_balance=money_balance+?, updated_at=NOW() WHERE wallet_id=?',
         [amount, wallet.wallet_id]
       );
     }

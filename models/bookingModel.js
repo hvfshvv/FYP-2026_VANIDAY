@@ -729,21 +729,20 @@ async function getCustomerBookings(customerId) {
                 COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE))
               )
             ) AS pending_remaining_seconds,
-            COALESCE(CASE WHEN cp.is_active = 1 THEN cp.min_cancel_hours END, 6) AS min_cancel_hours,
-            COALESCE(CASE WHEN cp.is_active = 1 THEN cp.refund_percentage END, 100.00) AS refund_percentage,
-            COALESCE(CASE WHEN cp.is_active = 1 THEN cp.allow_reschedule END, 1) AS allow_reschedule,
-            COALESCE(cp.is_active, 1) AS cancellation_policy_active,
+            COALESCE(CASE WHEN m.cancellation_policy_active = 1 THEN m.min_cancel_hours END, 6) AS min_cancel_hours,
+            COALESCE(CASE WHEN m.cancellation_policy_active = 1 THEN m.refund_percentage END, 100.00) AS refund_percentage,
+            COALESCE(CASE WHEN m.cancellation_policy_active = 1 THEN m.allow_reschedule END, 1) AS allow_reschedule,
+            COALESCE(m.cancellation_policy_active, 1) AS cancellation_policy_active,
             mr.review_id AS merchant_review_id,
-            pf.feedback_id AS platform_feedback_id
+            pf.review_id AS platform_feedback_id
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
      LEFT JOIN staff st ON st.staff_id = b.staff_id
      LEFT JOIN payment p ON p.booking_id = b.booking_id
-     LEFT JOIN cancellation_policy cp ON cp.merchant_id = b.merchant_id
-     LEFT JOIN merchant_review mr ON mr.booking_id = b.booking_id
-     LEFT JOIN platform_feedback pf ON pf.booking_id = b.booking_id
+     LEFT JOIN reviews mr ON mr.booking_id = b.booking_id AND mr.review_target = 'merchant'
+     LEFT JOIN reviews pf ON pf.booking_id = b.booking_id AND pf.review_target = 'platform'
      WHERE b.customer_id = ?
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [customerId]

@@ -60,7 +60,7 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
          COALESCE(AVG(r.rating), 0) AS customer_satisfaction_rating
        FROM booking b
        LEFT JOIN payment p ON p.booking_id = b.booking_id
-       LEFT JOIN merchant_review r ON r.booking_id = b.booking_id
+       LEFT JOIN reviews r ON r.booking_id = b.booking_id AND r.review_target = 'merchant'
        WHERE ${bookingDateFilter}`,
       rangeParams
     ),
@@ -187,7 +187,7 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
        FROM users u
        JOIN booking b ON b.customer_id = u.user_id
        LEFT JOIN payment p ON p.booking_id = b.booking_id AND p.payment_status = 'paid'
-       LEFT JOIN merchant_review r ON r.booking_id = b.booking_id AND DATE(r.created_at) BETWEEN ? AND ?
+       LEFT JOIN reviews r ON r.booking_id = b.booking_id AND r.review_target = 'merchant' AND DATE(r.created_at) BETWEEN ? AND ?
        WHERE ${bookingDateFilter}
        GROUP BY u.user_id, u.full_name, u.email
        ORDER BY bookings DESC, lifetime_value DESC
@@ -195,17 +195,17 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
       [...rangeParams, ...rangeParams]
     ).then(([rows]) => rows),
     db.query(
-      `SELECT transaction_type, COALESCE(SUM(points_amount), 0) AS points, COALESCE(SUM(cashback_amount), 0) AS cashback
-       FROM loyalty_transaction
-       WHERE DATE(created_at) BETWEEN ? AND ?
+      `SELECT transaction_type, COALESCE(SUM(points_amount), 0) AS points, 0 AS cashback
+       FROM transactions
+       WHERE asset_type = 'points' AND DATE(created_at) BETWEEN ? AND ?
        GROUP BY transaction_type
        ORDER BY points DESC, cashback DESC`,
       rangeParams
     ).then(([rows]) => rows),
     db.query(
       `SELECT COUNT(*) AS review_count, COALESCE(AVG(rating), 0) AS average_rating
-       FROM merchant_review
-       WHERE DATE(created_at) BETWEEN ? AND ?`,
+       FROM reviews
+       WHERE review_target = 'merchant' AND DATE(created_at) BETWEEN ? AND ?`,
       rangeParams
     ).then(([rows]) => rows[0] || {}),
     db.query(
@@ -274,7 +274,7 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
        FROM merchant m
        LEFT JOIN booking b ON b.merchant_id = m.merchant_id AND ${bookingDateFilter}
        LEFT JOIN payment p ON p.booking_id = b.booking_id
-       LEFT JOIN merchant_review r ON r.booking_id = b.booking_id
+       LEFT JOIN reviews r ON r.booking_id = b.booking_id AND r.review_target = 'merchant'
        LEFT JOIN featured_listing fl ON fl.merchant_id = m.merchant_id
        GROUP BY m.merchant_id, m.merchant_name, m.category
        ORDER BY revenue DESC, bookings DESC
@@ -353,7 +353,7 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
          COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS total_amount_spent,
          COALESCE(AVG(CASE WHEN p.payment_status = 'paid' THEN p.amount END), 0) AS average_order_value
        FROM users u
-       LEFT JOIN loyalty_wallet lw ON lw.customer_id = u.user_id
+       LEFT JOIN wallet lw ON lw.customer_id = u.user_id
        LEFT JOIN favourite f ON f.customer_id = u.user_id
        LEFT JOIN booking b ON b.customer_id = u.user_id AND ${bookingDateFilter}
        LEFT JOIN payment p ON p.booking_id = b.booking_id
@@ -377,7 +377,7 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
          COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS total_spent,
          COUNT(DISTINCT f.favourite_id) AS favourites
        FROM users u
-       LEFT JOIN loyalty_wallet lw ON lw.customer_id = u.user_id
+       LEFT JOIN wallet lw ON lw.customer_id = u.user_id
        LEFT JOIN booking b ON b.customer_id = u.user_id AND ${bookingDateFilter}
        LEFT JOIN payment p ON p.booking_id = b.booking_id
        LEFT JOIN favourite f ON f.customer_id = u.user_id
@@ -432,18 +432,18 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
     db.query(
       `SELECT
          COALESCE(SUM(points_balance), 0) AS points_balance,
+         COALESCE(SUM(money_balance), 0) AS money_balance,
          COALESCE(SUM(lifetime_points_earned), 0) AS points_earned,
          COALESCE(SUM(lifetime_points_redeemed), 0) AS points_redeemed,
-         COALESCE(SUM(cashback_balance), 0) AS cashback_balance,
          SUM(CASE WHEN points_balance >= 2000 THEN 1 ELSE 0 END) AS gold_members,
          SUM(CASE WHEN points_balance >= 800 AND points_balance < 2000 THEN 1 ELSE 0 END) AS silver_members,
          SUM(CASE WHEN points_balance < 800 THEN 1 ELSE 0 END) AS bronze_members
-       FROM loyalty_wallet`
+       FROM wallet`
     ).then(([rows]) => rows[0] || {}),
     db.query(
-      `SELECT lt.transaction_type, COALESCE(SUM(lt.points_amount), 0) AS points, COALESCE(SUM(lt.cashback_amount), 0) AS cashback
-       FROM loyalty_transaction lt
-       WHERE DATE(lt.created_at) BETWEEN ? AND ?
+      `SELECT lt.transaction_type, COALESCE(SUM(lt.points_amount), 0) AS points, 0 AS cashback
+       FROM transactions lt
+       WHERE lt.asset_type = 'points' AND DATE(lt.created_at) BETWEEN ? AND ?
        GROUP BY lt.transaction_type
        ORDER BY points DESC, cashback DESC`,
       rangeParams
@@ -520,7 +520,7 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
               COUNT(b.booking_id) AS bookings, COALESCE(AVG(r.rating), 0) AS rating
        FROM merchant m
        LEFT JOIN booking b ON b.merchant_id = m.merchant_id AND DATE(b.created_at) BETWEEN ? AND ?
-       LEFT JOIN merchant_review r ON r.merchant_id = m.merchant_id
+       LEFT JOIN reviews r ON r.merchant_id = m.merchant_id AND r.review_target = 'merchant'
        GROUP BY m.merchant_id, m.merchant_name, m.category
        ORDER BY bookings DESC, rating DESC
        LIMIT 8`,
@@ -547,26 +547,26 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
     ).then(([rows]) => rows),
     db.query(
       `SELECT COUNT(*) AS review_count, COALESCE(AVG(rating), 0) AS avg_rating
-       FROM merchant_review
-       WHERE DATE(created_at) BETWEEN ? AND ?`,
+       FROM reviews
+       WHERE review_target = 'merchant' AND DATE(created_at) BETWEEN ? AND ?`,
       rangeParams
     ).then(([rows]) => rows[0] || {}),
     db.query(
       `SELECT r.review_id, r.rating, r.review_text, r.created_at,
               u.full_name AS customer_name, m.merchant_name, s.service_name
-       FROM merchant_review r
+       FROM reviews r
        JOIN users u ON u.user_id = r.customer_id
        JOIN merchant m ON m.merchant_id = r.merchant_id
        JOIN service s ON s.service_id = r.service_id
-       WHERE DATE(r.created_at) BETWEEN ? AND ?
+       WHERE r.review_target = 'merchant' AND DATE(r.created_at) BETWEEN ? AND ?
        ORDER BY r.created_at DESC
        LIMIT 8`,
       rangeParams
     ).then(([rows]) => rows),
     db.query(
       `SELECT feedback_type, COUNT(*) AS total, COALESCE(AVG(rating), 0) AS avg_rating
-       FROM platform_feedback
-       WHERE DATE(created_at) BETWEEN ? AND ?
+       FROM reviews
+       WHERE review_target = 'platform' AND DATE(created_at) BETWEEN ? AND ?
        GROUP BY feedback_type
        ORDER BY total DESC`,
       rangeParams

@@ -58,6 +58,26 @@ async function showWallet(req, res) {
   }
 }
 
+async function showPointHistory(req, res) {
+  if (!requireCustomer(req, res)) return;
+
+  try {
+    const summary = await loyaltyModel.getPointTransactionHistory(getCustomerId(req));
+    res.render('customer/loyaltyHistory', {
+      title: 'Loyalty Points History',
+      ...summary,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).render('customer/loyaltyHistory', {
+      title: 'Loyalty Points History',
+      wallet: { points_balance: 0 },
+      transactions: [],
+      error: 'Could not load your point history. Please try again.',
+    });
+  }
+}
+
 // Redeems one reward and sends the user back with a success/error message.
 async function redeemReward(req, res) {
   if (!requireCustomer(req, res)) return;
@@ -111,6 +131,7 @@ async function claimVoucher(req, res) {
 
 module.exports = {
   showWallet,
+  showPointHistory,
   redeemReward,
   claimVoucherById,
   claimVoucher,

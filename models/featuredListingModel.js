@@ -64,7 +64,7 @@ async function getFeaturedListings(category = null) {
      JOIN merchant m   ON fl.merchant_id = m.merchant_id
      JOIN users u ON u.user_id = m.user_id
      LEFT JOIN service svc ON svc.merchant_id = m.merchant_id AND svc.is_active = 1
-     LEFT JOIN merchant_review r ON r.merchant_id = m.merchant_id
+     LEFT JOIN reviews r ON r.merchant_id = m.merchant_id AND r.review_target = 'merchant'
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
        AND p.approval_status = 'approved'
        AND p.is_active = 1

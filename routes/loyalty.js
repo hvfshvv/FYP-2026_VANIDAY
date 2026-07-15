@@ -4,6 +4,7 @@ const loyaltyController = require('../controllers/loyaltyController');
 
 // Display the customer's points balance, tier, rewards and transaction history.
 router.get('/', loyaltyController.showWallet);
+router.get('/history', loyaltyController.showPointHistory);
 
 // Spend points on a selected reward voucher.
 router.post('/redeem/:rewardId', loyaltyController.redeemReward);

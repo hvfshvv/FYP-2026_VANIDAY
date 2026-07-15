@@ -13,7 +13,7 @@ async function reviewColumnExists(columnName) {
     `SELECT COUNT(*) AS count
      FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME = 'merchant_review'
+       AND TABLE_NAME = 'reviews'
        AND COLUMN_NAME = ?`,
     [columnName]
   );
@@ -25,7 +25,7 @@ async function addReviewColumnIfMissing(columnName, ddl) {
   if (await reviewColumnExists(columnName)) return;
 
   try {
-    await db.query(`ALTER TABLE merchant_review ADD COLUMN ${ddl}`);
+    await db.query(`ALTER TABLE reviews ADD COLUMN ${ddl}`);
   } catch (err) {
     if (err.code === 'ER_DUP_FIELDNAME') return;
     throw err;
@@ -54,13 +54,13 @@ async function getCompletedBookingForReview(bookingId, customerId) {
             m.merchant_name,
             s.service_name,
             mr.review_id AS merchant_review_id,
-            pf.feedback_id AS platform_feedback_id
+            pf.review_id AS platform_feedback_id
      FROM booking b
      JOIN time_slot ts ON ts.slot_id = b.slot_id
      JOIN merchant m ON m.merchant_id = b.merchant_id
      JOIN service s ON s.service_id = b.service_id
-     LEFT JOIN merchant_review mr ON mr.booking_id = b.booking_id
-     LEFT JOIN platform_feedback pf ON pf.booking_id = b.booking_id
+     LEFT JOIN reviews mr ON mr.booking_id = b.booking_id AND mr.review_target = 'merchant'
+     LEFT JOIN reviews pf ON pf.booking_id = b.booking_id AND pf.review_target = 'platform'
      WHERE b.booking_id = ?
        AND b.customer_id = ?
        AND b.status = 'completed'
@@ -128,9 +128,9 @@ async function submitBookingReview({
     const hasReviewImage = Buffer.isBuffer(reviewImageData) && reviewImageMime;
 
     await connection.query(
-      `INSERT INTO merchant_review
-        (booking_id, customer_id, merchant_id, service_id, staff_id, rating, review_text, review_image_data, review_image_mime)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO reviews
+        (booking_id, customer_id, review_target, merchant_id, service_id, staff_id, rating, review_text, review_image_data, review_image_mime)
+       VALUES (?, ?, 'merchant', ?, ?, ?, ?, ?, ?, ?)`,
       [
         booking.booking_id,
         customerId,
@@ -146,9 +146,9 @@ async function submitBookingReview({
 
     if (!booking.platform_feedback_id) {
       await connection.query(
-        `INSERT INTO platform_feedback
-          (booking_id, customer_id, rating, feedback_type, feedback_text)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO reviews
+          (booking_id, customer_id, review_target, rating, feedback_type, review_text)
+         VALUES (?, ?, 'platform', ?, ?, ?)`,
         [
           booking.booking_id,
           customerId,
@@ -159,9 +159,7 @@ async function submitBookingReview({
       );
     }
 
-    const bonusPoints = hasReviewImage
-      ? loyaltyModel.PHOTO_REVIEW_BONUS_POINTS
-      : loyaltyModel.REVIEW_BONUS_POINTS;
+    const bonusPoints = loyaltyModel.getReviewBonusPoints(hasReviewImage);
     await loyaltyModel.awardReviewBonusPoints(customerId, booking.booking_id, connection, bonusPoints);
 
     await connection.commit();
@@ -189,11 +187,11 @@ async function getMerchantReviews(merchantId) {
             u.full_name AS customer_name,
             s.service_name,
             st.full_name AS staff_name
-     FROM merchant_review r
+     FROM reviews r
      JOIN users u ON u.user_id = r.customer_id
      JOIN service s ON s.service_id = r.service_id
      LEFT JOIN staff st ON st.staff_id = r.staff_id
-     WHERE r.merchant_id = ?
+     WHERE r.merchant_id = ? AND r.review_target = 'merchant'
      ORDER BY r.created_at DESC, r.review_id DESC`,
     [merchantId]
   );
@@ -210,17 +208,17 @@ async function getMerchantReviewSummary(merchantId, periodStart = null) {
             COALESCE(AVG(CASE WHEN created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 MONTH) THEN rating END), 0) AS average_rating,
             COUNT(CASE WHEN merchant_reply IS NULL OR TRIM(merchant_reply) = '' THEN 1 END) AS awaiting_reply,
             (SELECT latest.rating
-             FROM merchant_review latest
-             WHERE latest.merchant_id = ?
+             FROM reviews latest
+             WHERE latest.merchant_id = ? AND latest.review_target = 'merchant'
              ORDER BY latest.created_at DESC, latest.review_id DESC
              LIMIT 1) AS latest_rating,
             (SELECT latest.created_at
-             FROM merchant_review latest
-             WHERE latest.merchant_id = ?
+             FROM reviews latest
+             WHERE latest.merchant_id = ? AND latest.review_target = 'merchant'
              ORDER BY latest.created_at DESC, latest.review_id DESC
              LIMIT 1) AS latest_review_at
-     FROM merchant_review
-     WHERE merchant_id = ?`,
+     FROM reviews
+     WHERE merchant_id = ? AND review_target = 'merchant'`,
     [selectedPeriod, selectedPeriod, selectedPeriod, selectedPeriod, merchantId, merchantId, merchantId]
   );
 
@@ -236,11 +234,12 @@ async function replyToMerchantReview(reviewId, merchantId, replyText) {
   }
 
   const [result] = await db.query(
-    `UPDATE merchant_review
+    `UPDATE reviews
      SET merchant_reply = ?,
          merchant_replied_at = NOW()
      WHERE review_id = ?
-       AND merchant_id = ?`,
+       AND merchant_id = ?
+       AND review_target = 'merchant'`,
     [safeReply, reviewId, merchantId]
   );
 
@@ -256,10 +255,10 @@ async function getRecentMerchantReviews(merchantId, limit = 6) {
             r.merchant_reply, r.merchant_replied_at,
             u.full_name AS customer_name,
             s.service_name
-     FROM merchant_review r
+     FROM reviews r
      JOIN users u ON u.user_id = r.customer_id
      JOIN service s ON s.service_id = r.service_id
-     WHERE r.merchant_id = ?
+     WHERE r.merchant_id = ? AND r.review_target = 'merchant'
      ORDER BY r.created_at DESC, r.review_id DESC
      LIMIT ?`,
     [merchantId, Number(limit) || 6]
@@ -273,8 +272,9 @@ async function getReviewImage(reviewId) {
 
   const [rows] = await db.query(
     `SELECT review_image_data, review_image_mime
-     FROM merchant_review
+     FROM reviews
      WHERE review_id = ?
+       AND review_target = 'merchant'
        AND review_image_data IS NOT NULL
        AND review_image_mime IS NOT NULL
      LIMIT 1`,
@@ -289,9 +289,10 @@ async function getPhotoReviewCategories() {
 
   const [rows] = await db.query(
     `SELECT DISTINCT s.category
-     FROM merchant_review r
+     FROM reviews r
      JOIN service s ON s.service_id = r.service_id
-     WHERE r.review_image_data IS NOT NULL
+     WHERE r.review_target = 'merchant'
+       AND r.review_image_data IS NOT NULL
        AND r.review_image_mime IS NOT NULL
        AND s.category IS NOT NULL
        AND TRIM(s.category) <> ''`
@@ -303,6 +304,7 @@ async function getPhotoReviewCategories() {
 async function getPhotoReviews({ category = null, limit = null } = {}) {
   await ensureReviewSchema();
   const clauses = [
+    "r.review_target = 'merchant'",
     'r.review_image_data IS NOT NULL',
     'r.review_image_mime IS NOT NULL',
   ];
@@ -327,7 +329,7 @@ async function getPhotoReviews({ category = null, limit = null } = {}) {
             m.merchant_name,
             s.service_name,
             s.category AS service_category
-     FROM merchant_review r
+     FROM reviews r
      JOIN users u ON u.user_id = r.customer_id
      JOIN merchant m ON m.merchant_id = r.merchant_id
      JOIN service s ON s.service_id = r.service_id

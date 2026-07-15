@@ -99,6 +99,16 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function requireCustomer(req, res, next) {
+  if (!req.session.user || req.session.user.role !== 'customer') {
+    if (wantsJson(req)) {
+      return res.status(403).json({ error: 'Access denied. Customer account required.' });
+    }
+    return res.status(403).send('Access denied. Customer account required.');
+  }
+  next();
+}
+
 function blockMerchantBookingAccess(req, res, next) {
   if (req.session.user && req.session.user.role === 'merchant') {
     if (req.originalUrl.startsWith('/book/api/') || (req.accepts('json') && !req.accepts('html'))) {
@@ -117,6 +127,7 @@ module.exports = {
   requireLogin,
   requireMerchant,
   requireAdmin,
+  requireCustomer,
   blockMerchantBookingAccess,
   wantsJson,
 };
