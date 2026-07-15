@@ -1,6 +1,7 @@
 const twilio = require('twilio');
 const merchantModel = require('../models/merchantModel');
 const bookingModel = require('../models/bookingModel');
+const slotModel = require('../models/slotModel');
 const staffModel = require('../models/staffModel');
 const whatsappModel = require('../models/whatsappModel');
 const supportModel = require('../models/supportModel');
@@ -364,22 +365,159 @@ function sendTwiml(res, twiml) {
   res.end(twiml.toString());
 }
 
-function saveSession(sender, nextSession) {
-  nextSession.previous = userSessions[sender] || null;
-  userSessions[sender] = nextSession;
+function captureOutgoingMessages(twiml) {
+  const outgoingMessages = [];
+  const sendMessage = twiml.message.bind(twiml);
+
+  twiml.message = function (message) {
+    outgoingMessages.push(String(message || ''));
+    return sendMessage(message);
+  };
+
+  return outgoingMessages;
 }
 
-function goBack(sender, twiml) {
+function sessionFromRecord(record) {
+  if (!record) {
+    return null;
+  }
+
+  const data = record.temp_data && typeof record.temp_data === 'object'
+    ? record.temp_data
+    : {};
+
+  if (record.session_state && !data.state) {
+    data.state = record.session_state;
+  }
+
+  return data.state ? data : null;
+}
+
+async function loadSession(sender) {
+  try {
+    const record = await whatsappModel.getOrCreateActiveSession(sender);
+    const persistedSession = sessionFromRecord(record);
+
+    if (persistedSession) {
+      userSessions[sender] = persistedSession;
+    }
+
+    return {
+      record: record,
+      session: persistedSession || userSessions[sender] || null
+    };
+  } catch (error) {
+    console.error('[whatsapp] Failed to load persisted session:', error.message);
+    return {
+      record: null,
+      session: userSessions[sender] || null
+    };
+  }
+}
+
+async function saveSession(sender, nextSession) {
+  const previousSession = userSessions[sender] || null;
+
+  if (previousSession && previousSession !== nextSession) {
+    nextSession.previous = previousSession;
+  } else if (!nextSession.previous) {
+    nextSession.previous = null;
+  }
+
+  userSessions[sender] = nextSession;
+
+  try {
+    await whatsappModel.updateActiveSessionStateByPhone(sender, nextSession);
+  } catch (error) {
+    console.error('[whatsapp] Failed to persist session state:', error.message);
+  }
+}
+
+async function clearSession(sender, status = 'completed') {
+  delete userSessions[sender];
+
+  try {
+    await whatsappModel.markActiveSessionStatusByPhone(sender, status);
+  } catch (error) {
+    console.error('[whatsapp] Failed to mark session ' + status + ':', error.message);
+  }
+}
+
+function getMessageType(session, message) {
+  const state = session ? String(session.state || '') : '';
+  const text = String(message || '').toLowerCase();
+
+  if (state.includes('cancel') || text.includes('cancel')) {
+    return 'cancellation';
+  }
+
+  if (state.includes('reschedule') || text.includes('reschedule')) {
+    return 'reschedule';
+  }
+
+  if (state.includes('choosing') || text === '1') {
+    return 'booking';
+  }
+
+  if (state === 'checking_reservation' || /^\d+$/.test(text)) {
+    return 'confirmation';
+  }
+
+  return 'enquiry';
+}
+
+async function logIncomingMessage(record, message, messageType) {
+  if (!record) return;
+
+  try {
+    await whatsappModel.insertMessage({
+      sessionId: record.session_id,
+      direction: 'inbound',
+      messageType: messageType,
+      messageContent: message,
+      status: 'received'
+    });
+  } catch (error) {
+    console.error('[whatsapp] Failed to log incoming message:', error.message);
+  }
+}
+
+async function logOutgoingMessages(record, messages, messageType, bookingId) {
+  if (!record || !messages.length) return;
+
+  for (const message of messages) {
+    try {
+      await whatsappModel.insertMessage({
+        sessionId: record.session_id,
+        bookingId: bookingId || null,
+        direction: 'outbound',
+        messageType: messageType,
+        messageContent: message,
+        status: 'sent'
+      });
+    } catch (error) {
+      console.error('[whatsapp] Failed to log outgoing message:', error.message);
+    }
+  }
+}
+
+async function finishWhatsAppResponse(res, twiml, record, outgoingMessages, messageType, bookingId) {
+  await logOutgoingMessages(record, outgoingMessages, messageType, bookingId);
+  return sendTwiml(res, twiml);
+}
+
+async function goBack(sender, twiml) {
   const session = userSessions[sender];
 
   if (!session || !session.previous) {
-    delete userSessions[sender];
+    await clearSession(sender, 'completed');
     twiml.message(getMainMenu());
     return;
   }
 
   const previous = session.previous;
   userSessions[sender] = previous;
+  await saveSession(sender, previous);
 
   if (previous.state === 'choosing_category') {
     twiml.message(getCategoryMenu());
@@ -392,7 +530,7 @@ function goBack(sender, twiml) {
   } else if (previous.state === 'choosing_time_slot') {
     twiml.message(getTimeSlotMenu(previous.bookingDate, previous.slots));
   } else {
-    delete userSessions[sender];
+    await clearSession(sender, 'completed');
     twiml.message(getMainMenu());
   }
 }
@@ -456,7 +594,7 @@ async function getServicesForMerchant(merchant) {
 async function getTimeSlotsForDate(session, bookingDate) {
   try {
     if (session.merchant.merchant_id && session.service.service_id) {
-      return await bookingModel.getAvailableSlots({
+      return await slotModel.getAvailableSlots({
         merchantId: session.merchant.merchant_id,
         serviceId: session.service.service_id,
         bookingDate: bookingDate
@@ -480,7 +618,7 @@ async function getStaffForTimeSlot(session, selectedSlot) {
       const availableStaff = [];
 
       for (const member of staff) {
-        const slots = await bookingModel.getAvailableSlots({
+        const slots = await slotModel.getAvailableSlots({
           merchantId: session.merchant.merchant_id,
           serviceId: session.service.service_id,
           staffId: member.staff_id,
@@ -507,26 +645,34 @@ async function getStaffForTimeSlot(session, selectedSlot) {
 
 async function receiveMessage(req, res) {
   const twiml = new twilio.twiml.MessagingResponse();
+  const outgoingMessages = captureOutgoingMessages(twiml);
+  let sessionRecord = null;
+  let latestMessageType = 'enquiry';
+  let linkedBookingId = null;
 
   try {
     const incomingMessage = req.body.Body || '';
     const message = incomingMessage.toLowerCase().trim();
     const sender = req.body.From || 'unknown';
-    const session = userSessions[sender];
+    const loaded = await loadSession(sender);
+    sessionRecord = loaded.record;
+    const session = loaded.session;
     const bookingRef = parseBookingRef(incomingMessage);
+    latestMessageType = getMessageType(session, message);
 
     console.log('Incoming WhatsApp message:', incomingMessage);
+    await logIncomingMessage(sessionRecord, incomingMessage, latestMessageType);
 
     if (bookingRef) {
       const context = await loadBookingRefContext(bookingRef);
 
       if (!context) {
-        delete userSessions[sender];
+        await clearSession(sender, 'completed');
         twiml.message('Sorry, I could not find that merchant or service. Please reply menu to start again.');
       } else {
         const customer = await whatsappModel.findExistingCustomerByPhone(sender);
 
-        saveSession(sender, {
+        await saveSession(sender, {
           state: 'choosing_date',
           category: context.service.category || context.merchant.category || null,
           merchant: context.merchant,
@@ -537,17 +683,18 @@ async function receiveMessage(req, res) {
         twiml.message(getLinkedDatePrompt(customer, context.merchant, context.service));
       }
     } else if (message === 'reset' || message === 'menu' || message === 'hi' || message === 'hello') {
-      delete userSessions[sender];
+      await clearSession(sender, 'completed');
       twiml.message(getMainMenu());
     } else if (message === '0' || message === 'back') {
-      goBack(sender, twiml);
+      await goBack(sender, twiml);
     } else if (session && session.state === 'checking_reservation') {
       const bookingId = incomingMessage.trim();
       const result = await checkReservation(bookingId);
 
       if (result.booking) {
+        linkedBookingId = result.booking.booking_id;
         twiml.message(getReservationSummary(result.booking));
-        delete userSessions[sender];
+        await clearSession(sender, 'completed');
       } else if (result.error) {
         twiml.message(
           'Sorry, I could not check reservations right now.\n\n' +
@@ -569,7 +716,8 @@ async function receiveMessage(req, res) {
           'Please enter another booking ID, or reply menu to start over.'
         );
       } else {
-        saveSession(sender, {
+        linkedBookingId = booking.booking_id;
+        await saveSession(sender, {
           state: 'cancelling_confirm',
           customer: session.customer,
           bookingId: booking.booking_id
@@ -592,17 +740,18 @@ async function receiveMessage(req, res) {
             'Time: ' + (booking ? formatBookingTime(booking.booking_time) : '-')
           );
 
-          delete userSessions[sender];
+          linkedBookingId = session.bookingId;
+          await clearSession(sender, 'completed');
         } catch (error) {
           twiml.message(
             'Sorry, I could not cancel this booking.\n\n' +
             (error.message || 'Please try again later, or contact Uniday support.')
           );
-          delete userSessions[sender];
+          await clearSession(sender, 'completed');
         }
       } else if (message === 'no' || message === 'n') {
         twiml.message('No problem. Your booking has not been changed.');
-        delete userSessions[sender];
+        await clearSession(sender, 'completed');
       } else {
         twiml.message('Please reply YES to cancel this booking, or NO to keep it.');
       }
@@ -617,9 +766,10 @@ async function receiveMessage(req, res) {
         );
       } else if (!canStartReschedule(booking)) {
         twiml.message('This booking cannot be rescheduled because its current status is ' + booking.status + '.');
-        delete userSessions[sender];
+        await clearSession(sender, 'completed');
       } else {
-        saveSession(sender, {
+        linkedBookingId = booking.booking_id;
+        await saveSession(sender, {
           state: 'reschedule_awaiting_date',
           customer: session.customer,
           booking: booking
@@ -642,7 +792,7 @@ async function receiveMessage(req, res) {
         );
       } else {
         const booking = session.booking;
-        const slots = await bookingModel.getAvailableSlots({
+        const slots = await slotModel.getAvailableSlots({
           merchantId: booking.merchant_id,
           serviceId: booking.service_id,
           staffId: booking.staff_id || null,
@@ -655,7 +805,7 @@ async function receiveMessage(req, res) {
             'Please enter another date as YYYY-MM-DD.'
           );
         } else {
-          saveSession(sender, {
+          await saveSession(sender, {
             state: 'reschedule_awaiting_time',
             customer: session.customer,
             booking: booking,
@@ -678,7 +828,7 @@ async function receiveMessage(req, res) {
           'Please choose a different time, or reply 0/back to choose another date.'
         );
       } else {
-        saveSession(sender, {
+        await saveSession(sender, {
           state: 'reschedule_confirm',
           customer: session.customer,
           booking: session.booking,
@@ -699,6 +849,7 @@ async function receiveMessage(req, res) {
           );
 
           const booking = await bookingModel.getBookingById(session.booking.booking_id);
+          linkedBookingId = booking.booking_id;
 
           twiml.message(
             'Your booking has been rescheduled.\n\n' +
@@ -710,17 +861,17 @@ async function receiveMessage(req, res) {
             'Staff: ' + (booking.staff_name || 'Any Available Staff')
           );
 
-          delete userSessions[sender];
+          await clearSession(sender, 'completed');
         } catch (error) {
           twiml.message(
             'Sorry, I could not reschedule this booking.\n\n' +
             (error.message || 'Please try again later, or contact Uniday support.')
           );
-          delete userSessions[sender];
+          await clearSession(sender, 'completed');
         }
       } else if (message === 'no' || message === 'n') {
         twiml.message('No problem. Your booking has not been changed.');
-        delete userSessions[sender];
+        await clearSession(sender, 'completed');
       } else {
         twiml.message('Please reply YES to reschedule this booking, or NO to keep your current booking.');
       }
@@ -751,7 +902,7 @@ async function receiveMessage(req, res) {
           );
         }
 
-        delete userSessions[sender];
+        await clearSession(sender, 'completed');
       }
     } else if (session && session.state === 'choosing_category') {
       const category = categories[message];
@@ -760,12 +911,12 @@ async function receiveMessage(req, res) {
         const merchants = await getMerchantsForCategory(category);
 
         if (!merchants.length) {
-          delete userSessions[sender];
+          await clearSession(sender, 'completed');
           twiml.message('Sorry, we are unable to load merchants right now. Please try again later.');
-          return sendTwiml(res, twiml);
+          return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
         }
 
-        saveSession(sender, {
+        await saveSession(sender, {
           state: 'choosing_merchant',
           category: category,
           merchants: merchants,
@@ -784,12 +935,12 @@ async function receiveMessage(req, res) {
         const services = await getServicesForMerchant(selectedMerchant);
 
         if (!services.length) {
-          delete userSessions[sender];
+          await clearSession(sender, 'completed');
           twiml.message('Sorry, we are unable to load services right now. Please try again later.');
-          return sendTwiml(res, twiml);
+          return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
         }
 
-        saveSession(sender, {
+        await saveSession(sender, {
           state: 'choosing_service',
           category: session.category,
           merchant: selectedMerchant,
@@ -806,7 +957,7 @@ async function receiveMessage(req, res) {
       const selectedService = session.services[serviceNumber - 1];
 
       if (selectedService) {
-        saveSession(sender, {
+        await saveSession(sender, {
           state: 'choosing_date',
           category: session.category,
           merchant: session.merchant,
@@ -829,10 +980,10 @@ async function receiveMessage(req, res) {
             'Sorry, there are no available time slots for ' + bookingDate + '.\n\n' +
             'Please enter another date as YYYY-MM-DD.'
           );
-          return sendTwiml(res, twiml);
+          return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
         }
 
-        saveSession(sender, {
+        await saveSession(sender, {
           state: 'choosing_time_slot',
           category: session.category,
           merchant: session.merchant,
@@ -862,12 +1013,12 @@ async function receiveMessage(req, res) {
         const staff = await getStaffForTimeSlot(session, selectedSlot);
 
         if (!staff.length) {
-          delete userSessions[sender];
+          await clearSession(sender, 'completed');
           twiml.message('Sorry, we are unable to load staff availability right now. Please try again later.');
-          return sendTwiml(res, twiml);
+          return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
         }
 
-        saveSession(sender, {
+        await saveSession(sender, {
           state: 'choosing_staff',
           category: session.category,
           merchant: session.merchant,
@@ -902,8 +1053,8 @@ async function receiveMessage(req, res) {
             'After your account is linked, future WhatsApp bookings can go straight to payment.'
           );
 
-          delete userSessions[sender];
-          return sendTwiml(res, twiml);
+          await clearSession(sender, 'completed');
+          return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
         }
 
         const bookingId = await bookingModel.createBooking({
@@ -914,6 +1065,22 @@ async function receiveMessage(req, res) {
           bookingTime: session.selectedSlot.start_time,
           staffId: selectedStaff ? selectedStaff.staff_id : null,
           source: 'whatsapp'
+        });
+        linkedBookingId = bookingId;
+
+        try {
+          await whatsappModel.linkLatestInboundMessageToBooking(
+            sessionRecord ? sessionRecord.session_id : null,
+            bookingId
+          );
+        } catch (error) {
+          console.error('[whatsapp] Failed to link inbound message to booking:', error.message);
+        }
+
+        await saveSession(sender, {
+          ...session,
+          state: 'booking_created',
+          bookingId: bookingId
         });
 
         const paymentLink = getPaymentLink(bookingId);
@@ -931,21 +1098,21 @@ async function receiveMessage(req, res) {
           paymentLink
         );
 
-        delete userSessions[sender];
+        await clearSession(sender, 'completed');
       } else {
         twiml.message('Invalid staff number. Please choose a staff option from the list.');
       }
     } else if (message === '1') {
       const customer = await whatsappModel.findExistingCustomerByPhone(sender);
 
-      saveSession(sender, {
+      await saveSession(sender, {
         state: 'choosing_category',
         customer: customer
       });
 
       twiml.message(getCategoryMenu());
     } else if (message === '2') {
-      saveSession(sender, {
+      await saveSession(sender, {
         state: 'checking_reservation'
       });
 
@@ -959,7 +1126,7 @@ async function receiveMessage(req, res) {
           getLoginLink(sender)
         );
       } else {
-        saveSession(sender, {
+        await saveSession(sender, {
           state: 'cancelling_awaiting_id',
           customer: customer
         });
@@ -975,7 +1142,7 @@ async function receiveMessage(req, res) {
           getLoginLink(sender)
         );
       } else {
-        saveSession(sender, {
+        await saveSession(sender, {
           state: 'reschedule_awaiting_id',
           customer: customer
         });
@@ -986,7 +1153,7 @@ async function receiveMessage(req, res) {
       const customer = await getVerifiedCustomerForSender(sender);
       const supportStatus = getSupportHoursStatus();
 
-      saveSession(sender, {
+      await saveSession(sender, {
         state: 'support_awaiting_issue',
         customer: customer,
         supportStatus: supportStatus
@@ -994,7 +1161,7 @@ async function receiveMessage(req, res) {
 
       twiml.message(getSupportPrompt(supportStatus));
     } else {
-      delete userSessions[sender];
+      await clearSession(sender, 'completed');
       twiml.message(getMainMenu());
     }
   } catch (error) {
@@ -1002,7 +1169,7 @@ async function receiveMessage(req, res) {
     twiml.message('Sorry, something went wrong. Please reply menu to start again.');
   }
 
-  return sendTwiml(res, twiml);
+  return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
 }
 
 module.exports = { receiveMessage };
