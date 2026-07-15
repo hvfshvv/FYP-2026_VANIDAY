@@ -2,7 +2,7 @@ const express    = require('express');
 const session    = require('express-session');
 const path       = require('path');
 
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '.env'), override: true });
 
 const authRoutes        = require('./routes/auth');
 const merchantRoutes    = require('./routes/merchant');

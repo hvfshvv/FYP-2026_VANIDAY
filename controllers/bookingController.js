@@ -258,10 +258,11 @@ async function confirmPortalBooking(req, res) {
 async function viewCustomerBookings(req, res) {
   try {
     const customerId = req.session.user.customer_id || req.session.user.user_id;
-    const [bookings, waitlists] = await Promise.all([
-      bookingModel.getCustomerBookings(customerId),
-      waitlistModel.getCustomerWaitlists(customerId),
-    ]);
+    const bookings = await bookingModel.getCustomerBookings(customerId);
+    const waitlists = await waitlistModel.getCustomerWaitlists(customerId).catch((err) => {
+      console.error('customer waitlists failed:', err);
+      return [];
+    });
     res.render('booking/viewBookings', {
       title: 'My Bookings',
       bookings,
@@ -284,6 +285,8 @@ async function joinWaitlistFromQR(req, res) {
   const { token } = req.params;
 
   try {
+    if (redirectMerchantAwayFromBooking(req, res)) return;
+
     const qr = await qrModel.getQRByToken(token);
     if (!qr) throw new Error('This booking QR code is invalid or no longer active.');
 
@@ -331,8 +334,13 @@ async function confirmWaitlistOffer(req, res) {
     const customerId = currentCustomerId(req);
     const entry = await waitlistModel.getWaitlistByIdForCustomer(req.params.waitlistId, customerId);
 
-    if (!entry || entry.status !== 'offered' || !entry.offer_expires_at || new Date(entry.offer_expires_at) < new Date()) {
-      throw new Error('This waitlist offer is no longer available.');
+    if (!entry || entry.status !== 'offered') {
+      return res.redirect('/book/viewBookings?error=' + encodeURIComponent('This waitlist offer is no longer available.'));
+    }
+
+    if (entry.offer_expires_at && new Date(entry.offer_expires_at) < new Date()) {
+      await waitlistModel.expireOffersAndPromote();
+      return res.redirect('/book/viewBookings?error=' + encodeURIComponent('This waitlist offer has expired.'));
     }
 
     const bookingId = await bookingModel.createBooking({
@@ -347,6 +355,7 @@ async function confirmWaitlistOffer(req, res) {
 
     await waitlistModel.markConfirmed(entry.waitlist_id, bookingId);
     await sendBookingCreatedNotification(bookingId);
+
     res.redirect(`/payment/checkout/${bookingId}`);
   } catch (err) {
     console.error(err);
@@ -669,6 +678,59 @@ async function confirmBooking(req, res) {
   }
 }
 
+async function joinWaitlistFromQR(req, res) {
+  if (redirectMerchantAwayFromBooking(req, res)) return;
+
+  const { token } = req.params;
+  const { service_id, booking_date, booking_time } = req.body;
+
+  try {
+    if (!req.session.user || req.session.user.role !== 'customer') {
+      return res.redirect(`/auth/login?next=${encodeURIComponent(buildQrNextUrl(token, {
+        ...req.body,
+        waitlist: '1',
+      }))}`);
+    }
+
+    const qr = await qrModel.getQRByToken(token);
+    if (!qr) {
+      return res.status(404).render('booking/invalid', {
+        title: 'Invalid QR Code',
+      });
+    }
+
+    await waitlistModel.joinWaitlist({
+      customerId: currentCustomerId(req),
+      merchantId: qr.merchant_id,
+      serviceId: service_id,
+      bookingDate: booking_date,
+      bookingTime: booking_time,
+    });
+
+    res.redirect('/book/viewBookings?success=' + encodeURIComponent('You joined the waitlist for that slot.'));
+  } catch (err) {
+    console.error(err);
+    const qr = await qrModel.getQRByToken(token).catch(() => null);
+    const services = qr ? await merchantModel.getMerchantServices(qr.merchant_id).catch(() => []) : [];
+
+    if (!qr) {
+      return res.status(404).render('booking/invalid', { title: 'Invalid QR Code' });
+    }
+
+    return renderQRBookingPage(req, res, {
+      token,
+      qr,
+      services,
+      error: err.message || 'Could not join the waitlist.',
+      statusCode: 400,
+      formState: {
+        ...getQrFormState(req),
+        waitlist: '1',
+      },
+    });
+  }
+}
+
 async function checkEmailMember(req, res) {
   if (redirectMerchantAwayFromBooking(req, res)) return;
 
@@ -813,6 +875,8 @@ module.exports = {
   checkEmailMember,
   confirmArrivalByQR,
   viewCustomerBookings,
+  confirmWaitlistOffer,
+  cancelWaitlistRequest,
   cancelCustomerBooking,
   showRescheduleBooking,
   rescheduleCustomerBooking,

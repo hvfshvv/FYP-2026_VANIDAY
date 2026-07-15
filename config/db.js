@@ -1,4 +1,7 @@
 const mysql = require('mysql2/promise');
+const path = require('path');
+
+require('dotenv').config({ path: path.join(__dirname, '..', '.env'), override: true });
 
 const isAzure = (process.env.DB_HOST || '').includes('azure.com');
 
