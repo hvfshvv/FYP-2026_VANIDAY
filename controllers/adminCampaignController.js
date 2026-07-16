@@ -8,6 +8,7 @@
 const voucherModel = require('../models/voucherModel');
 const loyaltyModel = require('../models/loyaltyModel');
 const { toDateInput } = require('./adminDashboardController');
+const { generateCampaignRecommendation } = require('../services/geminiCampaignService');
 
 // ── FORM PARSERS ───────────────────────────────────────────────────────────
 
@@ -88,6 +89,31 @@ function voucherToCampaignForm(voucher) {
     start_date: toDateInput(new Date(voucher.start_date)),
     end_date: toDateInput(new Date(voucher.end_date)),
   };
+}
+
+function isRealDateInput(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+}
+
+function parseAiRecommendationRequest(body) {
+  const occasion = typeof body.occasion === 'string' ? body.occasion.trim() : '';
+  const goal = typeof body.goal === 'string' ? body.goal.trim() : '';
+  const eventDate = body.eventDate;
+
+  if (!occasion || !goal || occasion.length > 100 || goal.length > 100 || !isRealDateInput(eventDate)) {
+    return null;
+  }
+
+  return { occasion, eventDate, goal };
 }
 
 // Re-renders the campaign form with error state, reloading needed data to populate dropdowns.
@@ -261,6 +287,33 @@ async function toggleCampaign(req, res) {
 
 // ── LOYALTY REWARD PAGES ───────────────────────────────────────────────────
 
+async function generateAiRecommendation(req, res) {
+  const input = parseAiRecommendationRequest(req.body || {});
+
+  if (!input) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a valid occasion, event date and campaign goal.',
+    });
+  }
+
+  try {
+    const recommendation = await generateCampaignRecommendation(input);
+
+    return res.status(200).json({
+      success: true,
+      recommendation,
+    });
+  } catch (err) {
+    console.error('[adminCampaign] AI recommendation generation failed:', err);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to generate a recommendation right now.',
+    });
+  }
+}
+
 // Renders the loyalty rewards list with the create form.
 async function showLoyaltyRewards(req, res) {
   try {
@@ -402,6 +455,7 @@ module.exports = {
   createCampaign,
   updateCampaign,
   toggleCampaign,
+  generateAiRecommendation,
   showLoyaltyRewards,
   showEditLoyaltyReward,
   createLoyaltyReward,

@@ -71,6 +71,7 @@ router.post('/promotions/:promoId/reject',                  merchantCtrl.rejectP
 
 // Campaign and voucher management.
 router.get('/campaigns',                                campaignCtrl.showCampaigns);
+router.post('/campaigns/ai-recommendation',             campaignCtrl.generateAiRecommendation);
 router.get('/campaigns/vouchers',                       campaignCtrl.showVoucherCampaigns);
 router.post('/campaigns/vouchers/create',               campaignCtrl.createCampaign);
 router.post('/campaigns/create',                        campaignCtrl.createCampaign);
