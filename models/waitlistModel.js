@@ -115,12 +115,19 @@ async function notifyCustomer(waitlistId, title, message, type) {
   const userId = await getCustomerUserId(entry.customer_id);
   if (!userId) return;
 
-  await notificationModel.createAssistantMessage({
+  await notificationModel.createNotification({
     userId,
+    waitlistId,
     title,
     message,
     notificationType: type,
   });
+}
+
+async function markWaitlistNotificationsClosed(waitlistId, customerId, excludeType = null) {
+  const userId = await getCustomerUserId(customerId);
+  if (!userId) return;
+  await notificationModel.markWaitlistMessagesRead(userId, waitlistId, excludeType);
 }
 
 async function joinWaitlist({ customerId, merchantId, serviceId, bookingDate, bookingTime }) {
@@ -163,7 +170,7 @@ async function joinWaitlist({ customerId, merchantId, serviceId, bookingDate, bo
 
   await notifyCustomer(
     result.insertId,
-    'Uniday Assistant',
+    'Waitlist joined',
     'You joined the waitlist. I will message you if this slot opens up.',
     'waitlist_joined'
   );
@@ -286,7 +293,7 @@ async function offerNextForSlot(slot) {
     const entry = await getSlotLabel(next.waitlist_id);
     await notifyCustomer(
       next.waitlist_id,
-      'Uniday Assistant',
+      'Slot available',
       `Good news: a ${entry.service_name} slot at ${entry.merchant_name} opened for ${entry.dateLabel} at ${entry.timeLabel}. You have ${OFFER_MINUTES} minutes to confirm it from My Bookings.`,
       'waitlist_offer'
     );
@@ -313,7 +320,7 @@ async function expireOffersAndPromote() {
   await ensureWaitlistSchema();
 
   const [expired] = await db.query(
-    `SELECT waitlist_id, merchant_id, service_id, booking_date, booking_time
+    `SELECT waitlist_id, customer_id, merchant_id, service_id, booking_date, booking_time
      FROM waitlist
      WHERE status = 'offered'
        AND offer_expires_at < NOW()`
@@ -331,10 +338,12 @@ async function expireOffersAndPromote() {
 
   await Promise.all(expired.map(row => notifyCustomer(
     row.waitlist_id,
-    'Uniday Assistant',
+    'Waitlist offer expired',
     'Your waitlist offer expired, so I moved the slot to the next customer in queue.',
     'waitlist_offer_expired'
   )));
+
+  await Promise.all(expired.map(row => markWaitlistNotificationsClosed(row.waitlist_id, row.customer_id, 'waitlist_offer_expired')));
 
   const seen = new Set();
   for (const row of expired) {
@@ -371,6 +380,7 @@ async function getWaitlistByIdForCustomer(waitlistId, customerId) {
 
 async function markConfirmed(waitlistId, bookingId) {
   await ensureWaitlistSchema();
+  const entry = await getSlotLabel(waitlistId);
   await db.query(
     `UPDATE waitlist
      SET status = 'confirmed',
@@ -378,6 +388,9 @@ async function markConfirmed(waitlistId, bookingId) {
      WHERE waitlist_id = ?`,
     [bookingId, waitlistId]
   );
+  if (entry) {
+    await markWaitlistNotificationsClosed(waitlistId, entry.customer_id);
+  }
 }
 
 async function cancelCustomerWaitlist(waitlistId, customerId) {
@@ -394,6 +407,14 @@ async function cancelCustomerWaitlist(waitlistId, customerId) {
      WHERE waitlist_id = ? AND customer_id = ?`,
     [waitlistId, customerId]
   );
+
+  await notifyCustomer(
+    waitlistId,
+    'Waitlist request cancelled',
+    'Your waitlist request has been cancelled.',
+    'waitlist_cancelled'
+  );
+  await markWaitlistNotificationsClosed(waitlistId, customerId, 'waitlist_cancelled');
 
   if (entry.status === 'offered') {
     await offerNextForSlot(entry);
@@ -424,10 +445,11 @@ async function removeMerchantWaitlist(waitlistId, merchantId) {
 
   await notifyCustomer(
     waitlistId,
-    'Uniday Assistant',
+    'Waitlist request removed',
     'The merchant removed your waitlist request. You can choose another slot anytime.',
     'waitlist_removed'
   );
+  await markWaitlistNotificationsClosed(waitlistId, entry.customer_id, 'waitlist_removed');
 
   if (entry.status === 'offered') {
     await offerNextForSlot(entry);

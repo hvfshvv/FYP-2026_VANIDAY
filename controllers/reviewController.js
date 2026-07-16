@@ -101,6 +101,13 @@ async function submitBookingReview(req, res) {
       reviewImageData,
       reviewImageMime,
     });
+    await notificationModel.notifyReviewReward({
+      customerId,
+      bookingId: req.params.bookingId,
+      points: result.points,
+    }).catch(err => {
+      console.error('[notification] review reward notification failed:', err.message);
+    });
 
     res.redirect(`/book/viewBookings?success=${encodeURIComponent(`Thanks for sharing your review. ${result.points} loyalty points have been added to your wallet.`)}`);
   } catch (err) {

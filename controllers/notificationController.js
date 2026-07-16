@@ -1,7 +1,11 @@
 const notificationModel = require('../models/notificationModel');
+const bookingNotificationModel = require('../models/bookingNotificationModel');
+const waitlistModel = require('../models/waitlistModel');
 
 async function listNotifications(req, res) {
   try {
+    await bookingNotificationModel.expirePendingPaymentBookings();
+    await waitlistModel.expireOffersAndPromote();
     const notifications = await notificationModel.getNotificationsForUser(req.session.user.user_id);
 
     res.render('notifications/index', {

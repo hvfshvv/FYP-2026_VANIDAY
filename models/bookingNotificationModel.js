@@ -9,6 +9,7 @@ const db = require('../config/db');
 const voucherModel = require('./voucherModel');
 const paymentModel = require('./paymentModel');
 const waitlistModel = require('./waitlistModel');
+const notificationModel = require('./notificationModel');
 
 // ── SCHEMA MIGRATION GUARD ─────────────────────────────────────────────────
 
@@ -203,10 +204,13 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
 
     // Find bookings that exceeded the TTL without a payment — lock for safe update.
     const [expired] = await connection.query(
-      `SELECT b.booking_id, b.slot_id, b.merchant_id, b.service_id,
-              ts.slot_date AS booking_date, ts.start_time AS booking_time
+      `SELECT b.booking_id, b.customer_id, b.slot_id, b.merchant_id, b.service_id,
+              ts.slot_date AS booking_date, ts.start_time AS booking_time,
+              s.service_name, m.merchant_name
        FROM booking b
        JOIN time_slot ts ON ts.slot_id = b.slot_id
+       JOIN service s ON s.service_id = b.service_id
+       JOIN merchant m ON m.merchant_id = b.merchant_id
        LEFT JOIN payment paid ON paid.booking_id = b.booking_id
         AND paid.payment_status = 'paid'
        LEFT JOIN payment p ON p.booking_id = b.booking_id
@@ -245,6 +249,9 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
     await connection.commit();
 
     for (const slot of expired) {
+      await notificationModel.notifyPaymentWindowExpired(slot).catch(err => {
+        console.error('[notification] Failed to create payment-expired notification:', err.message);
+      });
       await waitlistModel.offerNextForSlot(slot).catch(err => {
         console.error('[waitlist] Failed to offer a released payment slot:', err.message);
       });

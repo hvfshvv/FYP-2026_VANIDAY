@@ -374,6 +374,17 @@ async function confirmPaidBooking(bookingId) {
   }
 }
 
+async function notifyPaymentAttemptFailedByBookingId(bookingId) {
+  try {
+    const booking = await bookingModel.getBookingById(bookingId);
+    if (booking) {
+      await notificationModel.notifyPaymentAttemptFailed(booking);
+    }
+  } catch (err) {
+    console.error('[notification] payment attempt failed notification failed:', err.message);
+  }
+}
+
 async function showCheckout(req, res) {
   const { bookingId } = req.params;
   try {
@@ -734,6 +745,7 @@ async function handleStripeWebhook(req, res) {
         const result = await persistStripePaymentIntent(event.data.object);
         if (result) {
           await paymentModel.updatePaymentStatus(result.bookingId, 'failed', event.data.object.id);
+          await notifyPaymentAttemptFailedByBookingId(result.bookingId);
         }
       }
     } else if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
@@ -759,6 +771,7 @@ async function handleStripeWebhook(req, res) {
       if (bookingId) {
         await paymentModel.updateStripeCheckoutSession(bookingId, session.id, session.payment_intent);
         await paymentModel.updatePaymentStatus(bookingId, 'failed', session.payment_intent || session.id);
+        await notifyPaymentAttemptFailedByBookingId(bookingId);
       }
     } else if (event.type === 'charge.updated') {
       const charge = event.data.object;
@@ -823,6 +836,7 @@ async function markStripePaymentFailed(req, res) {
 
     // Failed/cancelled attempts do not release the hold early; expiry owns that.
     await paymentModel.updatePaymentStatus(bookingId, 'failed', intent.id);
+    await notifyPaymentAttemptFailedByBookingId(bookingId);
     res.json({ success: true });
   } catch (err) {
     console.error('markStripePaymentFailed error:', err);

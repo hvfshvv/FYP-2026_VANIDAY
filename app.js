@@ -57,6 +57,7 @@ app.use(async (req, res, next) => {
   if (!user) return next();
 
   try {
+    await waitlistModel.expireOffersAndPromote();
     const unreadCount = await notificationModel.countUnreadForUser(user.user_id);
 
     if (user.role === 'customer') {

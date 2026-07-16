@@ -260,8 +260,21 @@ async function getCustomerBookingById(bookingId, customerId) {
 // Changes the booking status (used after payment confirmation or admin action).
 async function updateBookingStatus(bookingId, status) {
   const booking = await getBookingById(bookingId);
-  await db.query('UPDATE booking SET status = ? WHERE booking_id = ?', [status, bookingId]);
+  const [result] = await db.query('UPDATE booking SET status = ? WHERE booking_id = ?', [status, bookingId]);
+  if (result.affectedRows && status === 'completed') {
+    await notifyReviewPromptIfCompleted(bookingId);
+  }
   return booking;
+}
+
+async function notifyReviewPromptIfCompleted(bookingId) {
+  const notificationModel = require('./notificationModel');
+  const booking = await getBookingById(bookingId).catch(() => null);
+  if (!booking || booking.status !== 'completed') return;
+
+  await notificationModel.notifyReviewAvailable(booking).catch(err => {
+    console.error('[notification] review prompt failed:', err.message);
+  });
 }
 
 // Updates booking status from the merchant dashboard with valid state-transition rules.
@@ -306,6 +319,10 @@ async function updateMerchantBookingStatus(bookingId, merchantId, status) {
        ${rule.timeRule}`,
     [...params, rule.currentStatuses]
   );
+
+  if (result.affectedRows && status === 'completed') {
+    await notifyReviewPromptIfCompleted(bookingId);
+  }
 
   return result.affectedRows;
 }
