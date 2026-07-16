@@ -81,7 +81,7 @@
   }
 
   .admin-priority-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .admin-metric-grid {
@@ -185,6 +185,7 @@
     maximumFractionDigits: 2,
   });
   const queueStats = [
+    { label:'Photo Removal Requests', value:summary.pending_review_requests || 0, icon:'bi-image', color:'var(--warn)', href:'/admin/reviews', alertWhenPositive:true },
     { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)', href:'/admin/merchant-validations', alertWhenPositive:true },
     { label:'Pending Promotion Approvals', value:summary.pending_promotion_approvals || 0, icon:'bi-megaphone', color:'var(--warn)', href:'/admin/promotions', alertWhenPositive:true },
     { label:'Unresolved Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)', href:'/admin/validation', alertWhenPositive:true },
@@ -304,6 +305,12 @@
         icon:'bi-chat-square-heart',
         label:'Uniday Feedback',
         sub:'Read customer ratings and comments about booking, payment, QR check-in, WhatsApp, and platform experience.'
+      },
+      {
+        href:'/admin/reviews',
+        icon:'bi-images',
+        label:'Review Moderation',
+        sub:'Resolve customer photo-removal requests, moderate merchant reviews, and inspect recent review activity.'
       },
       {
         href:'/admin/validation',

@@ -16,6 +16,7 @@ const validationCtrl  = require('../controllers/adminValidationController');
 const merchantCtrl    = require('../controllers/adminMerchantController');
 const userCtrl        = require('../controllers/adminUserController');
 const campaignCtrl    = require('../controllers/adminCampaignController');
+const reviewCtrl      = require('../controllers/reviewController');
 
 // ── AUTH GUARD ─────────────────────────────────────────────────────────────
 
@@ -29,6 +30,10 @@ router.get('/revenue',           dashboardCtrl.showRevenueReport);
 router.get('/merchants',         dashboardCtrl.showMerchants);
 router.get('/customers',         dashboardCtrl.showCustomers);
 router.get('/platform-feedback', dashboardCtrl.showPlatformFeedback);
+router.get('/reviews', reviewCtrl.showAdminReviews);
+router.get('/reviews/all', reviewCtrl.showAllAdminReviews);
+router.get('/reviews/:reviewId/image', reviewCtrl.showAdminReviewImage);
+router.post('/reviews/:reviewId/moderate', reviewCtrl.moderateReview);
 
 // Featured merchant actions triggered from the analytics leaderboard.
 router.post('/merchants/:merchantId/feature',               merchantCtrl.featureMerchantFromDashboard);

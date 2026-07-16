@@ -35,6 +35,7 @@
           <% } %>
         </a>
       </li>
+      <li><a href="/book/reviews">My Reviews</a></li>
       <% } %>
       <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
       <li><a href="/merchant/dashboard"><%= t('nav.dashboard') %></a></li>
@@ -107,6 +108,7 @@
     <span class="nav-pending-badge"><%= pendingPaymentCount %></span>
     <% } %>
   </a>
+  <a href="/book/reviews">My Reviews</a>
   <a href="/favourite"><%= t('nav.myFavourites') %></a>
   <a href="/wallet"><%= t('nav.wallet') %></a>
   <a href="/loyalty">Loyalty Rewards</a>

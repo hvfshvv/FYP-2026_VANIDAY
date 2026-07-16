@@ -1,0 +1,14 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+<% const date = v => v ? new Date(v).toLocaleDateString('en-SG', {day:'numeric',month:'short',year:'numeric'}) : '-'; %>
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;"><div class="container" style="max-width:1200px;">
+  <a href="/admin/reviews" class="btn btn-outline-secondary btn-sm btn-pill mb-3"><i class="bi bi-arrow-left me-1"></i>Moderation overview</a>
+  <div class="mb-4"><p class="section-label mb-2">Review library</p><h2 style="font-weight:800;">All Merchant Reviews</h2><p style="color:var(--muted);">Search and filter reviews by visibility and whether a photo was submitted.</p></div>
+  <% if (success) { %><div class="rounded-xl p-3 mb-3" style="background:var(--success-bg);color:var(--success);"><%= success %></div><% } %>
+  <% if (error) { %><div class="rounded-xl p-3 mb-3" style="background:var(--danger-bg);color:var(--danger);"><%= error %></div><% } %>
+  <form method="GET" action="/admin/reviews/all" class="card border-0 p-3 mb-4"><div class="row g-2"><div class="col-md-3"><select name="status" class="form-select rounded-xl"><% [['all','All visibility'],['requests','Pending requests'],['visible','Visible'],['hidden','Hidden']].forEach(o => { %><option value="<%= o[0] %>" <%= filters.status === o[0] ? 'selected' : '' %>><%= o[1] %></option><% }) %></select></div><div class="col-md-3"><select name="photo" class="form-select rounded-xl"><% [['all','With or without photo'],['with','With picture'],['without','Without picture']].forEach(o => { %><option value="<%= o[0] %>" <%= filters.photo === o[0] ? 'selected' : '' %>><%= o[1] %></option><% }) %></select></div><div class="col-md-4"><input class="form-control rounded-xl" name="search" value="<%= filters.search %>" placeholder="Customer, merchant or service"></div><div class="col-md-2"><button class="btn btn-primary btn-pill w-100">Filter</button></div></div></form>
+  <p style="color:var(--muted);"><strong><%= reviews.length %></strong> matching review<%= reviews.length === 1 ? '' : 's' %></p>
+  <% if (!reviews.length) { %><div class="card border-0 p-5 text-center"><h5>No matching reviews</h5></div><% } %>
+  <% reviews.forEach(review => { %><%- include('partials/reviewCard', { review, date, showRequestActions:Boolean(review.request_id), showModeration:true }) %><% }) %>
+</div></main>
+<%- include('../partials/footer') %>

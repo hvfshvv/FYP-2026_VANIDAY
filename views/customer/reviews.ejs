@@ -1,0 +1,45 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+<%
+  const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day:'numeric', month:'short', year:'numeric' }) : '-';
+  const editable = review => new Date(review.edit_deadline).getTime() >= Date.now() && review.visibility === 'visible';
+%>
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container" style="max-width:1000px;">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+      <div><p class="section-label mb-2">Review history</p><h2 style="font-weight:800;color:var(--ink);">My Reviews</h2><p style="color:var(--muted);">View your merchant reviews and Uniday feedback. Reviews can be edited for seven days.</p></div>
+      <a href="/book/viewBookings" class="btn btn-outline-secondary btn-pill"><i class="bi bi-calendar-check me-1"></i>Bookings</a>
+    </div>
+    <% if (success) { %><div class="rounded-xl p-3 mb-3" style="background:var(--success-bg);color:var(--success);"><%= success %></div><% } %>
+    <% if (error) { %><div class="rounded-xl p-3 mb-3" style="background:var(--danger-bg);color:var(--danger);"><%= error %></div><% } %>
+    <% if (!reviews.length) { %>
+      <div class="card border-0 p-5 text-center" style="border-radius:var(--r-xl);box-shadow:var(--shadow-sm);"><i class="bi bi-star" style="font-size:2rem;color:var(--accent);"></i><h5 class="mt-3">No reviews yet</h5><p style="color:var(--muted);">Completed bookings you review will appear here.</p></div>
+    <% } %>
+    <% reviews.forEach(review => { %>
+      <article class="card border-0 mb-4" style="border-radius:var(--r-xl);box-shadow:var(--shadow-sm);overflow:hidden;">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between flex-wrap gap-3">
+            <div><h5 style="font-weight:800;margin-bottom:.25rem;"><%= review.merchant_name %></h5><p style="color:var(--muted);margin:0;"><%= review.service_name %> · <%= formatDate(review.booking_date) %></p></div>
+            <div class="text-end"><span style="color:#f59e0b;font-weight:800;"><i class="bi bi-star-fill"></i> <%= review.rating %>/5</span><p style="font-size:.75rem;color:var(--muted);margin:.25rem 0 0;"><%= review.updated_at ? 'Edited ' + formatDate(review.updated_at) : 'Posted ' + formatDate(review.created_at) %></p></div>
+          </div>
+          <p style="color:var(--ink);margin:1rem 0;"><%= review.review_text %></p>
+          <% if (review.review_image_path) { %><img src="<%= review.review_image_path %>" alt="Your review photo" style="width:180px;height:150px;object-fit:cover;border-radius:12px;margin-bottom:1rem;"><% } %>
+          <% if (review.has_photo && review.photo_hidden) { %><div class="rounded-xl p-3 mb-3" style="background:var(--warn-bg);color:var(--warn);"><i class="bi bi-eye-slash me-1"></i>Photo hidden while the removal request is reviewed.</div><% } %>
+          <% if (review.visibility === 'hidden') { %><div class="rounded-xl p-3 mb-3" style="background:var(--danger-bg);color:var(--danger);">This review is hidden by an administrator.</div><% } %>
+          <div class="rounded-xl p-3 mb-3" style="background:var(--canvas);"><strong>Uniday feedback · <%= review.platform_rating %>/5</strong><p style="margin:.4rem 0 0;color:var(--muted);"><%= review.platform_review_text %></p></div>
+          <% if (review.merchant_reply) { %><div class="rounded-xl p-3 mb-3" style="background:var(--accent-light);"><strong>Merchant reply</strong><% if (review.updated_at && new Date(review.updated_at) > new Date(review.merchant_replied_at)) { %><span class="badge ms-2" style="background:var(--warn-bg);color:var(--warn);">Review edited afterward</span><% } %><p style="margin:.4rem 0 0;"><%= review.merchant_reply %></p></div><% } %>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <% if (editable(review)) { %><a href="/book/reviews/<%= review.review_id %>/edit" class="btn btn-primary btn-sm btn-pill"><i class="bi bi-pencil me-1"></i>Edit until <%= formatDate(review.edit_deadline) %></a><% } else { %><span class="badge" style="background:var(--border);color:var(--muted);">Editing period ended</span><% } %>
+            <% if (review.has_photo && !review.has_pending_request) { %>
+              <button class="btn btn-outline-danger btn-sm btn-pill" type="button" data-bs-toggle="collapse" data-bs-target="#removePhoto<%= review.review_id %>">Request photo removal</button>
+            <% } %>
+          </div>
+          <% if (review.has_photo && !review.has_pending_request) { %>
+          <div class="collapse mt-3" id="removePhoto<%= review.review_id %>"><form method="POST" action="/book/reviews/<%= review.review_id %>/photo-removal-request" class="rounded-xl p-3" style="border:1px solid var(--border);"><p style="font-weight:800;">The photo will be hidden immediately.</p><select class="form-select rounded-xl mb-2" name="reason_type" required><option value="">Select reason</option><option value="confidential">Confidential or personal information</option><option value="wrong_photo">Wrong photo uploaded</option><option value="safety">Safety concern</option><option value="other">Other</option></select><textarea class="form-control rounded-xl mb-2" name="reason_text" maxlength="500" placeholder="Additional details (optional)"></textarea><button class="btn btn-danger btn-sm btn-pill">Submit request</button></form></div>
+          <% } %>
+        </div>
+      </article>
+    <% }) %>
+  </div>
+</main>
+<%- include('../partials/footer') %>

@@ -1,7 +1,9 @@
 const db = require('../config/db');
 const { withResolvedMerchantImage } = require('../utils/merchantImages');
+const reviewModel = require('./reviewModel');
 
 async function getMerchantById(merchantId) {
+  await reviewModel.ensureReviewSchema();
   const [rows] = await db.query(
     `SELECT
        m.*,
@@ -31,7 +33,7 @@ async function getMerchantById(merchantId) {
        ) AS operating_hours
      FROM merchant m
      JOIN users u ON u.user_id = m.user_id
-     LEFT JOIN reviews r ON r.merchant_id = m.merchant_id AND r.review_target = 'merchant'
+     LEFT JOIN reviews r ON r.merchant_id = m.merchant_id AND r.review_target = 'merchant' AND r.visibility = 'visible'
      WHERE m.merchant_id = ?
        AND m.is_active = 1
        AND m.verification_status = 'approved'
@@ -53,6 +55,7 @@ async function getMerchantServices(merchantId) {
 }
 
 async function getAllActiveMerchants(category = null) {
+  await reviewModel.ensureReviewSchema();
   const params = [];
   let categoryFilter = '';
 
@@ -101,7 +104,7 @@ async function getAllActiveMerchants(category = null) {
     FROM merchant m
     JOIN users u ON u.user_id = m.user_id
     LEFT JOIN service s ON s.merchant_id = m.merchant_id AND s.is_active = 1
-    LEFT JOIN reviews r ON r.merchant_id = m.merchant_id AND r.review_target = 'merchant'
+    LEFT JOIN reviews r ON r.merchant_id = m.merchant_id AND r.review_target = 'merchant' AND r.visibility = 'visible'
     WHERE m.is_active = 1
       AND u.status = 'active'
       AND m.verification_status = 'approved'

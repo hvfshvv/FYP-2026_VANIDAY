@@ -603,11 +603,46 @@ async function awardReviewBonusPoints(customerId, bookingId, connection = db, po
   return { awarded: true, points: safePoints };
 }
 
+// Awards the one-point photo upgrade once per review, even if the customer
+// replaces the image several times during the edit window.
+async function awardReviewPhotoBonusPoints(customerId, bookingId, reviewId, connection = db) {
+  if (!customerId || !bookingId || !reviewId) {
+    return { awarded: false, reason: 'missing_review_details' };
+  }
+
+  await ensureWallet(customerId, connection);
+  const [[wallet]] = await connection.query(
+    'SELECT wallet_id FROM wallet WHERE customer_id = ? LIMIT 1',
+    [customerId]
+  );
+  if (!wallet) return { awarded: false, reason: 'wallet_not_found' };
+
+  const [insert] = await connection.query(
+    `INSERT IGNORE INTO transactions
+       (wallet_id, booking_id, asset_type, transaction_type, points_amount, status, idempotency_key, description, completed_at)
+     VALUES (?, ?, 'points', 'review_bonus', 1, 'completed', ?, ?, NOW())`,
+    [wallet.wallet_id, bookingId, `review-photo-bonus:${reviewId}`, `Earned 1 point for adding a photo to review #${reviewId}`]
+  );
+
+  if (!insert.affectedRows) return { awarded: false, reason: 'already_awarded' };
+
+  await connection.query(
+    `UPDATE wallet
+     SET points_balance = points_balance + 1,
+         lifetime_points_earned = lifetime_points_earned + 1,
+         updated_at = NOW()
+     WHERE wallet_id = ?`,
+    [wallet.wallet_id]
+  );
+  return { awarded: true, points: 1 };
+}
+
 module.exports = {
   calculatePoints,
   getReviewBonusPoints,
   awardBookingPoints,
   awardReviewBonusPoints,
+  awardReviewPhotoBonusPoints,
   syncMissingBookingPointsForCustomer,
   getWalletSummary,
   getPointTransactionHistory,

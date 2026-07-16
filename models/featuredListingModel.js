@@ -1,9 +1,11 @@
 const db = require('../config/db');
 const promotionModel = require('./promotionModel');
 const { withResolvedMerchantImage } = require('../utils/merchantImages');
+const reviewModel = require('./reviewModel');
 
 async function getFeaturedListings(category = null) {
   await promotionModel.ensurePromotionSchema();
+  await reviewModel.ensureReviewSchema();
 
   const params = [];
   let categoryFilter = '';
@@ -64,7 +66,7 @@ async function getFeaturedListings(category = null) {
      JOIN merchant m   ON fl.merchant_id = m.merchant_id
      JOIN users u ON u.user_id = m.user_id
      LEFT JOIN service svc ON svc.merchant_id = m.merchant_id AND svc.is_active = 1
-     LEFT JOIN reviews r ON r.merchant_id = m.merchant_id AND r.review_target = 'merchant'
+     LEFT JOIN reviews r ON r.merchant_id = m.merchant_id AND r.review_target = 'merchant' AND r.visibility = 'visible'
      LEFT JOIN promotion p ON fl.promo_id = p.promo_id
        AND p.approval_status = 'approved'
        AND p.is_active = 1

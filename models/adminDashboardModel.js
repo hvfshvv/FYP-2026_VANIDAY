@@ -6,11 +6,13 @@
  */
 
 const db = require('../config/db');
+const reviewModel = require('./reviewModel');
 
 // ── DASHBOARD SUMMARY ──────────────────────────────────────────────────────
 
 // Returns platform-wide KPI counts for the admin dashboard home cards.
 async function getDashboardSummary() {
+  await reviewModel.ensureReviewSchema();
   const [rows] = await db.query(`
     SELECT
       (SELECT COUNT(*) FROM users WHERE role = 'customer') AS total_customers,
@@ -23,6 +25,7 @@ async function getDashboardSummary() {
       (SELECT COUNT(*) FROM promotion WHERE approval_status = 'pending') AS pending_promotion_approvals,
       (SELECT COUNT(*) FROM merchant WHERE verification_status = 'pending') AS pending_merchant_validations,
       (SELECT COUNT(*) FROM validation_log WHERE is_resolved = FALSE) AS total_validation_errors
+      ,(SELECT COUNT(*) FROM reviews WHERE review_target = 'merchant' AND removal_request_status = 'pending') AS pending_review_requests
   `);
 
   return rows[0] || {};

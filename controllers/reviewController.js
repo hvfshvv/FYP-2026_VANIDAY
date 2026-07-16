@@ -1,5 +1,6 @@
 const multer = require('multer');
 const reviewModel = require('../models/reviewModel');
+const notificationModel = require('../models/notificationModel');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -35,6 +36,14 @@ function handleReviewUpload(req, res, next) {
       ? 'Image must be 5MB or smaller.'
       : err.message || 'Could not upload image.';
     res.redirect(`/book/${req.params.bookingId}/review?error=${encodeURIComponent(message)}`);
+  });
+}
+
+function handleReviewEditUpload(req, res, next) {
+  upload.single('review_image')(req, res, err => {
+    if (!err) return next();
+    const message = err.code === 'LIMIT_FILE_SIZE' ? 'Image must be 5MB or smaller.' : err.message || 'Could not upload image.';
+    res.redirect(`/book/reviews/${req.params.reviewId}/edit?error=${encodeURIComponent(message)}`);
   });
 }
 
@@ -161,10 +170,150 @@ async function replyToReview(req, res) {
   }
 }
 
+async function showMyReviews(req, res) {
+  try {
+    const reviews = await reviewModel.getCustomerReviews(currentCustomerId(req));
+    res.render('customer/reviews', {
+      title: 'My Reviews', reviews,
+      success: req.query.success || null, error: req.query.error || null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('customer/reviews', { title: 'My Reviews', reviews: [], success: null, error: 'Could not load your reviews.' });
+  }
+}
+
+async function showEditReview(req, res) {
+  try {
+    const review = await reviewModel.getCustomerReviewForEdit(req.params.reviewId, currentCustomerId(req));
+    if (!review) return res.redirect('/book/reviews?error=Review not found.');
+    if (new Date(review.edit_deadline).getTime() < Date.now()) return res.redirect('/book/reviews?error=The 7-day editing period has ended.');
+    res.render('customer/editReview', { title: 'Edit Review', review, error: req.query.error || null });
+  } catch (err) {
+    console.error(err);
+    res.redirect('/book/reviews?error=Could not load the review editor.');
+  }
+}
+
+async function updateReview(req, res) {
+  try {
+    let imageData = null;
+    let imageMime = null;
+    if (req.file) {
+      imageMime = detectedImageMime(req.file.buffer);
+      if (!imageMime) throw new Error('The selected file is not a valid JPG, PNG, or WebP image.');
+      imageData = req.file.buffer;
+    }
+    const result = await reviewModel.updateCustomerReview({
+      reviewId: req.params.reviewId,
+      customerId: currentCustomerId(req),
+      merchantRating: req.body.merchant_rating,
+      merchantReviewText: req.body.merchant_review_text,
+      platformRating: req.body.platform_rating,
+      platformFeedbackType: req.body.platform_feedback_type,
+      platformFeedbackText: req.body.platform_feedback_text,
+      reviewImageData: imageData,
+      reviewImageMime: imageMime,
+    });
+    const message = result.photoPointAwarded ? 'Review updated. 1 additional photo point was added.' : 'Review updated.';
+    res.redirect(`/book/reviews?success=${encodeURIComponent(message)}`);
+  } catch (err) {
+    console.error(err);
+    res.redirect(`/book/reviews/${req.params.reviewId}/edit?error=${encodeURIComponent(err.message || 'Could not update review.')}`);
+  }
+}
+
+async function requestPhotoRemoval(req, res) {
+  try {
+    await reviewModel.requestPhotoRemoval({
+      reviewId: req.params.reviewId,
+      customerId: currentCustomerId(req),
+      reasonType: req.body.reason_type,
+      reasonText: req.body.reason_text,
+    });
+    res.redirect('/book/reviews?success=' + encodeURIComponent('Your photo is hidden while an administrator reviews the removal request.'));
+  } catch (err) {
+    res.redirect('/book/reviews?error=' + encodeURIComponent(err.message || 'Could not submit removal request.'));
+  }
+}
+
+async function showAdminReviews(req, res) {
+  try {
+    const [requests, recentReviews] = await Promise.all([
+      reviewModel.getAdminReviews({ status: 'requests' }),
+      reviewModel.getAdminReviews({ status: 'all', excludeRequests: true, limit: 5 }),
+    ]);
+    res.render('admin/reviews', { title: 'Review Moderation', requests, recentReviews, success: req.query.success || null, error: req.query.error || null });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/reviews', { title: 'Review Moderation', requests: [], recentReviews: [], success: null, error: 'Could not load reviews.' });
+  }
+}
+
+async function showAllAdminReviews(req, res) {
+  const filters = {
+    status: req.query.status || 'all',
+    photo: req.query.photo || 'all',
+    search: String(req.query.search || '').trim(),
+  };
+  try {
+    const reviews = await reviewModel.getAdminReviews(filters);
+    res.render('admin/allReviews', { title: 'All Merchant Reviews', reviews, filters, success: req.query.success || null, error: req.query.error || null });
+  } catch (err) {
+    console.error(err);
+    res.render('admin/allReviews', { title: 'All Merchant Reviews', reviews: [], filters, success: null, error: 'Could not load reviews.' });
+  }
+}
+
+async function showAdminReviewImage(req, res) {
+  try {
+    const image = await reviewModel.getAdminReviewImage(req.params.reviewId);
+    if (!image) return res.status(404).send('Review image not found.');
+    res.type(image.review_image_mime).send(image.review_image_data);
+  } catch (err) { res.status(500).send('Could not load review image.'); }
+}
+
+async function moderateReview(req, res) {
+  try {
+    const review = await reviewModel.moderateReview({
+      reviewId: req.params.reviewId,
+      adminId: req.session.user.user_id,
+      action: req.body.action,
+      reason: req.body.reason,
+      requestId: req.body.request_id || null,
+    });
+    const messages = {
+      remove_photo: `Your photo for ${review.service_name} was removed by an administrator. Your written review remains visible. Reason: ${req.body.reason}`,
+      approve_request: `Your requested photo removal for ${review.service_name} was approved. Your written review remains visible.`,
+      reject_request: `Your photo-removal request for ${review.service_name} was not approved. Reason: ${req.body.reason}`,
+      hide_review: `Your review for ${review.service_name} was hidden because it violated our content policy. Reason: ${req.body.reason}`,
+      restore_review: `Your review for ${review.service_name} has been restored.`,
+    };
+    await notificationModel.createNotification({
+      userId: review.customer_id, bookingId: review.booking_id,
+      title: 'Review moderation update', message: messages[req.body.action] || 'An administrator updated your review.',
+      notificationType: 'review_moderation',
+    });
+    res.redirect('/admin/reviews?success=' + encodeURIComponent('Review moderation action completed and the customer was notified.'));
+  } catch (err) {
+    console.error(err);
+    res.redirect('/admin/reviews?error=' + encodeURIComponent(err.message || 'Could not moderate review.'));
+  }
+}
+
 module.exports = {
   handleReviewUpload,
   showBookingReview,
   submitBookingReview,
   showMerchantReviews,
   replyToReview,
+  handleReviewEditUpload,
+  showMyReviews,
+  showEditReview,
+  updateReview,
+  requestPhotoRemoval,
+  showAdminReviews,
+  showAllAdminReviews,
+  showAdminReviewImage,
+  moderateReview,
 };

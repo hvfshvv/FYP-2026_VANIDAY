@@ -18,6 +18,10 @@ router.get('/:bookingId/reschedule', requireLogin, ctrl.showRescheduleBooking);
 router.post('/:bookingId/reschedule', requireLogin, ctrl.rescheduleCustomerBooking);
 router.get('/:bookingId/review', requireLogin, requireCustomer, reviewCtrl.showBookingReview);
 router.post('/:bookingId/review', requireLogin, requireCustomer, reviewCtrl.handleReviewUpload, reviewCtrl.submitBookingReview);
+router.get('/reviews', requireLogin, requireCustomer, reviewCtrl.showMyReviews);
+router.get('/reviews/:reviewId/edit', requireLogin, requireCustomer, reviewCtrl.showEditReview);
+router.post('/reviews/:reviewId/edit', requireLogin, requireCustomer, reviewCtrl.handleReviewEditUpload, reviewCtrl.updateReview);
+router.post('/reviews/:reviewId/photo-removal-request', requireLogin, requireCustomer, reviewCtrl.requestPhotoRemoval);
 
 router.get('/', requireLogin, ctrl.showPortalBookingPage);
 router.post('/confirm', requireLogin, ctrl.confirmPortalBooking);
