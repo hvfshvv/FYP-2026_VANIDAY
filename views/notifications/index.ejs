@@ -72,7 +72,7 @@
     </div>
 
     <% if (success) { %>
-    <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
+    <div id="notificationFlash" class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;transition:opacity .25s ease, transform .25s ease;">
       <i class="bi bi-check-circle me-2"></i><%= success %>
     </div>
     <% } %>
@@ -140,5 +140,24 @@
     <% } %>
   </div>
 </main>
+
+<script>
+  (() => {
+    const flash = document.getElementById('notificationFlash');
+    if (!flash) return;
+
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('success')) {
+      url.searchParams.delete('success');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    }
+
+    window.setTimeout(() => {
+      flash.style.opacity = '0';
+      flash.style.transform = 'translateY(-6px)';
+      window.setTimeout(() => flash.remove(), 260);
+    }, 2500);
+  })();
+</script>
 
 <%- include('../partials/footer') %>
