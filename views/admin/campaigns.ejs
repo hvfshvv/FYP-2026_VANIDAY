@@ -54,6 +54,108 @@
     background: var(--danger-bg);
     color: var(--danger);
   }
+
+  .ai-campaign-card {
+    background: #fff;
+    border: 1px solid rgba(230, 0, 73, .12);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+  }
+
+  .ai-campaign-grid {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .ai-campaign-panel {
+    background: linear-gradient(180deg, #fff 0%, #fff8fb 100%);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1.15rem;
+  }
+
+  .ai-campaign-empty {
+    align-items: center;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 274px;
+    text-align: center;
+  }
+
+  .ai-recommendation-card {
+    display: none;
+  }
+
+  .ai-recommendation-card.is-visible {
+    display: block;
+  }
+
+  .ai-rec-pill {
+    background: var(--accent-light);
+    border-radius: 999px;
+    color: var(--accent);
+    display: inline-flex;
+    font-size: .75rem;
+    font-weight: 800;
+    margin-bottom: .85rem;
+    padding: .35rem .7rem;
+  }
+
+  .ai-rec-metrics {
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 1rem 0;
+  }
+
+  .ai-rec-metric {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: .85rem;
+  }
+
+  .ai-rec-metric small {
+    color: var(--muted);
+    display: block;
+    font-size: .7rem;
+    margin-bottom: .3rem;
+  }
+
+  .ai-rec-metric strong {
+    color: var(--ink);
+    font-size: .95rem;
+  }
+
+  .ai-rec-reason {
+    background: #fff;
+    border: 1px dashed rgba(230, 0, 73, .35);
+    border-radius: 14px;
+    color: var(--muted);
+    font-size: .85rem;
+    line-height: 1.5;
+    padding: .9rem;
+  }
+
+  @media (max-width: 991.98px) {
+    .ai-campaign-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .ai-campaign-card {
+      padding: 1rem;
+    }
+
+    .ai-rec-metrics {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 
 <div class="container py-5">
@@ -152,6 +254,91 @@
       </div>
     </div>
   </div>
+
+  <section class="ai-campaign-card mb-4">
+    <div class="mb-4">
+      <p class="section-label mb-1">Smart Suggestions</p>
+      <h5 style="font-weight:800;color:var(--ink);margin-bottom:.35rem;">AI Campaign Assistant</h5>
+      <p style="color:var(--muted);margin-bottom:0;">Generate voucher suggestions based on upcoming occasions and seasonal events.</p>
+    </div>
+    <div class="ai-campaign-grid">
+      <div class="ai-campaign-panel">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label" for="aiOccasion" style="font-weight:600;font-size:.875rem;">Occasion</label>
+            <select id="aiOccasion" class="form-select rounded-xl">
+              <option value="">Select occasion</option>
+              <option value="National Day">National Day</option>
+              <option value="Hari Raya">Hari Raya</option>
+              <option value="Chinese New Year">Chinese New Year</option>
+              <option value="Deepavali">Deepavali</option>
+              <option value="Christmas">Christmas</option>
+              <option value="Valentine's Day">Valentine's Day</option>
+              <option value="6.6 Sale">6.6 Sale</option>
+              <option value="7.7 Sale">7.7 Sale</option>
+              <option value="8.8 Sale">8.8 Sale</option>
+              <option value="9.9 Sale">9.9 Sale</option>
+              <option value="10.10 Sale">10.10 Sale</option>
+              <option value="11.11 Sale">11.11 Sale</option>
+              <option value="12.12 Sale">12.12 Sale</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="aiEventDate" style="font-weight:600;font-size:.875rem;">Event Date</label>
+            <input id="aiEventDate" type="date" class="form-control rounded-xl" />
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="aiCampaignGoal" style="font-weight:600;font-size:.875rem;">Campaign Goal</label>
+            <select id="aiCampaignGoal" class="form-select rounded-xl">
+              <option value="Increase bookings">Increase bookings</option>
+              <option value="Attract new customers">Attract new customers</option>
+              <option value="Reward existing customers">Reward existing customers</option>
+              <option value="Promote quiet periods">Promote quiet periods</option>
+            </select>
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary btn-pill mt-3 w-100" id="generateAiCampaignBtn">
+          <i class="bi bi-stars me-1"></i>Generate Recommendation
+        </button>
+      </div>
+
+      <div class="ai-campaign-panel">
+        <div class="ai-campaign-empty" id="aiRecommendationEmpty">
+          <div class="icon-circle-lg mb-3" style="width:64px;height:64px;">
+            <i class="bi bi-stars" style="font-size:2rem;color:var(--accent);"></i>
+          </div>
+          <p style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">Select an occasion and generate a campaign recommendation.</p>
+        </div>
+
+        <div class="ai-recommendation-card" id="aiRecommendationCard">
+          <span class="ai-rec-pill" id="aiRecOccasion">Based on occasion</span>
+          <h5 id="aiRecName" style="font-weight:800;color:var(--ink);margin-bottom:.35rem;">Campaign Recommendation</h5>
+          <p id="aiRecSummary" style="color:var(--muted);font-size:.875rem;line-height:1.5;margin-bottom:0;">Review the generated voucher suggestion.</p>
+          <div class="ai-rec-metrics">
+            <div class="ai-rec-metric">
+              <small>Discount</small>
+              <strong id="aiRecDiscount">-</strong>
+            </div>
+            <div class="ai-rec-metric">
+              <small>Min Spend</small>
+              <strong id="aiRecMinSpend">-</strong>
+            </div>
+            <div class="ai-rec-metric">
+              <small>Validity</small>
+              <strong id="aiRecValidity">-</strong>
+            </div>
+          </div>
+          <div class="ai-rec-reason mb-3">
+            <strong style="color:var(--ink);display:block;margin-bottom:.25rem;">Why this campaign?</strong>
+            <span id="aiRecReason">-</span>
+          </div>
+          <button type="button" class="btn btn-primary btn-pill w-100" id="useAiRecommendationBtn">
+            <i class="bi bi-check-circle me-1"></i>Use Recommendation
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <div class="row g-4 mb-4">
     <div class="col-12">
@@ -308,5 +495,289 @@
     <% } %>
   </div>
 </div>
+
+<script>
+  const aiOccasionDates = {
+    'National Day': '2026-08-09',
+    'Hari Raya': '2026-03-20',
+    'Chinese New Year': '2026-02-17',
+    'Deepavali': '2026-11-08',
+    'Christmas': '2026-12-25',
+    "Valentine's Day": '2026-02-14',
+    '6.6 Sale': '2026-06-06',
+    '7.7 Sale': '2026-07-07',
+    '8.8 Sale': '2026-08-08',
+    '9.9 Sale': '2026-09-09',
+    '10.10 Sale': '2026-10-10',
+    '11.11 Sale': '2026-11-11',
+    '12.12 Sale': '2026-12-12'
+  };
+
+  const aiCampaignTemplates = {
+    'National Day': {
+      campaignName: 'SG60 Celebration',
+      voucherCode: 'SG60DEALS',
+      discountType: 'percent',
+      discountValue: '15',
+      minSpend: '40',
+      usageLimit: '100',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-08-09',
+      summary: "Celebrate Singapore's birthday with exclusive deals for everyone.",
+      reason: 'National Day is a major holiday with high shopping and booking activity. This promotion encourages more bookings across all merchants.'
+    },
+    'Hari Raya': {
+      campaignName: 'Raya Rewards',
+      voucherCode: 'RAYA15',
+      discountType: 'percent',
+      discountValue: '15',
+      minSpend: '45',
+      usageLimit: '120',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-03-20',
+      summary: 'Encourage festive self-care, dining, and service bookings during the Hari Raya period.',
+      reason: 'Hari Raya campaigns work well for family plans and festive preparation, especially when the offer is simple and time-limited.'
+    },
+    'Chinese New Year': {
+      campaignName: 'CNY Prosperity Deals',
+      voucherCode: 'CNY18',
+      discountType: 'percent',
+      discountValue: '18',
+      minSpend: '60',
+      usageLimit: '150',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-02-17',
+      summary: 'Support pre-celebration booking demand with a festive platform voucher.',
+      reason: 'Chinese New Year drives advance booking behaviour. A higher minimum spend can encourage larger basket values.'
+    },
+    'Deepavali': {
+      campaignName: 'Festival of Lights Deals',
+      voucherCode: 'LIGHTS15',
+      discountType: 'percent',
+      discountValue: '15',
+      minSpend: '50',
+      usageLimit: '100',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-11-08',
+      summary: 'Promote festive bookings with a broad platform-wide discount.',
+      reason: 'Deepavali is suitable for beauty, wellness, dining, and family-focused services, so a platform-wide offer keeps the campaign flexible.'
+    },
+    'Christmas': {
+      campaignName: 'Christmas Treats',
+      voucherCode: 'XMAS20',
+      discountType: 'percent',
+      discountValue: '20',
+      minSpend: '70',
+      usageLimit: '180',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-12-25',
+      summary: 'Boost year-end bookings with a seasonal celebration voucher.',
+      reason: 'Christmas campaigns can lift gift, dining, and experience bookings. A stronger discount helps the campaign stand out during the festive period.'
+    },
+    "Valentine's Day": {
+      campaignName: 'Valentine Date Deals',
+      voucherCode: 'LOVE14',
+      discountType: 'percent',
+      discountValue: '14',
+      minSpend: '50',
+      usageLimit: '90',
+      usagePerCustomer: '1',
+      defaultEventDate: '2027-02-14',
+      summary: 'Encourage couple-friendly bookings and experience purchases.',
+      reason: "Valentine's Day works best with a memorable code and a focused window for dining, beauty, and activity bookings."
+    },
+    '6.6 Sale': {
+      campaignName: '6.6 Booking Boost',
+      voucherCode: 'JUN6SALE',
+      discountType: 'percent',
+      discountValue: '12',
+      minSpend: '35',
+      usageLimit: '120',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-06-06',
+      summary: 'Use a mid-year sale to trigger quick booking decisions.',
+      reason: 'Double-digit sale events are familiar to customers, so a short campaign window can create urgency without changing backend rules.'
+    },
+    '7.7 Sale': {
+      campaignName: '7.7 Service Sale',
+      voucherCode: 'JUL7SALE',
+      discountType: 'percent',
+      discountValue: '12',
+      minSpend: '35',
+      usageLimit: '120',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-07-07',
+      summary: 'Drive July bookings with a simple seasonal offer.',
+      reason: 'A 7.7 sale is useful for attracting customers who are already primed to look for deals across platforms.'
+    },
+    '8.8 Sale': {
+      campaignName: '8.8 Uniday Deals',
+      voucherCode: 'AUG8DEAL',
+      discountType: 'percent',
+      discountValue: '12',
+      minSpend: '40',
+      usageLimit: '130',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-08-08',
+      summary: 'Pair August campaign traffic with platform-wide booking incentives.',
+      reason: '8.8 sits near National Day, making it suitable for a wider awareness campaign and repeat booking push.'
+    },
+    '9.9 Sale': {
+      campaignName: '9.9 Booking Festival',
+      voucherCode: 'SEP9SALE',
+      discountType: 'percent',
+      discountValue: '12',
+      minSpend: '40',
+      usageLimit: '130',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-09-09',
+      summary: 'Encourage customers to try more merchants during the 9.9 sale window.',
+      reason: 'A broad 9.9 voucher can support marketplace discovery and help quieter merchants receive more booking traffic.'
+    },
+    '10.10 Sale': {
+      campaignName: '10.10 Booking Deals',
+      voucherCode: 'OCT10SALE',
+      discountType: 'percent',
+      discountValue: '12',
+      minSpend: '45',
+      usageLimit: '140',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-10-10',
+      summary: 'Use a monthly sale event to keep platform demand active.',
+      reason: '10.10 is a strong point for retargeting customers who browsed but did not complete bookings.'
+    },
+    '11.11 Sale': {
+      campaignName: '11.11 Mega Booking Sale',
+      voucherCode: 'NOV11MEGA',
+      discountType: 'percent',
+      discountValue: '20',
+      minSpend: '80',
+      usageLimit: '200',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-11-11',
+      summary: 'Create a stronger mega-sale voucher for peak deal-seeking behaviour.',
+      reason: '11.11 usually has high customer intent. A larger discount with a higher minimum spend can support both conversion and order value.'
+    },
+    '12.12 Sale': {
+      campaignName: '12.12 Year End Deals',
+      voucherCode: 'DEC12DEAL',
+      discountType: 'percent',
+      discountValue: '18',
+      minSpend: '70',
+      usageLimit: '180',
+      usagePerCustomer: '1',
+      defaultEventDate: '2026-12-12',
+      summary: 'Close the year with a broad voucher for festive and year-end bookings.',
+      reason: '12.12 is close to the year-end holidays, so it can capture both sale-driven and festive booking demand.'
+    }
+  };
+
+  const aiOccasion = document.getElementById('aiOccasion');
+  const aiEventDate = document.getElementById('aiEventDate');
+  const aiCampaignGoal = document.getElementById('aiCampaignGoal');
+  const aiRecommendationEmpty = document.getElementById('aiRecommendationEmpty');
+  const aiRecommendationCard = document.getElementById('aiRecommendationCard');
+  const generateAiCampaignBtn = document.getElementById('generateAiCampaignBtn');
+  const useAiRecommendationBtn = document.getElementById('useAiRecommendationBtn');
+  let activeAiRecommendation = null;
+
+  function fillAiEventDateFromOccasion() {
+    const mappedDate = aiOccasionDates[aiOccasion.value];
+    if (mappedDate) {
+      aiEventDate.value = mappedDate;
+    }
+  }
+
+  function addDaysToInputDate(inputDate, days) {
+    const parts = inputDate.split('-').map(Number);
+    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+    date.setDate(date.getDate() + days);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function formatCampaignDate(inputDate) {
+    return new Date(`${inputDate}T00:00:00`).toLocaleDateString('en-SG', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  }
+
+  function buildAiRecommendation(occasion, eventDate, goal) {
+    const template = aiCampaignTemplates[occasion];
+    const anchorDate = eventDate || aiOccasionDates[occasion] || template.defaultEventDate;
+    const isSale = occasion.includes('Sale');
+    const startDate = isSale ? anchorDate : addDaysToInputDate(anchorDate, -8);
+    const endDate = isSale ? addDaysToInputDate(anchorDate, 2) : addDaysToInputDate(anchorDate, 1);
+
+    return {
+      ...template,
+      occasion,
+      goal,
+      startDate,
+      endDate
+    };
+  }
+
+  function setVoucherField(name, value) {
+    const field = document.querySelector(`[name="${name}"]`);
+    if (!field) return;
+    field.value = value;
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  if (aiOccasion && aiEventDate) {
+    aiOccasion.addEventListener('change', fillAiEventDateFromOccasion);
+    fillAiEventDateFromOccasion();
+  }
+
+  if (generateAiCampaignBtn) {
+    generateAiCampaignBtn.addEventListener('click', () => {
+      const occasion = aiOccasion.value;
+      if (!occasion) {
+        aiOccasion.focus();
+        return;
+      }
+
+      activeAiRecommendation = buildAiRecommendation(
+        occasion,
+        aiEventDate.value,
+        aiCampaignGoal.value
+      );
+
+      document.getElementById('aiRecOccasion').textContent = `Based on: ${activeAiRecommendation.occasion}`;
+      document.getElementById('aiRecName').textContent = activeAiRecommendation.campaignName;
+      document.getElementById('aiRecSummary').textContent = activeAiRecommendation.summary;
+      document.getElementById('aiRecDiscount').textContent = activeAiRecommendation.discountType === 'percent'
+        ? `${activeAiRecommendation.discountValue}% OFF`
+        : `S$${Number(activeAiRecommendation.discountValue).toFixed(2)} OFF`;
+      document.getElementById('aiRecMinSpend').textContent = `S$${Number(activeAiRecommendation.minSpend).toFixed(2)}`;
+      document.getElementById('aiRecValidity').textContent = `${formatCampaignDate(activeAiRecommendation.startDate)} - ${formatCampaignDate(activeAiRecommendation.endDate)}`;
+      document.getElementById('aiRecReason').textContent = `${activeAiRecommendation.reason} Goal: ${activeAiRecommendation.goal}.`;
+
+      aiRecommendationEmpty.style.display = 'none';
+      aiRecommendationCard.classList.add('is-visible');
+    });
+  }
+
+  if (useAiRecommendationBtn) {
+    useAiRecommendationBtn.addEventListener('click', () => {
+      if (!activeAiRecommendation) return;
+
+      setVoucherField('campaign_name', activeAiRecommendation.campaignName);
+      setVoucherField('voucher_code', activeAiRecommendation.voucherCode);
+      setVoucherField('discount_type', activeAiRecommendation.discountType);
+      setVoucherField('discount_value', activeAiRecommendation.discountValue);
+      setVoucherField('min_spend', activeAiRecommendation.minSpend);
+      setVoucherField('usage_limit', activeAiRecommendation.usageLimit);
+      setVoucherField('usage_per_customer', activeAiRecommendation.usagePerCustomer);
+      setVoucherField('start_date', activeAiRecommendation.startDate);
+      setVoucherField('end_date', activeAiRecommendation.endDate);
+    });
+  }
+</script>
 
 <%- include('../partials/footer') %>
