@@ -85,7 +85,7 @@
       </div>
 
       <div class="d-flex align-items-center gap-2 flex-wrap">
-        <% if (selectedCategory) { %>
+        <% if (selectedCategory || searchQuery) { %>
         <a href="/" class="btn btn-outline-secondary btn-sm btn-pill">
           <i class="bi bi-x-lg me-1"></i>Clear filter
         </a>
@@ -111,6 +111,19 @@
 </div>
 
 <div class="container" style="padding-top:2.5rem;padding-bottom:4rem;">
+
+  <form action="/" method="GET" role="search" class="mb-5">
+    <% if (selectedCategory) { %><input type="hidden" name="category" value="<%= selectedCategory %>"><% } %>
+    <label for="marketplace-search" class="visually-hidden">Search merchants or services</label>
+    <div class="input-group" style="max-width:760px;margin:0 auto;box-shadow:var(--shadow-sm);border-radius:999px;overflow:hidden;">
+      <span class="input-group-text bg-white border-end-0 ps-4" style="border-color:var(--border);"><i class="bi bi-search" style="color:var(--muted);"></i></span>
+      <input id="marketplace-search" name="q" type="search" class="form-control border-start-0 py-3" value="<%= searchQuery %>" placeholder="Search by merchant or service, e.g. Dewy Glow or facial" maxlength="100" style="box-shadow:none;border-color:var(--border);">
+      <button class="btn btn-primary px-4" type="submit">Search</button>
+    </div>
+    <% if (searchQuery) { %>
+      <p class="text-center small mt-2 mb-0" style="color:var(--muted);">Showing marketplace results for “<%= searchQuery %>”</p>
+    <% } %>
+  </form>
 
   <!-- FEATURED MERCHANTS -->
   <% if (featured.length > 0) { %>
@@ -205,6 +218,10 @@
               <%= listing.description || 'Top-rated beauty salon' %>
             </p>
 
+            <% if (searchQuery && listing.service_names) { %>
+              <p class="small mb-2" style="color:var(--muted);"><i class="bi bi-scissors me-1"></i><%= listing.service_names %></p>
+            <% } %>
+
             <!-- PROMOTION -->
             <% if (listing.promo_title) { %>
 
@@ -261,7 +278,7 @@
         <p class="section-label">Browse</p>
 
         <h2 class="section-title">
-          <%= selectedCategory ? selectedCategory + ' merchants' : 'All merchants' %>
+        <%= searchQuery ? 'Search results' : (selectedCategory ? selectedCategory + ' merchants' : 'All merchants') %>
         </h2>
 
         <p class="section-sub">
@@ -287,11 +304,11 @@
         color:var(--ink);
         margin-bottom:.25rem;
       ">
-        <%= selectedCategory ? 'No ' + selectedCategory.toLowerCase() + ' merchants available' : 'No merchants available' %>
+        <%= searchQuery ? 'No merchants or services found' : (selectedCategory ? 'No ' + selectedCategory.toLowerCase() + ' merchants available' : 'No merchants available') %>
       </h5>
 
       <p style="color:var(--muted);">
-        Please check back again soon.
+        <%= searchQuery ? 'Try a different merchant name, service, or category.' : 'Please check back again soon.' %>
       </p>
 
     </div>
@@ -366,6 +383,10 @@
             <p class="card-meta">
               <%= merchant.description || 'Beauty and wellness merchant' %>
             </p>
+
+            <% if (searchQuery && merchant.service_names) { %>
+              <p class="small mb-2" style="color:var(--muted);"><i class="bi bi-scissors me-1"></i><%= merchant.service_names %></p>
+            <% } %>
 
             <!-- CATEGORY -->
             <div class="discount-pill">

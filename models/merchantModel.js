@@ -54,7 +54,7 @@ async function getMerchantServices(merchantId) {
   return rows;
 }
 
-async function getAllActiveMerchants(category = null) {
+async function getAllActiveMerchants(category = null, searchQuery = '') {
   await reviewModel.ensureReviewSchema();
   const params = [];
   let categoryFilter = '';
@@ -70,6 +70,22 @@ async function getAllActiveMerchants(category = null) {
     params.push(category);
   }
 
+  let searchFilter = '';
+  if (searchQuery) {
+    const searchTerm = `%${searchQuery}%`;
+    searchFilter = `AND (
+      m.merchant_name LIKE ?
+      OR EXISTS (
+        SELECT 1
+        FROM service ss
+        WHERE ss.merchant_id = m.merchant_id
+          AND ss.is_active = 1
+          AND ss.service_name LIKE ?
+      )
+    )`;
+    params.push(searchTerm, searchTerm);
+  }
+
   const [rows] = await db.query(`
     SELECT
       m.merchant_id,
@@ -80,6 +96,7 @@ async function getAllActiveMerchants(category = null) {
         GROUP_CONCAT(DISTINCT NULLIF(s.category, '') ORDER BY s.category SEPARATOR ', '),
         NULLIF(m.category, '')
       ) AS service_categories,
+      GROUP_CONCAT(DISTINCT NULLIF(s.service_name, '') ORDER BY s.service_name SEPARATOR ', ') AS service_names,
       COALESCE(AVG(r.rating), 0) AS average_rating,
       COUNT(DISTINCT r.review_id) AS review_count,
       m.address,
@@ -109,6 +126,7 @@ async function getAllActiveMerchants(category = null) {
       AND u.status = 'active'
       AND m.verification_status = 'approved'
       ${categoryFilter}
+      ${searchFilter}
     GROUP BY
       m.merchant_id,
       m.merchant_name,

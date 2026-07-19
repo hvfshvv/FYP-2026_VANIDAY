@@ -113,7 +113,7 @@ function initDealCarouselDots() {
 document.addEventListener('DOMContentLoaded', () => {
   initDealCarouselDots();
 
-  document.querySelectorAll('.alert').forEach(el => {
+  document.querySelectorAll('.alert:not([data-persist])').forEach(el => {
     setTimeout(() => {
       el.style.transition = 'opacity 0.5s';
       el.style.opacity = '0';

@@ -225,6 +225,9 @@ async function confirmPortalBooking(req, res) {
     res.redirect(`/payment/checkout/${bookingId}`);
   } catch (err) {
     console.error(err);
+    const bookingError = err.code === 'ER_DUP_ENTRY' && /slot_id/i.test(err.message || '')
+      ? 'That time slot was just taken or is no longer available. Please choose another time.'
+      : (err.message || 'Booking failed. Please try again.');
     const merchant = merchant_id ? await merchantModel.getMerchantById(merchant_id).catch(() => null) : null;
     const serviceList = merchant_id ? await merchantModel.getMerchantServices(merchant_id).catch(() => []) : [];
     const selectedService =
@@ -244,13 +247,14 @@ async function confirmPortalBooking(req, res) {
       serviceList,
       selectedService,
       staff,
+      selectedStaffId: staff_id || '',
       cancellationPolicy,
       cancellationPolicySummary: cancellationPolicy
         ? cancellationPolicyModel.getPolicySummary(cancellationPolicy)
         : '',
       merchantName: merchant?.merchant_name || '',
       merchantAddress: merchant?.address || '',
-      error: err.message || 'Booking failed. Please try again.',
+      error: bookingError,
     });
   }
 }

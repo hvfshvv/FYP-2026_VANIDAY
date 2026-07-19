@@ -3,7 +3,7 @@ const promotionModel = require('./promotionModel');
 const { withResolvedMerchantImage } = require('../utils/merchantImages');
 const reviewModel = require('./reviewModel');
 
-async function getFeaturedListings(category = null) {
+async function getFeaturedListings(category = null, searchQuery = '') {
   await promotionModel.ensurePromotionSchema();
   await reviewModel.ensureReviewSchema();
 
@@ -19,6 +19,22 @@ async function getFeaturedListings(category = null) {
         AND LOWER(sf.category) = LOWER(?)
     )`;
     params.push(category);
+  }
+
+  let searchFilter = '';
+  if (searchQuery) {
+    const searchTerm = `%${searchQuery}%`;
+    searchFilter = `AND (
+      m.merchant_name LIKE ?
+      OR EXISTS (
+        SELECT 1
+        FROM service ss
+        WHERE ss.merchant_id = m.merchant_id
+          AND ss.is_active = 1
+          AND ss.service_name LIKE ?
+      )
+    )`;
+    params.push(searchTerm, searchTerm);
   }
 
   // Feature only approved merchants and approved active promotions.
@@ -42,6 +58,7 @@ async function getFeaturedListings(category = null) {
          GROUP_CONCAT(DISTINCT NULLIF(svc.category, '') ORDER BY svc.category SEPARATOR ', '),
          NULLIF(m.category, '')
        ) AS service_categories,
+       GROUP_CONCAT(DISTINCT NULLIF(svc.service_name, '') ORDER BY svc.service_name SEPARATOR ', ') AS service_names,
        COALESCE(AVG(r.rating), 0) AS average_rating,
        COUNT(DISTINCT r.review_id) AS review_count,
        (
@@ -83,6 +100,7 @@ async function getFeaturedListings(category = null) {
        AND u.status = 'active'
        AND m.verification_status = 'approved'
        ${categoryFilter}
+       ${searchFilter}
      GROUP BY
        fl.listing_id,
        fl.merchant_id,

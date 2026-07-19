@@ -16,6 +16,10 @@ function getSelectedCategory(req) {
   return normalizeServiceCategory(req.query.category);
 }
 
+function getSearchQuery(req) {
+  return String(req.query.q || '').trim().replace(/\s+/g, ' ').slice(0, 100);
+}
+
 function currentCustomerId(req) {
   return req.session.user.customer_id || req.session.user.user_id;
 }
@@ -47,6 +51,7 @@ async function showHome(req, res) {
 async function showMarketplace(req, res) {
   try {
     const selectedCategory = getSelectedCategory(req);
+    const searchQuery = getSearchQuery(req);
 
     let favouriteMerchantIds = [];
 
@@ -59,9 +64,9 @@ async function showMarketplace(req, res) {
     }
 
     const [featured, promotions, merchants] = await Promise.all([
-      featuredListingModel.getFeaturedListings(selectedCategory),
+      featuredListingModel.getFeaturedListings(selectedCategory, searchQuery),
       promotionModel.getActivePromotions(selectedCategory),
-      merchantModel.getAllActiveMerchants(selectedCategory)
+      merchantModel.getAllActiveMerchants(selectedCategory, searchQuery)
     ]);
 
     res.render('index', {
@@ -73,6 +78,7 @@ async function showMarketplace(req, res) {
       promotions,
       merchants,
       selectedCategory,
+      searchQuery,
       categories: SERVICE_CATEGORIES,
       favouriteMerchantIds
     });
@@ -86,6 +92,7 @@ async function showMarketplace(req, res) {
       promotions: [],
       merchants: [],
       selectedCategory: null,
+      searchQuery: getSearchQuery(req),
       categories: SERVICE_CATEGORIES,
       favouriteMerchantIds: []
     });

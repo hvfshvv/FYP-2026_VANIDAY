@@ -90,6 +90,9 @@ async function createBooking({
       `SELECT slot_id FROM time_slot
        WHERE merchant_id=? AND service_id=? AND slot_date=? AND start_time=? AND is_available=TRUE
        AND staff_id = ?
+       AND NOT EXISTS (
+         SELECT 1 FROM booking b WHERE b.slot_id = time_slot.slot_id
+       )
        LIMIT 1
        FOR UPDATE`,
       [merchantId, serviceId, bookingDate, bookingTime, safeStaffId]
@@ -537,6 +540,9 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
        FROM time_slot
        WHERE merchant_id = ? AND service_id = ? AND slot_date = ? AND start_time = ? AND is_available = TRUE
        AND staff_id = ?
+       AND NOT EXISTS (
+         SELECT 1 FROM booking b WHERE b.slot_id = time_slot.slot_id
+       )
        LIMIT 1
        FOR UPDATE`,
       [booking.merchant_id, booking.service_id, bookingDate, bookingTime, safeStaffId]

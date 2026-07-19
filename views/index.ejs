@@ -320,8 +320,8 @@
   <div class="container">
     <div class="section-header">
       <div>
-        <p class="section-label"><%= selectedCategory ? 'Filtered marketplace' : 'Marketplace' %></p>
-        <h2 class="section-title"><%= selectedCategory ? selectedCategory + ' merchants' : 'Browse merchants' %></h2>
+        <p class="section-label"><%= selectedCategory || searchQuery ? 'Filtered marketplace' : 'Marketplace' %></p>
+        <h2 class="section-title"><%= searchQuery ? 'Search results' : (selectedCategory ? selectedCategory + ' merchants' : 'Browse merchants') %></h2>
         <p class="section-sub">
           <%= selectedCategory
             ? 'Showing approved ' + selectedCategory.toLowerCase() + ' merchants in Singapore.'
@@ -329,13 +329,26 @@
         </p>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
-        <% if (selectedCategory) { %>
+        <% if (selectedCategory || searchQuery) { %>
         <a href="/#marketplace" class="btn btn-outline-secondary btn-sm btn-pill" data-category-filter="">
           <i class="bi bi-x-lg me-1"></i>Clear filter
         </a>
         <% } %>
       </div>
     </div>
+
+    <form action="/#marketplace" method="GET" role="search" class="mb-4">
+      <% if (selectedCategory) { %><input type="hidden" name="category" value="<%= selectedCategory %>"><% } %>
+      <label for="marketplace-search" class="visually-hidden">Search merchants or services</label>
+      <div class="input-group" style="max-width:760px;box-shadow:var(--shadow-sm);border-radius:999px;overflow:hidden;">
+        <span class="input-group-text bg-white border-end-0 ps-4" style="border-color:var(--border);"><i class="bi bi-search" style="color:var(--muted);"></i></span>
+        <input id="marketplace-search" name="q" type="search" class="form-control border-start-0 py-3" value="<%= searchQuery %>" placeholder="Search merchants or services, e.g. Dewy Glow or facial" maxlength="100" style="box-shadow:none;border-color:var(--border);">
+        <button class="btn btn-primary px-4" type="submit">Search</button>
+      </div>
+      <% if (searchQuery) { %>
+        <p class="small mt-2 mb-0" style="color:var(--muted);">Showing results for “<%= searchQuery %>”</p>
+      <% } %>
+    </form>
 
     <nav class="cat-strip marketplace-category-strip" aria-label="Browse merchants by category">
       <div class="cat-strip-inner">
@@ -350,7 +363,7 @@
           { icon:'bi-droplet-half', label:'Spa'       },
         ].forEach(c => { %>
         <a
-          href="/?category=<%= encodeURIComponent(c.label) %>#marketplace"
+          href="/?category=<%= encodeURIComponent(c.label) %><%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>#marketplace"
           class="cat-strip-link <%= selectedCategory === c.label ? 'active' : '' %>"
           data-category-filter="<%= c.label %>"
           aria-label="<%= c.label %> merchants"
@@ -367,9 +380,9 @@
           <i class="bi bi-shop" style="font-size:2rem;color:var(--accent);"></i>
         </div>
         <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">
-          <%= selectedCategory ? 'No ' + selectedCategory.toLowerCase() + ' merchants available' : 'No merchants available' %>
+          <%= searchQuery ? 'No merchants or services found' : (selectedCategory ? 'No ' + selectedCategory.toLowerCase() + ' merchants available' : 'No merchants available') %>
         </h5>
-        <p style="color:var(--muted);">Please check back again soon.</p>
+        <p style="color:var(--muted);"><%= searchQuery ? 'Try a different merchant name, service, or category.' : 'Please check back again soon.' %></p>
       </div>
     <% } else { %>
       <div class="row g-3">
@@ -407,6 +420,9 @@
                   <h6 class="card-title"><%= merchant.merchant_name %></h6>
                 </div>
                 <p class="card-meta"><%= merchant.description || 'Beauty and wellness merchant' %></p>
+                <% if (searchQuery && merchant.service_names) { %>
+                  <p class="small mb-2" style="color:var(--muted);"><i class="bi bi-scissors me-1"></i><%= merchant.service_names %></p>
+                <% } %>
                 <div class="discount-pill">
                   <i class="bi bi-grid"></i><%= merchant.service_categories || merchant.category || 'General' %>
                 </div>
@@ -445,7 +461,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const marketplace = document.getElementById('marketplace');
 
-  if (params.has('category') && marketplace) {
+  if ((params.has('category') || params.has('q')) && marketplace) {
     setTimeout(() => {
       marketplace.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 250);
@@ -459,8 +475,9 @@ document.addEventListener('click', async (event) => {
   event.preventDefault();
 
   const category = link.dataset.categoryFilter;
+  const currentSearch = new URLSearchParams(window.location.search).get('q') || '';
   const url = category
-    ? `/?category=${encodeURIComponent(category)}`
+    ? `/?category=${encodeURIComponent(category)}${currentSearch ? `&q=${encodeURIComponent(currentSearch)}` : ''}`
     : '/';
 
   try {

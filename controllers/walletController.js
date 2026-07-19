@@ -31,6 +31,15 @@ function baseUrl(req) {
 async function showWallet(req, res) {
   try {
     const summary = await walletModel.getWalletSummary(customerId(req));
+    const amountDue = Number(req.query.amountDue);
+    const bookingId = Number.parseInt(req.query.bookingId, 10);
+    const hasPaymentContext = Number.isFinite(amountDue) && amountDue > 0;
+    const shortfall = hasPaymentContext
+      ? Math.max(amountDue - Number(summary.wallet.balance || 0), 0)
+      : 0;
+    const suggestedTopup = ALLOWED_TOPUPS.find(amount => amount >= shortfall)
+      || ALLOWED_TOPUPS[ALLOWED_TOPUPS.length - 1];
+
     res.render('wallet/index', {
       title: 'Payment Wallet',
       ...summary,
@@ -40,6 +49,12 @@ async function showWallet(req, res) {
       bonusAmount: Number(process.env.WALLET_BONUS_AMOUNT || 0),
       success: req.query.success || null,
       error: req.query.error || null,
+      paymentContext: hasPaymentContext ? {
+        amountDue,
+        shortfall,
+        bookingId: Number.isInteger(bookingId) && bookingId > 0 ? bookingId : null,
+      } : null,
+      suggestedTopup,
     });
   } catch (err) {
     console.error('showWallet error:', err);
