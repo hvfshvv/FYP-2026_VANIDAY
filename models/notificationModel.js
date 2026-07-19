@@ -70,12 +70,12 @@ const NOTIFICATION_ACTION_SELECT = `
     WHEN n.notification_type = 'waitlist_offer'
       AND w.status = 'offered'
       AND w.offer_expires_at >= NOW()
-      THEN '/book/viewBookings'
+      THEN CONCAT('/book/waitlist/', n.waitlist_id, '/confirm')
     WHEN n.notification_type = 'waitlist_joined'
       AND w.status = 'waiting'
       THEN '/book/viewBookings'
-    WHEN n.notification_type IN ('payment_failed', 'payment_window_expired')
-      THEN '/book/viewBookings'
+    WHEN n.notification_type IN ('payment_failed', 'payment_window_expired') AND n.booking_id IS NOT NULL
+      THEN CONCAT('/book/', n.booking_id, '/rebook')
     WHEN n.booking_id IS NOT NULL
       THEN '/book/viewBookings'
     ELSE NULL
@@ -100,8 +100,8 @@ const NOTIFICATION_ACTION_SELECT = `
     WHEN n.notification_type = 'waitlist_joined'
       AND w.status = 'waiting'
       THEN 'View waitlist'
-    WHEN n.notification_type IN ('payment_failed', 'payment_window_expired')
-      THEN 'View booking'
+    WHEN n.notification_type IN ('payment_failed', 'payment_window_expired') AND n.booking_id IS NOT NULL
+      THEN 'Book again'
     WHEN n.booking_id IS NOT NULL
       THEN 'View booking'
     ELSE NULL
@@ -122,10 +122,19 @@ const NOTIFICATION_ACTION_SELECT = `
     WHEN n.notification_type = 'waitlist_joined'
       AND w.status = 'waiting'
       THEN 'bi-list-ol'
+    WHEN n.notification_type IN ('payment_failed', 'payment_window_expired') AND n.booking_id IS NOT NULL
+      THEN 'bi-arrow-clockwise'
     WHEN n.booking_id IS NOT NULL
       THEN 'bi-calendar-check'
     ELSE NULL
-  END AS action_icon
+  END AS action_icon,
+  CASE
+    WHEN n.notification_type = 'waitlist_offer'
+      AND w.status = 'offered'
+      AND w.offer_expires_at >= NOW()
+      THEN 'POST'
+    ELSE 'GET'
+  END AS action_method
 `;
 
 async function ensureNotificationSchema() {

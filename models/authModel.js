@@ -49,6 +49,46 @@ async function createMerchantProfile(userId, merchantName, email, phone, address
   return result.insertId;
 }
 
+async function createMerchantAccount({
+  fullName,
+  loginEmail,
+  passwordHash,
+  ownerPhone,
+  merchantName,
+  businessEmail,
+  businessPhone,
+  address,
+  businessUen,
+  category,
+}) {
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [userResult] = await connection.query(
+      'INSERT INTO users (full_name, email, password_hash, phone, role) VALUES (?,?,?,?,?)',
+      [fullName, loginEmail, passwordHash, ownerPhone, 'merchant']
+    );
+
+    const userId = userResult.insertId;
+    const [merchantResult] = await connection.query(
+      `INSERT INTO merchant
+        (user_id, merchant_name, email, business_uen, contact_no, address, category, verification_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [userId, merchantName, businessEmail, businessUen, businessPhone, address, category]
+    );
+
+    await connection.commit();
+    return { userId, merchantId: merchantResult.insertId };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 async function getCustomerByUserId(userId) {
   const [rows] = await db.query(
     `SELECT u.*, u.user_id AS customer_id
@@ -266,6 +306,7 @@ module.exports = {
   createUser,
   createCustomerProfile,
   createMerchantProfile,
+  createMerchantAccount,
   getCustomerByUserId,
   ensureCustomerProfile,
   getMerchantByUserId,

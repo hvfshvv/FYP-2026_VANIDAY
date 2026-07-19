@@ -224,8 +224,24 @@
         <input type="hidden" name="role" value="merchant" />
 
         <div>
-          <label class="form-label">Full Name</label>
+          <label class="form-label">Owner Full Name</label>
           <input type="text" name="full_name" class="form-control" placeholder="e.g. Sarah Lim" required autofocus />
+        </div>
+
+        <div>
+          <label class="form-label">Login Email Address</label>
+          <input type="email" name="register_email" class="form-control" placeholder="owner@example.com"
+            autocomplete="new-password" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="email"
+            required />
+          <p class="merchant-help">Use this email to sign in to the merchant account.</p>
+        </div>
+
+        <div>
+          <label class="form-label">Owner Contact Number</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-telephone"></i>+65 <i class="bi bi-chevron-down" style="font-size:.75rem;"></i></span>
+            <input type="text" name="phone" class="form-control" placeholder="9XXXXXXXX" />
+          </div>
         </div>
 
         <div>
@@ -272,18 +288,20 @@
         </div>
 
         <div>
-          <label class="form-label">Email Address</label>
-          <input type="email" name="register_email" class="form-control" placeholder="you@example.com"
+          <label class="form-label">Business Email Address</label>
+          <input type="email" name="business_email" class="form-control" placeholder="hello@glowstudio.com"
             autocomplete="new-password" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="email"
-            required />
+          />
+          <p class="merchant-help">Shown as the business contact email. Leave blank to use the login email.</p>
         </div>
 
         <div>
-          <label class="form-label">Business Contact</label>
+          <label class="form-label">Business Contact Number</label>
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-telephone"></i>+65 <i class="bi bi-chevron-down" style="font-size:.75rem;"></i></span>
-            <input type="text" name="phone" class="form-control" placeholder="9XXXXXXXX" />
+            <input type="text" name="business_phone" class="form-control" placeholder="6XXXXXXX / 9XXXXXXX" />
           </div>
+          <p class="merchant-help">Shown to customers as the merchant contact number. Leave blank to use the owner contact.</p>
         </div>
 
         <div>

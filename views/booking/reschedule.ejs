@@ -25,6 +25,9 @@
   }
 
   const today = new Date().toISOString().slice(0, 10);
+  const merchantId = String(booking.merchant_id || '');
+  const serviceId = String(booking.service_id || '');
+  const staffId = booking.staff_id ? String(booking.staff_id) : '';
 %>
 
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
@@ -71,7 +74,9 @@
           </div>
           <div class="col-md-6">
             <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('reschedule.newTime') %></label>
-            <input type="time" name="booking_time" id="bookingTime" class="form-control rounded-xl" value="<%= formatTime(booking.booking_time) %>" required />
+            <select name="booking_time" id="bookingTime" class="form-select rounded-xl" required>
+              <option value=""><%= t('common.loading') %></option>
+            </select>
           </div>
         </div>
         <div id="sameSlotError" class="rounded-xl mt-3 p-3" style="display:none;background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
@@ -92,6 +97,9 @@
 <script>
   const currentDate = '<%= dateInputValue(booking.booking_date) %>';
   const currentTime = '<%= formatTime(booking.booking_time) %>';
+  const merchantId = '<%= merchantId %>';
+  const serviceId = '<%= serviceId %>';
+  const staffId = '<%= staffId %>';
   const form = document.querySelector('form[action$="/reschedule"]');
   const bookingDate = document.getElementById('bookingDate');
   const bookingTime = document.getElementById('bookingTime');
@@ -114,15 +122,75 @@
 
   bookingDate.max = maxBookableDateValue();
 
+  function setSlotMessage(message) {
+    bookingTime.innerHTML = `<option value="">${message}</option>`;
+  }
+
+  function selectedTime() {
+    return String(bookingTime.value || '').slice(0, 5);
+  }
+
+  async function loadAvailableSlots() {
+    if (!bookingDate.value || !merchantId || !serviceId) {
+      setSlotMessage(window.t('portalBooking.selectDateFirst'));
+      return;
+    }
+
+    setSlotMessage(window.t('common.loading'));
+
+    const params = new URLSearchParams({
+      merchantId,
+      serviceId,
+      bookingDate: bookingDate.value,
+    });
+    if (staffId) params.append('staffId', staffId);
+
+    try {
+      const response = await fetch('/book/api/slots?' + params.toString());
+      const slots = await response.json();
+      const availableSlots = slots.filter(slot => slot.is_available !== false);
+
+      if (!availableSlots.length) {
+        setSlotMessage(window.t('booking.validation.noSlots'));
+        validateChangedSlot();
+        return;
+      }
+
+      bookingTime.innerHTML = availableSlots.map(slot => {
+        const value = String(slot.start_time || '').slice(0, 5);
+        const label = slot.label || value;
+        return `<option value="${value}">${label}</option>`;
+      }).join('');
+
+      const firstDifferent = Array.from(bookingTime.options)
+        .find(option => !(bookingDate.value === currentDate && option.value.slice(0, 5) === currentTime));
+      if (firstDifferent) {
+        bookingTime.value = firstDifferent.value;
+      }
+
+      validateChangedSlot();
+    } catch (err) {
+      console.error(err);
+      setSlotMessage(window.t('booking.validation.unableTimes'));
+      validateChangedSlot();
+    }
+  }
+
   function isSameSlot() {
-    return bookingDate.value === currentDate && bookingTime.value.slice(0, 5) === currentTime;
+    return bookingDate.value === currentDate && selectedTime() === currentTime;
   }
 
   function validateChangedSlot() {
     const sameSlot = isSameSlot();
     const tooFarAhead = bookingDate.value && bookingDate.value > bookingDate.max;
+    const missingSlot = !bookingTime.value;
     if (tooFarAhead) {
       sameSlotError.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i>Bookings can only be made within the next 12 months.';
+      sameSlotError.style.display = 'block';
+      return false;
+    }
+    if (missingSlot) {
+      sameSlotError.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i>Please choose an available merchant slot.';
       sameSlotError.style.display = 'block';
       return false;
     }
@@ -131,7 +199,7 @@
     return !sameSlot;
   }
 
-  bookingDate.addEventListener('change', validateChangedSlot);
+  bookingDate.addEventListener('change', loadAvailableSlots);
   bookingTime.addEventListener('change', validateChangedSlot);
 
   form.addEventListener('submit', event => {
@@ -139,6 +207,8 @@
       event.preventDefault();
     }
   });
+
+  loadAvailableSlots();
 </script>
 
 <%- include('../partials/footer') %>

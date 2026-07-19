@@ -19,7 +19,9 @@
 </style>
 
 <%
-  const bookingList = Array.isArray(bookings) ? bookings : [];
+  const bookingList = Array.isArray(bookings)
+    ? bookings.filter(booking => effectiveStatus(booking) !== 'payment_failed')
+    : [];
   const waitlistList = Array.isArray(waitlists) ? waitlists : [];
   const statusStyles = {
     pending_payment: { label: t('bookings.pendingPayment'), bg: 'var(--warn-bg)', color: 'var(--warn)' },
@@ -155,7 +157,7 @@
         <% waitlistList.forEach((entry, index) => {
           const waitStatus = waitlistStatusStyles[entry.status] || waitlistStatusStyles.waiting;
           const isActiveWaitlist = ['waiting', 'offered'].includes(entry.status);
-          const offerExpiresAt = entry.offer_expires_at ? new Date(entry.offer_expires_at).toISOString() : '';
+          const offerRemainingSeconds = Math.max(0, Number(entry.offer_remaining_seconds || 0));
         %>
         <div class="p-4" style="<%= index ? 'border-top:1px solid var(--border);' : '' %>">
           <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
@@ -169,7 +171,7 @@
                 </span>
                 <% } %>
                 <% if (entry.status === 'offered') { %>
-                <span class="badge rounded-pill waitlist-offer-timer" data-offer-expires-at="<%= offerExpiresAt %>" style="background:var(--accent-light);color:var(--accent);border:1px solid rgba(225,29,72,.2);">
+                <span class="badge rounded-pill waitlist-offer-timer" data-offer-remaining-seconds="<%= offerRemainingSeconds %>" style="background:var(--accent-light);color:var(--accent);border:1px solid rgba(225,29,72,.2);">
                   <i class="bi bi-hourglass-split me-1"></i><span data-waitlist-countdown>--:--</span> <%= t('bookings.left') %>
                 </span>
                 <% } %>
@@ -348,10 +350,14 @@
     const render = () => {
       timers.forEach(timer => {
         const output = timer.querySelector('[data-waitlist-countdown]');
-        const expiresAt = new Date(timer.dataset.offerExpiresAt || '').getTime();
-        const remaining = expiresAt - Date.now();
+        if (!timer.dataset.startedAt) {
+          timer.dataset.startedAt = String(Date.now());
+        }
+        const initialRemaining = Number(timer.dataset.offerRemainingSeconds || 0) * 1000;
+        const elapsed = Date.now() - Number(timer.dataset.startedAt || Date.now());
+        const remaining = Math.max(0, initialRemaining - elapsed);
 
-        if (Number.isNaN(expiresAt) || remaining <= 0) {
+        if (!remaining) {
           if (output) output.textContent = window.t('bookings.expired');
           timer.style.background = 'var(--danger-bg)';
           timer.style.color = 'var(--danger)';

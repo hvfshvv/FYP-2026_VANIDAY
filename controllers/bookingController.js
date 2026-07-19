@@ -315,7 +315,7 @@ async function confirmWaitlistOffer(req, res) {
       return res.redirect('/book/viewBookings?error=' + encodeURIComponent('This waitlist offer is no longer available.'));
     }
 
-    if (entry.offer_expires_at && new Date(entry.offer_expires_at) < new Date()) {
+    if (Number(entry.offer_is_active || 0) !== 1) {
       await waitlistModel.expireOffersAndPromote();
       return res.redirect('/book/viewBookings?error=' + encodeURIComponent('This waitlist offer has expired.'));
     }

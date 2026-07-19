@@ -767,6 +767,7 @@ async function getCustomerBookings(customerId) {
      LEFT JOIN reviews mr ON mr.booking_id = b.booking_id AND mr.review_target = 'merchant'
      LEFT JOIN reviews pf ON pf.booking_id = b.booking_id AND pf.review_target = 'platform'
      WHERE b.customer_id = ?
+       AND b.status <> 'payment_failed'
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [customerId]
   );

@@ -238,8 +238,8 @@ async function offerNextForSlot(slot) {
 
   const merchantId = slot.merchantId ?? slot.merchant_id;
   const serviceId = slot.serviceId ?? slot.service_id;
-  const bookingDate = slot.bookingDate ?? slot.booking_date;
-  const bookingTime = slot.bookingTime ?? slot.booking_time;
+  const bookingDate = slot.bookingDate ?? slot.booking_date ?? slot.slot_date;
+  const bookingTime = slot.bookingTime ?? slot.booking_time ?? slot.start_time;
   const safeDate = formatDateValue(bookingDate);
   const safeTime = formatTimeValue(bookingTime);
 
@@ -365,7 +365,12 @@ async function getWaitlistByIdForCustomer(waitlistId, customerId) {
   await ensureWaitlistSchema();
 
   const [[row]] = await db.query(
-    `SELECT w.*, m.merchant_name, s.service_name
+    `SELECT w.*, m.merchant_name, s.service_name,
+            CASE
+              WHEN w.status = 'offered' AND w.offer_expires_at >= NOW()
+              THEN 1 ELSE 0
+            END AS offer_is_active,
+            GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), w.offer_expires_at)) AS offer_remaining_seconds
      FROM waitlist w
      JOIN merchant m ON m.merchant_id = w.merchant_id
      JOIN service s ON s.service_id = w.service_id
@@ -462,6 +467,11 @@ async function getCustomerWaitlists(customerId) {
 
   const [rows] = await db.query(
     `SELECT w.*, m.merchant_name, m.address AS merchant_address, s.service_name,
+            CASE
+              WHEN w.status = 'offered' AND w.offer_expires_at >= NOW()
+              THEN 1 ELSE 0
+            END AS offer_is_active,
+            GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), w.offer_expires_at)) AS offer_remaining_seconds,
             (
               SELECT COUNT(*)
               FROM waitlist ahead

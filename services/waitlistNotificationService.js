@@ -81,22 +81,26 @@ async function sendWaitlistOffer(entry) {
     ...entry,
     offer_minutes: entry.offer_minutes || 15,
   };
+  const results = {};
 
-  if (await shouldUseWhatsApp(enrichedEntry)) {
-    const whatsappResult = await whatsappNotificationService.sendWaitlistOffer(enrichedEntry, confirmUrl);
-    if (whatsappResult && !whatsappResult.skipped && !whatsappResult.error) {
-      return { channel: 'whatsapp', result: whatsappResult };
+  if (phoneDigits(enrichedEntry.customer_phone)) {
+    results.whatsapp = await whatsappNotificationService.sendWaitlistOffer(enrichedEntry, confirmUrl);
+    if (results.whatsapp?.error) {
+      console.warn('[waitlist] WhatsApp offer failed:', results.whatsapp.error);
     }
-
-    console.warn('[waitlist] WhatsApp offer failed; falling back to email:', whatsappResult?.error || whatsappResult?.reason || 'unknown');
+  } else {
+    results.whatsapp = { skipped: true, reason: 'not_whatsapp_customer' };
   }
 
   if (isLocalWhatsAppEmail(enrichedEntry.customer_email)) {
-    return { channel: 'none', result: { sent: false, reason: 'NO_REAL_EMAIL' } };
+    results.email = { skipped: true, reason: 'NO_REAL_EMAIL' };
+  } else if (enrichedEntry.customer_email) {
+    results.email = await emailService.sendWaitlistOfferEmail(enrichedEntry, confirmUrl);
+  } else {
+    results.email = { skipped: true, reason: 'NO_EMAIL' };
   }
 
-  const emailResult = await emailService.sendWaitlistOfferEmail(enrichedEntry, confirmUrl);
-  return { channel: 'email', result: emailResult };
+  return { channel: 'email+whatsapp', results };
 }
 
 module.exports = {

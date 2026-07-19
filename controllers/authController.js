@@ -223,6 +223,8 @@ async function register(req, res) {
     date_of_birth,
     role,
     merchant_name,
+    business_email,
+    business_phone,
     business_uen,
     address,
     category
@@ -234,6 +236,11 @@ async function register(req, res) {
   const normalizedPhone = phone && phone.trim()
     ? phone.trim()
     : null;
+
+  const normalizedBusinessEmail = String(business_email || '').trim().toLowerCase() || email;
+  const normalizedBusinessPhone = business_phone && business_phone.trim()
+    ? business_phone.trim()
+    : normalizedPhone;
 
   const birthday = date_of_birth && date_of_birth.trim()
     ? date_of_birth.trim()
@@ -275,33 +282,6 @@ async function register(req, res) {
       });
     }
 
-    const hash = await bcrypt.hash(password, 10);
-
-    const userId = await authModel.createUser(
-      full_name,
-      email,
-      hash,
-      normalizedPhone,
-      safeRole
-    );
-
-    const newUser = {
-      user_id: userId,
-      full_name,
-      email,
-    };
-
-    if (safeRole === 'customer') {
-      await authModel.createCustomerProfile(
-        userId,
-        full_name,
-        email,
-        normalizedPhone,
-        birthday
-      );
-      await loyaltyModel.createWalletForCustomer(userId);
-    }
-
     if (safeRole === 'merchant') {
       if (!merchant_name || !merchant_name.trim()) {
         return res.render(registerView, {
@@ -323,17 +303,55 @@ async function register(req, res) {
           error: 'Please select your business category.'
         });
       }
+    }
 
-      const merchantId = await authModel.createMerchantProfile(
+    const hash = await bcrypt.hash(password, 10);
+    let userId;
+    let merchantId = null;
+
+    if (safeRole === 'merchant') {
+      const created = await authModel.createMerchantAccount({
+        fullName: full_name,
+        loginEmail: email,
+        passwordHash: hash,
+        ownerPhone: normalizedPhone,
+        merchantName: merchant_name.trim(),
+        businessEmail: normalizedBusinessEmail,
+        businessPhone: normalizedBusinessPhone,
+        address: address || '',
+        businessUen: business_uen,
+        category: category.trim(),
+      });
+      userId = created.userId;
+      merchantId = created.merchantId;
+    } else {
+      userId = await authModel.createUser(
+        full_name,
+        email,
+        hash,
+        normalizedPhone,
+        safeRole
+      );
+    }
+
+    const newUser = {
+      user_id: userId,
+      full_name,
+      email,
+    };
+
+    if (safeRole === 'customer') {
+      await authModel.createCustomerProfile(
         userId,
-        merchant_name.trim(),
+        full_name,
         email,
         normalizedPhone,
-        address || '',
-        business_uen,
-        category.trim()
+        birthday
       );
+      await loyaltyModel.createWalletForCustomer(userId);
+    }
 
+    if (safeRole === 'merchant') {
       await qrService.ensureMerchantQRCodes(merchantId);
     }
 
