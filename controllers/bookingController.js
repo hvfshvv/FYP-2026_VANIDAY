@@ -9,6 +9,7 @@ const staffModel = require('../models/staffModel');
 const cancellationPolicyModel = require('../models/cancellationPolicyModel');
 const notificationModel = require('../models/notificationModel');
 const emailService = require('../services/emailService');
+const whatsappNotificationService = require('../services/whatsappNotificationService');
 const walletModel = require('../models/walletModel');
 const waitlistModel = require('../models/waitlistModel');
 const refundService = require('../services/refundService');
@@ -148,11 +149,58 @@ async function sendCancellationNotification(booking) {
   }
 }
 
+async function sendWhatsAppCancellationNotification(booking) {
+  if (!booking || booking.source !== 'whatsapp') return;
+
+  try {
+    const alreadySent = await bookingNotificationModel.hasSentWhatsAppNotification(booking.booking_id, 'cancellation');
+    if (alreadySent) return;
+
+    const result = await whatsappNotificationService.sendBookingCancellation(booking);
+    if (result && result.skipped) {
+      console.warn('[whatsapp] cancellation skipped for booking %s: %s', booking.booking_id, result.reason);
+    } else if (result && result.error) {
+      console.error('[whatsapp] cancellation failed for booking %s: %s', booking.booking_id, result.error);
+    }
+
+    await bookingNotificationModel.recordWhatsAppNotification(
+      booking,
+      'cancellation',
+      `WhatsApp booking cancellation for booking #${booking.booking_id}`,
+      result && !result.skipped && !result.error ? 'sent' : 'failed'
+    );
+  } catch (err) {
+    console.error('[whatsapp] cancellation notification failed for booking %s:', booking.booking_id, err.message || err);
+  }
+}
+
 async function sendRescheduleNotification(booking, previousBooking) {
   try {
     await notificationModel.notifyBookingRescheduled(booking, previousBooking);
   } catch (err) {
     console.error('booking reschedule notification failed:', err);
+  }
+}
+
+async function sendWhatsAppRescheduleNotification(booking, previousBooking) {
+  if (!booking || booking.source !== 'whatsapp') return;
+
+  try {
+    const result = await whatsappNotificationService.sendBookingRescheduled(booking, previousBooking);
+    if (result && result.skipped) {
+      console.warn('[whatsapp] reschedule skipped for booking %s: %s', booking.booking_id, result.reason);
+    } else if (result && result.error) {
+      console.error('[whatsapp] reschedule failed for booking %s: %s', booking.booking_id, result.error);
+    }
+
+    await bookingNotificationModel.recordWhatsAppNotification(
+      booking,
+      'reschedule',
+      `WhatsApp booking reschedule for booking #${booking.booking_id}`,
+      result && !result.skipped && !result.error ? 'sent' : 'failed'
+    );
+  } catch (err) {
+    console.error('[whatsapp] reschedule notification failed for booking %s:', booking.booking_id, err.message || err);
   }
 }
 
@@ -379,6 +427,7 @@ async function cancelCustomerBooking(req, res) {
     if (booking) {
       await sendCancellationEmails(booking);
       await sendCancellationNotification(booking);
+      await sendWhatsAppCancellationNotification(booking);
     }
     const refundedAmount = Number(refundResult.amount || refundResult.refundAmount || 0);
     const message = refundedAmount > 0
@@ -425,6 +474,7 @@ async function rescheduleCustomerBooking(req, res) {
     if (booking && previousBooking) {
       await sendRescheduleEmails(booking, previousBooking);
       await sendRescheduleNotification(booking, previousBooking);
+      await sendWhatsAppRescheduleNotification(booking, previousBooking);
     }
     res.redirect('/book/viewBookings?success=Booking rescheduled successfully.');
   } catch (err) {
