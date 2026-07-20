@@ -428,6 +428,19 @@ async function markNotificationRead(notificationId, userId) {
   );
 }
 
+async function markNotificationsRead(notificationIds, userId) {
+  if (!userId || !Array.isArray(notificationIds) || !notificationIds.length) return;
+  await ensureNotificationSchema();
+
+  await db.query(
+    `UPDATE notifications
+     SET is_read = TRUE
+     WHERE user_id = ?
+       AND id IN (?)`,
+    [userId, notificationIds]
+  );
+}
+
 async function markAllRead(userId) {
   await ensureNotificationSchema();
 
@@ -741,6 +754,7 @@ module.exports = {
   getUnreadForUser,
   countUnreadForUser,
   markNotificationRead,
+  markNotificationsRead,
   markAllRead,
   markBookingMessagesRead,
   markWaitlistMessagesRead,

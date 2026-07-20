@@ -7,6 +7,13 @@ async function listNotifications(req, res) {
     await bookingNotificationModel.expirePendingPaymentBookings();
     await waitlistModel.expireOffersAndPromote();
     const notifications = await notificationModel.getNotificationsForUser(req.session.user.user_id);
+    const unreadIds = notifications
+      .filter(notification => !notification.is_read)
+      .map(notification => notification.id);
+
+    if (unreadIds.length) {
+      await notificationModel.markNotificationsRead(unreadIds, req.session.user.user_id);
+    }
 
     res.render('notifications/index', {
       title: 'Notifications',
