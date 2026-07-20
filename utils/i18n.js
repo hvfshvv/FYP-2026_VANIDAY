@@ -6,8 +6,8 @@ const SUPPORTED_LANGUAGES = ['en', 'ms', 'zh', 'ta'];
 const LANGUAGE_LABELS = {
   en: 'English',
   ms: 'Bahasa Melayu',
-  zh: '简体中文',
-  ta: 'தமிழ்',
+  zh: '\u7b80\u4f53\u4e2d\u6587',
+  ta: '\u0ba4\u0bae\u0bbf\u0bb4\u0bcd',
 };
 
 const localeDir = path.join(__dirname, '..', 'locales');
@@ -60,11 +60,23 @@ function interpolate(value, params = {}) {
   });
 }
 
+function isInvalidTranslationValue(value) {
+  if (typeof value !== 'string') return false;
+  const withoutPlaceholders = value
+    .replace(/\{\{\s*[a-zA-Z0-9_]+\s*\}\}/g, '')
+    .replace(/[A-Za-z0-9$#%&/.:+\-(),'"`]/g, '')
+    .trim();
+
+  return withoutPlaceholders.length > 0 && /^[?\s]+$/.test(withoutPlaceholders);
+}
+
 function t(lang, key, params = {}, fallbackText) {
   const normalized = normalizeLanguage(lang);
   const localizedValue = getNested(dictionaries[normalized], key);
   const fallbackValue = getNested(dictionaries[DEFAULT_LANGUAGE], key);
-  const value = localizedValue ?? fallbackValue ?? fallbackText ?? key;
+  const value = localizedValue !== undefined && localizedValue !== null && !isInvalidTranslationValue(localizedValue)
+    ? localizedValue
+    : (fallbackValue ?? fallbackText ?? key);
   return interpolate(value, params);
 }
 
@@ -85,7 +97,8 @@ function serviceText(lang, service, field = 'name') {
   const byId = idKey ? getNested(dictionaries[normalized], idKey) ?? getNested(dictionaries[DEFAULT_LANGUAGE], idKey) : null;
   const byName = getNested(dictionaries[normalized], nameKey) ?? getNested(dictionaries[DEFAULT_LANGUAGE], nameKey);
 
-  if (byId || byName) return byId || byName;
+  if (byId && !isInvalidTranslationValue(byId)) return byId;
+  if (byName && !isInvalidTranslationValue(byName)) return byName;
   if (field === 'description') return service.description || '';
   return service.service_name || '';
 }
@@ -111,4 +124,5 @@ module.exports = {
   t,
   serviceText,
   getClientDictionary,
+  isInvalidTranslationValue,
 };

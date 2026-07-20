@@ -167,12 +167,22 @@ function unidayGetNested(source, key) {
   }, source);
 }
 
+function unidayInvalidTranslationValue(value) {
+  if (typeof value !== 'string') return false;
+  const withoutPlaceholders = value
+    .replace(/\{\{\s*[a-zA-Z0-9_]+\s*\}\}/g, '')
+    .replace(/[A-Za-z0-9$#%&/.:+\-(),'"`]/g, '')
+    .trim();
+
+  return withoutPlaceholders.length > 0 && /^[?\s]+$/.test(withoutPlaceholders);
+}
+
 window.t = function unidayTranslate(key, params, fallback) {
   const data = window.UnidayI18n || {};
-  const value = unidayGetNested(data.translations || {}, key)
-    ?? unidayGetNested(data.fallback || {}, key)
-    ?? fallback
-    ?? key;
+  const localizedValue = unidayGetNested(data.translations || {}, key);
+  const value = localizedValue !== undefined && localizedValue !== null && !unidayInvalidTranslationValue(localizedValue)
+    ? localizedValue
+    : (unidayGetNested(data.fallback || {}, key) ?? fallback ?? key);
   return String(value).replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, function(_, name) {
     return params && params[name] !== undefined && params[name] !== null ? String(params[name]) : '';
   });
