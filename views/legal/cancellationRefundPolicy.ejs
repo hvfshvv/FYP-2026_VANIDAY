@@ -3,33 +3,33 @@
 
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
   <div class="container" style="max-width:860px;">
-    <p class="section-label mb-2">Policy</p>
-    <h1 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);">Cancellation &amp; Refund Policy</h1>
-    <p style="color:var(--muted);max-width:720px;">Effective version: 2026-07. These rules apply to paid Uniday bookings unless a stricter merchant rule is shown before checkout.</p>
+    <p class="section-label mb-2"><%= t('legal.policyLabel') %></p>
+    <h1 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);"><%= t('legal.cancellationRefundTitle') %></h1>
+    <p style="color:var(--muted);max-width:720px;"><%= t('legal.cancellationRefundIntro') %></p>
 
     <section class="card border-0 mb-3" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
       <div class="card-body p-4">
-        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);">Customer-Caused Cancellations</h2>
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);"><%= t('legal.customerCausedTitle') %></h2>
         <ul style="color:var(--ink);line-height:1.8;margin:0;">
-          <li>More than 24 hours before appointment: 95% refund.</li>
-          <li>6 to 24 hours before appointment: 50% refund.</li>
-          <li>Less than 6 hours before appointment: no refund.</li>
-          <li>No-show: no refund.</li>
+          <li><%= t('legal.refundCustomerEarly') %></li>
+          <li><%= t('legal.refundCustomerPartial') %></li>
+          <li><%= t('legal.refundCustomerLate') %></li>
+          <li><%= t('legal.refundNoShow') %></li>
         </ul>
       </div>
     </section>
 
     <section class="card border-0 mb-3" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
       <div class="card-body p-4">
-        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);">Merchant-Caused Changes</h2>
-        <p style="color:var(--ink);line-height:1.7;margin:0;">If a merchant cancels a confirmed booking, cannot provide the booked service, or changes the appointment and the customer rejects the new time, the customer is entitled to a 100% refund.</p>
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);"><%= t('legal.merchantCausedTitle') %></h2>
+        <p style="color:var(--ink);line-height:1.7;margin:0;"><%= t('legal.merchantCausedBody') %></p>
       </div>
     </section>
 
     <section class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
       <div class="card-body p-4">
-        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);">Processing Fees</h2>
-        <p style="color:var(--ink);line-height:1.7;margin:0;">Payment processing fees charged by payment gateways may not be returned to Uniday or the merchant when a refund is issued. The 95% early-cancellation refund is designed to reduce merchant out-of-pocket fee exposure while still giving customers a fair refund.</p>
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);"><%= t('legal.processingFeesTitle') %></h2>
+        <p style="color:var(--ink);line-height:1.7;margin:0;"><%= t('legal.processingFeesBody') %></p>
       </div>
     </section>
   </div>

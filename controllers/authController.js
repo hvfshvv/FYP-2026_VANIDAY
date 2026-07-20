@@ -89,6 +89,8 @@ async function buildSessionUser(user) {
     const merchant = await authModel.getMerchantByUserId(user.user_id);
     sessionUser.merchant_id = merchant ? merchant.merchant_id : null;
     sessionUser.verification_status = merchant ? merchant.verification_status : 'pending';
+    sessionUser.terms_accepted_at = merchant ? merchant.terms_accepted_at : null;
+    sessionUser.terms_version = merchant ? merchant.terms_version : null;
   }
 
   return sessionUser;
@@ -100,6 +102,7 @@ function finishLogin(req, res, user, next) {
   if (user.role === 'merchant') {
     if (user.verification_status === 'pending') return res.redirect('/auth/merchant-pending');
     if (user.verification_status === 'rejected') return res.redirect('/auth/merchant-rejected');
+    if (!user.terms_accepted_at) return res.redirect('/auth/merchant-terms');
     return res.redirect('/merchant/dashboard');
   }
 
@@ -575,6 +578,51 @@ function showMerchantRejected(req, res) {
   });
 }
 
+function showMerchantTermsAcceptance(req, res) {
+  if (!req.session.user || req.session.user.role !== 'merchant') {
+    return res.redirect('/auth/login?next=/auth/merchant-terms');
+  }
+
+  if (req.session.user.verification_status === 'pending') {
+    return res.redirect('/auth/merchant-pending');
+  }
+
+  if (req.session.user.verification_status === 'rejected') {
+    return res.redirect('/auth/merchant-rejected');
+  }
+
+  res.render('auth/merchantTermsAccept', {
+    title: 'Accept Merchant Terms',
+    error: null,
+  });
+}
+
+async function acceptMerchantTerms(req, res) {
+  try {
+    if (!req.session.user || req.session.user.role !== 'merchant') {
+      return res.redirect('/auth/login?next=/auth/merchant-terms');
+    }
+
+    if (req.body.merchant_terms_accepted !== '1') {
+      return res.status(400).render('auth/merchantTermsAccept', {
+        title: 'Accept Merchant Terms',
+        error: 'Please accept Uniday merchant terms, cancellation policy, and refund policy to continue.',
+      });
+    }
+
+    await authModel.acceptMerchantTerms(req.session.user.user_id, '2026-07');
+    req.session.user.terms_accepted_at = new Date();
+    req.session.user.terms_version = '2026-07';
+    res.redirect('/merchant/dashboard');
+  } catch (err) {
+    console.error(err);
+    res.status(500).render('auth/merchantTermsAccept', {
+      title: 'Accept Merchant Terms',
+      error: 'Could not record merchant terms acceptance. Please try again.',
+    });
+  }
+}
+
 module.exports = {
   showLogin,
   showStartpage,
@@ -588,6 +636,8 @@ module.exports = {
   resetPassword,
   showMerchantPending,
   showMerchantRejected,
+  showMerchantTermsAcceptance,
+  acceptMerchantTerms,
   login,
   register,
   logout

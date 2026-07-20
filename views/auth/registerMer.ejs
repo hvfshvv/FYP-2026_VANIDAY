@@ -331,10 +331,10 @@
         <label class="d-flex gap-2 align-items-start rounded-xl p-3" style="border:1px solid var(--border);background:var(--canvas);">
           <input type="checkbox" name="merchant_terms_accepted" value="1" class="form-check-input mt-1" required />
           <span style="font-size:.9rem;color:var(--ink);line-height:1.45;">
-            I agree to Uniday's
-            <a href="/legal/merchant-terms" target="_blank" rel="noopener" style="font-weight:800;color:var(--accent);">Merchant Terms</a>,
-            <a href="/legal/cancellation-refund-policy" target="_blank" rel="noopener" style="font-weight:800;color:var(--accent);">Cancellation & Refund Policy</a>,
-            and platform refund rules: customer cancellations more than 24 hours before appointment receive 95%, 6-24 hours receive 50%, less than 6 hours/no-show receive 0%, and merchant-caused cancellations receive 100%.
+            <%= t('merchantTerms.signupAgreementPrefix') %>
+            <a href="/legal/merchant-terms" target="_blank" rel="noopener" style="font-weight:800;color:var(--accent);"><%= t('legal.merchantTermsTitle') %></a>,
+            <a href="/legal/cancellation-refund-policy" target="_blank" rel="noopener" style="font-weight:800;color:var(--accent);"><%= t('legal.cancellationRefundTitle') %></a>,
+            <%= t('merchantTerms.signupAgreementPolicy') %>
           </span>
         </label>
 

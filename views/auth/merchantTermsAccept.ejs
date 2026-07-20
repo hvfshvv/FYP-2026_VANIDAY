@@ -1,0 +1,47 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container" style="max-width:760px;">
+    <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="card-body p-4 p-md-5">
+        <p class="section-label mb-2"><%= t('merchantTerms.section') %></p>
+        <h1 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);"><%= t('merchantTerms.acceptTitle') %></h1>
+        <p style="color:var(--muted);line-height:1.6;"><%= t('merchantTerms.acceptIntro') %></p>
+
+        <% if (error) { %>
+        <div class="rounded-xl p-3 mb-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+          <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+        </div>
+        <% } %>
+
+        <div class="rounded-xl p-3 mb-4" style="background:var(--canvas);border:1px solid var(--border);">
+          <ul style="color:var(--ink);line-height:1.8;margin:0;">
+            <li><%= t('legal.refundCustomerEarly') %></li>
+            <li><%= t('legal.refundCustomerPartial') %></li>
+            <li><%= t('legal.refundCustomerLate') %></li>
+            <li><%= t('legal.refundMerchantCaused') %></li>
+            <li><%= t('legal.processingFeesSummary') %></li>
+          </ul>
+        </div>
+
+        <form method="POST" action="/auth/merchant-terms">
+          <label class="d-flex gap-2 align-items-start rounded-xl p-3 mb-4" style="border:1px solid var(--border);background:#fff;">
+            <input type="checkbox" name="merchant_terms_accepted" value="1" class="form-check-input mt-1" required />
+            <span style="font-size:.92rem;color:var(--ink);line-height:1.45;">
+              <%= t('merchantTerms.acceptCheckboxPrefix') %>
+              <a href="/legal/merchant-terms" target="_blank" rel="noopener" style="font-weight:800;color:var(--accent);"><%= t('legal.merchantTermsTitle') %></a>,
+              <a href="/legal/cancellation-refund-policy" target="_blank" rel="noopener" style="font-weight:800;color:var(--accent);"><%= t('legal.cancellationRefundTitle') %></a>.
+            </span>
+          </label>
+
+          <button class="btn btn-primary btn-pill w-100 py-3" style="font-weight:800;">
+            <i class="bi bi-check2-circle me-2"></i><%= t('merchantTerms.acceptButton') %>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

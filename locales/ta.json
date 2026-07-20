@@ -240,7 +240,9 @@
       "initialisePaynow": "PayNow கட்டணத்தை தொடங்க முடியவில்லை"
     },
     "voucherUnavailable": "இந்த voucher இந்த booking-க்கு கிடைக்காது.",
-    "voucherIneligible": "இந்த voucher இந்த booking-க்கு தகுதியற்றது."
+    "voucherIneligible": "இந்த voucher இந்த booking-க்கு தகுதியற்றது.",
+    "agreementPrefix": "Payment confirm செய்வதன் மூலம், நீங்கள் Uniday-ன்",
+    "agreementAnd": "மற்றும்"
   },
   "notifications": {
     "assistantTitle": "Uniday உதவியாளர்",
@@ -450,5 +452,58 @@
     "arrivalFailedTitle": "Arrival Confirmation Failed",
     "checkoutTitle": "Checkout",
     "paymentSuccessTitle": "Payment Successful"
+  },
+  "footer": {
+    "tagline": "சிங்கப்பூரின் beauty & wellness booking platform.",
+    "rights": "அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை."
+  },
+  "legal": {
+    "legalLabel": "சட்டம்",
+    "policyLabel": "Policy",
+    "termsTitle": "Terms & Conditions",
+    "termsShort": "Terms",
+    "privacyTitle": "Privacy Policy",
+    "cancellationRefundTitle": "Cancellation & Refund Policy",
+    "merchantTermsTitle": "Merchant Terms",
+    "cancellationRefundIntro": "Effective version: 2026-07. Checkout-க்கு முன் stricter merchant rule காட்டப்படாவிட்டால், இந்த rules paid Uniday bookings-க்கு பொருந்தும்.",
+    "customerCausedTitle": "Customer-Caused Cancellations",
+    "merchantCausedTitle": "Merchant-Caused Changes",
+    "processingFeesTitle": "Processing Fees",
+    "refundCustomerEarly": "Appointment-க்கு 24 மணி நேரத்திற்கும் மேல் முன்: 95% refund.",
+    "refundCustomerPartial": "Appointment-க்கு 6 முதல் 24 மணி நேரத்திற்கு முன்: 50% refund.",
+    "refundCustomerLate": "Appointment-க்கு 6 மணி நேரத்திற்குக் குறைவாக: refund இல்லை.",
+    "refundNoShow": "No-show: refund இல்லை.",
+    "refundMerchantCaused": "Merchant-caused cancellations, unavailable services, அல்லது rejected merchant reschedules-க்கு 100% refund.",
+    "processingFeesSummary": "Refund issue செய்தால் payment gateway processing fees திருப்பி தரப்படாமல் இருக்கலாம்.",
+    "merchantCausedBody": "Merchant confirmed booking-ஐ cancel செய்தால், booked service வழங்க முடியாவிட்டால், அல்லது appointment மாற்றி customer புதிய நேரத்தை reject செய்தால், customer-க்கு 100% refund கிடைக்கும்.",
+    "processingFeesBody": "Payment gateways வசூலிக்கும் processing fees refund issue செய்யும்போது Uniday அல்லது merchant-க்கு திருப்பி வராமல் இருக்கலாம். 95% early-cancellation refund merchant out-of-pocket fee exposure-ஐ குறைத்து customer-க்கு fair refund தரும் வகையில் அமைக்கப்பட்டுள்ளது.",
+    "termsIntro": "Effective version: 2026-07. Uniday-ஐ பயன்படுத்துவதன் மூலம் customers மற்றும் merchants platform-இல் காட்டப்படும் booking, payment, cancellation, refund, account rules-ஐ ஏற்கிறார்கள்.",
+    "termsCustomerBody": "Customers சரியான booking மற்றும் contact details தர வேண்டும், payment hold expire ஆகும் முன் payment முடிக்க வேண்டும், appointments-க்கு நேரத்தில் வர வேண்டும்.",
+    "termsMerchantBody": "Merchants services, prices, availability, staff, business details accurate-ஆக வைத்திருக்க வேண்டும். Confirmed bookings fulfill செய்வதும் merchant-caused cancellations-ஐ Uniday policy படி resolve செய்வதும் merchant பொறுப்பு.",
+    "termsPolicyPrefix": "All paid bookings are subject to the",
+    "termsSuspensionBody": "Fraud, abuse, repeated no-shows, payment abuse, அல்லது platform features misuse காரணமாக Uniday accounts suspend செய்யலாம்.",
+    "privacyIntro": "Booking platform operate செய்ய தேவையான account, booking, payment status, notification, support information-ஐ Uniday collect செய்கிறது.",
+    "privacyContactBody": "Customer contact details booking confirmation, reminders, waitlist alerts, refunds, support-க்கு பயன்படுத்தப்படும். Merchant business details discovery, booking, customer communication-க்கு தேவையான இடங்களில் காட்டப்படும்.",
+    "privacyPaymentBody": "Payment card details payment gateway மூலம் handle செய்யப்படும். Uniday payment status, references, receipt links, refund records store செய்யும்; raw card numbers store செய்யாது.",
+    "privacyRetentionBody": "Account மற்றும் booking records operational, security, audit, dispute-resolution purposes-க்கு retain செய்யப்படலாம்."
+  },
+  "merchantTerms": {
+    "section": "Merchants",
+    "intro": "Effective version: 2026-07. Account verification submit செய்யும் முன் merchant accounts இந்த terms-ஐ registration-இல் accept செய்ய வேண்டும்.",
+    "acceptTitle": "Merchant Terms ஏற்கவும்",
+    "acceptIntro": "Uniday platform cancellation மற்றும் refund rules update செய்துள்ளது. Merchant dashboard தொடர முன் அவற்றை accept செய்யவும்.",
+    "acceptCheckboxPrefix": "நான் Uniday-ன்",
+    "acceptButton": "ஏற்று தொடரவும்",
+    "signupAgreementPrefix": "நான் Uniday-ன்",
+    "signupAgreementPolicy": "மற்றும் platform refund rules-ஐ ஏற்கிறேன்: customer cancellations 24 மணி நேரத்திற்கும் மேல் முன் 95%, 6-24 மணி நேரம் 50%, 6 மணி நேரத்திற்குள்/no-show 0%, merchant-caused cancellations 100%.",
+    "bodyAppointments": "Merchants confirmed appointments honour செய்யவும், service availability accurate-ஆக வைத்திருக்கவும், business contact details update வைத்திருக்கவும் ஒப்புக்கொள்கிறார்கள்.",
+    "bodyRefundRules": "Merchants Uniday platform cancellation and refund rules-ஐ ஏற்கிறார்கள். Customer-caused cancellations timing-ஐ பொறுத்து 95%, 50%, அல்லது 0% refund பெறலாம். Merchant-caused cancellations, unavailable services, அல்லது rejected merchant reschedules 100% refund பெறும்.",
+    "bodyProcessingFees": "Refund issue செய்தால் payment gateway processing fees திருப்பி தரப்படாமல் இருக்கலாம். Customer trust காக்கவும் unfair out-of-pocket fee exposure குறைக்கவும் Uniday refund policy வடிவமைக்கப்பட்டுள்ளது என்பதை merchants ஏற்கிறார்கள்.",
+    "bodyStricterSettings": "Available இருந்தால் merchants stricter cancellation settings configure செய்யலாம்; ஆனால் merchant-caused issues-க்கு Uniday required full refund-ஐ override செய்ய முடியாது."
+  },
+  "merchantPolicy": {
+    "subtitle": "Uniday platform refund policy மேல் stricter merchant rules அமைக்கவும்.",
+    "baseline": "Uniday baseline: 24 மணி நேரத்திற்கும் மேல் = 95% refund, 6-24 மணி நேரம் = 50%, 6 மணி நேரத்திற்குக் குறைவாக/no-show = 0%, merchant-caused cancellation = 100%.",
+    "refundCapHelp": "இது customer-caused refunds-ஐ மட்டும் cap செய்கிறது. Merchant-caused cancellations 100% refundable ஆகவே இருக்கும்."
   }
 }

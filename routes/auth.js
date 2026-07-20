@@ -16,6 +16,8 @@ router.post('/register', ctrl.register);
 router.get('/registerMer', ctrl.showMerchantRegister);
 router.get('/merchant-pending', ctrl.showMerchantPending);
 router.get('/merchant-rejected', ctrl.showMerchantRejected);
+router.get('/merchant-terms', ctrl.showMerchantTermsAcceptance);
+router.post('/merchant-terms', ctrl.acceptMerchantTerms);
 router.get('/logout',   ctrl.logout);
 
 module.exports = router;

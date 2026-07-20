@@ -240,7 +240,9 @@
       "initialisePaynow": "无法初始化 PayNow 付款"
     },
     "voucherUnavailable": "此优惠券不适用于此预约。",
-    "voucherIneligible": "此优惠券不符合此预约条件。"
+    "voucherIneligible": "此优惠券不符合此预约条件。",
+    "agreementPrefix": "确认付款即表示你同意 Uniday 的",
+    "agreementAnd": "以及"
   },
   "notifications": {
     "assistantTitle": "Uniday 助手",
@@ -450,5 +452,58 @@
     "arrivalFailedTitle": "到店确认失败",
     "checkoutTitle": "结账",
     "paymentSuccessTitle": "付款成功"
+  },
+  "footer": {
+    "tagline": "新加坡美容与养生预约平台。",
+    "rights": "版权所有。"
+  },
+  "legal": {
+    "legalLabel": "法律",
+    "policyLabel": "政策",
+    "termsTitle": "条款与条件",
+    "termsShort": "条款",
+    "privacyTitle": "隐私政策",
+    "cancellationRefundTitle": "取消与退款政策",
+    "merchantTermsTitle": "商家条款",
+    "cancellationRefundIntro": "生效版本：2026-07。除非结账前显示更严格的商家规则，否则这些规则适用于已付款的 Uniday 预约。",
+    "customerCausedTitle": "顾客原因取消",
+    "merchantCausedTitle": "商家原因变更",
+    "processingFeesTitle": "处理费用",
+    "refundCustomerEarly": "预约前超过 24 小时取消：退款 95%。",
+    "refundCustomerPartial": "预约前 6 至 24 小时取消：退款 50%。",
+    "refundCustomerLate": "预约前少于 6 小时取消：不退款。",
+    "refundNoShow": "未到场：不退款。",
+    "refundMerchantCaused": "商家原因取消、无法提供服务，或商家改期后顾客拒绝新时间：退款 100%。",
+    "processingFeesSummary": "退款时，支付网关可能不会退还付款处理费。",
+    "merchantCausedBody": "如果商家取消已确认预约、无法提供已预约服务，或更改预约时间且顾客拒绝新时间，顾客有权获得 100% 退款。",
+    "processingFeesBody": "支付网关收取的处理费在退款时可能不会退还给 Uniday 或商家。95% 的提前取消退款用于减少商家的处理费损失，同时仍为顾客提供公平退款。",
+    "termsIntro": "生效版本：2026-07。使用 Uniday 即表示顾客和商家同意平台显示的预约、付款、取消、退款和账号规则。",
+    "termsCustomerBody": "顾客必须提供准确的预约和联系方式，在付款保留时间到期前完成付款，并准时到场。",
+    "termsMerchantBody": "商家必须保持服务、价格、可用时间、员工和业务资料准确。商家负责履行已确认预约，或按照 Uniday 政策处理商家原因取消。",
+    "termsPolicyPrefix": "所有已付款预约均受以下政策约束：",
+    "termsSuspensionBody": "Uniday 可因欺诈、滥用、重复未到场、付款滥用或误用平台功能而暂停账号。",
+    "privacyIntro": "Uniday 会收集运营预约平台所需的账号、预约、付款状态、通知和支持信息。",
+    "privacyContactBody": "顾客联系方式用于预约确认、提醒、等候名单通知、退款和支持。商家业务资料会在发现、预约和顾客沟通所需处显示。",
+    "privacyPaymentBody": "付款卡资料由支付网关处理。Uniday 存储付款状态、参考编号、收据链接和退款记录，但不存储原始卡号。",
+    "privacyRetentionBody": "账号和预约记录可能会因运营、安全、审计和争议处理目的而保留。"
+  },
+  "merchantTerms": {
+    "section": "商家",
+    "intro": "生效版本：2026-07。商家账号必须在注册时接受这些条款，才能提交审核。",
+    "acceptTitle": "接受商家条款",
+    "acceptIntro": "Uniday 已更新平台取消与退款规则。请先接受这些规则，然后继续使用商家仪表板。",
+    "acceptCheckboxPrefix": "我同意 Uniday 的",
+    "acceptButton": "接受并继续",
+    "signupAgreementPrefix": "我同意 Uniday 的",
+    "signupAgreementPolicy": "以及平台退款规则：顾客在预约前超过 24 小时取消可退款 95%，6-24 小时可退款 50%，少于 6 小时/未到场不退款，商家原因取消退款 100%。",
+    "bodyAppointments": "商家同意履行已确认预约，保持服务可用时间准确，并保持业务联系方式最新。",
+    "bodyRefundRules": "商家接受 Uniday 平台取消与退款规则。顾客原因取消可根据时间获得 95%、50% 或 0% 退款。商家原因取消、无法提供服务，或商家改期后顾客拒绝新时间，退款 100%。",
+    "bodyProcessingFees": "退款时，支付网关处理费可能不会退还。商家确认 Uniday 的退款政策旨在减少不公平的额外费用，同时维护顾客信任。",
+    "bodyStricterSettings": "商家可在可用时设置更严格的取消规则，但商家设置不能覆盖 Uniday 对商家原因问题要求的全额退款。"
+  },
+  "merchantPolicy": {
+    "subtitle": "在 Uniday 平台退款政策基础上设置更严格的商家规则。",
+    "baseline": "Uniday 基准：超过 24 小时 = 95% 退款，6-24 小时 = 50%，少于 6 小时/未到场 = 0%，商家原因取消 = 100%。",
+    "refundCapHelp": "这只限制顾客原因取消的退款。商家原因取消仍为 100% 退款。"
   }
 }

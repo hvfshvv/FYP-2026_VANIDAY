@@ -143,8 +143,21 @@ async function ensureCustomerProfile(userId, fullName, email, phone) {
 }
 
 async function getMerchantByUserId(userId) {
+  await ensureMerchantTermsSchema();
   const [rows] = await db.query('SELECT * FROM merchant WHERE user_id = ?', [userId]);
   return rows[0] || null;
+}
+
+async function acceptMerchantTerms(userId, termsVersion = '2026-07') {
+  await ensureMerchantTermsSchema();
+  const [result] = await db.query(
+    `UPDATE merchant
+     SET terms_accepted_at = NOW(),
+         terms_version = ?
+     WHERE user_id = ?`,
+    [termsVersion, userId]
+  );
+  return result.affectedRows;
 }
 
 async function tableExists(tableName) {
@@ -333,6 +346,7 @@ module.exports = {
   getCustomerByUserId,
   ensureCustomerProfile,
   getMerchantByUserId,
+  acceptMerchantTerms,
   createEmailVerificationToken,
   verifyEmailToken,
   createPasswordResetToken,

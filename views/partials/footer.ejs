@@ -4,18 +4,18 @@
     <div class="footer-top">
       <div>
         <%- include('unidayLogo', { className: 'footer-logo', variant: 'light', size: 'sm' }) %>
-        <p class="footer-tagline">Singapore's beauty &amp; wellness booking platform.</p>
+        <p class="footer-tagline"><%= t('footer.tagline') %></p>
       </div>
       <ul class="footer-links">
-        <li><a href="/marketplace">Marketplace</a></li>
-        <li><a href="/auth/registerMer">List your business</a></li>
-        <li><a href="/legal/cancellation-refund-policy">Cancellation &amp; Refund Policy</a></li>
-        <li><a href="/legal/terms">Terms &amp; Conditions</a></li>
-        <li><a href="/legal/privacy-policy">Privacy Policy</a></li>
+        <li><a href="/marketplace"><%= t('nav.marketplace') %></a></li>
+        <li><a href="/auth/registerMer"><%= t('home.listBusiness') %></a></li>
+        <li><a href="/legal/cancellation-refund-policy"><%= t('legal.cancellationRefundTitle') %></a></li>
+        <li><a href="/legal/terms"><%= t('legal.termsTitle') %></a></li>
+        <li><a href="/legal/privacy-policy"><%= t('legal.privacyTitle') %></a></li>
       </ul>
     </div>
     <div class="footer-bottom">
-      <p class="footer-copy">&copy; <%= new Date().getFullYear() %> Uniday. All rights reserved.</p>
+      <p class="footer-copy">&copy; <%= new Date().getFullYear() %> Uniday. <%= t('footer.rights') %></p>
       <div class="footer-social">
         <a href="#" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
         <a href="#" aria-label="Facebook"><i class="bi bi-facebook"></i></a>

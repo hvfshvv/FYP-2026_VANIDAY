@@ -3,15 +3,15 @@
 
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
   <div class="container" style="max-width:860px;">
-    <p class="section-label mb-2">Legal</p>
-    <h1 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);">Privacy Policy</h1>
-    <p style="color:var(--muted);max-width:720px;">Uniday collects account, booking, payment status, notification, and support information needed to operate the booking platform.</p>
+    <p class="section-label mb-2"><%= t('legal.legalLabel') %></p>
+    <h1 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);"><%= t('legal.privacyTitle') %></h1>
+    <p style="color:var(--muted);max-width:720px;"><%= t('legal.privacyIntro') %></p>
 
     <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
       <div class="card-body p-4" style="color:var(--ink);line-height:1.75;">
-        <p>Customer contact details are used for booking confirmation, reminders, waitlist alerts, refunds, and support. Merchant business details are shown where needed for discovery, booking, and customer communication.</p>
-        <p>Payment card details are handled by the payment gateway. Uniday stores payment status, references, receipt links, and refund records, but does not store raw card numbers.</p>
-        <p>Account and booking records may be retained for operational, security, audit, and dispute-resolution purposes.</p>
+        <p><%= t('legal.privacyContactBody') %></p>
+        <p><%= t('legal.privacyPaymentBody') %></p>
+        <p><%= t('legal.privacyRetentionBody') %></p>
       </div>
     </div>
   </div>

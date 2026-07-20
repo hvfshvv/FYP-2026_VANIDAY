@@ -240,7 +240,9 @@
       "initialisePaynow": "Gagal memulakan bayaran PayNow"
     },
     "voucherUnavailable": "Baucar ini tidak tersedia untuk tempahan ini.",
-    "voucherIneligible": "Baucar ini tidak layak untuk tempahan ini."
+    "voucherIneligible": "Baucar ini tidak layak untuk tempahan ini.",
+    "agreementPrefix": "Dengan mengesahkan bayaran, anda bersetuju dengan",
+    "agreementAnd": "dan"
   },
   "notifications": {
     "assistantTitle": "Pembantu Uniday",
@@ -450,5 +452,58 @@
     "arrivalFailedTitle": "Pengesahan Ketibaan Gagal",
     "checkoutTitle": "Checkout",
     "paymentSuccessTitle": "Bayaran Berjaya"
+  },
+  "footer": {
+    "tagline": "Platform tempahan kecantikan & kesihatan Singapura.",
+    "rights": "Hak cipta terpelihara."
+  },
+  "legal": {
+    "legalLabel": "Undang-undang",
+    "policyLabel": "Polisi",
+    "termsTitle": "Terma & Syarat",
+    "termsShort": "Terma",
+    "privacyTitle": "Polisi Privasi",
+    "cancellationRefundTitle": "Polisi Pembatalan & Refund",
+    "merchantTermsTitle": "Terma Merchant",
+    "cancellationRefundIntro": "Versi berkuat kuasa: 2026-07. Peraturan ini terpakai kepada tempahan Uniday berbayar melainkan peraturan merchant yang lebih ketat dipaparkan sebelum checkout.",
+    "customerCausedTitle": "Pembatalan Disebabkan Pelanggan",
+    "merchantCausedTitle": "Perubahan Disebabkan Merchant",
+    "processingFeesTitle": "Yuran Pemprosesan",
+    "refundCustomerEarly": "Lebih 24 jam sebelum janji temu: refund 95%.",
+    "refundCustomerPartial": "6 hingga 24 jam sebelum janji temu: refund 50%.",
+    "refundCustomerLate": "Kurang daripada 6 jam sebelum janji temu: tiada refund.",
+    "refundNoShow": "Tidak hadir: tiada refund.",
+    "refundMerchantCaused": "Pembatalan oleh merchant, servis tidak tersedia, atau jadual semula merchant ditolak pelanggan menerima refund 100%.",
+    "processingFeesSummary": "Yuran pemprosesan bayaran mungkin tidak dipulangkan oleh payment gateway apabila refund dibuat.",
+    "merchantCausedBody": "Jika merchant membatalkan tempahan disahkan, tidak dapat menyediakan servis yang ditempah, atau menukar janji temu dan pelanggan menolak masa baharu, pelanggan layak menerima refund 100%.",
+    "processingFeesBody": "Yuran pemprosesan yang dikenakan oleh payment gateway mungkin tidak dipulangkan kepada Uniday atau merchant apabila refund dibuat. Refund awal 95% direka untuk mengurangkan kos luar poket merchant sambil masih memberi refund yang adil kepada pelanggan.",
+    "termsIntro": "Versi berkuat kuasa: 2026-07. Dengan menggunakan Uniday, pelanggan dan merchant bersetuju dengan peraturan tempahan, bayaran, pembatalan, refund, dan akaun yang dipaparkan di platform.",
+    "termsCustomerBody": "Pelanggan mesti memberikan butiran tempahan dan hubungan yang tepat, melengkapkan bayaran sebelum hold bayaran tamat, dan hadir tepat pada masa.",
+    "termsMerchantBody": "Merchant mesti memastikan servis, harga, ketersediaan, staf, dan butiran bisnes tepat. Merchant bertanggungjawab memenuhi tempahan disahkan atau menyelesaikan pembatalan disebabkan merchant mengikut polisi Uniday.",
+    "termsPolicyPrefix": "Semua tempahan berbayar tertakluk kepada",
+    "termsSuspensionBody": "Uniday boleh menggantung akaun kerana penipuan, penyalahgunaan, no-show berulang, penyalahgunaan bayaran, atau penyalahgunaan fungsi platform.",
+    "privacyIntro": "Uniday mengumpul maklumat akaun, tempahan, status bayaran, notifikasi, dan sokongan yang diperlukan untuk mengendalikan platform tempahan.",
+    "privacyContactBody": "Butiran hubungan pelanggan digunakan untuk pengesahan tempahan, peringatan, alert waitlist, refund, dan sokongan. Butiran bisnes merchant dipaparkan apabila diperlukan untuk carian, tempahan, dan komunikasi pelanggan.",
+    "privacyPaymentBody": "Butiran kad bayaran dikendalikan oleh payment gateway. Uniday menyimpan status bayaran, rujukan, pautan resit, dan rekod refund, tetapi tidak menyimpan nombor kad mentah.",
+    "privacyRetentionBody": "Rekod akaun dan tempahan boleh disimpan untuk tujuan operasi, keselamatan, audit, dan penyelesaian pertikaian."
+  },
+  "merchantTerms": {
+    "section": "Merchant",
+    "intro": "Versi berkuat kuasa: 2026-07. Akaun merchant mesti menerima terma ini semasa pendaftaran sebelum akaun dihantar untuk pengesahan.",
+    "acceptTitle": "Terima Terma Merchant",
+    "acceptIntro": "Uniday telah mengemas kini peraturan pembatalan dan refund platform. Sila terima sebelum meneruskan ke dashboard merchant.",
+    "acceptCheckboxPrefix": "Saya bersetuju dengan",
+    "acceptButton": "Terima dan Teruskan",
+    "signupAgreementPrefix": "Saya bersetuju dengan",
+    "signupAgreementPolicy": "dan peraturan refund platform: pembatalan pelanggan lebih 24 jam sebelum janji temu menerima 95%, 6-24 jam menerima 50%, kurang 6 jam/tidak hadir menerima 0%, dan pembatalan oleh merchant menerima 100%.",
+    "bodyAppointments": "Merchant bersetuju untuk memenuhi janji temu disahkan, mengekalkan ketersediaan servis yang tepat, dan memastikan butiran hubungan bisnes dikemas kini.",
+    "bodyRefundRules": "Merchant menerima peraturan pembatalan dan refund platform Uniday. Pembatalan oleh pelanggan boleh menerima refund 95%, 50%, atau 0% bergantung pada masa. Pembatalan oleh merchant, servis tidak tersedia, atau jadual semula merchant ditolak pelanggan menerima refund 100%.",
+    "bodyProcessingFees": "Yuran pemprosesan payment gateway mungkin tidak dipulangkan apabila refund dibuat. Merchant mengakui polisi refund Uniday direka untuk mengurangkan kos luar poket yang tidak adil sambil mengekalkan kepercayaan pelanggan.",
+    "bodyStricterSettings": "Merchant boleh menetapkan peraturan pembatalan yang lebih ketat jika tersedia, tetapi tetapan merchant tidak boleh mengatasi refund penuh yang diperlukan oleh Uniday untuk isu disebabkan merchant."
+  },
+  "merchantPolicy": {
+    "subtitle": "Tetapkan peraturan merchant yang lebih ketat di atas polisi refund platform Uniday.",
+    "baseline": "Asas Uniday: lebih 24 jam = refund 95%, 6-24 jam = 50%, kurang 6 jam/tidak hadir = 0%, pembatalan oleh merchant = 100%.",
+    "refundCapHelp": "Ini hanya mengehadkan refund pembatalan oleh pelanggan. Pembatalan oleh merchant kekal refund 100%."
   }
 }

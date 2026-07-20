@@ -77,6 +77,18 @@ async function requireMerchant(req, res, next) {
 
     req.session.user.merchant_id = merchant.merchant_id;
     req.session.user.verification_status = merchant.verification_status;
+
+    if (!merchant.terms_accepted_at) {
+      if (wantsJson(req)) {
+        return res.status(403).json({
+          error: 'Merchant terms must be accepted before continuing.',
+          redirectUrl: '/auth/merchant-terms',
+        });
+      }
+
+      return res.redirect('/auth/merchant-terms');
+    }
+
     next();
   } catch (err) {
     console.error('Merchant verification check failed:', err);
