@@ -1,0 +1,21 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
+  <div class="container" style="max-width:860px;">
+    <p class="section-label mb-2">Merchants</p>
+    <h1 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);">Merchant Terms</h1>
+    <p style="color:var(--muted);max-width:720px;">Effective version: 2026-07. Merchant accounts must accept these terms during registration before the account can be submitted for verification.</p>
+
+    <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="card-body p-4" style="color:var(--ink);line-height:1.75;">
+        <p>Merchants agree to honour confirmed appointments, maintain accurate service availability, and keep business contact details up to date.</p>
+        <p>Merchants accept Uniday's platform cancellation and refund rules. Customer-caused cancellations may receive 95%, 50%, or 0% refund depending on timing. Merchant-caused cancellations, unavailable services, or rejected merchant reschedules receive 100% refund.</p>
+        <p>Payment gateway processing fees may not be returned when refunds are issued. Merchants acknowledge that Uniday's refund policy is designed to reduce unfair out-of-pocket fee exposure while preserving customer trust.</p>
+        <p>Merchants may configure stricter cancellation settings where available, but merchant settings cannot override Uniday's required full refund for merchant-caused issues.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

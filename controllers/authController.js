@@ -227,7 +227,8 @@ async function register(req, res) {
     business_phone,
     business_uen,
     address,
-    category
+    category,
+    merchant_terms_accepted
   } = req.body;
   const email = String(req.body.register_email || req.body.email || '').trim().toLowerCase();
   const password = req.body.register_password || req.body.password;
@@ -303,6 +304,13 @@ async function register(req, res) {
           error: 'Please select your business category.'
         });
       }
+
+      if (merchant_terms_accepted !== '1') {
+        return res.render(registerView, {
+          title: registerTitle,
+          error: 'Please accept Uniday merchant terms, cancellation policy, and refund policy to continue.'
+        });
+      }
     }
 
     const hash = await bcrypt.hash(password, 10);
@@ -321,6 +329,7 @@ async function register(req, res) {
         address: address || '',
         businessUen: business_uen,
         category: category.trim(),
+        termsVersion: '2026-07',
       });
       userId = created.userId;
       merchantId = created.merchantId;

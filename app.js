@@ -17,6 +17,7 @@ const loyaltyRoutes     = require('./routes/loyalty');
 const walletRoutes      = require('./routes/walletRoutes');
 const notificationRoutes = require('./routes/notifications');
 const clientDiariesRoutes = require('./routes/clientDiaries');
+const legalRoutes = require('./routes/legal');
 const reminderService   = require('./services/reminderService');
 const bookingNotificationModel = require('./models/bookingNotificationModel');
 const notificationModel = require('./models/notificationModel');
@@ -86,6 +87,7 @@ app.use('/loyalty',    loyaltyRoutes);
 app.use('/wallet',     walletRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/client-diaries', clientDiariesRoutes);
+app.use('/legal', legalRoutes);
 
 async function releaseExpiredPendingPayments() {
   try {

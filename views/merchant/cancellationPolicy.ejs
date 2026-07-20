@@ -7,7 +7,7 @@
       <div>
         <p class="section-label mb-2">Merchant Policy</p>
         <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Cancellation Policy</h2>
-        <p style="color:var(--muted);margin:0;">Set the rule customers see before booking and before cancelling.</p>
+        <p style="color:var(--muted);margin:0;">Set stricter merchant rules on top of Uniday's platform refund policy.</p>
       </div>
       <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-pill">
         <i class="bi bi-arrow-left me-1"></i>Dashboard
@@ -31,6 +31,9 @@
         <p style="color:var(--ink);font-weight:700;margin:0;">
           <i class="bi bi-hourglass-split me-2" style="color:var(--accent);"></i><%= policySummary %>
         </p>
+        <p class="mt-3 mb-0" style="color:var(--muted);font-size:.875rem;">
+          Uniday baseline: more than 24 hours = 95% refund, 6-24 hours = 50%, less than 6 hours/no-show = 0%, merchant-caused cancellation = 100%.
+        </p>
       </div>
     </div>
 
@@ -44,7 +47,7 @@
                 type="number"
                 name="min_cancel_hours"
                 class="form-control rounded-start-xl"
-                min="0"
+                min="6"
                 max="168"
                 step="1"
                 value="<%= policy.min_cancel_hours || 6 %>"
@@ -62,13 +65,14 @@
                 name="refund_percentage"
                 class="form-control rounded-start-xl"
                 min="0"
-                max="100"
+                max="95"
                 step="1"
-                value="<%= Number(policy.refund_percentage || 0).toFixed(0) %>"
+                value="<%= Math.min(95, Number(policy.refund_percentage || 0)).toFixed(0) %>"
                 required
               >
               <span class="input-group-text rounded-end-xl">%</span>
             </div>
+            <p class="mt-2 mb-0" style="color:var(--muted);font-size:.82rem;">This caps customer-caused refunds only. Merchant-caused cancellations remain 100% refundable.</p>
           </div>
 
           <div class="col-md-6">

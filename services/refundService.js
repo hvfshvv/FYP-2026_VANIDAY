@@ -155,10 +155,14 @@ async function refundCancelledBookingByPolicy(bookingId) {
   }
 
   const policy = await cancellationPolicyModel.getPolicyByMerchantId(booking.merchant_id);
-  const refundPercentage = policy && policy.is_active ? Number(policy.refund_percentage || 0) : 100;
+  const decision = cancellationPolicyModel.calculateCustomerCancellationRefund({
+    policy,
+    bookingDate: booking.booking_date,
+    bookingTime: booking.booking_time,
+  });
 
   return refundBookingPayment(bookingId, {
-    refundPercentage,
+    refundPercentage: decision.refundPercentage,
     reason: 'requested_by_customer',
   });
 }

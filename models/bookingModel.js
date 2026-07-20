@@ -408,10 +408,11 @@ async function markCustomerArrivedForMerchant(customerId, merchantId) {
 
 // ── CANCELLATION ───────────────────────────────────────────────────────────
 
-// Cancels a customer booking, enforcing the merchant's cancellation policy window.
+// Cancels a customer booking before the appointment starts.
 async function cancelCustomerBooking(bookingId, customerId) {
   const connection = await db.getConnection();
   let releasedSlot = null;
+  let refundDecision = null;
 
   try {
     await connection.beginTransaction();
@@ -443,12 +444,11 @@ async function cancelCustomerBooking(bookingId, customerId) {
     }
 
     const policy = await cancellationPolicyModel.getPolicyByMerchantId(booking.merchant_id, connection);
-    if (policy.is_active) {
-      const cancelDeadline = new Date(slotDateTime.getTime() - policy.min_cancel_hours * 60 * 60 * 1000);
-      if (new Date() > cancelDeadline) {
-        throw new Error(`This booking can only be cancelled at least ${policy.min_cancel_hours} hours before the appointment.`);
-      }
-    }
+    refundDecision = cancellationPolicyModel.calculateCustomerCancellationRefund({
+      policy,
+      bookingDate: slotDate,
+      bookingTime: booking.start_time,
+    });
 
     await connection.query('UPDATE booking SET status = ? WHERE booking_id = ?', ['cancelled', bookingId]);
     await connection.query('UPDATE time_slot SET is_available = TRUE WHERE slot_id = ?', [booking.slot_id]);
@@ -465,6 +465,8 @@ async function cancelCustomerBooking(bookingId, customerId) {
   if (releasedSlot) {
     await waitlistModel.offerNextForSlot(releasedSlot);
   }
+
+  return refundDecision;
 }
 
 // ── RESCHEDULING ───────────────────────────────────────────────────────────
@@ -753,7 +755,7 @@ async function getCustomerBookings(customerId) {
               )
             ) AS pending_remaining_seconds,
             COALESCE(CASE WHEN m.cancellation_policy_active = 1 THEN m.min_cancel_hours END, 6) AS min_cancel_hours,
-            COALESCE(CASE WHEN m.cancellation_policy_active = 1 THEN m.refund_percentage END, 100.00) AS refund_percentage,
+            COALESCE(CASE WHEN m.cancellation_policy_active = 1 THEN m.refund_percentage END, 95.00) AS refund_percentage,
             COALESCE(CASE WHEN m.cancellation_policy_active = 1 THEN m.allow_reschedule END, 1) AS allow_reschedule,
             COALESCE(m.cancellation_policy_active, 1) AS cancellation_policy_active,
             mr.review_id AS merchant_review_id,

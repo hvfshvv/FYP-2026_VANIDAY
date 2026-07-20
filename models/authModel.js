@@ -38,12 +38,33 @@ async function createCustomerProfile(userId, fullName, email, phone, dateOfBirth
   );
 }
 
+async function ensureMerchantTermsSchema() {
+  const addColumnIfMissing = async (columnName, ddl) => {
+    if (await columnExists('merchant', columnName)) return;
+    try {
+      await db.query(ddl);
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+  };
+
+  await addColumnIfMissing(
+    'terms_accepted_at',
+    'ALTER TABLE merchant ADD COLUMN terms_accepted_at DATETIME NULL AFTER verification_status'
+  );
+  await addColumnIfMissing(
+    'terms_version',
+    'ALTER TABLE merchant ADD COLUMN terms_version VARCHAR(32) NULL AFTER terms_accepted_at'
+  );
+}
+
 async function createMerchantProfile(userId, merchantName, email, phone, address, businessUen, category) {
+  await ensureMerchantTermsSchema();
   const [result] = await db.query(
     `INSERT INTO merchant
-      (user_id, merchant_name, email, business_uen, contact_no, address, category, verification_status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
-    [userId, merchantName, email, businessUen, phone, address, category]
+      (user_id, merchant_name, email, business_uen, contact_no, address, category, verification_status, terms_accepted_at, terms_version)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), ?)`,
+    [userId, merchantName, email, businessUen, phone, address, category, '2026-07']
   );
 
   return result.insertId;
@@ -60,7 +81,9 @@ async function createMerchantAccount({
   address,
   businessUen,
   category,
+  termsVersion = '2026-07',
 }) {
+  await ensureMerchantTermsSchema();
   const connection = await db.getConnection();
 
   try {
@@ -74,9 +97,9 @@ async function createMerchantAccount({
     const userId = userResult.insertId;
     const [merchantResult] = await connection.query(
       `INSERT INTO merchant
-        (user_id, merchant_name, email, business_uen, contact_no, address, category, verification_status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [userId, merchantName, businessEmail, businessUen, businessPhone, address, category]
+        (user_id, merchant_name, email, business_uen, contact_no, address, category, verification_status, terms_accepted_at, terms_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), ?)`,
+      [userId, merchantName, businessEmail, businessUen, businessPhone, address, category, termsVersion]
     );
 
     await connection.commit();

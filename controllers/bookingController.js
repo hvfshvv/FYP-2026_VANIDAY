@@ -11,6 +11,7 @@ const notificationModel = require('../models/notificationModel');
 const emailService = require('../services/emailService');
 const walletModel = require('../models/walletModel');
 const waitlistModel = require('../models/waitlistModel');
+const refundService = require('../services/refundService');
 
 // Power Automate webhook URL: paste your webhook URL here or set POWER_AUTOMATE_WEBHOOK_URL in .env
 const POWER_AUTOMATE_WEBHOOK_URL = process.env.POWER_AUTOMATE_WEBHOOK_URL || 'PASTE_YOUR_POWER_AUTOMATE_WEBHOOK_URL_HERE';
@@ -353,22 +354,36 @@ async function cancelWaitlistRequest(req, res) {
 async function cancelCustomerBooking(req, res) {
   try {
     const customerId = req.session.user.customer_id || req.session.user.user_id;
-    const beforeCancel = (await bookingModel.getCustomerBookings(customerId))
-      .find(item => String(item.booking_id) === String(req.params.bookingId));
-    await bookingModel.cancelCustomerBooking(req.params.bookingId, customerId);
-    const walletRefund = await walletModel.refundBooking({
-      customerId,
-      bookingId: req.params.bookingId,
-      refundPercentage: beforeCancel ? beforeCancel.refund_percentage : 100,
-    });
+    const refundDecision = await bookingModel.cancelCustomerBooking(req.params.bookingId, customerId);
+    const refundPercentage = Number(refundDecision?.refundPercentage || 0);
+    let refundResult = { refunded: false, skipped: true, reason: 'No refund due under policy.' };
+
+    if (refundPercentage > 0) {
+      const walletRefund = await walletModel.refundBooking({
+        customerId,
+        bookingId: req.params.bookingId,
+        refundPercentage,
+      });
+
+      if (walletRefund.refunded || walletRefund.reason !== 'not_wallet_payment') {
+        refundResult = walletRefund;
+      } else {
+        refundResult = await refundService.refundBookingPayment(req.params.bookingId, {
+          refundPercentage,
+          reason: 'requested_by_customer',
+        });
+      }
+    }
+
     const booking = await bookingModel.getBookingById(req.params.bookingId);
     if (booking) {
       await sendCancellationEmails(booking);
       await sendCancellationNotification(booking);
     }
-    const message = walletRefund.refunded
-      ? `Booking cancelled. S$${walletRefund.amount.toFixed(2)} was returned to your payment wallet.`
-      : 'Booking cancelled successfully.';
+    const refundedAmount = Number(refundResult.amount || refundResult.refundAmount || 0);
+    const message = refundedAmount > 0
+      ? `Booking cancelled. A ${refundPercentage.toFixed(0)}% refund of S$${refundedAmount.toFixed(2)} has been processed.`
+      : 'Booking cancelled successfully. No refund is due under the cancellation policy.';
     res.redirect('/book/viewBookings?success=' + encodeURIComponent(message));
   } catch (err) {
     console.error(err);

@@ -103,9 +103,20 @@
     return new Date(startsAt.getTime() - hours * 60 * 60 * 1000).toISOString();
   }
 
-  function canCancelByPolicy(booking) {
-    const deadline = new Date(cancellationDeadlineIso(booking));
-    return !Number.isNaN(deadline.getTime()) && Date.now() <= deadline.getTime();
+  function hoursUntilBooking(booking) {
+    const startsAt = bookingStartDate(booking);
+    if (!startsAt || Number.isNaN(startsAt.getTime())) return null;
+    return (startsAt.getTime() - Date.now()) / (60 * 60 * 1000);
+  }
+
+  function refundPercentageForBooking(booking) {
+    const hoursUntil = hoursUntilBooking(booking);
+    if (!Number.isFinite(hoursUntil)) return 0;
+    const platformRefund = hoursUntil > 24 ? 95 : (hoursUntil >= 6 ? 50 : 0);
+    const merchantRefundCap = Number(booking.refund_percentage ?? 95);
+    const merchantNoticeHours = Number(booking.min_cancel_hours || 0);
+    if (hoursUntil < merchantNoticeHours) return 0;
+    return Math.max(0, Math.min(platformRefund, merchantRefundCap));
   }
 
   const activeBookingStatuses = ['confirmed', 'rescheduled', 'arrived'];
@@ -274,15 +285,20 @@
                 <div class="mt-3 rounded-xl p-3" style="background:var(--canvas);border:1px solid var(--border);">
                   <p style="color:var(--muted);font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem;"><%= t('bookings.cancellationPolicy') %></p>
                   <p style="color:var(--ink);font-size:.875rem;font-weight:700;margin-bottom:.35rem;">
-                    <%= t('bookings.cancelPolicyText', { hours: booking.min_cancel_hours || 6, refund: Number(booking.refund_percentage || 100).toFixed(0) }) %>
+                    <%= t('bookings.cancelPolicyText', { hours: 24, refund: 95 }) %>
+                    <%= t('bookings.cancelPolicyPartialText', { hours: 6, refund: 50 }) %>
+                    <%= t('bookings.cancelPolicyLateText') %>
                   </p>
                   <span
                     class="badge rounded-pill cancellation-policy-timer"
                     data-deadline-at="<%= cancellationDeadlineIso(booking) %>"
-                    style="background:<%= canCancelByPolicy(booking) ? 'var(--accent-light)' : 'var(--danger-bg)' %>;color:<%= canCancelByPolicy(booking) ? 'var(--accent)' : 'var(--danger)' %>;"
+                    data-starts-at="<%= bookingStartDate(booking) ? bookingStartDate(booking).toISOString() : '' %>"
+                    data-merchant-notice-hours="<%= Number(booking.min_cancel_hours || 0) %>"
+                    data-merchant-refund-cap="<%= Number(booking.refund_percentage ?? 95) %>"
+                    style="background:<%= refundPercentageForBooking(booking) > 0 ? 'var(--accent-light)' : 'var(--danger-bg)' %>;color:<%= refundPercentageForBooking(booking) > 0 ? 'var(--accent)' : 'var(--danger)' %>;"
                   >
                     <i class="bi bi-hourglass-split me-1"></i>
-                    <span data-cancel-countdown><%= canCancelByPolicy(booking) ? t('bookings.cancelWindowOpen') : t('bookings.cancelWindowClosed') %></span>
+                    <span data-cancel-countdown><%= t('bookings.currentRefund', { refund: refundPercentageForBooking(booking).toFixed(0) }) %></span>
                   </span>
                 </div>
                 <% } %>
@@ -310,7 +326,7 @@
                     </a>
                     <% } %>
                     <form action="/book/<%= booking.booking_id %>/cancel" method="POST" onsubmit="return confirm(<%- JSON.stringify(t('bookings.cancelBookingConfirm')) %>);">
-                      <button type="submit" class="btn btn-outline-danger btn-sm btn-pill" data-cancel-button <%= canCancelByPolicy(booking) ? '' : 'disabled' %>>
+                      <button type="submit" class="btn btn-outline-danger btn-sm btn-pill" data-cancel-button>
                         <i class="bi bi-x-circle me-1"></i><%= t('bookings.cancel') %>
                       </button>
                     </form>
@@ -427,35 +443,31 @@
     const timers = Array.from(document.querySelectorAll('.cancellation-policy-timer'));
     if (!timers.length) return;
 
-    const renderDuration = milliseconds => {
-      const totalMinutes = Math.max(0, Math.ceil(milliseconds / 60000));
-      const days = Math.floor(totalMinutes / 1440);
-      const hours = Math.floor((totalMinutes % 1440) / 60);
-      const minutes = totalMinutes % 60;
-
-      if (days > 0) return window.t('bookings.daysHoursLeftToCancel', { days, hours });
-      if (hours > 0) return window.t('bookings.hoursMinutesLeftToCancel', { hours, minutes });
-      return window.t('bookings.minutesLeftToCancel', { minutes });
+    const currentRefundPercentage = timer => {
+      const startsAt = new Date(timer.dataset.startsAt || '').getTime();
+      if (Number.isNaN(startsAt)) return 0;
+      const hoursUntil = (startsAt - Date.now()) / 3600000;
+      const platformRefund = hoursUntil > 24 ? 95 : (hoursUntil >= 6 ? 50 : 0);
+      const merchantRefundCap = Number(timer.dataset.merchantRefundCap || 95);
+      const merchantNoticeHours = Number(timer.dataset.merchantNoticeHours || 0);
+      if (hoursUntil < merchantNoticeHours) return 0;
+      return Math.max(0, Math.min(platformRefund, merchantRefundCap));
     };
 
     const render = () => {
       timers.forEach(timer => {
         const output = timer.querySelector('[data-cancel-countdown]');
-        const deadline = new Date(timer.dataset.deadlineAt || '').getTime();
-        const remaining = deadline - Date.now();
-        const entry = timer.closest('.booking-entry');
-        const cancelButton = entry ? entry.querySelector('[data-cancel-button]') : null;
+        const refund = currentRefundPercentage(timer);
 
-        if (Number.isNaN(deadline) || remaining <= 0) {
-          if (output) output.textContent = window.t('bookings.cancelWindowClosed');
+        if (output) output.textContent = window.t('bookings.currentRefund', { refund: String(Math.round(refund)) });
+        if (refund <= 0) {
           timer.style.background = 'var(--danger-bg)';
           timer.style.color = 'var(--danger)';
-          if (cancelButton) cancelButton.disabled = true;
           return;
         }
 
-        if (output) output.textContent = renderDuration(remaining);
-        if (cancelButton) cancelButton.disabled = false;
+        timer.style.background = 'var(--accent-light)';
+        timer.style.color = 'var(--accent)';
       });
     };
 
