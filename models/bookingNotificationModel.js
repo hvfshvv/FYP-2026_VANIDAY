@@ -178,6 +178,41 @@ async function getBookingsNeedingEmailReminders() {
   return rows;
 }
 
+// Finds WhatsApp-origin bookings 23-25 hours away that have not received a sent WhatsApp reminder.
+async function getBookingsNeedingWhatsAppReminders() {
+  const [rows] = await db.query(
+    `SELECT b.*,
+            ts.slot_date AS booking_date,
+            ts.start_time AS booking_time,
+            s.service_name,
+            m.merchant_name,
+            m.address AS merchant_address,
+            COALESCE(st.full_name, 'Any Available Staff') AS staff_name,
+            COALESCE(c.full_name, b.guest_name) AS customer_name,
+            COALESCE(c.email, b.guest_email) AS customer_email,
+            COALESCE(c.phone, b.guest_phone) AS customer_phone
+     FROM booking b
+     JOIN time_slot ts ON b.slot_id = ts.slot_id
+     JOIN service s ON b.service_id = s.service_id
+     JOIN merchant m ON b.merchant_id = m.merchant_id
+     LEFT JOIN staff st ON st.staff_id = b.staff_id
+     LEFT JOIN users c ON b.customer_id = c.user_id
+     LEFT JOIN notification n ON n.booking_id = b.booking_id
+       AND n.notification_type = 'reminder_24h'
+       AND n.channel = 'whatsapp'
+       AND n.status = 'sent'
+     WHERE b.status IN ('confirmed', 'rescheduled')
+       AND b.source = 'whatsapp'
+       AND COALESCE(c.phone, b.guest_phone) IS NOT NULL
+       AND TIMESTAMP(ts.slot_date, ts.start_time) BETWEEN DATE_ADD(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR), INTERVAL 23 HOUR)
+                                                     AND DATE_ADD(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR), INTERVAL 25 HOUR)
+       AND n.notification_id IS NULL
+     ORDER BY ts.slot_date ASC, ts.start_time ASC
+     LIMIT 100`
+  );
+  return rows;
+}
+
 // ── PENDING PAYMENT EXPIRY ─────────────────────────────────────────────────
 
 // Transitions stale pending_payment bookings to payment_failed and frees their time slots.
@@ -302,6 +337,7 @@ module.exports = {
   recordEmailNotification,
   recordWhatsAppNotification,
   getBookingsNeedingEmailReminders,
+  getBookingsNeedingWhatsAppReminders,
   expirePendingPaymentBookings,
   countActivePendingPaymentBookings,
 };

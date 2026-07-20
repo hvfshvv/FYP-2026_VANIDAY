@@ -158,16 +158,21 @@ async function sendBookingReminder(booking) {
   const client = getClient();
   const from = process.env.TWILIO_WHATSAPP_NUMBER;
   const to = toWhatsAppAddress(booking.customer_phone);
+  const contentSid = process.env.TWILIO_WHATSAPP_REMINDER_CONTENT_SID;
 
-  if (!client || !from || !to) {
-    return { skipped: true, reason: 'missing_twilio_config_or_phone' };
+  if (!client || !from || !to || !contentSid) {
+    return { skipped: true, reason: 'missing_twilio_config_or_phone_or_template' };
   }
 
   try {
     const message = await client.messages.create({
       from,
       to,
-      body: buildBookingReminderMessage(booking)
+      contentSid,
+      contentVariables: JSON.stringify({
+        '1': formatDate(booking.booking_date),
+        '2': formatTime(booking.booking_time)
+      })
     });
 
     return { skipped: false, sid: message.sid };

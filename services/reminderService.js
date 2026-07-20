@@ -1,5 +1,6 @@
 const bookingNotificationModel = require('../models/bookingNotificationModel');
 const emailService = require('./emailService');
+const whatsappNotificationService = require('./whatsappNotificationService');
 
 let running = false;
 
@@ -39,10 +40,49 @@ async function sendDueBookingEmailReminders() {
       }
     }
 
+    await sendDueBookingWhatsAppReminders().catch(err => {
+      console.error('booking WhatsApp reminder run failed:', err);
+    });
+
     return { skipped: false, sent, failed };
   } finally {
     running = false;
   }
+}
+
+async function sendDueBookingWhatsAppReminders() {
+  let sent = 0;
+  let failed = 0;
+
+  const bookings = await bookingNotificationModel.getBookingsNeedingWhatsAppReminders();
+
+  for (const booking of bookings) {
+    try {
+      const result = await whatsappNotificationService.sendBookingReminder(booking);
+      await bookingNotificationModel.recordWhatsAppNotification(
+        booking,
+        'reminder_24h',
+        `24-hour reminder WhatsApp for booking #${booking.booking_id}`,
+        result && !result.skipped && !result.error ? 'sent' : 'failed'
+      );
+
+      if (result && !result.skipped && !result.error) sent += 1;
+      else failed += 1;
+    } catch (err) {
+      failed += 1;
+      console.error('booking WhatsApp reminder failed:', err);
+      await bookingNotificationModel.recordWhatsAppNotification(
+        booking,
+        'reminder_24h',
+        `24-hour reminder WhatsApp failed for booking #${booking.booking_id}`,
+        'failed'
+      ).catch(recordErr => {
+        console.error('booking WhatsApp reminder notification log failed:', recordErr);
+      });
+    }
+  }
+
+  return { sent, failed };
 }
 
 function startReminderScheduler() {
@@ -64,5 +104,6 @@ function startReminderScheduler() {
 
 module.exports = {
   sendDueBookingEmailReminders,
+  sendDueBookingWhatsAppReminders,
   startReminderScheduler,
 };
