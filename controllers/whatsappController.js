@@ -689,9 +689,20 @@ async function receiveMessage(req, res) {
       await goBack(sender, twiml);
     } else if (session && session.state === 'checking_reservation') {
       const bookingId = incomingMessage.trim();
+      const customer = session.customer || await getVerifiedCustomerForSender(sender);
+
+      if (!customer) {
+        twiml.message(
+          'Please log in or create a Uniday account before viewing a booking through WhatsApp:\n' +
+          getLoginLink(sender)
+        );
+        await clearSession(sender, 'completed');
+        return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
+      }
+
       const result = await checkReservation(bookingId);
 
-      if (result.booking) {
+      if (result.booking && isCustomerBooking(result.booking, customer)) {
         linkedBookingId = result.booking.booking_id;
         twiml.message(getReservationSummary(result.booking));
         await clearSession(sender, 'completed');
@@ -702,7 +713,7 @@ async function receiveMessage(req, res) {
         );
       } else {
         twiml.message(
-          'Sorry, I could not find a reservation with booking ID: ' + bookingId + '.\n\n' +
+          'Sorry, I could not find that booking under your Uniday account.\n\n' +
           'Please enter another booking ID, or reply menu to start over.'
         );
       }
@@ -1112,11 +1123,21 @@ async function receiveMessage(req, res) {
 
       twiml.message(getCategoryMenu());
     } else if (message === '2') {
-      await saveSession(sender, {
-        state: 'checking_reservation'
-      });
+      const customer = await getVerifiedCustomerForSender(sender);
 
-      twiml.message('Please enter your booking ID to check your reservation.');
+      if (!customer) {
+        twiml.message(
+          'Please log in or create a Uniday account before viewing a booking through WhatsApp:\n' +
+          getLoginLink(sender)
+        );
+      } else {
+        await saveSession(sender, {
+          state: 'checking_reservation',
+          customer: customer
+        });
+
+        twiml.message('Please enter your booking ID to check your reservation.');
+      }
     } else if (message === '3' || message === 'cancel' || message === 'cancel booking') {
       const customer = await getVerifiedCustomerForSender(sender);
 
