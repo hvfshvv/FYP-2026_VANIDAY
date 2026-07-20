@@ -51,6 +51,14 @@ const ACTIVE_WAITLIST_NOTIFICATION_FILTER = `
       OR w.offer_expires_at < NOW()
     )
   )
+  AND NOT (
+    n.notification_type = 'waitlist_joined'
+    AND w.waitlist_id IS NOT NULL
+    AND (
+      w.status <> 'waiting'
+      OR TIMESTAMP(w.booking_date, w.booking_time) < NOW()
+    )
+  )
 `;
 
 const NOTIFICATION_ACTION_SELECT = `

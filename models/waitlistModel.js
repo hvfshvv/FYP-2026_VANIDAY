@@ -361,6 +361,38 @@ async function expireOffersAndPromote() {
   return expired.length;
 }
 
+async function expirePastWaitingWaitlists() {
+  await ensureWaitlistSchema();
+
+  const [expired] = await db.query(
+    `SELECT waitlist_id, customer_id
+     FROM waitlist
+     WHERE status = 'waiting'
+       AND TIMESTAMP(booking_date, booking_time) < NOW()`
+  );
+
+  if (!expired.length) return 0;
+
+  const ids = expired.map(row => row.waitlist_id);
+  await db.query(
+    `UPDATE waitlist
+     SET status = 'expired'
+     WHERE waitlist_id IN (?)`,
+    [ids]
+  );
+
+  await Promise.all(expired.map(row => notifyCustomer(
+    row.waitlist_id,
+    'Waitlist expired',
+    'The slot you joined the waitlist for has passed, so I removed it from your active waitlist.',
+    'waitlist_expired'
+  )));
+
+  await Promise.all(expired.map(row => markWaitlistNotificationsClosed(row.waitlist_id, row.customer_id, 'waitlist_expired')));
+
+  return expired.length;
+}
+
 async function getWaitlistByIdForCustomer(waitlistId, customerId) {
   await ensureWaitlistSchema();
 
@@ -464,6 +496,7 @@ async function removeMerchantWaitlist(waitlistId, merchantId) {
 async function getCustomerWaitlists(customerId) {
   await ensureWaitlistSchema();
   await expireOffersAndPromote();
+  await expirePastWaitingWaitlists();
 
   const [rows] = await db.query(
     `SELECT w.*, m.merchant_name, m.address AS merchant_address, s.service_name,
@@ -489,6 +522,8 @@ async function getCustomerWaitlists(customerId) {
      JOIN merchant m ON m.merchant_id = w.merchant_id
      JOIN service s ON s.service_id = w.service_id
      WHERE w.customer_id = ?
+       AND w.status IN ('waiting', 'offered')
+       AND TIMESTAMP(w.booking_date, w.booking_time) >= NOW()
      ORDER BY FIELD(w.status, 'offered', 'waiting', 'confirmed', 'expired', 'cancelled', 'removed'),
               w.joined_at DESC`,
     [customerId]
@@ -500,6 +535,7 @@ async function getCustomerWaitlists(customerId) {
 async function getMerchantWaitlists(merchantId) {
   await ensureWaitlistSchema();
   await expireOffersAndPromote();
+  await expirePastWaitingWaitlists();
 
   const [rows] = await db.query(
     `SELECT w.*, c.full_name AS customer_name, c.email AS customer_email, c.phone AS customer_phone,
@@ -529,6 +565,7 @@ async function getMerchantWaitlists(merchantId) {
 async function getMerchantActiveWaitlistCount(merchantId) {
   await ensureWaitlistSchema();
   await expireOffersAndPromote();
+  await expirePastWaitingWaitlists();
 
   const [[row]] = await db.query(
     `SELECT COUNT(*) AS active_count
@@ -574,6 +611,7 @@ module.exports = {
   joinWaitlist,
   offerNextForSlot,
   expireOffersAndPromote,
+  expirePastWaitingWaitlists,
   assertNoBlockingOffer,
   hasActiveOfferForSlot,
   getWaitlistByIdForCustomer,
