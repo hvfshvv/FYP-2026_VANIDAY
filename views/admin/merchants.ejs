@@ -30,33 +30,34 @@
   const topChannel = (a.bookingChannelAnalytics || [])[0];
   const bestHour = (a.peakBookingTimes || [])[0];
   const bestSalesHour = (a.peakSalesPeriods || [])[0];
+  const topMerchantBenchmark = (a.topMerchants || [])[0];
   const merchantChartInsights = [
     {
       title: 'Revenue direction',
       icon: 'bi-graph-up-arrow',
       body: revenueStart && revenueEnd
-        ? `Paid revenue ${revenueDelta >= 0 ? 'is trending up' : 'is trending down'} from ${money(revenueStart.total)} on ${dateLabel(revenueStart.period_label)} to ${money(revenueEnd.total)} on ${dateLabel(revenueEnd.period_label)}. Treat this as demand momentum, not just a cash total.`
+        ? `Paid revenue ${revenueDelta >= 0 ? 'grew' : 'softened'} from ${money(revenueStart.total)} on ${dateLabel(revenueStart.period_label)} to ${money(revenueEnd.total)} on ${dateLabel(revenueEnd.period_label)}. This shows whether demand momentum is improving or easing.`
         : 'More paid revenue days are needed before the chart can show a reliable direction.',
     },
     {
       title: 'Category strategy',
       icon: 'bi-stars',
       body: topRevenueCategory
-        ? `${topRevenueCategory.category} leads category revenue at ${money(topRevenueCategory.revenue)}. This category should get stronger marketplace placement, campaign testing, and merchant coaching.`
+        ? `${topRevenueCategory.category} leads category revenue at ${money(topRevenueCategory.revenue)}. That category should receive stronger marketplace placement, campaign testing, and merchant coaching.`
         : 'Category revenue is not available yet, so campaigns should stay broad until paid booking data grows.',
     },
     {
       title: 'Service-market fit',
       icon: 'bi-bag-check',
       body: topService
-        ? `${topService.service_name} is the strongest service signal with ${number(topService.bookings)} bookings and ${money(topService.revenue)} revenue. Use it as a benchmark for similar merchants and bundles.`
+        ? `${topService.service_name} is the strongest service signal with ${number(topService.bookings)} bookings and ${money(topService.revenue)} revenue. Use it as a benchmark for similar merchant bundles.`
         : 'Top service data is still thin, so the platform cannot confidently identify service-market fit yet.',
     },
     {
       title: 'Operational risk',
       icon: 'bi-shield-exclamation',
       body: topStatus
-        ? `${String(topStatus.status || 'unknown').replace('_', ' ')} is the largest booking status group. A high cancel/no-show mix means lost capacity; a high confirmed/completed mix means stable operations.`
+        ? `${String(topStatus.status || 'unknown').replace('_', ' ')} is the largest booking status group. A heavy cancel/no-show mix points to lost capacity, while a confirmed/completed mix points to stable operations.`
         : 'Booking status mix is unavailable, so cancellation and no-show risk cannot be estimated yet.',
     },
     {
@@ -70,20 +71,22 @@
       title: 'Digital conversion',
       icon: 'bi-phone',
       body: topChannel || topPaymentMethod
-        ? `${topChannel ? topChannel.channel_label + ' is the leading booking source' : 'Booking source data is limited'}${topPaymentMethod ? `, and ${topPaymentMethod.payment_method || 'Unknown'} leads payment usage` : ''}. This shows where the customer journey is easiest today.`
+        ? `${topChannel ? `${topChannel.channel_label} is the leading booking source` : 'Booking source data is limited'}${topPaymentMethod ? `, and ${topPaymentMethod.payment_method || 'Unknown'} leads payment usage` : ''}. That shows where the customer journey is easiest today.`
         : 'Booking channel and payment method data are not available yet, so checkout optimization needs more activity.',
     },
     {
       title: 'Promotion quality',
       icon: 'bi-megaphone',
       body: topCampaign && Number(topCampaign.redemptions || 0) > 0
-        ? `${topCampaign.campaign_name || topCampaign.voucher_code} is the strongest promotion by redemption. Next, check whether it creates repeat visits or only one-time discount traffic.`
+        ? `${topCampaign.campaign_name || topCampaign.voucher_code} is the strongest promotion by redemption (${number(topCampaign.redemptions || 0)}). Review whether it is creating repeat visits or only one-time discount traffic.`
         : 'Promotions have little or no redemption yet, so test smaller personalized offers instead of broad discounts.',
     },
     {
       title: 'Market lens',
       icon: 'bi-lightbulb',
-      body: 'Beauty and wellness platforms are moving toward personalized recommendations, mobile-first booking, loyalty, and trusted self-care experiences. The charts should guide which merchants to feature and which customers to retain.',
+      body: topMerchantBenchmark
+        ? `The strongest merchant benchmark in this range is ${topMerchantBenchmark.merchant_name} at ${money(topMerchantBenchmark.revenue)} revenue. Use that performance profile to guide feature placement and retention opportunities.`
+        : 'There is not yet enough merchant activity to identify a clear performance benchmark.',
     },
   ];
   const safeJson = value => JSON.stringify(value || {}).replace(/</g, '\\u003c');
@@ -939,12 +942,17 @@
       ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
       : '-';
     const text = value => String(value || '').replace(/_/g, ' ');
+    const isFiniteNumber = value => Number.isFinite(Number(value || 0));
+    const safeNumber = value => (isFiniteNumber(value) ? Number(value) : 0);
+    const safePercent = (value, total) => total ? percent((safeNumber(value) / safeNumber(total)) * 100) : '0.0%';
+    const safeMoney = value => money(safeNumber(value));
+    const safeLabel = value => value ? String(value) : 'No data available';
     const listTop = (items, mapper, fallback) => {
       const values = (items || []).slice(0, 3).map(mapper).filter(Boolean);
       return values.length ? values.join(', ') : fallback;
     };
     const valuesFor = (items, key) => (items || [])
-      .map(item => Number(item[key] || 0))
+      .map(item => safeNumber(item[key]))
       .filter(value => Number.isFinite(value));
     const statsFor = values => {
       const nums = values.filter(value => Number.isFinite(value)).sort((a, b) => a - b);
@@ -954,188 +962,178 @@
       const median = nums.length % 2
         ? nums[(nums.length - 1) / 2]
         : (nums[(nums.length / 2) - 1] + nums[nums.length / 2]) / 2;
-      const counts = nums.reduce((acc, value) => {
-        const key = value.toFixed(2);
-        acc[key] = (acc[key] || 0) + 1;
-        return acc;
-      }, {});
-      const maxCount = Math.max(...Object.values(counts));
-      const mode = Object.entries(counts)
-        .filter(([, count]) => count === maxCount)
-        .map(([value]) => Number(value));
       const variance = nums.reduce((total, value) => total + Math.pow(value - mean, 2), 0) / nums.length;
       return {
         count: nums.length,
         mean,
         median,
-        mode,
         min: nums[0],
         max: nums[nums.length - 1],
         stdDev: Math.sqrt(variance),
       };
     };
-    const formatStat = (stats, formatter) => {
-      if (!stats) return 'not available from the current dashboard data';
-      const modeText = stats.mode.length > 3 ? 'multiple values' : stats.mode.map(formatter).join(', ');
-      return `mean ${formatter(stats.mean)}, median ${formatter(stats.median)}, mode ${modeText}, minimum ${formatter(stats.min)}, maximum ${formatter(stats.max)}, and standard deviation ${formatter(stats.stdDev)} across ${number(stats.count)} displayed aggregate value${stats.count === 1 ? '' : 's'}`;
-    };
     const frequencyText = (items, labelKey, valueKey, fallback) => {
-      const total = (items || []).reduce((sum, row) => sum + Number(row[valueKey] || 0), 0);
+      const total = (items || []).reduce((sum, row) => sum + safeNumber(row[valueKey]), 0);
       if (!total) return fallback;
       return (items || []).slice(0, 4).map(row => {
-        const value = Number(row[valueKey] || 0);
+        const value = safeNumber(row[valueKey]);
         const share = (value / total) * 100;
         return `${text(row[labelKey] || 'Unknown')} ${number(value)} (${percent(share)})`;
       }).join(', ');
+    };
+    const buildMetricLine = (label, value) => `${label}: ${value}`;
+    const buildStatusLine = (row, bookingTotal) => {
+      if (!row) return 'No status data available for the selected period.';
+      return `${text(row.status || 'unknown')} ${number(row.total || 0)} (${safePercent(row.total, bookingTotal)})`;
+    };
+    const buildLeadTimeText = leadTime => {
+      const avgHours = safeNumber(leadTime?.avg_lead_hours || 0);
+      const validCount = safeNumber(leadTime?.valid_lead_count || 0);
+      const invalidCount = safeNumber(leadTime?.invalid_lead_count || 0);
+      if (!validCount) return 'No valid booking lead-time data available for the selected period.';
+      const leadDays = avgHours / 24;
+      const invalidText = invalidCount > 0 ? ` ${invalidCount} invalid record${invalidCount === 1 ? '' : 's'} were excluded.` : '';
+      return `${leadDays.toFixed(1)} days on average${invalidText}`;
     };
 
     function buildMerchantSummary() {
       const overview = analytics.overview || {};
       const financial = analytics.financial || {};
       const segments = analytics.customerSegments || {};
-      const grossRevenue = Number(financial.gross_revenue || 0);
-      const refundedAmount = Number(financial.refunded_amount || 0);
+      const leadTime = analytics.leadTime || {};
+      const grossRevenue = safeNumber(financial.gross_revenue);
+      const refundedAmount = safeNumber(financial.refunded_amount);
       const profitMargin = grossRevenue ? ((grossRevenue - refundedAmount) / grossRevenue) * 100 : 0;
-      const totalCustomers = Number(segments.total_customers || 0);
-      const returningCustomers = Number(segments.returning_customers || 0);
+      const totalCustomers = safeNumber(segments.total_customers);
+      const returningCustomers = safeNumber(segments.returning_customers);
+      const newCustomers = safeNumber(segments.new_customers);
       const retentionRate = totalCustomers ? (returningCustomers / totalCustomers) * 100 : 0;
       const revenueStats = statsFor(valuesFor(analytics.revenueTrend, 'total'));
-      const categoryStats = statsFor(valuesFor(analytics.revenueByCategory, 'revenue'));
-      const serviceBookingStats = statsFor(valuesFor(analytics.topServices, 'bookings'));
-      const merchantRevenueStats = statsFor(valuesFor(analytics.topMerchants, 'revenue'));
-      const statusFrequency = frequencyText(analytics.bookingStatus, 'status', 'total', 'no booking status frequency counts are available');
-      const categoryFrequency = frequencyText(analytics.revenueByCategory, 'category', 'revenue', 'no category revenue percentages are available');
-      const paymentFrequency = frequencyText(analytics.paymentBreakdown, 'payment_method', 'total', 'no payment method percentages are available');
-      const channelFrequency = frequencyText(analytics.bookingChannelAnalytics, 'channel_label', 'total', 'no booking channel percentages are available');
-      const topServices = listTop(
-        analytics.topServices,
-        row => `${row.service_name || 'Service'} with ${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'} and ${money(row.revenue)} revenue`,
-        'no top-selling service rows'
-      );
-      const topMerchants = listTop(
-        analytics.topMerchants,
-        row => `${row.merchant_name || 'Merchant'} (${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'}, ${money(row.revenue)})`,
-        'no merchant leaderboard rows'
-      );
-      const peakSales = listTop(
-        analytics.peakSalesPeriods,
-        row => `${String(row.hour_label).padStart(2, '0')}:00 with ${money(row.revenue)}`,
-        'no peak sales period data'
-      );
-      const peakBookings = listTop(
-        analytics.peakBookingTimes,
-        row => `${row.day_label} ${String(row.hour_label).padStart(2, '0')}:00 with ${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'}`,
-        'no booking heatmap data'
-      );
-      const campaigns = listTop(
-        analytics.promotionPerformance,
-        row => `${row.campaign_name || row.voucher_code || 'Voucher'} with ${number(row.redemptions)} redemption${Number(row.redemptions || 0) === 1 ? '' : 's'}`,
-        'no promotion redemptions'
-      );
-      const loyalCustomers = listTop(
-        analytics.topCustomers,
-        row => `${row.full_name || 'Customer'} with ${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'} and ${money(row.lifetime_value)} CLV`,
-        'no repeat customer rows'
-      );
-      const trendText = (analytics.revenueTrend || []).length > 1
-        ? `Daily revenue moves from ${money((analytics.revenueTrend || [])[0].total)} on ${dateLabel((analytics.revenueTrend || [])[0].period_label)} to ${money((analytics.revenueTrend || []).slice(-1)[0].total)} on ${dateLabel((analytics.revenueTrend || []).slice(-1)[0].period_label)}.`
-        : 'Daily revenue trend evidence is limited because fewer than two daily points are available.';
-      const bookingTotal = (analytics.bookingStatus || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
-      const categoryTotal = (analytics.revenueByCategory || []).reduce((sum, row) => sum + Number(row.revenue || 0), 0);
-      const channelTotal = (analytics.bookingChannelAnalytics || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
-      const paymentTotal = (analytics.paymentBreakdown || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
+      const bookingTotal = (analytics.bookingStatus || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
+      const categoryTotal = (analytics.revenueByCategory || []).reduce((sum, row) => sum + safeNumber(row.revenue), 0);
+      const channelTotal = (analytics.bookingChannelAnalytics || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
+      const paymentTotal = (analytics.paymentBreakdown || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
       const topMerchant = (analytics.topMerchants || [])[0];
       const topCategory = (analytics.revenueByCategory || [])[0];
       const topService = (analytics.topServices || [])[0];
-      const topStatus = (analytics.bookingStatus || [])[0];
-      const topPayment = (analytics.paymentBreakdown || [])[0];
-      const topChannel = (analytics.bookingChannelAnalytics || [])[0];
-      const topCampaign = (analytics.promotionPerformance || [])[0];
+      const topStatus = (analytics.bookingStatus || []).reduce((best, row) => {
+        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
+        return best;
+      }, null);
+      const topPayment = (analytics.paymentBreakdown || []).reduce((best, row) => {
+        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
+        return best;
+      }, null);
+      const topChannel = (analytics.bookingChannelAnalytics || []).reduce((best, row) => {
+        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
+        return best;
+      }, null);
+      const topCampaign = (analytics.promotionPerformance || []).reduce((best, row) => {
+        if (!best || safeNumber(row.redemptions) > safeNumber(best.redemptions)) return row;
+        return best;
+      }, null);
       const completed = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'completed');
       const cancelled = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'cancelled');
       const noShow = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'no_show');
       const firstRevenueDay = (analytics.revenueTrend || [])[0];
       const lastRevenueDay = (analytics.revenueTrend || []).slice(-1)[0];
-      const share = (value, total) => total ? percent((Number(value || 0) / total) * 100) : '0.0%';
-      const statusShare = row => row ? `${number(row.total)} (${share(row.total, bookingTotal)})` : 'not enough data';
+      const peakSales = listTop(
+        analytics.peakSalesPeriods,
+        row => `${String(row.hour_label || '00').padStart(2, '0')}:00 (${money(row.revenue || 0)})`,
+        'No peak revenue hour data available for the selected period.'
+      );
+      const peakBookings = listTop(
+        analytics.peakBookingTimes,
+        row => `${safeLabel(row.day_label)} ${String(row.hour_label || '00').padStart(2, '0')}:00 (${number(row.bookings || 0)} booking${safeNumber(row.bookings) === 1 ? '' : 's'})`,
+        'No peak booking day and time data available for the selected period.'
+      );
+      const categoryShare = topCategory ? safePercent(topCategory.revenue, categoryTotal) : '0.0%';
+      const serviceShare = topService ? safePercent(topService.revenue, grossRevenue) : '0.0%';
+      const channelShare = topChannel ? safePercent(topChannel.total, channelTotal) : '0.0%';
+      const paymentShare = topPayment ? safePercent(topPayment.total, paymentTotal) : '0.0%';
+      const statusShareText = topStatus ? `${number(topStatus.total || 0)} (${safePercent(topStatus.total, bookingTotal)})` : 'No status data available.';
       const topMerchantText = topMerchant
-        ? `${topMerchant.merchant_name || 'The leading merchant'} generated ${money(topMerchant.revenue)} from ${number(topMerchant.bookings)} booking${Number(topMerchant.bookings || 0) === 1 ? '' : 's'}`
-        : 'No leading merchant can be identified yet';
-      const revenueDistributionText = revenueStats
-        ? `Daily revenue averages ${money(revenueStats.mean)}, with a median of ${money(revenueStats.median)} and standard deviation of ${money(revenueStats.stdDev)}.`
-        : 'Daily revenue distribution cannot be calculated from the current data.';
-      const revenueTrendText = firstRevenueDay && lastRevenueDay
-        ? `Daily revenue moved from ${money(firstRevenueDay.total)} on ${dateLabel(firstRevenueDay.period_label)} to ${money(lastRevenueDay.total)} on ${dateLabel(lastRevenueDay.period_label)}.`
-        : 'Revenue needs at least two paid days before a trend can be interpreted.';
-      const categoryInsight = topCategory
-        ? `${topCategory.category} generated ${money(topCategory.revenue)}, representing ${share(topCategory.revenue, categoryTotal)} of category revenue.`
-        : 'No revenue-leading category is available yet.';
-      const serviceInsight = topService
-        ? `${topService.service_name} is the top service with ${number(topService.bookings)} booking${Number(topService.bookings || 0) === 1 ? '' : 's'} and ${money(topService.revenue)} revenue.`
-        : 'No top-selling service is available yet.';
-      const paymentInsight = topPayment
-        ? `${topPayment.payment_method || 'Unknown'} is the leading payment method with ${share(topPayment.total, paymentTotal)} of recorded payments.`
-        : 'Payment method usage is not available yet.';
-      const channelInsight = topChannel
-        ? `${topChannel.channel_label || 'The leading channel'} contributes ${share(topChannel.total, channelTotal)} of bookings.`
-        : 'Booking source data is not available yet.';
-      const campaignInsight = topCampaign && Number(topCampaign.redemptions || 0) > 0
-        ? `${topCampaign.campaign_name || topCampaign.voucher_code || 'The leading campaign'} produced ${number(topCampaign.redemptions)} redemption${Number(topCampaign.redemptions || 0) === 1 ? '' : 's'}.`
-        : 'Promotion redemptions are still low or unavailable.';
+        ? `${safeLabel(topMerchant.merchant_name)} (${money(topMerchant.revenue || 0)}, ${number(topMerchant.bookings || 0)} booking${safeNumber(topMerchant.bookings) === 1 ? '' : 's'})`
+        : 'No merchant data available for the selected period.';
+      const topCategoryText = topCategory
+        ? `${safeLabel(topCategory.category)} (${money(topCategory.revenue || 0)}, ${categoryShare} of category revenue)`
+        : 'No category revenue data available for the selected period.';
+      const topServiceText = topService
+        ? `${safeLabel(topService.service_name)} (${number(topService.bookings || 0)} booking${safeNumber(topService.bookings) === 1 ? '' : 's'}, ${money(topService.revenue || 0)}, ${serviceShare} of paid revenue)`
+        : 'No service revenue data available for the selected period.';
+      const bookingFrequencyText = `${buildMetricLine('Total bookings', number(safeNumber(overview.total_bookings)))}; ${buildMetricLine('Paid revenue', safeMoney(overview.revenue_generated))}; ${buildMetricLine('Unique customers', number(safeNumber(overview.number_of_customers)))}; ${buildMetricLine('Average order value', safeMoney(overview.average_order_value))}; ${buildMetricLine('Top merchant', topMerchantText)}`;
+      const statsText = revenueStats
+        ? `${buildMetricLine('Daily mean revenue', safeMoney(revenueStats.mean))}; ${buildMetricLine('Daily median revenue', safeMoney(revenueStats.median))}; ${buildMetricLine('Daily revenue standard deviation', safeMoney(revenueStats.stdDev))}; ${buildMetricLine('First daily revenue', safeMoney(firstRevenueDay?.total))}; ${buildMetricLine('Latest daily revenue', safeMoney(lastRevenueDay?.total))}`
+        : 'No daily revenue trend data is available for the selected period.';
+      const performanceText = `${buildMetricLine('Booking conversion rate', percent(overview.booking_conversion_rate))}; ${buildMetricLine('Cancellation/no-show rate', percent(overview.cancellation_no_show_rate))}; ${buildMetricLine('Customer satisfaction', `${Number(overview.customer_satisfaction_rating || 0).toFixed(1)}/5`)}`;
+      const retentionText = `${buildMetricLine('Customer retention rate', percent(retentionRate))}; ${buildMetricLine('New customers', number(segments.new_customers || 0))}; ${buildMetricLine('Returning customers', number(segments.returning_customers || 0))}; ${buildMetricLine('Average booking lead time', buildLeadTimeText(leadTime))}`;
+      const marginText = `${buildMetricLine('Profit margin', percent(profitMargin))}; ${buildMetricLine('Refunded amount', safeMoney(financial.refunded_amount))}; ${buildMetricLine('Refund count', number(financial.refund_count || 0))}`;
+      const categoryText = `${buildMetricLine('Category revenue leader', topCategoryText)}; ${buildMetricLine('Booking status leader', buildStatusLine(topStatus, bookingTotal))}`;
+      const channelText = `${buildMetricLine('Top booking channel', topChannel ? `${safeLabel(topChannel.channel_label)} (${safePercent(topChannel.total, channelTotal)})` : 'No channel data available for the selected period.')}; ${buildMetricLine('Top payment method', topPayment ? `${safeLabel(topPayment.payment_method)} (${safePercent(topPayment.total, paymentTotal)})` : 'No payment data available for the selected period.')}; ${buildMetricLine('Top promotion', topCampaign && safeNumber(topCampaign.redemptions) > 0 ? `${safeLabel(topCampaign.campaign_name || topCampaign.voucher_code)} (${number(topCampaign.redemptions || 0)} redemption${safeNumber(topCampaign.redemptions) === 1 ? '' : 's'})` : 'No promotion redemption data available for the selected period.')}`;
+      const operationsText = `${buildMetricLine('Peak revenue hours', peakSales)}; ${buildMetricLine('Peak booking days and times', peakBookings)}`;
+      const peakBookingPeriods = (analytics.peakBookingTimes || [])
+        .slice(0, 4)
+        .map(row => `${safeLabel(row.day_label)} ${String(row.hour_label || '00').padStart(2, '0')}:00`)
+        .join(', ');
+      const topCategoryName = safeLabel(topCategory?.category || 'the main revenue category');
+      const topServiceName = safeLabel(topService?.service_name || 'the top service');
+      const topChannelName = safeLabel(topChannel?.channel_label || 'the main booking channel');
 
-      return `Data Summary
+      const employeeDataAnalysis = `What This Means For Employees
 
-The dashboard analyses merchant performance between ${dateLabel(range.startDate)} and ${dateLabel(range.endDate)}. During this period, merchants recorded ${number(overview.total_bookings)} booking${Number(overview.total_bookings || 0) === 1 ? '' : 's'}, generated ${money(overview.revenue_generated)} in paid revenue, served ${number(overview.number_of_customers)} customer${Number(overview.number_of_customers || 0) === 1 ? '' : 's'}, and achieved an average order value of ${money(overview.average_order_value)}.
+Employee-focused view based on the current filtered dashboard data.
 
-The strongest performance is concentrated around the leaderboard and category leaders. ${topMerchantText}. This indicates that merchant revenue is not evenly distributed and that top-performing merchants should be used as benchmarks for service mix, pricing, customer experience, and listing quality.
+Daily actions:
+- Prepare extra staff and appointment capacity for ${peakBookingPeriods || peakSales || 'the busiest periods'}.
+- Prioritise ${topServiceName} and ${topCategoryName} so employees can explain, recommend, and upsell the strongest offers.
+- Reduce the current ${percent(overview.cancellation_no_show_rate)} cancellation and no-show rate with reminders, confirmations, and easy rescheduling.
+- Keep the current ${Number(overview.customer_satisfaction_rating || 0).toFixed(1)}/5 service experience strong by following up quickly and staying consistent.
+- Encourage referrals and first-time customer offers because ${number(returningCustomers)} returning customers outnumber ${number(newCustomers)} new customers.
+- Review the ${number(financial.refund_count || 0)} refund${safeNumber(financial.refund_count) === 1 ? '' : 's'} totalling ${safeMoney(financial.refunded_amount)} and record the reasons for repeat issues.
+- Keep website booking details accurate because ${safePercent(topChannel?.total, channelTotal)} of bookings come from ${topChannelName}.
+- ${safeNumber(leadTime.invalid_lead_count) > 0 ? `Data quality warning: ${number(leadTime.invalid_lead_count || 0)} invalid booking records were excluded and should be corrected before the team uses this report.` : 'No data quality issues were detected in the current filtered dataset.'}`;
 
-Descriptive Statistics
+      return `Summary
 
-${revenueDistributionText} ${revenueTrendText}
+Period: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.
+${bookingFrequencyText}
 
-Booking conversion is ${percent(overview.booking_conversion_rate)}, while cancellation/no-show risk is ${percent(overview.cancellation_no_show_rate)}. Customer satisfaction is ${Number(overview.customer_satisfaction_rating || 0).toFixed(1)}/5, retention is ${percent(retentionRate)}, average lead time is ${(Number((analytics.leadTime || {}).avg_lead_hours || 0) / 24).toFixed(1)} days, and profit margin is ${percent(profitMargin)} after recorded refunds.
+Stats
 
-Business Insights
+${statsText}
 
-Revenue Performance
-- ${categoryInsight}
-- ${serviceInsight}
-- Action: feature high-revenue categories and use top services as templates for bundles, upsells, and campaign creative.
+Insights
 
-Booking Performance
-- The largest booking outcome is ${topStatus ? `${text(topStatus.status)} at ${statusShare(topStatus)}` : 'not available'}.
-- Completed bookings account for ${statusShare(completed)}, cancelled bookings account for ${statusShare(cancelled)}, and no-shows account for ${statusShare(noShow)}.
-- Action: investigate merchants or services with high cancellation/no-show rates and improve reminders, deposits, or rescheduling flows.
+- ${topCategoryText}
+- ${topServiceText}
+- ${categoryText}
+- ${performanceText}
+- ${retentionText}
+- ${marginText}
+- ${channelText}
+- ${operationsText}
 
-Customer Retention
-- The period includes ${number(segments.new_customers)} new customer${Number(segments.new_customers || 0) === 1 ? '' : 's'} and ${number(segments.returning_customers)} returning customer${Number(segments.returning_customers || 0) === 1 ? '' : 's'}.
-- Retention is ${percent(retentionRate)}, which shows whether merchants are building repeat demand or relying mainly on first-time bookings.
-- Action: target low-repeat customer segments with win-back vouchers and personalized service reminders.
+Takeaway
 
-Marketing And Channels
-- ${channelInsight}
-- ${campaignInsight}
-- Action: invest more in channels that convert to paid bookings, and judge campaigns by repeat bookings rather than redemptions alone.
+${safeLabel(overview.total_bookings ? `${number(overview.total_bookings)} bookings` : 'No bookings')} and ${safeLabel(overview.revenue_generated ? `${safeMoney(overview.revenue_generated)} revenue` : 'no revenue')} for the selected period. The top merchant, category, service, channel, payment method, and promotion are all based on the same filtered records.
 
-Payment And Finance
-- ${paymentInsight}
-- Refunds total ${money(financial.refunded_amount)} across ${number(financial.refund_count)} refund${Number(financial.refund_count || 0) === 1 ? '' : 's'}.
-- Action: maintain the most reliable payment method, monitor refund reasons, and protect checkout reliability during peak periods.
-
-Operational Planning
-- Peak sales periods are ${peakSales}; peak booking demand is ${peakBookings}.
-- Action: align staff coverage, featured listings, and promotions with both booking peaks and revenue peaks.
-
-Key Business Observations
-
-The merchant dashboard shows where the platform is generating value and where revenue may be leaking. Strong categories and services should be promoted more aggressively, while cancellation/no-show patterns need operational attention. Retention should be monitored closely because a marketplace that depends only on new customers will need constant acquisition spend. The best next step is to connect high-performing merchants, high-revenue services, booking channels, and repeat customers into targeted campaigns rather than broad promotions.`;
+${employeeDataAnalysis}`;
     }
 
     summaryButton.addEventListener('click', function () {
-      summaryMeta.textContent = `Generated from the currently filtered merchant dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
-      summaryOutput.textContent = buildMerchantSummary();
-      summaryPanel.classList.add('is-visible');
-      summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      try {
+        const content = buildMerchantSummary();
+        summaryMeta.textContent = `Generated from the currently filtered merchant dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
+        summaryOutput.textContent = content || 'No summary was generated for the selected period.';
+        summaryPanel.classList.add('is-visible');
+        summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        console.error('Failed to build merchant summary', error);
+        summaryMeta.textContent = `Generated from the currently filtered merchant dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
+        summaryOutput.textContent = 'The summary could not be generated for the selected period. Please try a different date range or refresh the page.';
+        summaryPanel.classList.add('is-visible');
+        summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
 
     copySummaryButton.addEventListener('click', async function () {

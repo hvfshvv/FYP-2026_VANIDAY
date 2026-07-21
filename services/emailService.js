@@ -1,12 +1,19 @@
-const nodemailer = require('nodemailer');
+const { createNoopEmailProvider } = require('./noopEmailProvider');
+const { createSmtpEmailProvider } = require('./smtpEmailProvider');
+
+let missingConfigWarningShown = false;
+
+function envValue(name) {
+  return String(process.env[name] || '').trim();
+}
 
 function hasSmtpConfig() {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  return Boolean(envValue('SMTP_HOST') && envValue('SMTP_USER') && envValue('SMTP_PASS'));
 }
 
 function getSmtpPassword() {
-  const password = String(process.env.SMTP_PASS || '');
-  const host = String(process.env.SMTP_HOST || '').toLowerCase();
+  const password = envValue('SMTP_PASS');
+  const host = envValue('SMTP_HOST').toLowerCase();
 
   if (host.includes('gmail.com')) {
     return password.replace(/\s+/g, '');
@@ -15,22 +22,8 @@ function getSmtpPassword() {
   return password;
 }
 
-function createTransporter() {
-  if (!hasSmtpConfig()) return null;
-
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: getSmtpPassword(),
-    },
-  });
-}
-
 function getFromAddress() {
-  return process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@uniday.local';
+  return envValue('SMTP_FROM') || envValue('SMTP_USER') || 'no-reply@uniday.local';
 }
 
 function normalizeRecipient(value) {
@@ -38,7 +31,53 @@ function normalizeRecipient(value) {
 }
 
 function shouldLogSmtpDebug() {
-  return String(process.env.SMTP_DEBUG || '').toLowerCase() === 'true';
+  return envValue('SMTP_DEBUG').toLowerCase() === 'true';
+}
+
+function getEmailProviderName() {
+  const configured = envValue('EMAIL_PROVIDER').toLowerCase();
+  if (configured) return configured;
+  return hasSmtpConfig() ? 'smtp' : 'noop';
+}
+
+function getSmtpConfig() {
+  return {
+    host: envValue('SMTP_HOST'),
+    port: Number(envValue('SMTP_PORT')) || 587,
+    secure: envValue('SMTP_SECURE').toLowerCase() === 'true',
+    user: envValue('SMTP_USER'),
+    pass: getSmtpPassword(),
+    debug: shouldLogSmtpDebug(),
+  };
+}
+
+function createEmailProvider() {
+  const provider = getEmailProviderName();
+
+  if (provider === 'smtp') {
+    if (hasSmtpConfig()) {
+      return createSmtpEmailProvider({
+        config: getSmtpConfig(),
+        logger: console,
+      });
+    }
+
+    if (!missingConfigWarningShown) {
+      console.warn('[email] EMAIL_PROVIDER=smtp but SMTP_HOST, SMTP_USER, or SMTP_PASS is missing. Falling back to noop email provider.');
+      missingConfigWarningShown = true;
+    }
+  } else if (provider && provider !== 'noop') {
+    if (!missingConfigWarningShown) {
+      console.warn(`[email] EMAIL_PROVIDER=${provider} is not supported yet. Falling back to noop email provider.`);
+      missingConfigWarningShown = true;
+    }
+  }
+
+  return createNoopEmailProvider({ logger: console });
+}
+
+function canDeliverEmail() {
+  return createEmailProvider().canDeliver;
 }
 
 function escapeHtml(value) {
@@ -99,48 +138,17 @@ async function sendMailOrLog({ to, subject, text, html, logLabel }) {
   const recipient = normalizeRecipient(to);
   if (!recipient) return { sent: false, reason: 'NO_RECIPIENT' };
 
-  const transporter = createTransporter();
-
-  if (!transporter) {
-    console.log(`${logLabel || 'Email'} for ${recipient}:\n${text}`);
-    return { sent: false, reason: 'SMTP_NOT_CONFIGURED' };
-  }
-
-  const info = await transporter.sendMail({
+  const provider = createEmailProvider();
+  const result = await provider.send({
     from: getFromAddress(),
     to: recipient,
     subject,
     text,
     html,
+    logLabel,
   });
 
-  const accepted = (info.accepted || []).map(normalizeRecipient);
-  const rejected = (info.rejected || []).map(normalizeRecipient);
-  const recipientAccepted = accepted.includes(recipient);
-
-  if (!recipientAccepted || rejected.includes(recipient)) {
-    console.error('[email] recipient rejected', {
-      to: recipient,
-      subject,
-      accepted: info.accepted,
-      rejected: info.rejected,
-      response: info.response,
-    });
-    return { sent: false, reason: 'RECIPIENT_REJECTED', accepted: info.accepted, rejected: info.rejected };
-  }
-
-  if (shouldLogSmtpDebug()) {
-    console.log('[email] sent', {
-      to: recipient,
-      subject,
-      messageId: info.messageId,
-      accepted: info.accepted,
-      rejected: info.rejected,
-      response: info.response,
-    });
-  }
-
-  return { sent: true, accepted: info.accepted, rejected: info.rejected };
+  return result;
 }
 
 async function sendPasswordResetEmail(user, resetUrl) {
@@ -308,6 +316,60 @@ async function sendBookingConfirmationEmail(booking, receiptUrl = null, recipien
   });
 }
 
+async function sendBookingCreatedEmail(booking, recipient) {
+  const name = recipient.name || 'there';
+  const isMerchant = recipient.kind === 'merchant';
+  const details = bookingLines(booking);
+  const text = [
+    `Hi ${name},`,
+    '',
+    isMerchant
+      ? 'A new Uniday booking is pending payment.'
+      : 'Your Uniday booking has been reserved and is waiting for payment.',
+    '',
+    ...details,
+    isMerchant && booking.customer_name ? `Customer: ${booking.customer_name}` : null,
+    isMerchant && booking.customer_phone ? `Customer phone: ${booking.customer_phone}` : null,
+    '',
+    isMerchant
+      ? 'You will receive another notification when payment is completed.'
+      : 'Please complete payment from My Bookings before the hold expires.',
+    '',
+    'Uniday',
+  ].filter(Boolean).join('\n');
+
+  return sendMailOrLog({
+    to: recipient.email,
+    subject: isMerchant
+      ? `New booking pending payment: ${booking.service_name}`
+      : `Complete payment: ${booking.service_name}`,
+    text,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#18181B;">
+        <h2 style="color:#E11D48;margin:0 0 12px;">Booking reserved</h2>
+        <p>Hi ${escapeHtml(name)}, ${isMerchant ? 'a new Uniday booking is pending payment.' : 'your Uniday booking has been reserved and is waiting for payment.'}</p>
+        <table style="border-collapse:collapse;width:100%;max-width:520px;background:#fff;border:1px solid #F3E8EC;border-radius:12px;overflow:hidden;">
+          ${bookingHtmlRows(booking)}
+          ${isMerchant && booking.customer_name ? `
+            <tr>
+              <td style="padding:8px 12px;color:#71717A;border-bottom:1px solid #F3E8EC;">Customer</td>
+              <td style="padding:8px 12px;font-weight:700;border-bottom:1px solid #F3E8EC;">${escapeHtml(booking.customer_name)}</td>
+            </tr>
+          ` : ''}
+          ${isMerchant && booking.customer_phone ? `
+            <tr>
+              <td style="padding:8px 12px;color:#71717A;border-bottom:1px solid #F3E8EC;">Customer phone</td>
+              <td style="padding:8px 12px;font-weight:700;border-bottom:1px solid #F3E8EC;">${escapeHtml(booking.customer_phone)}</td>
+            </tr>
+          ` : ''}
+        </table>
+        <p style="color:#71717A;font-size:14px;">${isMerchant ? 'You will receive another notification when payment is completed.' : 'Please complete payment from My Bookings before the hold expires.'}</p>
+      </div>
+    `,
+    logLabel: 'Booking created',
+  });
+}
+
 async function sendBookingReminderEmail(booking) {
   const customerName = booking.customer_name || 'there';
   const details = bookingLines(booking);
@@ -447,9 +509,13 @@ async function sendWaitlistOfferEmail(entry, confirmUrl = null) {
 }
 
 module.exports = {
+  hasSmtpConfig,
+  canDeliverEmail,
+  createEmailProvider,
   sendPasswordResetEmail,
   sendEmailVerificationEmail,
   sendWelcomeEmail,
+  sendBookingCreatedEmail,
   sendBookingConfirmationEmail,
   sendBookingReminderEmail,
   sendBookingCancellationEmail,

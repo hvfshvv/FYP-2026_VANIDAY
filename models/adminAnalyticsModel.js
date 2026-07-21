@@ -160,7 +160,18 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
     ).then(([rows]) => rows),
     // Average lead time (hours between booking creation and appointment).
     db.query(
-      `SELECT COALESCE(AVG(TIMESTAMPDIFF(HOUR, b.created_at, CONCAT(ts.slot_date, ' ', ts.start_time))), 0) AS avg_lead_hours
+      `SELECT
+         COALESCE(AVG(CASE
+           WHEN CONCAT(ts.slot_date, ' ', ts.start_time) >= b.created_at
+             THEN TIMESTAMPDIFF(HOUR, b.created_at, CONCAT(ts.slot_date, ' ', ts.start_time))
+           ELSE NULL
+         END), 0) AS avg_lead_hours,
+         SUM(CASE
+           WHEN CONCAT(ts.slot_date, ' ', ts.start_time) >= b.created_at THEN 1 ELSE 0
+         END) AS valid_lead_count,
+         SUM(CASE
+           WHEN CONCAT(ts.slot_date, ' ', ts.start_time) < b.created_at THEN 1 ELSE 0
+         END) AS invalid_lead_count
        FROM booking b
        JOIN time_slot ts ON ts.slot_id = b.slot_id
        WHERE ${bookingDateFilter}`,
@@ -339,6 +350,7 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
     securityRows,
     reminderRows,
     qrRows,
+    staffPerformance,
     paymentMethods,
   ] = await Promise.all([
     // Overview KPIs: customer counts, loyalty balances, spending totals.
@@ -596,6 +608,30 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
       rangeParams
     ).then(([rows]) => rows),
     db.query(
+      `SELECT
+         COALESCE(st.staff_id, 0) AS staff_id,
+         COALESCE(st.full_name, 'Unassigned') AS staff_name,
+         COALESCE(st.role, 'No role recorded') AS staff_role,
+         COALESCE(m.merchant_name, 'Unknown merchant') AS merchant_name,
+         COUNT(DISTINCT b.booking_id) AS bookings,
+         COUNT(DISTINCT b.customer_id) AS customers,
+         SUM(CASE WHEN b.status = 'completed' THEN 1 ELSE 0 END) AS completed_bookings,
+         SUM(CASE WHEN b.status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_bookings,
+         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS revenue,
+         COALESCE(AVG(CASE WHEN p.payment_status = 'paid' THEN p.amount END), 0) AS average_paid_booking
+       FROM booking b
+       JOIN users u ON u.user_id = b.customer_id
+       LEFT JOIN staff st ON st.staff_id = b.staff_id
+       LEFT JOIN merchant m ON m.merchant_id = b.merchant_id
+       LEFT JOIN payment p ON p.booking_id = b.booking_id
+       WHERE u.role = 'customer' AND ${bookingDateFilter}
+       GROUP BY COALESCE(st.staff_id, 0), COALESCE(st.full_name, 'Unassigned'),
+                COALESCE(st.role, 'No role recorded'), COALESCE(m.merchant_name, 'Unknown merchant')
+       ORDER BY bookings DESC, revenue DESC
+       LIMIT 10`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
       `SELECT p.payment_method, COUNT(*) AS total
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
@@ -630,6 +666,7 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
     security: securityRows,
     reminders: reminderRows,
     qrAccess: qrRows,
+    staffPerformance,
     paymentMethods,
   };
 }

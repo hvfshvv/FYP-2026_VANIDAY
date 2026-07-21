@@ -29,7 +29,10 @@ function getBaseUrl(req) {
 }
 
 function isEmailVerificationRequired() {
-  return String(process.env.EMAIL_VERIFICATION_REQUIRED || 'true').toLowerCase() !== 'false';
+  const configured = String(process.env.EMAIL_VERIFICATION_REQUIRED || 'auto').toLowerCase();
+  if (configured === 'false') return false;
+  if (configured === 'true') return emailService.canDeliverEmail();
+  return emailService.canDeliverEmail();
 }
 
 async function sendVerificationEmail(req, user) {
@@ -372,11 +375,13 @@ async function register(req, res) {
       console.error('signup notification failed:', err);
     });
 
+    const verifyQuery = isEmailVerificationRequired() ? '&verify=1' : '';
+
     if (safeRole === 'merchant') {
-      return res.redirect('/auth/login?registered=1&verify=1');
+      return res.redirect(`/auth/login?registered=1${verifyQuery}`);
     }
 
-    res.redirect(`/auth/login?registered=1&verify=1${next ? '&next=' + encodeURIComponent(next) : ''}`);
+    res.redirect(`/auth/login?registered=1${verifyQuery}${next ? '&next=' + encodeURIComponent(next) : ''}`);
 
   } catch (err) {
     console.error(err);
@@ -432,17 +437,27 @@ async function requestPasswordReset(req, res) {
 
   try {
     const user = email ? await authModel.findUserByEmail(email) : null;
+    let resetLink = null;
+    let resetEmailSent = false;
 
     if (user) {
       const token = await authModel.createPasswordResetToken(user.user_id);
-      return res.redirect(`/auth/reset-password/${token}`);
+      resetLink = `${getBaseUrl(req)}/auth/reset-password/${token}`;
+
+      try {
+        const result = await emailService.sendPasswordResetEmail(user, resetLink);
+        resetEmailSent = Boolean(result.sent);
+      } catch (err) {
+        console.error('password reset email send failed:', err);
+        console.log(`Password reset link for ${user.email}: ${resetLink}`);
+      }
     }
 
     res.render('auth/forgotPassword', {
       title: 'Forgot Password',
       error: null,
-      resetLink: null,
-      resetEmailSent: false,
+      resetLink: resetEmailSent ? null : resetLink,
+      resetEmailSent,
       submitted: true,
     });
   } catch (err) {
@@ -474,6 +489,26 @@ async function startPasswordResetFromLogin(req, res) {
     }
 
     const token = await authModel.createPasswordResetToken(user.user_id);
+    const resetLink = `${getBaseUrl(req)}/auth/reset-password/${token}`;
+
+    try {
+      const result = await emailService.sendPasswordResetEmail(user, resetLink);
+
+      if (result.sent) {
+        return res.render('auth/login', {
+          title: 'Login',
+          error: null,
+          query: req.query,
+          verificationLink: null,
+          email,
+          resetEmailSent: true
+        });
+      }
+    } catch (err) {
+      console.error('password reset email send failed:', err);
+      console.log(`Password reset link for ${user.email}: ${resetLink}`);
+    }
+
     res.redirect(`/auth/reset-password/${token}`);
   } catch (err) {
     console.error(err);

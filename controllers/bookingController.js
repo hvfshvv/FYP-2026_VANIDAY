@@ -121,6 +121,25 @@ async function recordLifecycleEmail(booking, notificationType, recipient, result
   );
 }
 
+async function sendBookingCreatedEmails(booking) {
+  for (const recipient of bookingRecipients(booking)) {
+    try {
+      const alreadySent = await bookingNotificationModel.hasSentEmailNotification(
+        booking.booking_id,
+        'booking_created',
+        recipient.kind
+      );
+
+      if (alreadySent) continue;
+
+      const result = await emailService.sendBookingCreatedEmail(booking, recipient);
+      await recordLifecycleEmail(booking, 'booking_created', recipient, result);
+    } catch (err) {
+      console.error('booking created email failed:', err);
+    }
+  }
+}
+
 async function sendCancellationEmails(booking) {
   for (const recipient of bookingRecipients(booking)) {
     try {
@@ -136,6 +155,7 @@ async function sendBookingCreatedNotification(bookingId) {
   try {
     const booking = await bookingModel.getBookingById(bookingId);
     await notificationModel.notifyBookingCreated(booking);
+    if (booking) await sendBookingCreatedEmails(booking);
   } catch (err) {
     console.error('booking created notification failed:', err);
   }

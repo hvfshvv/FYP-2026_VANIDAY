@@ -30,46 +30,51 @@
   const spendingTrendDirection = firstSpendingMonth && lastSpendingMonth
     ? Number(lastSpendingMonth.total || 0) - Number(firstSpendingMonth.total || 0)
     : 0;
+  const loyaltySummary = a.loyaltySummary || {};
+  const loyaltyTierCount = Math.max(Number(loyaltySummary.gold_members || 0), Number(loyaltySummary.silver_members || 0), Number(loyaltySummary.bronze_members || 0));
+  const strongestCustomerSignal = topVisitedMerchant || topFavouriteService || topSpendCategory;
   const customerChartInsights = [
     {
       title: 'Spending momentum',
       icon: 'bi-graph-up-arrow',
       body: firstSpendingMonth && lastSpendingMonth
-        ? `Customer spending ${spendingTrendDirection >= 0 ? 'is gaining' : 'has softened'} from ${money(firstSpendingMonth.total)} in ${firstSpendingMonth.month_label} to ${money(lastSpendingMonth.total)} in ${lastSpendingMonth.month_label}. Read this as demand momentum, not only revenue.`
-        : 'More monthly paid booking data is needed before the spending trend can show momentum.',
+        ? `Customer spend ${spendingTrendDirection >= 0 ? 'grew' : 'softened'} from ${money(firstSpendingMonth.total)} in ${firstSpendingMonth.month_label} to ${money(lastSpendingMonth.total)} in ${lastSpendingMonth.month_label}. This is the clearest signal of whether demand is accelerating or cooling.`
+        : 'More monthly paid booking data is needed before the spending trend can show a reliable direction.',
     },
     {
       title: 'Category demand',
       icon: 'bi-stars',
       body: topSpendCategory
-        ? `${topSpendCategory.category} leads customer spend at ${money(topSpendCategory.total)}. In the current beauty and wellness market, category leaders should feed personalized recommendations, bundles, and homepage placement.`
+        ? `${topSpendCategory.category} leads customer spend at ${money(topSpendCategory.total)}. Use that category as the first place to test promotions, bundles, and recommendations.`
         : 'Category spend is not available yet, so recommendation and campaign targeting should stay broad.',
     },
     {
       title: 'Habit signals',
       icon: 'bi-heart-pulse',
       body: topVisitedMerchant || topFavouriteService
-        ? `${topVisitedMerchant ? topVisitedMerchant.merchant_name + ' is the strongest merchant habit signal' : 'Merchant habit data is still thin'}${topFavouriteService ? `, while ${topFavouriteService.service_name} leads service preference` : ''}. These are the best inputs for AI-style repeat booking reminders.`
+        ? `${topVisitedMerchant ? `${topVisitedMerchant.merchant_name} is the strongest merchant habit signal with ${number(topVisitedMerchant.visits || 0)} visits` : 'Merchant habit data is still thin'}${topFavouriteService ? `, while ${topFavouriteService.service_name} leads service preference with ${number(topFavouriteService.bookings || 0)} bookings` : ''}. Those patterns are the best inputs for repeat booking reminders.`
         : 'Merchant and service habit signals are still thin, so repeat booking recommendations need more activity.',
     },
     {
       title: 'Loyalty health',
       icon: 'bi-award',
       body: loyaltyRate
-        ? `Loyalty adoption is ${percent(loyaltyRate)} with average tier progress at ${percent(tierProgress)}. If points are earned faster than redeemed, customers may need timely voucher prompts instead of generic discounts.`
+        ? `Loyalty adoption is ${percent(loyaltyRate)} with average tier progress at ${percent(tierProgress)}. The wallet data shows ${number(loyaltySummary.gold_members || 0)} gold, ${number(loyaltySummary.silver_members || 0)} silver, and ${number(loyaltySummary.bronze_members || 0)} bronze members, so reward nudges should be segmented by tier.`
         : 'Loyalty adoption is low or unavailable, so the dashboard should treat rewards as an activation opportunity.',
     },
     {
       title: 'Timing opportunity',
       icon: 'bi-calendar-week',
       body: topBookingDay
-        ? `${topBookingDay.day_label} has the most bookings. Use this to time reminders before peak days and push off-peak promotions when demand is quieter.`
+        ? `${topBookingDay.day_label} has the most bookings (${number(topBookingDay.bookings || 0)}). Use this to time reminders before the busiest day and push quieter-day offers when demand is softer.`
         : 'Booking frequency by day is not available yet, so promotion timing cannot be personalized.',
     },
     {
       title: 'Market lens',
       icon: 'bi-lightbulb',
-      body: 'Beauty and wellness demand is moving toward personalized, evidence-backed self-care. These charts should guide tailored journeys: right service, right merchant, right reward, right time.',
+      body: strongestCustomerSignal
+        ? `The strongest customer signal in this range is ${strongestCustomerSignal.merchant_name || strongestCustomerSignal.service_name || strongestCustomerSignal.category}. Prioritize campaigns, homepage placement, and retention offers around that behaviour.`
+        : 'There is not yet enough customer activity to identify a dominant demand pattern.',
     },
   ];
   const safeJson = value => JSON.stringify(value || {}).replace(/</g, '\\u003c');
@@ -850,12 +855,17 @@
       ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
       : '-';
     const text = value => String(value || '').replace(/_/g, ' ');
+    const isFiniteNumber = value => Number.isFinite(Number(value || 0));
+    const safeNumber = value => (isFiniteNumber(value) ? Number(value) : 0);
+    const safePercent = (value, total) => total ? percent((safeNumber(value) / safeNumber(total)) * 100) : '0.0%';
+    const safeMoney = value => money(safeNumber(value));
+    const safeLabel = value => value ? String(value) : 'No data available';
     const listTop = (items, mapper, fallback) => {
       const values = (items || []).slice(0, 3).map(mapper).filter(Boolean);
       return values.length ? values.join(', ') : fallback;
     };
     const valuesFor = (items, key) => (items || [])
-      .map(item => Number(item[key] || 0))
+      .map(item => safeNumber(item[key]))
       .filter(value => Number.isFinite(value));
     const statsFor = values => {
       const nums = values.filter(value => Number.isFinite(value)).sort((a, b) => a - b);
@@ -865,227 +875,198 @@
       const median = nums.length % 2
         ? nums[(nums.length - 1) / 2]
         : (nums[(nums.length / 2) - 1] + nums[nums.length / 2]) / 2;
-      const counts = nums.reduce((acc, value) => {
-        const key = value.toFixed(2);
-        acc[key] = (acc[key] || 0) + 1;
-        return acc;
-      }, {});
-      const maxCount = Math.max(...Object.values(counts));
-      const mode = Object.entries(counts)
-        .filter(([, count]) => count === maxCount)
-        .map(([value]) => Number(value));
       const variance = nums.reduce((total, value) => total + Math.pow(value - mean, 2), 0) / nums.length;
       return {
         count: nums.length,
         mean,
         median,
-        mode,
         min: nums[0],
         max: nums[nums.length - 1],
         stdDev: Math.sqrt(variance),
       };
     };
-    const formatStat = (stats, formatter) => {
-      if (!stats) return 'not available from the current dashboard data';
-      const modeText = stats.mode.length > 3 ? 'multiple values' : stats.mode.map(formatter).join(', ');
-      return `mean ${formatter(stats.mean)}, median ${formatter(stats.median)}, mode ${modeText}, minimum ${formatter(stats.min)}, maximum ${formatter(stats.max)}, and standard deviation ${formatter(stats.stdDev)} across ${number(stats.count)} displayed aggregate value${stats.count === 1 ? '' : 's'}`;
-    };
     const frequencyText = (items, labelKey, valueKey, fallback) => {
-      const total = (items || []).reduce((sum, row) => sum + Number(row[valueKey] || 0), 0);
+      const total = (items || []).reduce((sum, row) => sum + safeNumber(row[valueKey]), 0);
       if (!total) return fallback;
       return (items || []).slice(0, 4).map(row => {
-        const value = Number(row[valueKey] || 0);
+        const value = safeNumber(row[valueKey]);
         const share = (value / total) * 100;
         return `${text(row[labelKey] || 'Unknown')} ${number(value)} (${percent(share)})`;
       }).join(', ');
+    };
+    const buildMetricLine = (label, value) => `${label}: ${value}`;
+    const buildStatusLine = (row, bookingTotal) => {
+      if (!row) return 'No booking status data available for the selected period.';
+      return `${text(row.status || 'unknown')} ${number(row.total || 0)} (${safePercent(row.total, bookingTotal)})`;
     };
 
     function buildCustomerSummary() {
       const overview = analytics.overview || {};
       const loyalty = analytics.loyaltySummary || {};
       const security = analytics.security || {};
-      const totalCustomers = Number(overview.total_customers || 0);
-      const loyaltyMembers = Number(overview.loyalty_members || 0);
+      const totalCustomers = safeNumber(overview.total_customers);
+      const loyaltyMembers = safeNumber(overview.loyalty_members);
       const loyaltyRate = totalCustomers ? (loyaltyMembers / totalCustomers) * 100 : 0;
-      const profileSpendStats = statsFor(valuesFor(analytics.accountProfiles, 'total_spent'));
+      const totalBookings = (analytics.bookingStatus || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
+      const totalSpend = safeNumber(overview.total_amount_spent);
+      const avgOrderValue = safeNumber(overview.average_order_value);
+      const accountSpendStats = statsFor(valuesFor(analytics.accountProfiles, 'total_spent'));
       const monthlySpendStats = statsFor(valuesFor(analytics.spendingTrend, 'total'));
       const bookingFrequencyStats = statsFor(valuesFor(analytics.bookingFrequency, 'bookings'));
-      const profileText = listTop(
-        analytics.accountProfiles,
-        row => `${row.full_name || 'Customer'} with ${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'} and ${money(row.total_spent)} spent`,
-        'no customer profile rows'
-      );
-      const statusText = listTop(
-        analytics.bookingStatus,
-        row => `${number(row.total)} ${text(row.status)} booking${Number(row.total || 0) === 1 ? '' : 's'}`,
-        'no date-filtered booking status records'
-      );
-      const upcomingText = listTop(
-        analytics.upcomingBookings,
-        row => `${row.service_name || 'service'} for ${row.customer_name || 'a customer'} on ${dateLabel(row.slot_date)}`,
-        'no upcoming appointments listed'
-      );
-      const pastText = listTop(
-        analytics.pastBookings,
-        row => `${row.service_name || 'service'} on ${dateLabel(row.slot_date)}`,
-        'no past appointment history listed'
-      );
-      const spendText = listTop(
-        analytics.spendingTrend,
-        row => `${row.month_label}: ${money(row.total)}`,
-        'no paid spending trend in the selected dates'
-      );
-      const categoryText = listTop(
-        analytics.spendingCategories,
-        row => `${row.category || 'Uncategorised'} (${money(row.total)})`,
-        'no category spend recorded'
-      );
-      const merchantText = listTop(
-        analytics.mostVisitedMerchants,
-        row => `${row.merchant_name || 'Merchant'} with ${number(row.visits)} visit${Number(row.visits || 0) === 1 ? '' : 's'}`,
-        'no merchant visit leaders'
-      );
-      const serviceText = listTop(
-        analytics.favouriteServices,
-        row => `${row.service_name || 'Service'} (${number(row.bookings)} booking${Number(row.bookings || 0) === 1 ? '' : 's'})`,
-        'no favourite service leaders'
-      );
-      const loyaltyText = listTop(
-        analytics.loyaltyTransactions,
-        row => `${text(row.transaction_type)}: ${number(row.points)} points`,
-        'no loyalty transactions in the selected dates'
-      );
-      const voucherText = listTop(
-        analytics.availableVouchers,
-        row => `${row.campaign_name || row.voucher_code || 'Voucher'} ending ${dateLabel(row.end_date)}`,
-        'no active vouchers available'
-      );
-      const recommendedMerchantText = listTop(
-        analytics.recommendedMerchants,
-        row => `${row.merchant_name || 'Merchant'} (${Number(row.rating || 0).toFixed(1)}/5)`,
-        'no merchant recommendations'
-      );
-      const suggestedServiceText = listTop(
-        analytics.suggestedServices,
-        row => `${row.service_name || 'Service'} in ${row.category || 'Uncategorised'}`,
-        'no suggested services'
-      );
-      const promotionText = listTop(
-        analytics.behaviourPromotions,
-        row => row.campaign_name || row.voucher_code || 'Promotion',
-        'no behaviour-based promotions'
-      );
-      const reviewCount = Number((analytics.reviewSummary || {}).review_count || 0);
-      const avgRating = Number((analytics.reviewSummary || {}).avg_rating || 0).toFixed(1);
-      const feedbackText = listTop(
-        analytics.platformFeedback,
-        row => `${text(row.feedback_type || 'general')} (${number(row.total)})`,
-        'no platform feedback records'
-      );
-      const paymentText = listTop(
-        analytics.paymentMethods,
-        row => `${row.payment_method || 'Unknown'} (${number(row.total)} payment${Number(row.total || 0) === 1 ? '' : 's'})`,
-        'no payment method usage'
-      );
-      const statusFrequency = frequencyText(analytics.bookingStatus, 'status', 'total', 'no booking status frequency counts are available');
-      const categoryFrequency = frequencyText(analytics.spendingCategories, 'category', 'total', 'no category spending percentages are available');
-      const paymentFrequency = frequencyText(analytics.paymentMethods, 'payment_method', 'total', 'no payment method percentages are available');
-      const trendText = (analytics.spendingTrend || []).length > 1
-        ? `Monthly spending moves from ${money((analytics.spendingTrend || [])[0].total)} in ${(analytics.spendingTrend || [])[0].month_label} to ${money((analytics.spendingTrend || []).slice(-1)[0].total)} in ${(analytics.spendingTrend || []).slice(-1)[0].month_label}.`
-        : 'Monthly spending trend evidence is limited because fewer than two monthly points are available.';
-      const bookingTotal = (analytics.bookingStatus || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
-      const categoryTotal = (analytics.spendingCategories || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
-      const paymentTotal = (analytics.paymentMethods || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
-      const tierTotal = Number(loyalty.bronze_members || 0) + Number(loyalty.silver_members || 0) + Number(loyalty.gold_members || 0);
-      const topCustomer = (analytics.accountProfiles || [])[0];
-      const inactiveDisplayedCustomers = (analytics.accountProfiles || []).filter(row =>
-        Number(row.total_spent || 0) <= 0 || Number(row.bookings || 0) <= 0
-      ).length;
-      const topCategory = (analytics.spendingCategories || [])[0];
-      const topPayment = (analytics.paymentMethods || [])[0];
-      const topStatus = (analytics.bookingStatus || [])[0];
+      const categoryTotal = (analytics.spendingCategories || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
+      const paymentTotal = (analytics.paymentMethods || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
+      const tierTotal = safeNumber(loyalty.bronze_members) + safeNumber(loyalty.silver_members) + safeNumber(loyalty.gold_members);
+      const topCustomer = (analytics.accountProfiles || []).reduce((best, row) => {
+        if (!best || safeNumber(row.total_spent) > safeNumber(best.total_spent)) return row;
+        return best;
+      }, null);
+      const topCategory = (analytics.spendingCategories || []).reduce((best, row) => {
+        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
+        return best;
+      }, null);
+      const topMerchant = (analytics.mostVisitedMerchants || []).reduce((best, row) => {
+        if (!best || safeNumber(row.visits) > safeNumber(best.visits)) return row;
+        return best;
+      }, null);
+      const topService = (analytics.favouriteServices || []).reduce((best, row) => {
+        if (!best || safeNumber(row.bookings) > safeNumber(best.bookings)) return row;
+        return best;
+      }, null);
+      const topPayment = (analytics.paymentMethods || []).reduce((best, row) => {
+        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
+        return best;
+      }, null);
+      const topEmployee = (analytics.staffPerformance || []).reduce((best, row) => {
+        if (!best || safeNumber(row.bookings) > safeNumber(best.bookings)) return row;
+        return best;
+      }, null);
+      const topBookingDay = (analytics.bookingFrequency || []).reduce((best, row) => {
+        if (!best || safeNumber(row.bookings) > safeNumber(best.bookings)) return row;
+        return best;
+      }, null);
+      const topStatus = (analytics.bookingStatus || []).reduce((best, row) => {
+        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
+        return best;
+      }, null);
       const completed = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'completed');
       const cancelled = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'cancelled');
       const paymentFailed = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase().includes('payment_failed'));
       const firstMonth = (analytics.spendingTrend || [])[0];
       const lastMonth = (analytics.spendingTrend || []).slice(-1)[0];
-      const totalDayBookings = (analytics.bookingFrequency || []).reduce((sum, row) => sum + Number(row.bookings || 0), 0);
-      const avgBookingsPerDay = (analytics.bookingFrequency || []).length
-        ? totalDayBookings / (analytics.bookingFrequency || []).length
-        : 0;
-      const share = (value, total) => total ? percent((Number(value || 0) / total) * 100) : '0.0%';
-      const statusShare = row => row ? `${number(row.total)} (${share(row.total, bookingTotal)})` : 'not enough data';
+      const reviewCount = safeNumber((analytics.reviewSummary || {}).review_count);
+      const avgRating = Number((analytics.reviewSummary || {}).avg_rating || 0).toFixed(1);
+      const activeAccounts = safeNumber(security.active_accounts);
+      const suspendedAccounts = safeNumber(security.suspended_accounts);
       const topCustomerText = topCustomer
-        ? `${topCustomer.full_name || 'The leading customer'} accounted for ${number(topCustomer.bookings)} booking${Number(topCustomer.bookings || 0) === 1 ? '' : 's'} and ${money(topCustomer.total_spent)} in spending`
-        : 'No high-value customer pattern is visible yet';
-      const spendingDistributionText = profileSpendStats
-        ? `Customer spending is uneven: the average displayed customer spend is ${money(profileSpendStats.mean)}, while the median is ${money(profileSpendStats.median)} and the standard deviation is ${money(profileSpendStats.stdDev)}.`
-        : 'Customer spending distribution cannot be calculated from the current data.';
-      const monthTrendText = firstMonth && lastMonth
-        ? `Monthly paid spending moved from ${money(firstMonth.total)} in ${firstMonth.month_label} to ${money(lastMonth.total)} in ${lastMonth.month_label}.`
-        : 'Monthly spending needs at least two months of paid data before a trend can be interpreted.';
-      const categoryInsight = topCategory
-        ? `${topCategory.category} generated ${money(topCategory.total)}, representing ${share(topCategory.total, categoryTotal)} of category spending.`
-        : 'No service category is leading yet because category spending is unavailable.';
+        ? `${safeLabel(topCustomer.full_name)} (${number(topCustomer.bookings || 0)} booking${safeNumber(topCustomer.bookings) === 1 ? '' : 's'}, ${safeMoney(topCustomer.total_spent)})`
+        : 'No customer leader is available for the selected period.';
+      const topCategoryText = topCategory
+        ? `${safeLabel(topCategory.category)} (${safeMoney(topCategory.total)}, ${safePercent(topCategory.total, categoryTotal)} of category spending)`
+        : 'No category spend data is available for the selected period.';
+      const topMerchantText = topMerchant
+        ? `${safeLabel(topMerchant.merchant_name)} (${number(topMerchant.visits || 0)} visit${safeNumber(topMerchant.visits) === 1 ? '' : 's'}, ${safeMoney(topMerchant.spent || 0)})`
+        : 'No merchant visit leader is available for the selected period.';
+      const topServiceText = topService
+        ? `${safeLabel(topService.service_name)} (${number(topService.bookings || 0)} booking${safeNumber(topService.bookings) === 1 ? '' : 's'}, ${safeMoney(topService.spent || 0)})`
+        : 'No favourite-service leader is available for the selected period.';
       const paymentInsight = topPayment
-        ? `${topPayment.payment_method || 'Unknown'} is the most used payment method with ${share(topPayment.total, paymentTotal)} of recorded payments.`
-        : 'Payment behaviour is not available yet.';
+        ? `${safeLabel(topPayment.payment_method)} accounts for ${safePercent(topPayment.total, paymentTotal)} of recorded payments.`
+        : 'No payment-method data is available for the selected period.';
       const loyaltyInsight = tierTotal
-        ? `Loyalty tier distribution is ${share(loyalty.bronze_members, tierTotal)} Bronze, ${share(loyalty.silver_members, tierTotal)} Silver, and ${share(loyalty.gold_members, tierTotal)} Gold.`
-        : 'Loyalty tier distribution is not available yet.';
+        ? `Loyalty tiers are ${safePercent(loyalty.bronze_members, tierTotal)} Bronze, ${safePercent(loyalty.silver_members, tierTotal)} Silver, and ${safePercent(loyalty.gold_members, tierTotal)} Gold.`
+        : 'No loyalty tier data is available for the selected period.';
+      const spendDistributionText = accountSpendStats
+        ? `Customer spend distribution shows a mean of ${safeMoney(accountSpendStats.mean)}, a median of ${safeMoney(accountSpendStats.median)}, and a standard deviation of ${safeMoney(accountSpendStats.stdDev)}.`
+        : 'No customer spend distribution is available for the selected period.';
+      const monthlyTrendText = firstMonth && lastMonth
+        ? `Monthly spend moved from ${safeMoney(firstMonth.total)} in ${safeLabel(firstMonth.month_label)} to ${safeMoney(lastMonth.total)} in ${safeLabel(lastMonth.month_label)}.`
+        : 'No monthly spend trend is available for the selected period.';
+      const bookingFrequencyText = bookingFrequencyStats
+        ? `Booking frequency reports a mean of ${number(bookingFrequencyStats.mean.toFixed(1))} bookings per active day, a median of ${number(bookingFrequencyStats.median.toFixed(1))}, and a standard deviation of ${number(bookingFrequencyStats.stdDev.toFixed(1))}.`
+        : 'No booking frequency distribution is available for the selected period.';
+      const statusText = topStatus
+        ? `${text(topStatus.status)} is the most common status at ${buildStatusLine(topStatus, totalBookings)}`
+        : 'No booking status data is available for the selected period.';
+      const reviewText = reviewCount > 0
+        ? `Customers submitted ${number(reviewCount)} review${reviewCount === 1 ? '' : 's'} with an average rating of ${avgRating}/5.`
+        : 'No review data is available for the selected period.';
+      const securityText = activeAccounts + suspendedAccounts > 0
+        ? `Customer accounts are ${number(activeAccounts)} active and ${number(suspendedAccounts)} suspended.`
+        : 'No account-status data is available for the selected period.';
+      const employeeFocusText = topEmployee
+        ? `${safeLabel(topEmployee.staff_name)} handled the most employee-linked bookings (${number(topEmployee.bookings)}), so use their workload as the clearest staffing signal for this filter.`
+        : 'No employee-linked booking data is available for this filter, so use the customer, service, timing, and booking-status signals below for daily actions.';
+      const employeeDailyActions = [
+        topService
+          ? `Prepare for ${safeLabel(topService.service_name)} requests first: review tools, products, add-ons, and aftercare notes before appointments because this is the strongest service demand signal.`
+          : 'Check the appointment list before each shift because the selected data does not show a clear leading service yet.',
+        topCategory
+          ? `When customers ask for recommendations, lead with ${safeLabel(topCategory.category)} options, then suggest suitable follow-up services instead of giving generic recommendations.`
+          : 'Ask one extra preference question during consultation so recommendations can be personalized while category demand is still unclear.',
+        topBookingDay
+          ? `On ${safeLabel(topBookingDay.day_label)}, expect heavier demand and keep handovers short, supplies ready, and customer follow-ups scheduled before the rush.`
+          : 'Spread prep work evenly across the week because the filtered data does not show a clear busiest day.',
+        cancelled || paymentFailed
+          ? `Reduce lost bookings by confirming appointment details, payment readiness, and cancellation terms early, especially when customers seem unsure.`
+          : 'Protect the current booking flow by continuing clear confirmations, punctual service starts, and simple payment guidance.',
+        reviewCount > 0
+          ? `Customer experience is visible in reviews (${avgRating}/5 average), so each employee should close the appointment with aftercare advice and a polite review reminder.`
+          : 'Start collecting feedback after completed appointments so employees can see what customers value and what needs fixing.',
+        loyaltyMembers
+          ? `Mention loyalty points and vouchers during checkout because ${number(loyaltyMembers)} customers in this view are loyalty members or loyalty-linked.`
+          : 'Introduce the loyalty programme during checkout so repeat customers have a reason to book again.',
+      ].join('\n- ');
 
-      return `Data Summary
+      return `Summary
 
-The dashboard analyses customer activity between ${dateLabel(range.startDate)} and ${dateLabel(range.endDate)}, covering ${number(totalCustomers)} customer account${totalCustomers === 1 ? '' : 's'} and ${number(loyaltyMembers)} loyalty member${loyaltyMembers === 1 ? '' : 's'}. During this period, customers generated ${money(overview.total_amount_spent)} in completed payments with an average order value of ${money(overview.average_order_value)}.
+Period: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.
+${buildMetricLine('Bookings', totalBookings ? number(totalBookings) : 'No data available')}; ${buildMetricLine('Spend', safeMoney(totalSpend))}; ${buildMetricLine('Customers', totalCustomers ? number(totalCustomers) : 'No data available')}; ${buildMetricLine('Loyalty members', loyaltyMembers ? number(loyaltyMembers) : 'No data available')}; ${buildMetricLine('Avg order value', safeMoney(avgOrderValue))}; ${buildMetricLine('Top customer', topCustomerText)}
 
-The most important pattern is revenue concentration. ${topCustomerText}. This suggests the platform is currently relying on a small group of active customers, while ${number(inactiveDisplayedCustomers)} displayed customer profile${inactiveDisplayedCustomers === 1 ? '' : 's'} show little or no purchasing activity.
+Stats
 
-Descriptive Statistics
+${spendDistributionText}
+${monthlyTrendText}
+${bookingFrequencyText}
 
-${spendingDistributionText} This means average spend alone may overstate platform health if most customers are inactive.
+Insights
 
-${monthTrendText} Booking activity averages ${number(avgBookingsPerDay.toFixed(1))} bookings across active booking days, although demand varies by day.
-
-Business Insights
-
-Customer Spending
-- Revenue is heavily dependent on a small number of active customers.
-- Many registered users are not converting into paid bookings.
-- Action: run reactivation offers for inactive customers and repeat-booking reminders for customers with previous spend.
-
-Booking Performance
-- The largest booking outcome is ${topStatus ? `${text(topStatus.status)} at ${statusShare(topStatus)}` : 'not available'}.
-- Completed bookings account for ${statusShare(completed)}, cancelled bookings account for ${statusShare(cancelled)}, and payment failed bookings account for ${statusShare(paymentFailed)}.
-- Action: review payment failure points, reminder timing, and cancellation reasons to improve completed transactions.
-
-Service Performance
-- ${categoryInsight}
-- Current service preference is led by ${serviceText}.
-- Action: use the strongest category for cross-selling, and promote weaker categories through bundles or targeted vouchers.
-
-Payment Behaviour
+- ${topCategoryText}
+- ${topMerchantText}
+- ${topServiceText}
 - ${paymentInsight}
-- Action: protect the strongest payment flow first, then use wallet incentives only where they improve repeat purchases.
+- ${loyaltyInsight}
+- ${statusText}
+- ${reviewText}
+- ${securityText}
 
-Loyalty Programme
-- Loyalty adoption is ${percent(loyaltyRate)}. ${loyaltyInsight}
-- Action: if most members remain Bronze, adjust rewards so customers see a clearer reason to book again and progress tiers.
+Takeaway
 
-Customer Satisfaction
-- Customers submitted ${number(reviewCount)} review${reviewCount === 1 ? '' : 's'} with an average rating of ${avgRating}/5.
-- Feedback themes include ${feedbackText}.
-- Action: keep the service experience strong, but investigate booking and payment feedback because friction there can reduce conversion.
+${totalBookings ? `${number(totalBookings)} bookings` : 'No bookings'} and ${totalSpend ? `${safeMoney(totalSpend)} spend` : 'no spend'} for the selected period. The main customer, category, merchant, service, payment, loyalty, and status insights come from the same filtered records.
 
-Key Business Observations
+What This Means For Employees
 
-The dashboard shows good signs in customer satisfaction and loyalty enrolment, but revenue is not yet broad-based. The main risk is that a few customers drive most spending while many accounts remain inactive. Booking cancellations and payment failures should be treated as operational leakage. The strongest categories and favourite services should be used for personalized recommendations, while loyalty rewards should be redesigned or promoted to encourage repeat bookings and movement into higher tiers.`;
+Employee-focused view based on the current filtered dashboard data.
+
+${employeeFocusText}
+
+Daily actions:
+- ${employeeDailyActions}`;
     }
 
     summaryButton.addEventListener('click', function () {
-      summaryMeta.textContent = `Generated from the currently filtered dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
-      summaryOutput.textContent = buildCustomerSummary();
-      summaryPanel.classList.add('is-visible');
-      summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      try {
+        const content = buildCustomerSummary();
+        summaryMeta.textContent = `Generated from the currently filtered dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
+        summaryOutput.textContent = content || 'No summary was generated for the selected period.';
+        summaryPanel.classList.add('is-visible');
+        summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        console.error('Failed to build customer summary', error);
+        summaryMeta.textContent = `Generated from the currently filtered dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
+        summaryOutput.textContent = 'The summary could not be generated for the selected period. Please try a different date range or refresh the page.';
+        summaryPanel.classList.add('is-visible');
+        summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
 
     copySummaryButton.addEventListener('click', async function () {
