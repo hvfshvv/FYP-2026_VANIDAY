@@ -1466,7 +1466,8 @@ a:hover { color: var(--accent-dark); }
   margin-bottom: .9rem;
 }
 
-.account-field input {
+.account-field input,
+.account-field select {
   width: 100%;
   min-height: 48px;
   border: 1px solid var(--border);
@@ -1477,11 +1478,36 @@ a:hover { color: var(--accent-dark); }
   font: inherit;
 }
 
-.account-field input:focus {
+.account-field input:disabled {
+  background: var(--canvas);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.account-field input:focus,
+.account-field select:focus {
   outline: 0;
   border-color: var(--accent);
   box-shadow: 0 0 0 .2rem rgba(229, 24, 75, .12);
 }
+
+.account-phone-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 190px) minmax(0, 1fr);
+  gap: .6rem;
+}
+
+.account-field-note {
+  display: block;
+  min-height: 1.15rem;
+  margin-top: .35rem;
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 600;
+}
+
+.account-field-note.success { color: var(--success); }
+.account-field-note.danger { color: var(--danger); }
 
 .account-submit {
   min-height: 44px;
@@ -1498,6 +1524,7 @@ a:hover { color: var(--accent-dark); }
   .account-heading { align-items: stretch; flex-direction: column; }
   .account-info-grid,
   .account-two-col { grid-template-columns: 1fr; }
+  .account-phone-row { grid-template-columns: 1fr; }
   .account-section-head { flex-direction: column; }
 }
 .rounded-2xl { border-radius: var(--r-lg) !important; }

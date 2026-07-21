@@ -19,6 +19,16 @@ function sanitizeDateInput(value) {
   return raw;
 }
 
+function normalizePhone(countryCode, localNumber) {
+  const code = String(countryCode || '+65').trim();
+  const digits = String(localNumber || '').replace(/[^\d]/g, '');
+
+  if (!digits) return '';
+
+  const safeCode = /^\+\d{1,4}$/.test(code) ? code : '+65';
+  return `${safeCode}${digits}`;
+}
+
 async function showAccount(req, res) {
   if (req.session.user.role !== 'customer') return redirectByRole(req, res);
 
@@ -52,7 +62,7 @@ async function updateProfile(req, res) {
   if (req.session.user.role !== 'customer') return redirectByRole(req, res);
 
   const fullName = String(req.body.full_name || '').trim();
-  const phone = String(req.body.phone || '').trim();
+  const phone = normalizePhone(req.body.country_code, req.body.phone_local || req.body.phone);
   const dateOfBirth = sanitizeDateInput(req.body.date_of_birth);
 
   if (fullName.length < 2) {
@@ -115,8 +125,27 @@ async function changePassword(req, res) {
   }
 }
 
+async function checkCurrentPassword(req, res) {
+  if (req.session.user.role !== 'customer') {
+    return res.status(403).json({ valid: false });
+  }
+
+  const currentPassword = String(req.body.current_password || '');
+  if (!currentPassword) return res.json({ valid: false });
+
+  try {
+    const user = await authModel.getUserById(req.session.user.user_id);
+    const valid = Boolean(user && await bcrypt.compare(currentPassword, user.password_hash));
+    res.json({ valid });
+  } catch (err) {
+    console.error('[account] checkCurrentPassword error:', err);
+    res.status(500).json({ valid: false });
+  }
+}
+
 module.exports = {
   showAccount,
   updateProfile,
   changePassword,
+  checkCurrentPassword,
 };

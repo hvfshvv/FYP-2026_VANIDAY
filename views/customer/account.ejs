@@ -9,6 +9,32 @@
     const parsed = parseDate(value);
     return parsed ? parsed.toISOString().slice(0, 10) : '';
   };
+  const countryCodes = [
+    { code: '+65', label: 'Singapore' },
+    { code: '+60', label: 'Malaysia' },
+    { code: '+62', label: 'Indonesia' },
+    { code: '+66', label: 'Thailand' },
+    { code: '+63', label: 'Philippines' },
+    { code: '+84', label: 'Vietnam' },
+    { code: '+91', label: 'India' },
+    { code: '+86', label: 'China' },
+    { code: '+852', label: 'Hong Kong' },
+    { code: '+886', label: 'Taiwan' },
+    { code: '+81', label: 'Japan' },
+    { code: '+82', label: 'South Korea' },
+    { code: '+61', label: 'Australia' },
+    { code: '+44', label: 'United Kingdom' },
+    { code: '+1', label: 'United States / Canada' },
+  ];
+  const rawPhone = String(accountUser.phone || '').trim();
+  const matchedCountry = countryCodes
+    .slice()
+    .sort((a, b) => b.code.length - a.code.length)
+    .find(country => rawPhone.startsWith(country.code));
+  const selectedCountryCode = matchedCountry ? matchedCountry.code : '+65';
+  const localPhone = rawPhone.startsWith(selectedCountryCode)
+    ? rawPhone.slice(selectedCountryCode.length)
+    : rawPhone.replace(/[^\d]/g, '');
   const firstName = String(accountUser.full_name || '').split(' ')[0] || t('account.customer');
 %>
 
@@ -71,7 +97,14 @@
 
             <label class="account-field">
               <span><%= t('account.fields.phone') %></span>
-              <input id="accountPhoneField" type="tel" name="phone" value="<%= accountUser.phone || '' %>" maxlength="30">
+              <div class="account-phone-row">
+                <select name="country_code" aria-label="<%= t('account.fields.countryCode') %>">
+                  <% countryCodes.forEach(country => { %>
+                  <option value="<%= country.code %>" <%= country.code === selectedCountryCode ? 'selected' : '' %>><%= country.code %> <%= country.label %></option>
+                  <% }) %>
+                </select>
+                <input id="accountPhoneField" type="tel" name="phone_local" value="<%= localPhone %>" inputmode="tel" maxlength="20">
+              </div>
             </label>
 
             <label class="account-field">
@@ -84,7 +117,7 @@
             </button>
           </form>
 
-          <form class="account-section" method="POST" action="/account/password">
+          <form class="account-section" method="POST" action="/account/password" id="accountPasswordForm">
             <div class="account-section-head">
               <div>
                 <p class="section-label mb-1"><%= t('account.sections.security') %></p>
@@ -94,20 +127,22 @@
 
             <label class="account-field">
               <span><%= t('account.fields.currentPassword') %></span>
-              <input type="password" name="current_password" autocomplete="current-password" required>
+              <input type="password" name="current_password" id="currentPasswordField" autocomplete="current-password" required>
+              <small class="account-field-note" id="currentPasswordNote"><%= t('account.passwordGate.enterCurrent') %></small>
             </label>
 
             <label class="account-field">
               <span><%= t('account.fields.newPassword') %></span>
-              <input type="password" name="new_password" autocomplete="new-password" minlength="6" required>
+              <input type="password" name="new_password" id="newPasswordField" autocomplete="new-password" minlength="6" disabled required>
             </label>
 
             <label class="account-field">
               <span><%= t('account.fields.confirmPassword') %></span>
-              <input type="password" name="confirm_password" autocomplete="new-password" minlength="6" required>
+              <input type="password" name="confirm_password" id="confirmPasswordField" autocomplete="new-password" minlength="6" disabled required>
+              <small class="account-field-note" id="confirmPasswordNote"></small>
             </label>
 
-            <button class="btn btn-outline-secondary btn-pill account-submit" type="submit">
+            <button class="btn btn-outline-secondary btn-pill account-submit" type="submit" id="passwordSubmitBtn" disabled>
               <i class="bi bi-shield-lock me-1"></i><%= t('account.actions.updatePassword') %>
             </button>
           </form>
@@ -116,5 +151,98 @@
     </div>
   </div>
 </main>
+
+<script>
+(function setupAccountPasswordGate() {
+  const currentField = document.getElementById('currentPasswordField');
+  const newField = document.getElementById('newPasswordField');
+  const confirmField = document.getElementById('confirmPasswordField');
+  const submitBtn = document.getElementById('passwordSubmitBtn');
+  const currentNote = document.getElementById('currentPasswordNote');
+  const confirmNote = document.getElementById('confirmPasswordNote');
+  let passwordCheckTimer = null;
+  let currentPasswordValid = false;
+
+  if (!currentField || !newField || !confirmField || !submitBtn) return;
+
+  function setNewPasswordEnabled(enabled) {
+    currentPasswordValid = enabled;
+    newField.disabled = !enabled;
+    confirmField.disabled = !enabled;
+    if (!enabled) {
+      newField.value = '';
+      confirmField.value = '';
+    }
+    updateSubmitState();
+  }
+
+  function updateSubmitState() {
+    const newPassword = newField.value;
+    const confirmPassword = confirmField.value;
+    const matches = newPassword.length >= 6 && newPassword === confirmPassword;
+
+    if (!currentPasswordValid) {
+      submitBtn.disabled = true;
+      confirmNote.textContent = '';
+      return;
+    }
+
+    if (!newPassword && !confirmPassword) {
+      confirmNote.textContent = '';
+    } else if (!matches) {
+      confirmNote.textContent = window.t('account.passwordGate.mismatch');
+      confirmNote.className = 'account-field-note danger';
+    } else {
+      confirmNote.textContent = window.t('account.passwordGate.match');
+      confirmNote.className = 'account-field-note success';
+    }
+
+    submitBtn.disabled = !matches;
+  }
+
+  async function verifyCurrentPassword() {
+    const value = currentField.value;
+    if (!value) {
+      currentNote.textContent = window.t('account.passwordGate.enterCurrent');
+      currentNote.className = 'account-field-note';
+      setNewPasswordEnabled(false);
+      return;
+    }
+
+    currentNote.textContent = window.t('account.passwordGate.checking');
+    currentNote.className = 'account-field-note';
+
+    try {
+      const response = await fetch('/account/password/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ current_password: value }),
+      });
+      const result = await response.json();
+      if (result.valid) {
+        currentNote.textContent = window.t('account.passwordGate.currentValid');
+        currentNote.className = 'account-field-note success';
+        setNewPasswordEnabled(true);
+      } else {
+        currentNote.textContent = window.t('account.passwordGate.currentInvalid');
+        currentNote.className = 'account-field-note danger';
+        setNewPasswordEnabled(false);
+      }
+    } catch (err) {
+      currentNote.textContent = window.t('account.passwordGate.checkFailed');
+      currentNote.className = 'account-field-note danger';
+      setNewPasswordEnabled(false);
+    }
+  }
+
+  currentField.addEventListener('input', () => {
+    window.clearTimeout(passwordCheckTimer);
+    setNewPasswordEnabled(false);
+    passwordCheckTimer = window.setTimeout(verifyCurrentPassword, 450);
+  });
+  newField.addEventListener('input', updateSubmitState);
+  confirmField.addEventListener('input', updateSubmitState);
+})();
+</script>
 
 <%- include('../partials/footer') %>

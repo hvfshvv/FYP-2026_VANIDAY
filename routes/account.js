@@ -8,6 +8,7 @@ router.use(requireLogin);
 
 router.get('/', accountController.showAccount);
 router.post('/profile', accountController.updateProfile);
+router.post('/password/check', accountController.checkCurrentPassword);
 router.post('/password', accountController.changePassword);
 
 module.exports = router;

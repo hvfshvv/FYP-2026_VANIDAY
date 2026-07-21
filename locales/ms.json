@@ -543,7 +543,8 @@
       "dateOfBirth": "Tarikh lahir",
       "currentPassword": "Kata laluan semasa",
       "newPassword": "Kata laluan baharu",
-      "confirmPassword": "Sahkan kata laluan baharu"
+      "confirmPassword": "Sahkan kata laluan baharu",
+      "countryCode": "Kod negara"
     },
     "stats": {
       "upcoming": "Akan Datang",
@@ -552,12 +553,12 @@
       "points": "Mata",
       "wallet": "Dompet"
     },
-      "actions": {
-        "viewBookings": "Lihat tempahan",
-        "saveProfile": "Simpan profil",
-        "updatePassword": "Kemas kini kata laluan",
-        "editPhone": "Edit telefon"
-      },
+    "actions": {
+      "viewBookings": "Lihat tempahan",
+      "saveProfile": "Simpan profil",
+      "updatePassword": "Kemas kini kata laluan",
+      "editPhone": "Edit telefon"
+    },
     "messages": {
       "profileSaved": "Profil anda telah dikemas kini.",
       "passwordSaved": "Kata laluan anda telah dikemas kini."
@@ -571,6 +572,15 @@
       "passwordMismatch": "Kata laluan baharu tidak sepadan.",
       "currentPassword": "Kata laluan semasa tidak betul.",
       "passwordFailed": "Tidak dapat mengemas kini kata laluan anda."
+    },
+    "passwordGate": {
+      "enterCurrent": "Masukkan kata laluan semasa dahulu.",
+      "checking": "Menyemak kata laluan semasa...",
+      "currentValid": "Kata laluan semasa disahkan.",
+      "currentInvalid": "Kata laluan semasa tidak betul.",
+      "checkFailed": "Tidak dapat menyemak kata laluan semasa.",
+      "mismatch": "Kata laluan baharu mesti sepadan dan sekurang-kurangnya 6 aksara.",
+      "match": "Kata laluan baharu sepadan."
     }
   }
 }
