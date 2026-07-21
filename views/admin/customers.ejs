@@ -21,62 +21,7 @@
   const tierProgress = Math.min(100, (avgPoints / 2000) * 100);
   const qrTotal = (a.qrAccess || []).find(row => row.source === 'qr')?.total || 0;
   const reminderTotal = (a.reminders || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
-  const firstSpendingMonth = (a.spendingTrend || [])[0];
-  const lastSpendingMonth = (a.spendingTrend || []).slice(-1)[0];
-  const topSpendCategory = (a.spendingCategories || [])[0];
-  const topVisitedMerchant = (a.mostVisitedMerchants || [])[0];
-  const topFavouriteService = (a.favouriteServices || [])[0];
-  const topBookingDay = (a.bookingFrequency || [])[0];
-  const spendingTrendDirection = firstSpendingMonth && lastSpendingMonth
-    ? Number(lastSpendingMonth.total || 0) - Number(firstSpendingMonth.total || 0)
-    : 0;
   const loyaltySummary = a.loyaltySummary || {};
-  const loyaltyTierCount = Math.max(Number(loyaltySummary.gold_members || 0), Number(loyaltySummary.silver_members || 0), Number(loyaltySummary.bronze_members || 0));
-  const strongestCustomerSignal = topVisitedMerchant || topFavouriteService || topSpendCategory;
-  const customerChartInsights = [
-    {
-      title: 'Spending momentum',
-      icon: 'bi-graph-up-arrow',
-      body: firstSpendingMonth && lastSpendingMonth
-        ? `Customer spend ${spendingTrendDirection >= 0 ? 'grew' : 'softened'} from ${money(firstSpendingMonth.total)} in ${firstSpendingMonth.month_label} to ${money(lastSpendingMonth.total)} in ${lastSpendingMonth.month_label}. This is the clearest signal of whether demand is accelerating or cooling.`
-        : 'More monthly paid booking data is needed before the spending trend can show a reliable direction.',
-    },
-    {
-      title: 'Category demand',
-      icon: 'bi-stars',
-      body: topSpendCategory
-        ? `${topSpendCategory.category} leads customer spend at ${money(topSpendCategory.total)}. Use that category as the first place to test promotions, bundles, and recommendations.`
-        : 'Category spend is not available yet, so recommendation and campaign targeting should stay broad.',
-    },
-    {
-      title: 'Habit signals',
-      icon: 'bi-heart-pulse',
-      body: topVisitedMerchant || topFavouriteService
-        ? `${topVisitedMerchant ? `${topVisitedMerchant.merchant_name} is the strongest merchant habit signal with ${number(topVisitedMerchant.visits || 0)} visits` : 'Merchant habit data is still thin'}${topFavouriteService ? `, while ${topFavouriteService.service_name} leads service preference with ${number(topFavouriteService.bookings || 0)} bookings` : ''}. Those patterns are the best inputs for repeat booking reminders.`
-        : 'Merchant and service habit signals are still thin, so repeat booking recommendations need more activity.',
-    },
-    {
-      title: 'Loyalty health',
-      icon: 'bi-award',
-      body: loyaltyRate
-        ? `Loyalty adoption is ${percent(loyaltyRate)} with average tier progress at ${percent(tierProgress)}. The wallet data shows ${number(loyaltySummary.gold_members || 0)} gold, ${number(loyaltySummary.silver_members || 0)} silver, and ${number(loyaltySummary.bronze_members || 0)} bronze members, so reward nudges should be segmented by tier.`
-        : 'Loyalty adoption is low or unavailable, so the dashboard should treat rewards as an activation opportunity.',
-    },
-    {
-      title: 'Timing opportunity',
-      icon: 'bi-calendar-week',
-      body: topBookingDay
-        ? `${topBookingDay.day_label} has the most bookings (${number(topBookingDay.bookings || 0)}). Use this to time reminders before the busiest day and push quieter-day offers when demand is softer.`
-        : 'Booking frequency by day is not available yet, so promotion timing cannot be personalized.',
-    },
-    {
-      title: 'Market lens',
-      icon: 'bi-lightbulb',
-      body: strongestCustomerSignal
-        ? `The strongest customer signal in this range is ${strongestCustomerSignal.merchant_name || strongestCustomerSignal.service_name || strongestCustomerSignal.category}. Prioritize campaigns, homepage placement, and retention offers around that behaviour.`
-        : 'There is not yet enough customer activity to identify a dominant demand pattern.',
-    },
-  ];
   const safeJson = value => JSON.stringify(value || {}).replace(/</g, '\\u003c');
 %>
 
@@ -319,46 +264,6 @@
     font-size:.8125rem;
     font-weight:700;
     margin-bottom:.75rem;
-  }
-  .ai-insight-grid {
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
-    gap:.85rem;
-  }
-  .ai-insight-card {
-    background:var(--surface);
-    border:1px solid rgba(225,29,72,.2);
-    border-radius:var(--r-lg);
-    box-shadow:var(--shadow-sm);
-    padding:1rem;
-    height:100%;
-  }
-  .ai-insight-card__top {
-    display:flex;
-    align-items:center;
-    gap:.65rem;
-    margin-bottom:.65rem;
-  }
-  .ai-insight-card__top i {
-    width:36px;
-    height:36px;
-    display:grid;
-    place-items:center;
-    border-radius:50%;
-    color:var(--accent);
-    background:var(--accent-light);
-    flex:0 0 auto;
-  }
-  .ai-insight-card h6 {
-    color:var(--ink);
-    font-weight:800;
-    margin:0;
-  }
-  .ai-insight-card p {
-    color:var(--muted);
-    line-height:1.6;
-    margin:0;
-    font-size:.9rem;
   }
 </style>
 
@@ -694,23 +599,6 @@
       </div>
     </section>
 
-    <section id="ai-chart-insights" class="section-anchor mb-5">
-      <p class="section-label mb-1">AI Chart Interpretation</p>
-      <h4 class="customer-title mb-2">What The Customer Charts Mean</h4>
-      <p style="color:var(--muted);max-width:860px;margin-bottom:1rem;">These insights translate the visible chart patterns into customer behaviour, retention, and market opportunities.</p>
-      <div class="ai-insight-grid">
-        <% customerChartInsights.forEach(insight => { %>
-          <article class="ai-insight-card">
-            <div class="ai-insight-card__top">
-              <i class="bi <%= insight.icon %>"></i>
-              <h6><%= insight.title %></h6>
-            </div>
-            <p><%= insight.body %></p>
-          </article>
-        <% }) %>
-      </div>
-    </section>
-
     <section id="recommendations" class="section-anchor mb-5">
       <p class="section-label mb-1">Personalized Recommendations</p>
       <h4 class="customer-title mb-3">Merchant, Service &amp; Promotion Suggestions</h4>
@@ -737,7 +625,7 @@
         </div>
         <div class="col-lg-4">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">AI-Based Recommendations</h6>
+            <h6 class="customer-title mb-3">Behaviour-Based Recommendations</h6>
             <div class="metric-list">
               <% (a.behaviourPromotions || []).slice(0, 4).forEach(row => { %>
                 <div class="metric-row"><p><%= row.campaign_name || row.voucher_code %></p><small>Behaviour promo</small></div>

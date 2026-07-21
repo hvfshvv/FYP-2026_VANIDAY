@@ -19,76 +19,6 @@
   const refundedAmount = Number(a.financial?.refunded_amount || 0);
   const profitMargin = grossRevenue ? ((grossRevenue - refundedAmount) / grossRevenue) * 100 : 0;
   const chartColors = ['#E11D48', '#FB7185', '#F59E0B', '#10B981', '#0EA5E9', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#64748B'];
-  const revenueStart = (a.revenueTrend || [])[0];
-  const revenueEnd = (a.revenueTrend || []).slice(-1)[0];
-  const revenueDelta = revenueStart && revenueEnd ? Number(revenueEnd.total || 0) - Number(revenueStart.total || 0) : 0;
-  const topRevenueCategory = (a.revenueByCategory || [])[0];
-  const topService = (a.topServices || [])[0];
-  const topPaymentMethod = (a.paymentBreakdown || [])[0];
-  const topCampaign = (a.promotionPerformance || [])[0];
-  const topStatus = (a.bookingStatus || [])[0];
-  const topChannel = (a.bookingChannelAnalytics || [])[0];
-  const bestHour = (a.peakBookingTimes || [])[0];
-  const bestSalesHour = (a.peakSalesPeriods || [])[0];
-  const topMerchantBenchmark = (a.topMerchants || [])[0];
-  const merchantChartInsights = [
-    {
-      title: 'Revenue direction',
-      icon: 'bi-graph-up-arrow',
-      body: revenueStart && revenueEnd
-        ? `Paid revenue ${revenueDelta >= 0 ? 'grew' : 'softened'} from ${money(revenueStart.total)} on ${dateLabel(revenueStart.period_label)} to ${money(revenueEnd.total)} on ${dateLabel(revenueEnd.period_label)}. This shows whether demand momentum is improving or easing.`
-        : 'More paid revenue days are needed before the chart can show a reliable direction.',
-    },
-    {
-      title: 'Category strategy',
-      icon: 'bi-stars',
-      body: topRevenueCategory
-        ? `${topRevenueCategory.category} leads category revenue at ${money(topRevenueCategory.revenue)}. That category should receive stronger marketplace placement, campaign testing, and merchant coaching.`
-        : 'Category revenue is not available yet, so campaigns should stay broad until paid booking data grows.',
-    },
-    {
-      title: 'Service-market fit',
-      icon: 'bi-bag-check',
-      body: topService
-        ? `${topService.service_name} is the strongest service signal with ${number(topService.bookings)} bookings and ${money(topService.revenue)} revenue. Use it as a benchmark for similar merchant bundles.`
-        : 'Top service data is still thin, so the platform cannot confidently identify service-market fit yet.',
-    },
-    {
-      title: 'Operational risk',
-      icon: 'bi-shield-exclamation',
-      body: topStatus
-        ? `${String(topStatus.status || 'unknown').replace('_', ' ')} is the largest booking status group. A heavy cancel/no-show mix points to lost capacity, while a confirmed/completed mix points to stable operations.`
-        : 'Booking status mix is unavailable, so cancellation and no-show risk cannot be estimated yet.',
-    },
-    {
-      title: 'Peak coverage',
-      icon: 'bi-clock-history',
-      body: bestHour || bestSalesHour
-        ? `${bestHour ? `Bookings peak on ${bestHour.day_label} around ${String(bestHour.hour_label).padStart(2, '0')}:00` : 'Booking peak data is limited'}${bestSalesHour ? `, while sales peak around ${String(bestSalesHour.hour_label).padStart(2, '0')}:00` : ''}. Align staff and promo timing to both demand and revenue peaks.`
-        : 'Peak hour data is still missing, so staffing recommendations should remain manual.',
-    },
-    {
-      title: 'Digital conversion',
-      icon: 'bi-phone',
-      body: topChannel || topPaymentMethod
-        ? `${topChannel ? `${topChannel.channel_label} is the leading booking source` : 'Booking source data is limited'}${topPaymentMethod ? `, and ${topPaymentMethod.payment_method || 'Unknown'} leads payment usage` : ''}. That shows where the customer journey is easiest today.`
-        : 'Booking channel and payment method data are not available yet, so checkout optimization needs more activity.',
-    },
-    {
-      title: 'Promotion quality',
-      icon: 'bi-megaphone',
-      body: topCampaign && Number(topCampaign.redemptions || 0) > 0
-        ? `${topCampaign.campaign_name || topCampaign.voucher_code} is the strongest promotion by redemption (${number(topCampaign.redemptions || 0)}). Review whether it is creating repeat visits or only one-time discount traffic.`
-        : 'Promotions have little or no redemption yet, so test smaller personalized offers instead of broad discounts.',
-    },
-    {
-      title: 'Market lens',
-      icon: 'bi-lightbulb',
-      body: topMerchantBenchmark
-        ? `The strongest merchant benchmark in this range is ${topMerchantBenchmark.merchant_name} at ${money(topMerchantBenchmark.revenue)} revenue. Use that performance profile to guide feature placement and retention opportunities.`
-        : 'There is not yet enough merchant activity to identify a clear performance benchmark.',
-    },
-  ];
   const safeJson = value => JSON.stringify(value || {}).replace(/</g, '\\u003c');
 %>
 
@@ -351,46 +281,6 @@
     font-weight:700;
     margin-bottom:.75rem;
   }
-  .ai-insight-grid {
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
-    gap:.85rem;
-  }
-  .ai-insight-card {
-    background:var(--surface);
-    border:1px solid rgba(225,29,72,.2);
-    border-radius:var(--r-lg);
-    box-shadow:var(--shadow-sm);
-    padding:1rem;
-    height:100%;
-  }
-  .ai-insight-card__top {
-    display:flex;
-    align-items:center;
-    gap:.65rem;
-    margin-bottom:.65rem;
-  }
-  .ai-insight-card__top i {
-    width:36px;
-    height:36px;
-    display:grid;
-    place-items:center;
-    border-radius:50%;
-    color:var(--accent);
-    background:var(--accent-light);
-    flex:0 0 auto;
-  }
-  .ai-insight-card h6 {
-    color:var(--ink);
-    font-weight:800;
-    margin:0;
-  }
-  .ai-insight-card p {
-    color:var(--muted);
-    line-height:1.6;
-    margin:0;
-    font-size:.9rem;
-  }
 </style>
 
 <main class="merchant-analytics" id="merchantAnalytics" style="background:var(--canvas);min-height:80vh;padding:2.5rem 1rem;">
@@ -444,7 +334,6 @@
       <a href="#customers">Customers</a>
       <a href="#marketing">Marketing</a>
       <a href="#finance">Finance</a>
-      <a href="#insights">AI Insights</a>
     </div>
 
     <section class="summary-panel mb-4" id="summaryPanel" aria-live="polite">
@@ -804,42 +693,6 @@
               </div>
               <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;"><%= item.label %></p>
               <p class="stat-value" style="font-size:1.45rem;"><%= item.value %></p>
-            </div>
-          </div>
-        <% }) %>
-      </div>
-    </section>
-
-    <section id="insights" class="section-anchor mb-5">
-      <p class="section-label mb-1">Predictive / AI Insights</p>
-      <h4 class="analytics-title mb-2">What The Merchant Charts Mean</h4>
-      <p style="color:var(--muted);max-width:900px;margin-bottom:1rem;">These insights translate the chart patterns into revenue, demand, operations, and market decisions.</p>
-      <div class="ai-insight-grid mb-3">
-        <% merchantChartInsights.forEach(insight => { %>
-          <article class="ai-insight-card">
-            <div class="ai-insight-card__top">
-              <i class="bi <%= insight.icon %>"></i>
-              <h6><%= insight.title %></h6>
-            </div>
-            <p><%= insight.body %></p>
-          </article>
-        <% }) %>
-      </div>
-      <h4 class="analytics-title mb-3">Planning Signals</h4>
-      <div class="row g-3">
-        <% const bestCategory = (a.revenueByCategory || [])[0]; %>
-        <% [
-          { title:'Sales forecasting', body: grossRevenue > 0 ? `Current filtered gross revenue is ${money(grossRevenue)}.` : 'More paid payment history is needed for forecasting.' },
-          { title:'Demand prediction', body: bestHour ? `Demand is strongest on ${bestHour.day_label} around ${String(bestHour.hour_label).padStart(2, '0')}:00.` : 'More bookings are needed to detect demand patterns.' },
-          { title:'Recommended promotions', body: bestCategory ? `Prioritise ${bestCategory.category} campaigns; it leads category revenue.` : 'Category revenue is not available yet.' },
-          { title:'Customer churn prediction', body: retentionRate ? `Retention is ${percent(retentionRate)}; low-repeat segments should receive win-back offers.` : 'Repeat booking data is not available yet.' },
-          { title:'Suggested peak coverage hours', body: bestHour ? `Prepare extra capacity for ${bestHour.day_label} ${String(bestHour.hour_label).padStart(2, '0')}:00.` : 'Coverage recommendation needs booking heatmap data.' },
-          { title:'Trend anomaly detection', body: topService ? `${topService.service_name} is the current service benchmark.` : 'No abnormal trend detected from available data.' },
-        ].forEach(card => { %>
-          <div class="col-md-6 col-xl-4">
-            <div class="analytics-card">
-              <h6 class="analytics-title mb-2"><%= card.title %></h6>
-              <p style="color:var(--muted);margin:0;"><%= card.body %></p>
             </div>
           </div>
         <% }) %>
