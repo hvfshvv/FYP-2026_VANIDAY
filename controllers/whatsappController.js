@@ -672,6 +672,16 @@ async function receiveMessage(req, res) {
       } else {
         const customer = await whatsappModel.findExistingCustomerByPhone(sender);
 
+        if (!customer) {
+          twiml.message(
+            'Please log in or create a Uniday account before booking through WhatsApp:\n' +
+            getLoginLink(sender) + '\n\n' +
+            'After linking your account, return to this service and tap WhatsApp again to continue booking.'
+          );
+          await clearSession(sender, 'completed');
+          return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
+        }
+
         await saveSession(sender, {
           state: 'choosing_date',
           category: context.service.category || context.merchant.category || null,
