@@ -24,7 +24,8 @@
     "wallet": "Dompet",
     "signOut": "Log keluar",
     "signInRegister": "Log masuk / Daftar",
-    "browseByCategory": "Cari mengikut kategori"
+    "browseByCategory": "Cari mengikut kategori",
+    "myAccount": "Akaun Saya"
   },
   "categories": {
     "hair": "Rambut",
@@ -505,5 +506,70 @@
     "subtitle": "Tetapkan peraturan merchant yang lebih ketat di atas polisi refund platform Uniday.",
     "baseline": "Asas Uniday: lebih 24 jam = refund 95%, 6-24 jam = 50%, kurang 6 jam/tidak hadir = 0%, pembatalan oleh merchant = 100%.",
     "refundCapHelp": "Ini hanya mengehadkan refund pembatalan oleh pelanggan. Pembatalan oleh merchant kekal refund 100%."
+  },
+  "account": {
+    "title": "Akaun Saya",
+    "customer": "Pelanggan",
+    "eyebrow": "Akaun",
+    "welcome": "Hai {{name}}",
+    "subtitle": "Urus profil, kata laluan, dompet, ganjaran, tempahan dan kegemaran anda.",
+    "menuLabel": "Menu akaun",
+    "verified": "E-mel disahkan",
+    "notVerified": "E-mel belum disahkan",
+    "menu": {
+      "account": "Akaun Saya",
+      "bookings": "Tempahan Saya",
+      "reviews": "Ulasan Saya",
+      "favourites": "Kegemaran Saya",
+      "wallet": "Dompet Bayaran",
+      "loyalty": "Ganjaran Kesetiaan",
+      "notifications": "Notifikasi",
+      "terms": "Terma & Polisi",
+      "signOut": "Log keluar"
+    },
+    "sections": {
+      "overview": "Ringkasan",
+      "accountInfo": "Maklumat Akaun",
+      "profile": "Profil",
+      "editContact": "Edit Maklumat Hubungan",
+      "security": "Keselamatan",
+      "changePassword": "Tukar Kata Laluan"
+    },
+    "fields": {
+      "name": "Nama penuh",
+      "email": "E-mel",
+      "phone": "Telefon",
+      "memberSince": "Ahli sejak",
+      "dateOfBirth": "Tarikh lahir",
+      "currentPassword": "Kata laluan semasa",
+      "newPassword": "Kata laluan baharu",
+      "confirmPassword": "Sahkan kata laluan baharu"
+    },
+    "stats": {
+      "upcoming": "Akan Datang",
+      "completed": "Selesai",
+      "favourites": "Kegemaran",
+      "points": "Mata",
+      "wallet": "Dompet"
+    },
+    "actions": {
+      "viewBookings": "Lihat tempahan",
+      "saveProfile": "Simpan profil",
+      "updatePassword": "Kemas kini kata laluan"
+    },
+    "messages": {
+      "profileSaved": "Profil anda telah dikemas kini.",
+      "passwordSaved": "Kata laluan anda telah dikemas kini."
+    },
+    "errors": {
+      "loadFailed": "Tidak dapat memuatkan akaun anda. Sila cuba lagi.",
+      "nameRequired": "Sila masukkan nama penuh anda.",
+      "birthDateFuture": "Tarikh lahir tidak boleh berada pada masa depan.",
+      "profileFailed": "Tidak dapat mengemas kini profil anda.",
+      "passwordLength": "Kata laluan baharu mesti sekurang-kurangnya 6 aksara.",
+      "passwordMismatch": "Kata laluan baharu tidak sepadan.",
+      "currentPassword": "Kata laluan semasa tidak betul.",
+      "passwordFailed": "Tidak dapat mengemas kini kata laluan anda."
+    }
   }
 }

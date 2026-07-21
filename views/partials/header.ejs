@@ -74,7 +74,10 @@
         <% } %>
       </a>
       <% } %>
-      <span class="nav-user-pill"><i class="bi bi-person-circle"></i><%= user.full_name.split(' ')[0] %></span>
+      <% const accountHref = user.role === 'merchant' ? '/merchant/dashboard' : (user.role === 'admin' ? '/admin/dashboard' : '/account'); %>
+      <a href="<%= accountHref %>" class="nav-user-pill" aria-label="<%= t('nav.myAccount') %>">
+        <i class="bi bi-person-circle"></i><%= user.full_name.split(' ')[0] %>
+      </a>
       <a href="/auth/logout" class="btn btn-outline-secondary btn-sm btn-pill"><%= t('nav.signOut') %></a>
       <% } else { %>
       <a href="/auth/login" class="btn btn-outline-secondary btn-sm btn-pill"><%= t('nav.signInRegister') %></a>
@@ -118,6 +121,7 @@
     <span class="nav-pending-badge"><%= unreadNotificationCount %></span>
     <% } %>
   </a>
+  <a href="/account"><%= t('nav.myAccount') %></a>
   <% } %>
   <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
   <a href="/merchant/dashboard"><%= t('nav.dashboard') %></a>

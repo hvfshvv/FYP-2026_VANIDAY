@@ -24,7 +24,8 @@
     "wallet": "வாலெட்",
     "signOut": "வெளியேறு",
     "signInRegister": "உள்நுழை / பதிவு",
-    "browseByCategory": "வகை வாரியாக உலாவு"
+    "browseByCategory": "வகை வாரியாக உலாவு",
+    "myAccount": "என் கணக்கு"
   },
   "categories": {
     "hair": "முடி",
@@ -505,5 +506,70 @@
     "subtitle": "Uniday platform refund policy மேல் stricter merchant rules அமைக்கவும்.",
     "baseline": "Uniday baseline: 24 மணி நேரத்திற்கும் மேல் = 95% refund, 6-24 மணி நேரம் = 50%, 6 மணி நேரத்திற்குக் குறைவாக/no-show = 0%, merchant-caused cancellation = 100%.",
     "refundCapHelp": "இது customer-caused refunds-ஐ மட்டும் cap செய்கிறது. Merchant-caused cancellations 100% refundable ஆகவே இருக்கும்."
+  },
+  "account": {
+    "title": "என் கணக்கு",
+    "customer": "வாடிக்கையாளர்",
+    "eyebrow": "கணக்கு",
+    "welcome": "வணக்கம் {{name}}",
+    "subtitle": "உங்கள் சுயவிவரம், கடவுச்சொல், பணப்பை, பரிசுகள், முன்பதிவுகள் மற்றும் விருப்பங்களை நிர்வகிக்கவும்.",
+    "menuLabel": "கணக்கு பட்டியல்",
+    "verified": "மின்னஞ்சல் சரிபார்க்கப்பட்டது",
+    "notVerified": "மின்னஞ்சல் சரிபார்க்கப்படவில்லை",
+    "menu": {
+      "account": "என் கணக்கு",
+      "bookings": "என் முன்பதிவுகள்",
+      "reviews": "என் மதிப்புரைகள்",
+      "favourites": "என் விருப்பங்கள்",
+      "wallet": "கட்டண பணப்பை",
+      "loyalty": "நம்பிக்கை பரிசுகள்",
+      "notifications": "அறிவிப்புகள்",
+      "terms": "விதிமுறைகள் & கொள்கைகள்",
+      "signOut": "வெளியேறு"
+    },
+    "sections": {
+      "overview": "கண்ணோட்டம்",
+      "accountInfo": "கணக்கு தகவல்",
+      "profile": "சுயவிவரம்",
+      "editContact": "தொடர்பு தகவலை திருத்து",
+      "security": "பாதுகாப்பு",
+      "changePassword": "கடவுச்சொல்லை மாற்று"
+    },
+    "fields": {
+      "name": "முழு பெயர்",
+      "email": "மின்னஞ்சல்",
+      "phone": "தொலைபேசி",
+      "memberSince": "உறுப்பினர் ஆன நாள்",
+      "dateOfBirth": "பிறந்த தேதி",
+      "currentPassword": "தற்போதைய கடவுச்சொல்",
+      "newPassword": "புதிய கடவுச்சொல்",
+      "confirmPassword": "புதிய கடவுச்சொல்லை உறுதிசெய்"
+    },
+    "stats": {
+      "upcoming": "வரவிருக்கும்",
+      "completed": "முடிந்தது",
+      "favourites": "விருப்பங்கள்",
+      "points": "புள்ளிகள்",
+      "wallet": "பணப்பை"
+    },
+    "actions": {
+      "viewBookings": "முன்பதிவுகளை காண்க",
+      "saveProfile": "சுயவிவரத்தை சேமி",
+      "updatePassword": "கடவுச்சொல்லை புதுப்பி"
+    },
+    "messages": {
+      "profileSaved": "உங்கள் சுயவிவரம் புதுப்பிக்கப்பட்டது.",
+      "passwordSaved": "உங்கள் கடவுச்சொல் புதுப்பிக்கப்பட்டது."
+    },
+    "errors": {
+      "loadFailed": "உங்கள் கணக்கை ஏற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+      "nameRequired": "உங்கள் முழு பெயரை உள்ளிடவும்.",
+      "birthDateFuture": "பிறந்த தேதி எதிர்கால தேதியாக இருக்க முடியாது.",
+      "profileFailed": "உங்கள் சுயவிவரத்தை புதுப்பிக்க முடியவில்லை.",
+      "passwordLength": "புதிய கடவுச்சொல் குறைந்தது 6 எழுத்துகள் இருக்க வேண்டும்.",
+      "passwordMismatch": "புதிய கடவுச்சொற்கள் பொருந்தவில்லை.",
+      "currentPassword": "தற்போதைய கடவுச்சொல் தவறானது.",
+      "passwordFailed": "உங்கள் கடவுச்சொல்லை புதுப்பிக்க முடியவில்லை."
+    }
   }
 }

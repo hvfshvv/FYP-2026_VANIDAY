@@ -1,0 +1,173 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+<%
+  const parseDate = value => {
+    const parsed = value ? new Date(value) : null;
+    return parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
+  };
+  const formatDate = value => {
+    const parsed = parseDate(value);
+    return parsed ? parsed.toLocaleDateString(lang === 'en' ? 'en-SG' : undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : t('common.notSelected');
+  };
+  const dateInputValue = value => {
+    const parsed = parseDate(value);
+    return parsed ? parsed.toISOString().slice(0, 10) : '';
+  };
+  const money = value => `S$${Number(value || 0).toFixed(2)}`;
+  const firstName = String(accountUser.full_name || '').split(' ')[0] || t('account.customer');
+  const emailVerified = Boolean(accountUser.email_verified_at);
+  const walletBalance = Number(paymentWallet.balance ?? paymentWallet.money_balance ?? 0);
+%>
+
+<main class="account-page">
+  <div class="account-shell">
+    <div class="account-heading">
+      <div>
+        <p class="section-label mb-2"><%= t('account.eyebrow') %></p>
+        <h1><%= t('account.welcome', { name: firstName }) %></h1>
+        <p><%= t('account.subtitle') %></p>
+      </div>
+      <a href="/book/viewBookings" class="btn btn-primary btn-pill">
+        <i class="bi bi-calendar-check me-1"></i><%= t('account.actions.viewBookings') %>
+      </a>
+    </div>
+
+    <% if (success) { %>
+    <div class="account-alert success"><i class="bi bi-check-circle"></i><%= success %></div>
+    <% } %>
+    <% if (error) { %>
+    <div class="account-alert danger"><i class="bi bi-exclamation-circle"></i><%= error %></div>
+    <% } %>
+
+    <div class="account-grid">
+      <aside class="account-menu" aria-label="<%= t('account.menuLabel') %>">
+        <a href="/account" class="active"><i class="bi bi-person-circle"></i><span><%= t('account.menu.account') %></span></a>
+        <a href="/book/viewBookings"><i class="bi bi-calendar2-check"></i><span><%= t('account.menu.bookings') %></span></a>
+        <a href="/book/reviews"><i class="bi bi-star"></i><span><%= t('account.menu.reviews') %></span></a>
+        <a href="/favourite"><i class="bi bi-heart"></i><span><%= t('account.menu.favourites') %></span></a>
+        <a href="/wallet"><i class="bi bi-wallet2"></i><span><%= t('account.menu.wallet') %></span></a>
+        <a href="/loyalty"><i class="bi bi-stars"></i><span><%= t('account.menu.loyalty') %></span></a>
+        <a href="/notifications"><i class="bi bi-bell"></i><span><%= t('account.menu.notifications') %></span></a>
+        <a href="/legal/terms"><i class="bi bi-file-text"></i><span><%= t('account.menu.terms') %></span></a>
+        <a href="/auth/logout"><i class="bi bi-box-arrow-right"></i><span><%= t('account.menu.signOut') %></span></a>
+      </aside>
+
+      <section class="account-content">
+        <div class="account-section">
+          <div class="account-section-head">
+            <div>
+              <p class="section-label mb-1"><%= t('account.sections.overview') %></p>
+              <h2><%= t('account.sections.accountInfo') %></h2>
+            </div>
+            <span class="account-status <%= emailVerified ? 'verified' : 'pending' %>">
+              <i class="bi <%= emailVerified ? 'bi-patch-check-fill' : 'bi-exclamation-circle' %>"></i>
+              <%= emailVerified ? t('account.verified') : t('account.notVerified') %>
+            </span>
+          </div>
+
+          <div class="account-info-grid">
+            <div>
+              <span><%= t('account.fields.name') %></span>
+              <strong><%= accountUser.full_name %></strong>
+            </div>
+            <div>
+              <span><%= t('account.fields.email') %></span>
+              <strong><%= accountUser.email %></strong>
+            </div>
+            <div>
+              <span><%= t('account.fields.phone') %></span>
+              <strong><%= accountUser.phone || t('common.notSelected') %></strong>
+            </div>
+            <div>
+              <span><%= t('account.fields.memberSince') %></span>
+              <strong><%= formatDate(accountUser.created_at) %></strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="account-stat-row">
+          <a href="/book/viewBookings" class="account-stat">
+            <span><%= t('account.stats.upcoming') %></span>
+            <strong><%= bookingStats.upcoming %></strong>
+          </a>
+          <a href="/book/viewBookings" class="account-stat">
+            <span><%= t('account.stats.completed') %></span>
+            <strong><%= bookingStats.completed %></strong>
+          </a>
+          <a href="/favourite" class="account-stat">
+            <span><%= t('account.stats.favourites') %></span>
+            <strong><%= favouriteCount %></strong>
+          </a>
+          <a href="/loyalty" class="account-stat">
+            <span><%= t('account.stats.points') %></span>
+            <strong><%= Number(loyaltyWallet.points_balance || 0) %></strong>
+          </a>
+          <a href="/wallet" class="account-stat">
+            <span><%= t('account.stats.wallet') %></span>
+            <strong><%= money(walletBalance) %></strong>
+          </a>
+        </div>
+
+        <div class="account-two-col">
+          <form class="account-section" method="POST" action="/account/profile">
+            <div class="account-section-head">
+              <div>
+                <p class="section-label mb-1"><%= t('account.sections.profile') %></p>
+                <h2><%= t('account.sections.editContact') %></h2>
+              </div>
+            </div>
+
+            <label class="account-field">
+              <span><%= t('account.fields.name') %></span>
+              <input type="text" name="full_name" value="<%= accountUser.full_name || '' %>" maxlength="120" required>
+            </label>
+
+            <label class="account-field">
+              <span><%= t('account.fields.phone') %></span>
+              <input type="tel" name="phone" value="<%= accountUser.phone || '' %>" maxlength="30">
+            </label>
+
+            <label class="account-field">
+              <span><%= t('account.fields.dateOfBirth') %></span>
+              <input type="date" name="date_of_birth" value="<%= dateInputValue(accountUser.date_of_birth) %>">
+            </label>
+
+            <button class="btn btn-primary btn-pill account-submit" type="submit">
+              <i class="bi bi-save me-1"></i><%= t('account.actions.saveProfile') %>
+            </button>
+          </form>
+
+          <form class="account-section" method="POST" action="/account/password">
+            <div class="account-section-head">
+              <div>
+                <p class="section-label mb-1"><%= t('account.sections.security') %></p>
+                <h2><%= t('account.sections.changePassword') %></h2>
+              </div>
+            </div>
+
+            <label class="account-field">
+              <span><%= t('account.fields.currentPassword') %></span>
+              <input type="password" name="current_password" autocomplete="current-password" required>
+            </label>
+
+            <label class="account-field">
+              <span><%= t('account.fields.newPassword') %></span>
+              <input type="password" name="new_password" autocomplete="new-password" minlength="6" required>
+            </label>
+
+            <label class="account-field">
+              <span><%= t('account.fields.confirmPassword') %></span>
+              <input type="password" name="confirm_password" autocomplete="new-password" minlength="6" required>
+            </label>
+
+            <button class="btn btn-outline-secondary btn-pill account-submit" type="submit">
+              <i class="bi bi-shield-lock me-1"></i><%= t('account.actions.updatePassword') %>
+            </button>
+          </form>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>

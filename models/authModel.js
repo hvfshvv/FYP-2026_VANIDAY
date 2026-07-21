@@ -6,6 +6,14 @@ async function findUserByEmail(email) {
   return rows[0] || null;
 }
 
+async function getUserById(userId) {
+  const [rows] = await db.query(
+    'SELECT * FROM users WHERE user_id = ? LIMIT 1',
+    [userId]
+  );
+  return rows[0] || null;
+}
+
 async function findCustomerUserByEmail(email) {
   const [rows] = await db.query(
     `SELECT u.*, u.user_id AS customer_id
@@ -195,6 +203,38 @@ async function setUserDateOfBirthIfSupported(userId, dateOfBirth) {
   );
 }
 
+async function updateUserProfile(userId, { fullName, phone, dateOfBirth }) {
+  const fields = ['full_name = ?', 'phone = ?'];
+  const params = [fullName, phone || null];
+
+  if (await columnExists('users', 'date_of_birth')) {
+    fields.push('date_of_birth = ?');
+    params.push(dateOfBirth || null);
+  }
+
+  params.push(userId);
+
+  await db.query(
+    `UPDATE users SET ${fields.join(', ')} WHERE user_id = ?`,
+    params
+  );
+
+  const user = await getUserById(userId);
+  if (user && user.role === 'customer') {
+    await ensureLegacyCustomerRow(user, user.full_name, user.email, user.phone);
+  }
+
+  return user;
+}
+
+async function updateUserPassword(userId, passwordHash) {
+  const [result] = await db.query(
+    'UPDATE users SET password_hash = ? WHERE user_id = ?',
+    [passwordHash, userId]
+  );
+  return result.affectedRows;
+}
+
 async function ensureLegacyCustomerRow(user, fullName = null, email = null, phone = null) {
   if (!(await tableExists('customer'))) return;
 
@@ -339,12 +379,15 @@ async function resetUserPassword(token, passwordHash) {
 module.exports = {
   findUserByEmail,
   findCustomerUserByEmail,
+  getUserById,
   createUser,
   createCustomerProfile,
   createMerchantProfile,
   createMerchantAccount,
   getCustomerByUserId,
   ensureCustomerProfile,
+  updateUserProfile,
+  updateUserPassword,
   getMerchantByUserId,
   acceptMerchantTerms,
   createEmailVerificationToken,

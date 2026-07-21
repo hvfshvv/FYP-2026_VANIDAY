@@ -24,7 +24,8 @@
     "wallet": "钱包",
     "signOut": "退出登录",
     "signInRegister": "登录 / 注册",
-    "browseByCategory": "按类别浏览"
+    "browseByCategory": "按类别浏览",
+    "myAccount": "我的账户"
   },
   "categories": {
     "hair": "美发",
@@ -505,5 +506,70 @@
     "subtitle": "在 Uniday 平台退款政策基础上设置更严格的商家规则。",
     "baseline": "Uniday 基准：超过 24 小时 = 95% 退款，6-24 小时 = 50%，少于 6 小时/未到场 = 0%，商家原因取消 = 100%。",
     "refundCapHelp": "这只限制顾客原因取消的退款。商家原因取消仍为 100% 退款。"
+  },
+  "account": {
+    "title": "我的账户",
+    "customer": "顾客",
+    "eyebrow": "账户",
+    "welcome": "你好，{{name}}",
+    "subtitle": "管理个人资料、密码、钱包、奖励、预约和收藏。",
+    "menuLabel": "账户菜单",
+    "verified": "电邮已验证",
+    "notVerified": "电邮未验证",
+    "menu": {
+      "account": "我的账户",
+      "bookings": "我的预约",
+      "reviews": "我的评价",
+      "favourites": "我的收藏",
+      "wallet": "付款钱包",
+      "loyalty": "忠诚奖励",
+      "notifications": "通知",
+      "terms": "条款与政策",
+      "signOut": "退出登录"
+    },
+    "sections": {
+      "overview": "概览",
+      "accountInfo": "账户资料",
+      "profile": "个人资料",
+      "editContact": "编辑联系资料",
+      "security": "安全",
+      "changePassword": "更改密码"
+    },
+    "fields": {
+      "name": "姓名",
+      "email": "电邮",
+      "phone": "电话",
+      "memberSince": "加入日期",
+      "dateOfBirth": "出生日期",
+      "currentPassword": "当前密码",
+      "newPassword": "新密码",
+      "confirmPassword": "确认新密码"
+    },
+    "stats": {
+      "upcoming": "即将到来",
+      "completed": "已完成",
+      "favourites": "收藏",
+      "points": "积分",
+      "wallet": "钱包"
+    },
+    "actions": {
+      "viewBookings": "查看预约",
+      "saveProfile": "保存资料",
+      "updatePassword": "更新密码"
+    },
+    "messages": {
+      "profileSaved": "你的资料已更新。",
+      "passwordSaved": "你的密码已更新。"
+    },
+    "errors": {
+      "loadFailed": "无法加载账户，请重试。",
+      "nameRequired": "请输入姓名。",
+      "birthDateFuture": "出生日期不能是未来日期。",
+      "profileFailed": "无法更新资料。",
+      "passwordLength": "新密码必须至少 6 个字符。",
+      "passwordMismatch": "两次输入的新密码不一致。",
+      "currentPassword": "当前密码不正确。",
+      "passwordFailed": "无法更新密码。"
+    }
   }
 }

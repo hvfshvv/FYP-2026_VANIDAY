@@ -24,7 +24,8 @@
     "wallet": "Wallet",
     "signOut": "Sign out",
     "signInRegister": "Sign In / Register",
-    "browseByCategory": "Browse by category"
+    "browseByCategory": "Browse by category",
+    "myAccount": "My Account"
   },
   "categories": {
     "hair": "Hair",
@@ -505,5 +506,70 @@
     "subtitle": "Set stricter merchant rules on top of Uniday's platform refund policy.",
     "baseline": "Uniday baseline: more than 24 hours = 95% refund, 6-24 hours = 50%, less than 6 hours/no-show = 0%, merchant-caused cancellation = 100%.",
     "refundCapHelp": "This caps customer-caused refunds only. Merchant-caused cancellations remain 100% refundable."
+  },
+  "account": {
+    "title": "My Account",
+    "customer": "Customer",
+    "eyebrow": "Account",
+    "welcome": "Hi {{name}}",
+    "subtitle": "Manage your profile, password, wallet, rewards, bookings, and saved favourites.",
+    "menuLabel": "Account menu",
+    "verified": "Email verified",
+    "notVerified": "Email not verified",
+    "menu": {
+      "account": "My Account",
+      "bookings": "My Bookings",
+      "reviews": "My Reviews",
+      "favourites": "My Favourites",
+      "wallet": "Payment Wallet",
+      "loyalty": "Loyalty Rewards",
+      "notifications": "Notifications",
+      "terms": "Terms & Policies",
+      "signOut": "Sign out"
+    },
+    "sections": {
+      "overview": "Overview",
+      "accountInfo": "Account Information",
+      "profile": "Profile",
+      "editContact": "Edit Contact Information",
+      "security": "Security",
+      "changePassword": "Change Password"
+    },
+    "fields": {
+      "name": "Full name",
+      "email": "Email",
+      "phone": "Phone",
+      "memberSince": "Member since",
+      "dateOfBirth": "Date of birth",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password"
+    },
+    "stats": {
+      "upcoming": "Upcoming",
+      "completed": "Completed",
+      "favourites": "Favourites",
+      "points": "Points",
+      "wallet": "Wallet"
+    },
+    "actions": {
+      "viewBookings": "View bookings",
+      "saveProfile": "Save profile",
+      "updatePassword": "Update password"
+    },
+    "messages": {
+      "profileSaved": "Your profile has been updated.",
+      "passwordSaved": "Your password has been updated."
+    },
+    "errors": {
+      "loadFailed": "Could not load your account. Please try again.",
+      "nameRequired": "Please enter your full name.",
+      "birthDateFuture": "Date of birth cannot be in the future.",
+      "profileFailed": "Could not update your profile.",
+      "passwordLength": "New password must be at least 6 characters.",
+      "passwordMismatch": "New passwords do not match.",
+      "currentPassword": "Current password is incorrect.",
+      "passwordFailed": "Could not update your password."
+    }
   }
 }
