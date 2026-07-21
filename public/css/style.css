@@ -1493,8 +1493,28 @@ a:hover { color: var(--accent-dark); }
 
 .account-phone-row {
   display: grid;
-  grid-template-columns: minmax(140px, 190px) minmax(0, 1fr);
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
   gap: .6rem;
+}
+
+.account-country-select {
+  appearance: none;
+  background-color: var(--canvas) !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  color: var(--ink);
+  font-weight: 700;
+  padding-right: 2.3rem !important;
+}
+
+.account-country-select:hover {
+  border-color: var(--accent);
 }
 
 .account-field-note {
@@ -1506,6 +1526,7 @@ a:hover { color: var(--accent-dark); }
   font-weight: 600;
 }
 
+.account-field-note.is-empty { min-height: 0; margin-top: 0; }
 .account-field-note.success { color: var(--success); }
 .account-field-note.danger { color: var(--danger); }
 

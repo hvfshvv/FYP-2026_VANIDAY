@@ -10,21 +10,21 @@
     return parsed ? parsed.toISOString().slice(0, 10) : '';
   };
   const countryCodes = [
-    { code: '+65', label: 'Singapore' },
-    { code: '+60', label: 'Malaysia' },
-    { code: '+62', label: 'Indonesia' },
-    { code: '+66', label: 'Thailand' },
-    { code: '+63', label: 'Philippines' },
-    { code: '+84', label: 'Vietnam' },
-    { code: '+91', label: 'India' },
-    { code: '+86', label: 'China' },
-    { code: '+852', label: 'Hong Kong' },
-    { code: '+886', label: 'Taiwan' },
-    { code: '+81', label: 'Japan' },
-    { code: '+82', label: 'South Korea' },
-    { code: '+61', label: 'Australia' },
-    { code: '+44', label: 'United Kingdom' },
-    { code: '+1', label: 'United States / Canada' },
+    { code: '+65', label: 'Singapore', flag: 'SG' },
+    { code: '+60', label: 'Malaysia', flag: 'MY' },
+    { code: '+62', label: 'Indonesia', flag: 'ID' },
+    { code: '+66', label: 'Thailand', flag: 'TH' },
+    { code: '+63', label: 'Philippines', flag: 'PH' },
+    { code: '+84', label: 'Vietnam', flag: 'VN' },
+    { code: '+91', label: 'India', flag: 'IN' },
+    { code: '+86', label: 'China', flag: 'CN' },
+    { code: '+852', label: 'Hong Kong', flag: 'HK' },
+    { code: '+886', label: 'Taiwan', flag: 'TW' },
+    { code: '+81', label: 'Japan', flag: 'JP' },
+    { code: '+82', label: 'South Korea', flag: 'KR' },
+    { code: '+61', label: 'Australia', flag: 'AU' },
+    { code: '+44', label: 'United Kingdom', flag: 'UK' },
+    { code: '+1', label: 'United States / Canada', flag: 'US/CA' },
   ];
   const rawPhone = String(accountUser.phone || '').trim();
   const matchedCountry = countryCodes
@@ -98,9 +98,9 @@
             <label class="account-field">
               <span><%= t('account.fields.phone') %></span>
               <div class="account-phone-row">
-                <select name="country_code" aria-label="<%= t('account.fields.countryCode') %>">
+                <select class="account-country-select" name="country_code" aria-label="<%= t('account.fields.countryCode') %>">
                   <% countryCodes.forEach(country => { %>
-                  <option value="<%= country.code %>" <%= country.code === selectedCountryCode ? 'selected' : '' %>><%= country.code %> <%= country.label %></option>
+                  <option value="<%= country.code %>" <%= country.code === selectedCountryCode ? 'selected' : '' %>><%= country.flag %>  <%= country.code %>  <%= country.label %></option>
                   <% }) %>
                 </select>
                 <input id="accountPhoneField" type="tel" name="phone_local" value="<%= localPhone %>" inputmode="tel" maxlength="20">
@@ -128,7 +128,7 @@
             <label class="account-field">
               <span><%= t('account.fields.currentPassword') %></span>
               <input type="password" name="current_password" id="currentPasswordField" autocomplete="current-password" required>
-              <small class="account-field-note" id="currentPasswordNote"><%= t('account.passwordGate.enterCurrent') %></small>
+              <small class="account-field-note is-empty" id="currentPasswordNote"></small>
             </label>
 
             <label class="account-field">
@@ -154,6 +154,12 @@
 
 <script>
 (function setupAccountPasswordGate() {
+  const copy = <%- JSON.stringify({
+    valid: t('account.passwordGate.valid', {}, 'Valid'),
+    invalid: t('account.passwordGate.invalid', {}, 'Invalid'),
+    mismatch: t('account.passwordGate.mismatch', {}, 'Passwords do not match.'),
+    checkFailed: t('account.passwordGate.checkFailed', {}, 'Could not check password.'),
+  }).replace(/</g, '\\u003c') %>;
   const currentField = document.getElementById('currentPasswordField');
   const newField = document.getElementById('newPasswordField');
   const confirmField = document.getElementById('confirmPasswordField');
@@ -189,12 +195,13 @@
 
     if (!newPassword && !confirmPassword) {
       confirmNote.textContent = '';
+      confirmNote.className = 'account-field-note is-empty';
     } else if (!matches) {
-      confirmNote.textContent = window.t('account.passwordGate.mismatch');
+      confirmNote.textContent = copy.mismatch;
       confirmNote.className = 'account-field-note danger';
     } else {
-      confirmNote.textContent = window.t('account.passwordGate.match');
-      confirmNote.className = 'account-field-note success';
+      confirmNote.textContent = '';
+      confirmNote.className = 'account-field-note is-empty';
     }
 
     submitBtn.disabled = !matches;
@@ -203,14 +210,14 @@
   async function verifyCurrentPassword() {
     const value = currentField.value;
     if (!value) {
-      currentNote.textContent = window.t('account.passwordGate.enterCurrent');
-      currentNote.className = 'account-field-note';
+      currentNote.textContent = '';
+      currentNote.className = 'account-field-note is-empty';
       setNewPasswordEnabled(false);
       return;
     }
 
-    currentNote.textContent = window.t('account.passwordGate.checking');
-    currentNote.className = 'account-field-note';
+    currentNote.textContent = '';
+    currentNote.className = 'account-field-note is-empty';
 
     try {
       const response = await fetch('/account/password/check', {
@@ -220,16 +227,16 @@
       });
       const result = await response.json();
       if (result.valid) {
-        currentNote.textContent = window.t('account.passwordGate.currentValid');
+        currentNote.textContent = copy.valid;
         currentNote.className = 'account-field-note success';
         setNewPasswordEnabled(true);
       } else {
-        currentNote.textContent = window.t('account.passwordGate.currentInvalid');
+        currentNote.textContent = copy.invalid;
         currentNote.className = 'account-field-note danger';
         setNewPasswordEnabled(false);
       }
     } catch (err) {
-      currentNote.textContent = window.t('account.passwordGate.checkFailed');
+      currentNote.textContent = copy.checkFailed;
       currentNote.className = 'account-field-note danger';
       setNewPasswordEnabled(false);
     }

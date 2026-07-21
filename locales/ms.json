@@ -579,8 +579,10 @@
       "currentValid": "Kata laluan semasa disahkan.",
       "currentInvalid": "Kata laluan semasa tidak betul.",
       "checkFailed": "Tidak dapat menyemak kata laluan semasa.",
-      "mismatch": "Kata laluan baharu mesti sepadan dan sekurang-kurangnya 6 aksara.",
-      "match": "Kata laluan baharu sepadan."
+      "mismatch": "Kata laluan tidak sepadan.",
+      "match": "Kata laluan baharu sepadan.",
+      "valid": "Sah",
+      "invalid": "Tidak sah"
     }
   }
 }

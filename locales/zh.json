@@ -579,8 +579,10 @@
       "currentValid": "当前密码已确认。",
       "currentInvalid": "当前密码不正确。",
       "checkFailed": "无法检查当前密码。",
-      "mismatch": "新密码必须一致，并且至少 6 个字符。",
-      "match": "新密码一致。"
+      "mismatch": "两次输入的密码不一致。",
+      "match": "新密码一致。",
+      "valid": "有效",
+      "invalid": "无效"
     }
   }
 }

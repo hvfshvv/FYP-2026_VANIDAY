@@ -579,8 +579,10 @@
       "currentValid": "Current password confirmed.",
       "currentInvalid": "Current password is incorrect.",
       "checkFailed": "Could not check the current password.",
-      "mismatch": "New passwords must match and be at least 6 characters.",
-      "match": "New passwords match."
+      "mismatch": "Passwords do not match.",
+      "match": "New passwords match.",
+      "valid": "Valid",
+      "invalid": "Invalid"
     }
   }
 }
