@@ -1,0 +1,171 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+<%
+  const money = value => 'S$' + Number(value || 0).toFixed(2);
+  const number = value => Number(value || 0).toLocaleString('en-SG');
+  const dateTime = value => value ? new Date(value).toLocaleString('en-SG', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
+  const statusClass = status => ({
+    pending: 'warn',
+    processing: 'warn',
+    paid: 'success',
+    failed: 'danger',
+    cancelled: 'muted',
+  }[status] || 'muted');
+%>
+
+<style>
+  .payout-panel {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--r-xl);
+    box-shadow:var(--shadow-sm);
+    padding:1.35rem;
+  }
+  .payout-table th { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+  .payout-status {
+    display:inline-flex;
+    align-items:center;
+    border-radius:999px;
+    padding:.3rem .65rem;
+    font-size:.78rem;
+    font-weight:800;
+    text-transform:capitalize;
+  }
+  .payout-status.success { background:var(--success-bg); color:var(--success); }
+  .payout-status.warn { background:var(--warn-bg); color:var(--warn); }
+  .payout-status.danger { background:var(--danger-bg); color:var(--danger); }
+  .payout-status.muted { background:var(--neutral-bg); color:var(--muted); }
+</style>
+
+<main class="container py-5">
+  <a href="/admin/revenue" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
+    <i class="bi bi-arrow-left me-1"></i>Revenue
+  </a>
+
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+      <p class="section-label mb-2">Admin Finance</p>
+      <h2 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Merchant Payouts</h2>
+      <p style="color:var(--muted);margin-bottom:0;">Create payout batches from completed paid bookings and track manual merchant settlements.</p>
+    </div>
+    <form method="GET" action="/admin/payouts" class="d-flex gap-2 align-items-center">
+      <select name="status" class="form-select rounded-xl" style="width:170px;">
+        <option value="">All statuses</option>
+        <% ['pending','processing','paid','failed','cancelled'].forEach(status => { %>
+        <option value="<%= status %>" <%= selectedStatus === status ? 'selected' : '' %>><%= status.charAt(0).toUpperCase() + status.slice(1) %></option>
+        <% }) %>
+      </select>
+      <button class="btn btn-primary btn-pill"><i class="bi bi-funnel me-1"></i>Filter</button>
+    </form>
+  </div>
+
+  <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+
+  <div class="row g-3 mb-4">
+    <% [
+      { label:'Eligible Now', value:money(summary.eligible_amount), sub:number(summary.eligible_booking_count) + ' completed paid bookings', color:'var(--accent)' },
+      { label:'Outstanding', value:money(summary.outstanding_amount), sub:number(summary.pending_count) + ' pending batches', color:'var(--warn)' },
+      { label:'Paid Out', value:money(summary.paid_amount), sub:number(summary.paid_count) + ' paid batches', color:'var(--success)' },
+      { label:'Eligible Merchants', value:number(summary.eligible_count), sub:'ready for payout creation', color:'var(--ink)' },
+    ].forEach(stat => { %>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card h-100">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;"><%= stat.label %></p>
+        <p class="stat-value" style="color:<%= stat.color %>;font-size:1.45rem;"><%= stat.value %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= stat.sub %></p>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  <section class="payout-panel mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+      <div>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Eligible Merchant Payouts</h5>
+        <p style="color:var(--muted);margin:0;font-size:.9rem;">Only completed bookings with paid, non-refunded payments appear here. Once batched, a booking cannot be included again.</p>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle payout-table mb-0">
+        <thead>
+          <tr>
+            <th>Merchant</th>
+            <th>Bookings</th>
+            <th>Gross</th>
+            <th>Uniday</th>
+            <th>Payable</th>
+            <th>Paid Range</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% eligibleGroups.forEach(row => { %>
+          <tr>
+            <td>
+              <strong><%= row.merchant_name %></strong>
+              <div style="color:var(--muted);font-size:.8rem;"><%= row.email || '-' %></div>
+            </td>
+            <td><%= number(row.booking_count) %></td>
+            <td class="mono"><%= money(row.gross_amount) %></td>
+            <td class="mono" style="color:var(--accent);"><%= money(row.platform_commission) %></td>
+            <td class="mono" style="color:var(--success);font-weight:800;"><%= money(row.payout_amount) %></td>
+            <td style="color:var(--muted);font-size:.82rem;"><%= dateTime(row.first_paid_at) %><br><%= dateTime(row.last_paid_at) %></td>
+            <td class="text-end">
+              <form method="POST" action="/admin/payouts/merchant/<%= row.merchant_id %>/create">
+                <button class="btn btn-primary btn-sm btn-pill" type="submit">
+                  <i class="bi bi-plus-circle me-1"></i>Create payout
+                </button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+          <% if (!eligibleGroups.length) { %>
+          <tr><td colspan="7" class="text-center py-4" style="color:var(--muted);">No eligible merchant payouts right now.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="payout-panel">
+    <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Payout History</h5>
+    <div class="table-responsive">
+      <table class="table align-middle payout-table mb-0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Merchant</th>
+            <th>Status</th>
+            <th>Gross</th>
+            <th>Uniday</th>
+            <th>Payout</th>
+            <th>Created</th>
+            <th>Paid</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% payouts.forEach(payout => { %>
+          <tr>
+            <td class="mono">#<%= payout.payout_id %></td>
+            <td><strong><%= payout.merchant_name %></strong><div style="color:var(--muted);font-size:.8rem;"><%= payout.booking_count %> bookings</div></td>
+            <td><span class="payout-status <%= statusClass(payout.status) %>"><%= payout.status %></span></td>
+            <td class="mono"><%= money(payout.gross_amount) %></td>
+            <td class="mono"><%= money(payout.platform_commission) %></td>
+            <td class="mono" style="font-weight:800;color:var(--success);"><%= money(payout.payout_amount) %></td>
+            <td style="color:var(--muted);font-size:.82rem;"><%= dateTime(payout.created_at) %></td>
+            <td style="color:var(--muted);font-size:.82rem;"><%= dateTime(payout.paid_at) %></td>
+            <td class="text-end"><a href="/admin/payouts/<%= payout.payout_id %>" class="btn btn-outline-secondary btn-sm btn-pill">View</a></td>
+          </tr>
+          <% }) %>
+          <% if (!payouts.length) { %>
+          <tr><td colspan="9" class="text-center py-4" style="color:var(--muted);">No payout batches found.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<%- include('../partials/footer') %>

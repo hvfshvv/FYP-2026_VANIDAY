@@ -17,6 +17,7 @@ const merchantCtrl    = require('../controllers/adminMerchantController');
 const userCtrl        = require('../controllers/adminUserController');
 const campaignCtrl    = require('../controllers/adminCampaignController');
 const reviewCtrl      = require('../controllers/reviewController');
+const payoutCtrl      = require('../controllers/adminPayoutController');
 
 // ── AUTH GUARD ─────────────────────────────────────────────────────────────
 
@@ -27,6 +28,10 @@ router.use(requireLogin, requireAdmin);
 
 router.get('/dashboard',         dashboardCtrl.showDashboard);
 router.get('/revenue',           dashboardCtrl.showRevenueReport);
+router.get('/payouts',           payoutCtrl.showPayouts);
+router.post('/payouts/merchant/:merchantId/create', payoutCtrl.createPayout);
+router.get('/payouts/:payoutId', payoutCtrl.showPayoutDetail);
+router.post('/payouts/:payoutId/paid', payoutCtrl.markPayoutPaid);
 router.get('/merchants',         dashboardCtrl.showMerchants);
 router.get('/customers',         dashboardCtrl.showCustomers);
 router.get('/platform-feedback', dashboardCtrl.showPlatformFeedback);

@@ -15,6 +15,7 @@ const cancellationPolicyCtrl = require('../controllers/cancellationPolicyControl
 
 const bookingModel = require('../models/bookingModel');
 const revenueModel = require('../models/revenueModel');
+const payoutModel = require('../models/payoutModel');
 const merchantModel = require('../models/merchantModel');
 const serviceModel = require('../models/serviceModel');
 const staffModel = require('../models/staffModel');
@@ -241,7 +242,15 @@ router.get('/revenue', async (req, res) => {
     revenueModel.getMerchantRevenueSummary(merchantId, selectedPeriod).catch(() => ({})),
     revenueModel.getMerchantTransactions(merchantId, selectedPeriod).catch(() => []),
     revenueModel.getMonthlyRevenue(merchantId).catch(() => []),
+    payoutModel.ensurePayoutSchema().catch(() => null),
   ]);
+  const payoutOverview = await payoutModel.getMerchantPayoutOverview(merchantId).catch(() => ({
+    eligibleBookings: [],
+    eligibleGross: 0,
+    eligibleCommission: 0,
+    eligibleAmount: 0,
+    payouts: [],
+  }));
 
   res.render('merchant/revenue', {
     title: 'Revenue Report',
@@ -251,6 +260,7 @@ router.get('/revenue', async (req, res) => {
     selectedPeriod,
     currentPeriod,
     periodLabel,
+    payoutOverview,
   });
 });
 

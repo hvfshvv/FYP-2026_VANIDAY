@@ -2,6 +2,11 @@
 <%- include('../partials/header') %>
 
 <div class="container py-5">
+  <%
+    const payout = payoutOverview || { eligibleBookings: [], eligibleAmount: 0, eligibleGross: 0, eligibleCommission: 0, payouts: [] };
+    const money = value => 'S$' + Number(value || 0).toFixed(2);
+    const dateTime = value => value ? new Date(value).toLocaleString('en-SG', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
+  %>
   <a href="/merchant/dashboard?month=<%= selectedPeriod %>" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
     <i class="bi bi-arrow-left me-1"></i>Dashboard
   </a>
@@ -51,6 +56,78 @@
         <p class="stat-value" style="color:var(--ink);">S$<%= Number(summary.month_avg_order_value || 0).toFixed(2) %></p>
         <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Per booking</p>
       </div>
+    </div>
+  </div>
+
+  <div class="card border-0 p-4 mb-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+      <div>
+        <p class="section-label mb-1">Payouts</p>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Merchant Settlement</h5>
+        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Completed paid bookings become payable after admin creates a payout batch.</p>
+      </div>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">80% merchant share</span>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="rounded-xl p-3 h-100" style="background:var(--canvas);border:1px solid var(--border);">
+          <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;">Eligible for next payout</p>
+          <strong class="mono" style="font-size:1.45rem;color:var(--success);"><%= money(payout.eligibleAmount) %></strong>
+          <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= payout.eligibleBookings.length %> completed paid bookings not yet batched</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="rounded-xl p-3 h-100" style="background:var(--canvas);border:1px solid var(--border);">
+          <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;">Gross booking value</p>
+          <strong class="mono" style="font-size:1.45rem;color:var(--ink);"><%= money(payout.eligibleGross) %></strong>
+          <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Before Uniday commission</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="rounded-xl p-3 h-100" style="background:var(--canvas);border:1px solid var(--border);">
+          <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;">Uniday commission</p>
+          <strong class="mono" style="font-size:1.45rem;color:var(--accent);"><%= money(payout.eligibleCommission) %></strong>
+          <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Held by platform from eligible bookings</p>
+        </div>
+      </div>
+    </div>
+
+    <h6 style="font-weight:800;color:var(--ink);margin-bottom:.85rem;">Payout history</h6>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0" style="font-size:.82rem;">
+        <thead style="background:var(--accent-light);">
+          <tr>
+            <th>Payout</th>
+            <th>Status</th>
+            <th>Bookings</th>
+            <th>Gross</th>
+            <th>Uniday</th>
+            <th>Paid to you</th>
+            <th>Created</th>
+            <th>Paid</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% (payout.payouts || []).slice(0, 8).forEach(row => { %>
+          <tr>
+            <td class="mono">#<%= row.payout_id %></td>
+            <td>
+              <span class="badge" style="background:<%= row.status === 'paid' ? 'var(--success-bg)' : 'var(--warn-bg)' %>;color:<%= row.status === 'paid' ? 'var(--success)' : 'var(--warn)' %>;text-transform:capitalize;"><%= row.status %></span>
+            </td>
+            <td><%= row.booking_count %></td>
+            <td class="mono"><%= money(row.gross_amount) %></td>
+            <td class="mono"><%= money(row.platform_commission) %></td>
+            <td class="mono" style="font-weight:800;color:var(--success);"><%= money(row.payout_amount) %></td>
+            <td style="color:var(--muted);"><%= dateTime(row.created_at) %></td>
+            <td style="color:var(--muted);"><%= dateTime(row.paid_at) %></td>
+          </tr>
+          <% }) %>
+          <% if (!(payout.payouts || []).length) { %>
+          <tr><td colspan="8" class="text-center py-4" style="color:var(--muted);">No payout batches yet.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
     </div>
   </div>
 
