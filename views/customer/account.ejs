@@ -5,18 +5,11 @@
     const parsed = value ? new Date(value) : null;
     return parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
   };
-  const formatDate = value => {
-    const parsed = parseDate(value);
-    return parsed ? parsed.toLocaleDateString(lang === 'en' ? 'en-SG' : undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : t('common.notSelected');
-  };
   const dateInputValue = value => {
     const parsed = parseDate(value);
     return parsed ? parsed.toISOString().slice(0, 10) : '';
   };
-  const money = value => `S$${Number(value || 0).toFixed(2)}`;
   const firstName = String(accountUser.full_name || '').split(' ')[0] || t('account.customer');
-  const emailVerified = Boolean(accountUser.email_verified_at);
-  const walletBalance = Number(paymentWallet.balance ?? paymentWallet.money_balance ?? 0);
 %>
 
 <main class="account-page">
@@ -27,9 +20,6 @@
         <h1><%= t('account.welcome', { name: firstName }) %></h1>
         <p><%= t('account.subtitle') %></p>
       </div>
-      <a href="/book/viewBookings" class="btn btn-primary btn-pill">
-        <i class="bi bi-calendar-check me-1"></i><%= t('account.actions.viewBookings') %>
-      </a>
     </div>
 
     <% if (success) { %>
@@ -56,13 +46,8 @@
         <div class="account-section">
           <div class="account-section-head">
             <div>
-              <p class="section-label mb-1"><%= t('account.sections.overview') %></p>
               <h2><%= t('account.sections.accountInfo') %></h2>
             </div>
-            <span class="account-status <%= emailVerified ? 'verified' : 'pending' %>">
-              <i class="bi <%= emailVerified ? 'bi-patch-check-fill' : 'bi-exclamation-circle' %>"></i>
-              <%= emailVerified ? t('account.verified') : t('account.notVerified') %>
-            </span>
           </div>
 
           <div class="account-info-grid">
@@ -78,34 +63,7 @@
               <span><%= t('account.fields.phone') %></span>
               <strong><%= accountUser.phone || t('common.notSelected') %></strong>
             </div>
-            <div>
-              <span><%= t('account.fields.memberSince') %></span>
-              <strong><%= formatDate(accountUser.created_at) %></strong>
-            </div>
           </div>
-        </div>
-
-        <div class="account-stat-row">
-          <a href="/book/viewBookings" class="account-stat">
-            <span><%= t('account.stats.upcoming') %></span>
-            <strong><%= bookingStats.upcoming %></strong>
-          </a>
-          <a href="/book/viewBookings" class="account-stat">
-            <span><%= t('account.stats.completed') %></span>
-            <strong><%= bookingStats.completed %></strong>
-          </a>
-          <a href="/favourite" class="account-stat">
-            <span><%= t('account.stats.favourites') %></span>
-            <strong><%= favouriteCount %></strong>
-          </a>
-          <a href="/loyalty" class="account-stat">
-            <span><%= t('account.stats.points') %></span>
-            <strong><%= Number(loyaltyWallet.points_balance || 0) %></strong>
-          </a>
-          <a href="/wallet" class="account-stat">
-            <span><%= t('account.stats.wallet') %></span>
-            <strong><%= money(walletBalance) %></strong>
-          </a>
         </div>
 
         <div class="account-two-col">

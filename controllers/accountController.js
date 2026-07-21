@@ -1,9 +1,5 @@
 const bcrypt = require('bcryptjs');
 const authModel = require('../models/authModel');
-const bookingModel = require('../models/bookingModel');
-const favouriteModel = require('../models/favouriteModel');
-const loyaltyModel = require('../models/loyaltyModel');
-const walletModel = require('../models/walletModel');
 
 function customerId(req) {
   return req.session.user.customer_id || req.session.user.user_id;
@@ -23,56 +19,13 @@ function sanitizeDateInput(value) {
   return raw;
 }
 
-function buildBookingStats(bookings) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return bookings.reduce((stats, booking) => {
-    const status = String(booking.status || '').toLowerCase();
-    const bookingDate = booking.booking_date ? new Date(booking.booking_date) : null;
-    const isUpcoming = bookingDate && bookingDate >= today && !['completed', 'cancelled', 'payment_failed'].includes(status);
-
-    if (isUpcoming) stats.upcoming += 1;
-    if (status === 'completed') stats.completed += 1;
-    if (status === 'pending_payment') stats.pendingPayment += 1;
-
-    stats.total += 1;
-    return stats;
-  }, {
-    total: 0,
-    upcoming: 0,
-    completed: 0,
-    pendingPayment: 0,
-  });
-}
-
 async function showAccount(req, res) {
   if (req.session.user.role !== 'customer') return redirectByRole(req, res);
 
   const id = customerId(req);
 
   try {
-    const [
-      accountUser,
-      bookings,
-      favouriteMerchants,
-      favouriteServices,
-      loyaltySummary,
-      paymentWallet,
-    ] = await Promise.all([
-      authModel.getCustomerByUserId(id),
-      bookingModel.getCustomerBookings(id).catch(() => []),
-      favouriteModel.getFavouriteMerchants(id).catch(() => []),
-      favouriteModel.getFavouriteServices(id).catch(() => []),
-      loyaltyModel.getWalletSummary(id).catch(() => ({
-        wallet: { points_balance: 0, lifetime_points_earned: 0, lifetime_points_redeemed: 0 },
-        tier: { name: 'Bronze' },
-      })),
-      walletModel.getWalletSummary(id).catch(() => ({
-        wallet: { balance: 0, money_balance: 0 },
-        transactions: [],
-      })),
-    ]);
+    const accountUser = await authModel.getCustomerByUserId(id);
 
     if (!accountUser) {
       return res.redirect('/auth/login?next=/account');
@@ -81,11 +34,6 @@ async function showAccount(req, res) {
     res.render('customer/account', {
       title: res.locals.t('account.title'),
       accountUser,
-      bookingStats: buildBookingStats(bookings),
-      favouriteCount: favouriteMerchants.length + favouriteServices.length,
-      loyaltyWallet: loyaltySummary.wallet,
-      loyaltyTier: loyaltySummary.tier,
-      paymentWallet: paymentWallet.wallet,
       success: req.query.success || null,
       error: req.query.error || null,
     });
@@ -94,11 +42,6 @@ async function showAccount(req, res) {
     res.status(500).render('customer/account', {
       title: res.locals.t('account.title'),
       accountUser: req.session.user,
-      bookingStats: buildBookingStats([]),
-      favouriteCount: 0,
-      loyaltyWallet: { points_balance: 0, lifetime_points_earned: 0, lifetime_points_redeemed: 0 },
-      loyaltyTier: { name: 'Bronze' },
-      paymentWallet: { balance: 0, money_balance: 0 },
       success: null,
       error: res.locals.t('account.errors.loadFailed'),
     });

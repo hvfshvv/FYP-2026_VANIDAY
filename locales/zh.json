@@ -512,7 +512,7 @@
     "customer": "顾客",
     "eyebrow": "账户",
     "welcome": "你好，{{name}}",
-    "subtitle": "管理个人资料、密码、钱包、奖励、预约和收藏。",
+    "subtitle": "管理联系资料和密码。",
     "menuLabel": "账户菜单",
     "verified": "电邮已验证",
     "notVerified": "电邮未验证",

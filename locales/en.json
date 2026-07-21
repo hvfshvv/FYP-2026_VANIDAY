@@ -512,7 +512,7 @@
     "customer": "Customer",
     "eyebrow": "Account",
     "welcome": "Hi {{name}}",
-    "subtitle": "Manage your profile, password, wallet, rewards, bookings, and saved favourites.",
+    "subtitle": "Manage your contact information and password.",
     "menuLabel": "Account menu",
     "verified": "Email verified",
     "notVerified": "Email not verified",
