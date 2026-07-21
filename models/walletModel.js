@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const PENDING_TOPUP_EXPIRY_HOURS = 24;
 
 async function ensureSchema(connection = db) {
   const [[walletTable]] = await connection.query("SHOW TABLES LIKE 'wallet'");
@@ -24,6 +25,48 @@ async function ensureWallet(customerId, connection = db) {
 
 async function getWalletSummary(customerId) {
   const wallet = await ensureWallet(customerId);
+  // Stripe top-up attempts normally resolve quickly. Mark abandoned attempts as
+  // failed after 24 hours so they do not appear pending forever. A late verified
+  // Stripe webhook can still complete and credit the same idempotent transaction.
+  await db.query(
+    `UPDATE transactions
+     SET status = 'failed'
+     WHERE wallet_id = ?
+       AND asset_type = 'money'
+       AND transaction_type = 'topup'
+       AND status = 'pending'
+       AND created_at < TIMESTAMPADD(HOUR, -?, NOW())`,
+    [wallet.wallet_id, PENDING_TOPUP_EXPIRY_HOURS]
+  );
+  const [transactionRows] = await db.query(
+    `SELECT wt.*, b.booking_id
+     FROM transactions wt
+     LEFT JOIN booking b ON b.booking_id = wt.booking_id
+     WHERE wt.wallet_id = ?
+       AND wt.asset_type = 'money'
+     ORDER BY wt.created_at DESC, wt.transaction_id DESC
+     LIMIT 6`,
+    [wallet.wallet_id]
+  );
+  return {
+    wallet,
+    transactions: transactionRows.slice(0, 5),
+    hasMoreTransactions: transactionRows.length > 5,
+  };
+}
+
+async function getWalletTransactionHistory(customerId, page = 1, pageSize = 20) {
+  const wallet = await ensureWallet(customerId);
+  const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const safePageSize = Math.min(50, Math.max(1, Number.parseInt(pageSize, 10) || 20));
+  const offset = (safePage - 1) * safePageSize;
+  const [[countRow]] = await db.query(
+    `SELECT COUNT(*) AS total
+     FROM transactions
+     WHERE wallet_id = ? AND asset_type = 'money'`,
+    [wallet.wallet_id]
+  );
+  const total = Number(countRow.total || 0);
   const [transactions] = await db.query(
     `SELECT wt.*, b.booking_id
      FROM transactions wt
@@ -31,10 +74,16 @@ async function getWalletSummary(customerId) {
      WHERE wt.wallet_id = ?
        AND wt.asset_type = 'money'
      ORDER BY wt.created_at DESC, wt.transaction_id DESC
-     LIMIT 30`,
-    [wallet.wallet_id]
+     LIMIT ? OFFSET ?`,
+    [wallet.wallet_id, safePageSize, offset]
   );
-  return { wallet, transactions };
+  return {
+    wallet,
+    transactions,
+    page: safePage,
+    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+    total,
+  };
 }
 
 async function createPendingTopup(customerId, amount, method, externalReference) {
@@ -235,10 +284,12 @@ async function refundBooking({ customerId, bookingId, refundPercentage = 100 }) 
 module.exports = {
   ensureSchema,
   getWalletSummary,
+  getWalletTransactionHistory,
   createPendingTopup,
   completeTopup,
   failTopup,
   payBooking,
   refundBooking,
   getBonusAmount,
+  PENDING_TOPUP_EXPIRY_HOURS,
 };

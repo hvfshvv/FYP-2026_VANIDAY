@@ -39,8 +39,8 @@ async function createPaymentIntent(amount, booking) {
 async function createWalletTopupIntent({ amount, customerId }) {
   assertStripeConfigured();
   const amountInCents = Math.round(Number(amount) * 100);
-  if (!Number.isInteger(amountInCents) || amountInCents < 500) {
-    throw new Error('Wallet top-up must be at least S$5.00');
+  if (!Number.isInteger(amountInCents) || amountInCents < 500 || amountInCents > 50000) {
+    throw new Error('Wallet top-up must be between S$5.00 and S$500.00');
   }
   return stripe.paymentIntents.create({
     amount: amountInCents,
@@ -121,8 +121,8 @@ async function createPayNowCheckoutSession({ booking, amount, successUrl, cancel
 async function createWalletPayNowSession({ amount, customerId, successUrl, cancelUrl }) {
   assertStripeConfigured();
   const amountInCents = Math.round(Number(amount) * 100);
-  if (!Number.isInteger(amountInCents) || amountInCents < 500) {
-    throw new Error('Wallet top-up must be at least S$5.00');
+  if (!Number.isInteger(amountInCents) || amountInCents < 500 || amountInCents > 50000) {
+    throw new Error('Wallet top-up must be between S$5.00 and S$500.00');
   }
   const metadata = {
     purpose: 'wallet_topup',

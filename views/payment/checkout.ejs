@@ -309,7 +309,7 @@
               <span id="wallet-spin" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Processing...</span>
             </button>
             <% } else { %>
-            <div class="alert alert-warning mb-2">Insufficient balance. You need S$<%= (payableAmount - Number(paymentWallet.balance)).toFixed(2) %> more.</div>
+            <div class="alert alert-warning mb-2" data-persist>Insufficient balance. You need S$<%= (payableAmount - Number(paymentWallet.balance)).toFixed(2) %> more.</div>
             <a href="/wallet?amountDue=<%= encodeURIComponent(payableAmount.toFixed(2)) %>&bookingId=<%= encodeURIComponent(booking.booking_id) %>" class="btn btn-primary w-100">Top up payment wallet</a>
             <% } %>
           </div>

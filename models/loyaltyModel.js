@@ -11,11 +11,24 @@ const TIER_DEFINITIONS = [
 
 const REVIEW_BONUS_POINTS = 2;
 const PHOTO_REVIEW_BONUS_POINTS = 3;
+const STANDARD_BOOKING_POINTS_RATE = 0.10;
+const WALLET_BOOKING_POINTS_RATE = 0.12;
+const DEFAULT_WALLET_BONUS_EFFECTIVE_AT = '2026-07-21T00:00:00+08:00';
 let loyaltyRewardSchemaReady = false;
 
 // Customers earn 10% of the paid booking amount as points.
-function calculatePoints(amount) {
-  return Math.max(0, Math.floor(Number(amount || 0) * 0.1));
+function calculatePoints(amount, rate = STANDARD_BOOKING_POINTS_RATE) {
+  return Math.max(0, Math.floor(Number(amount || 0) * Number(rate || 0)));
+}
+
+function calculateBookingPoints(amount, paymentMethod, paidAt, effectiveAt = process.env.WALLET_LOYALTY_BONUS_EFFECTIVE_AT || DEFAULT_WALLET_BONUS_EFFECTIVE_AT) {
+  const paymentDate = paidAt instanceof Date ? paidAt : new Date(paidAt);
+  const effectiveDate = new Date(effectiveAt);
+  const walletBonusApplies = paymentMethod === 'wallet'
+    && !Number.isNaN(paymentDate.getTime())
+    && !Number.isNaN(effectiveDate.getTime())
+    && paymentDate >= effectiveDate;
+  return calculatePoints(amount, walletBonusApplies ? WALLET_BOOKING_POINTS_RATE : STANDARD_BOOKING_POINTS_RATE);
 }
 
 function getReviewBonusPoints(hasReviewImage) {
@@ -442,7 +455,8 @@ async function getEarnedPointsForBooking(bookingId) {
 async function awardBookingPoints(bookingId) {
   const [[booking]] = await db.query(
     `SELECT b.booking_id, b.customer_id,
-            COALESCE(p.amount, 0) AS payable_amount
+            COALESCE(p.amount, 0) AS payable_amount,
+            p.payment_method, p.paid_at
      FROM booking b
      JOIN payment p ON p.booking_id = b.booking_id
       AND p.payment_status = 'paid'
@@ -459,7 +473,11 @@ async function awardBookingPoints(bookingId) {
     return { awarded: false, reason: 'guest_booking' };
   }
 
-  const points = calculatePoints(booking.payable_amount);
+  const points = calculateBookingPoints(
+    booking.payable_amount,
+    booking.payment_method,
+    booking.paid_at
+  );
   if (!points) {
     return { awarded: false, reason: 'no_points' };
   }
@@ -639,6 +657,7 @@ async function awardReviewPhotoBonusPoints(customerId, bookingId, reviewId, conn
 
 module.exports = {
   calculatePoints,
+  calculateBookingPoints,
   getReviewBonusPoints,
   awardBookingPoints,
   awardReviewBonusPoints,
@@ -658,4 +677,7 @@ module.exports = {
   createWalletForCustomer,
   REVIEW_BONUS_POINTS,
   PHOTO_REVIEW_BONUS_POINTS,
+  STANDARD_BOOKING_POINTS_RATE,
+  WALLET_BOOKING_POINTS_RATE,
+  DEFAULT_WALLET_BONUS_EFFECTIVE_AT,
 };
