@@ -552,11 +552,12 @@
       "points": "Points",
       "wallet": "Wallet"
     },
-    "actions": {
-      "viewBookings": "View bookings",
-      "saveProfile": "Save profile",
-      "updatePassword": "Update password"
-    },
+      "actions": {
+        "viewBookings": "View bookings",
+        "saveProfile": "Save profile",
+        "updatePassword": "Update password",
+        "editPhone": "Edit phone"
+      },
     "messages": {
       "profileSaved": "Your profile has been updated.",
       "passwordSaved": "Your password has been updated."

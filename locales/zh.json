@@ -552,11 +552,12 @@
       "points": "积分",
       "wallet": "钱包"
     },
-    "actions": {
-      "viewBookings": "查看预约",
-      "saveProfile": "保存资料",
-      "updatePassword": "更新密码"
-    },
+      "actions": {
+        "viewBookings": "查看预约",
+        "saveProfile": "保存资料",
+        "updatePassword": "更新密码",
+        "editPhone": "编辑电话"
+      },
     "messages": {
       "profileSaved": "你的资料已更新。",
       "passwordSaved": "你的密码已更新。"

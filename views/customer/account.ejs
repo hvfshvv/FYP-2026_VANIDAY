@@ -30,18 +30,6 @@
     <% } %>
 
     <div class="account-grid">
-      <aside class="account-menu" aria-label="<%= t('account.menuLabel') %>">
-        <a href="/account" class="active"><i class="bi bi-person-circle"></i><span><%= t('account.menu.account') %></span></a>
-        <a href="/book/viewBookings"><i class="bi bi-calendar2-check"></i><span><%= t('account.menu.bookings') %></span></a>
-        <a href="/book/reviews"><i class="bi bi-star"></i><span><%= t('account.menu.reviews') %></span></a>
-        <a href="/favourite"><i class="bi bi-heart"></i><span><%= t('account.menu.favourites') %></span></a>
-        <a href="/wallet"><i class="bi bi-wallet2"></i><span><%= t('account.menu.wallet') %></span></a>
-        <a href="/loyalty"><i class="bi bi-stars"></i><span><%= t('account.menu.loyalty') %></span></a>
-        <a href="/notifications"><i class="bi bi-bell"></i><span><%= t('account.menu.notifications') %></span></a>
-        <a href="/legal/terms"><i class="bi bi-file-text"></i><span><%= t('account.menu.terms') %></span></a>
-        <a href="/auth/logout"><i class="bi bi-box-arrow-right"></i><span><%= t('account.menu.signOut') %></span></a>
-      </aside>
-
       <section class="account-content">
         <div class="account-section">
           <div class="account-section-head">
@@ -62,6 +50,7 @@
             <div>
               <span><%= t('account.fields.phone') %></span>
               <strong><%= accountUser.phone || t('common.notSelected') %></strong>
+              <a href="#accountPhoneField" class="account-inline-edit"><%= t('account.actions.editPhone') %></a>
             </div>
           </div>
         </div>
@@ -82,7 +71,7 @@
 
             <label class="account-field">
               <span><%= t('account.fields.phone') %></span>
-              <input type="tel" name="phone" value="<%= accountUser.phone || '' %>" maxlength="30">
+              <input id="accountPhoneField" type="tel" name="phone" value="<%= accountUser.phone || '' %>" maxlength="30">
             </label>
 
             <label class="account-field">

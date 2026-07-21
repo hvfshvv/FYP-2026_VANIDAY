@@ -552,11 +552,12 @@
       "points": "Mata",
       "wallet": "Dompet"
     },
-    "actions": {
-      "viewBookings": "Lihat tempahan",
-      "saveProfile": "Simpan profil",
-      "updatePassword": "Kemas kini kata laluan"
-    },
+      "actions": {
+        "viewBookings": "Lihat tempahan",
+        "saveProfile": "Simpan profil",
+        "updatePassword": "Kemas kini kata laluan",
+        "editPhone": "Edit telefon"
+      },
     "messages": {
       "profileSaved": "Profil anda telah dikemas kini.",
       "passwordSaved": "Kata laluan anda telah dikemas kini."
