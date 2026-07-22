@@ -501,7 +501,8 @@ async function startPasswordResetFromLogin(req, res) {
           query: req.query,
           verificationLink: null,
           email,
-          resetEmailSent: true
+          resetEmailSent: true,
+          resetLink: null
         });
       }
     } catch (err) {
@@ -509,7 +510,15 @@ async function startPasswordResetFromLogin(req, res) {
       console.log(`Password reset link for ${user.email}: ${resetLink}`);
     }
 
-    res.redirect(`/auth/reset-password/${token}`);
+    res.render('auth/login', {
+      title: 'Login',
+      error: null,
+      query: req.query,
+      verificationLink: null,
+      email,
+      resetEmailSent: false,
+      resetLink
+    });
   } catch (err) {
     console.error(err);
     res.render('auth/login', {

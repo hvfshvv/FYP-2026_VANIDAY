@@ -153,11 +153,12 @@ async function sendMailOrLog({ to, subject, text, html, logLabel }) {
 
 async function sendPasswordResetEmail(user, resetUrl) {
   const name = user.full_name || 'there';
+  const safeResetUrl = escapeHtml(resetUrl);
   const text = [
     `Hi ${name},`,
     '',
     'We received a request to reset your Uniday password.',
-    `Open this link to choose a new password: ${resetUrl}`,
+    `Set a new password here: ${resetUrl}`,
     '',
     'This link expires in 1 hour. If you did not request this, you can ignore this email.',
     '',
@@ -173,9 +174,10 @@ async function sendPasswordResetEmail(user, resetUrl) {
         <h2 style="color:#E11D48;margin:0 0 12px;">Reset your Uniday password</h2>
         <p>Hi ${escapeHtml(name)},</p>
         <p>We received a request to reset your Uniday password.</p>
+        <p>If you requested this change, set a new password here:</p>
         <p>
-          <a href="${resetUrl}" style="display:inline-block;background:#E11D48;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-weight:700;">
-            Reset password
+          <a href="${safeResetUrl}" style="display:inline-block;background:#E11D48;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-weight:700;">
+            Set a New Password
           </a>
         </p>
         <p style="color:#71717A;font-size:14px;">This link expires in 1 hour. If you did not request this, you can ignore this email.</p>
