@@ -224,18 +224,6 @@ router.get('/waitlists', async (req, res) => {
   });
 });
 
-router.post('/waitlists/:waitlistId/remove', async (req, res) => {
-  const merchantId = req.session.user.merchant_id;
-
-  try {
-    await waitlistModel.removeMerchantWaitlist(req.params.waitlistId, merchantId);
-    res.redirect('/merchant/waitlists?success=' + encodeURIComponent('Waitlist request removed.'));
-  } catch (err) {
-    console.error(err);
-    res.redirect('/merchant/waitlists?error=' + encodeURIComponent(err.message || 'Could not remove waitlist request.'));
-  }
-});
-
 // Revenue report with summary, transactions and monthly chart data.
 router.get('/revenue', async (req, res) => {
   const merchantId = req.session.user.merchant_id;

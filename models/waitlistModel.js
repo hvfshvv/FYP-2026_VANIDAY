@@ -536,41 +536,6 @@ async function cancelCustomerWaitlist(waitlistId, customerId) {
   }
 }
 
-async function removeMerchantWaitlist(waitlistId, merchantId) {
-  await ensureWaitlistSchema();
-
-  const [[entry]] = await db.query(
-    `SELECT *
-     FROM waitlist
-     WHERE waitlist_id = ?
-       AND merchant_id = ?
-       AND status IN ('waiting', 'offered')
-     LIMIT 1`,
-    [waitlistId, merchantId]
-  );
-
-  if (!entry) throw new Error('Waitlist request not found.');
-
-  await db.query(
-    `UPDATE waitlist
-     SET status = 'removed'
-     WHERE waitlist_id = ? AND merchant_id = ?`,
-    [waitlistId, merchantId]
-  );
-
-  await notifyCustomer(
-    waitlistId,
-    'Waitlist request removed',
-    'The merchant removed your waitlist request. You can choose another slot anytime.',
-    'waitlist_removed'
-  );
-  await markWaitlistNotificationsClosed(waitlistId, entry.customer_id, 'waitlist_removed');
-
-  if (entry.status === 'offered') {
-    await offerNextForSlot(entry);
-  }
-}
-
 async function getCustomerWaitlists(customerId) {
   await ensureWaitlistSchema();
   await expireOffersAndPromote();
@@ -631,8 +596,10 @@ async function getMerchantWaitlists(merchantId) {
      JOIN users c ON c.user_id = w.customer_id AND c.role = 'customer'
      JOIN service s ON s.service_id = w.service_id
      WHERE w.merchant_id = ?
+       AND w.status IN ('waiting', 'offered')
+       AND TIMESTAMP(w.booking_date, w.booking_time) >= NOW()
      ORDER BY w.booking_date ASC, w.booking_time ASC,
-              FIELD(w.status, 'offered', 'waiting', 'confirmed', 'expired', 'cancelled', 'removed'),
+              FIELD(w.status, 'offered', 'waiting'),
               w.joined_at ASC`,
     [merchantId]
   );
@@ -649,7 +616,8 @@ async function getMerchantActiveWaitlistCount(merchantId) {
     `SELECT COUNT(*) AS active_count
      FROM waitlist
      WHERE merchant_id = ?
-       AND status IN ('waiting', 'offered')`,
+       AND status IN ('waiting', 'offered')
+       AND TIMESTAMP(booking_date, booking_time) >= NOW()`,
     [merchantId]
   );
 
@@ -697,7 +665,6 @@ module.exports = {
   attachPendingBooking,
   markConfirmedByBookingId,
   cancelCustomerWaitlist,
-  removeMerchantWaitlist,
   getCustomerWaitlists,
   getMerchantWaitlists,
   getMerchantActiveWaitlistCount,

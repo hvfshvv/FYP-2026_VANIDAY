@@ -3,7 +3,6 @@ const promotionModel = require('../models/promotionModel');
 const merchantModel = require('../models/merchantModel');
 const favouriteModel = require('../models/favouriteModel');
 const reviewModel = require('../models/reviewModel');
-const cancellationPolicyModel = require('../models/cancellationPolicyModel');
 const { SERVICE_CATEGORIES, normalizeServiceCategory } = require('../utils/serviceCategories');
 
 function getWhatsAppBookingNumber() {
@@ -129,11 +128,10 @@ async function showMerchantDetails(req, res) {
         );
     }
 
-    const [merchantServices, merchantPromotions, merchantReviews, cancellationPolicy, upcomingClosures] = await Promise.all([
+    const [merchantServices, merchantPromotions, merchantReviews, upcomingClosures] = await Promise.all([
       merchantModel.getMerchantServices(merchantId),
       promotionModel.getMerchantApprovedPromotions(merchantId),
       reviewModel.getRecentMerchantReviews(merchantId, 8),
-      cancellationPolicyModel.getPolicyByMerchantId(merchantId),
       require('../models/bookingDisruptionModel').listClosures(merchantId).catch(() => []),
     ]);
     const services = merchantServices.map(service => ({
@@ -153,8 +151,6 @@ async function showMerchantDetails(req, res) {
       services,
       merchantPromotions,
       merchantReviews,
-      cancellationPolicy,
-      cancellationPolicySummary: cancellationPolicyModel.getPolicySummary(cancellationPolicy),
       serviceCategories,
       selectedServiceCategory,
       favouriteServiceIds,

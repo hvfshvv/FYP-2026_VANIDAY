@@ -75,13 +75,11 @@
                 <th>Queue Size</th>
                 <th>Status</th>
                 <th>Joined</th>
-                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               <% waitlistRows.forEach(entry => {
                 const status = statusStyles[entry.status] || statusStyles.waiting;
-                const canRemove = ['waiting', 'offered'].includes(entry.status);
               %>
               <tr>
                 <td>
@@ -108,17 +106,6 @@
                   <% } %>
                 </td>
                 <td style="color:var(--muted);"><%= new Date(entry.joined_at).toLocaleString('en-SG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></td>
-                <td>
-                  <% if (canRemove) { %>
-                  <form action="/merchant/waitlists/<%= entry.waitlist_id %>/remove" method="POST" onsubmit="return confirm('Remove this customer from the waitlist?');">
-                    <button class="btn btn-outline-danger btn-sm btn-pill">
-                      <i class="bi bi-x-circle me-1"></i>Remove
-                    </button>
-                  </form>
-                  <% } else { %>
-                  <span style="color:var(--muted);">-</span>
-                  <% } %>
-                </td>
               </tr>
               <% }) %>
             </tbody>
