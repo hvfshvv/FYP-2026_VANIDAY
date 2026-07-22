@@ -2,8 +2,7 @@
 <%- include('../partials/header') %>
 
 <%
-  // Formatting helpers used in the merchant account table.
-  const money = value => 'S$' + Number(value || 0).toFixed(2);
+  // Formatting helper used in the merchant account table.
   const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
 %>
 
@@ -37,7 +36,7 @@
     <% if (search || verification !== 'all') { %><a href="/admin/user-management/merchants" class="btn btn-outline-secondary btn-pill">Clear</a><% } %>
   </form>
 
-  <!-- Merchant table includes owner details, verification, revenue and actions. -->
+  <!-- Merchant table includes owner details, verification and account actions. -->
   <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
@@ -48,15 +47,13 @@
             <th>Owner</th>
             <th>Status</th>
             <th>Verification</th>
-            <th>Bookings</th>
-            <th>Revenue</th>
             <th>Last Booking</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           <% if (!merchants.length) { %>
-            <tr><td colspan="9" class="text-center py-5 text-muted">No merchant accounts found.</td></tr>
+            <tr><td colspan="7" class="text-center py-5 text-muted">No merchant accounts found.</td></tr>
           <% } %>
           <% merchants.forEach(merchant => {
             // A merchant is usable only when both the user and merchant records are active.
@@ -81,8 +78,6 @@
               </span>
             </td>
             <td><span class="badge rounded-pill" style="<%= verificationStyle %>"><%= merchant.verification_status %></span></td>
-            <td><%= merchant.bookings || 0 %></td>
-            <td class="mono"><%= money(merchant.total_revenue) %></td>
             <td><%= formatDate(merchant.last_booking_at) %></td>
             <td>
               <div class="d-flex flex-wrap gap-2">

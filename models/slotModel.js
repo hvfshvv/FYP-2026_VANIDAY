@@ -26,6 +26,9 @@ async function getAvailableStaffForSlot({
   if (!merchantId || !serviceId || !bookingDate || !bookingTime) return [];
   if (!isDateWithinAdvanceLimit(bookingDate)) return [];
 
+  const disruptionModel = require('./bookingDisruptionModel');
+  await disruptionModel.ensureSchema(connection);
+
   let safeDuration = Number(durationMins);
   if (!Number.isFinite(safeDuration) || safeDuration <= 0) {
     const [[service]] = await connection.query(
@@ -90,6 +93,40 @@ async function getAvailableStaffForSlot({
     params
   );
 
+  const slotStart = `${bookingDate} ${String(bookingTime).slice(0, 5)}:00`;
+  const slotEndDate = new Date(`${bookingDate}T${String(bookingTime).slice(0, 5)}:00`);
+  slotEndDate.setMinutes(slotEndDate.getMinutes() + safeDuration);
+  const slotEnd = [
+    slotEndDate.getFullYear(),
+    String(slotEndDate.getMonth() + 1).padStart(2, '0'),
+    String(slotEndDate.getDate()).padStart(2, '0'),
+  ].join('-') + ' ' + [
+    String(slotEndDate.getHours()).padStart(2, '0'),
+    String(slotEndDate.getMinutes()).padStart(2, '0'),
+    '00',
+  ].join(':');
+
+  const [blocked] = await connection.query(
+    `SELECT staff_id FROM time_slot
+     WHERE merchant_id=? AND (service_id=? OR block_type IN ('staff_unavailable','merchant_cancellation'))
+       AND block_type IS NOT NULL
+       AND TIMESTAMP(slot_date,start_time) < ?
+       AND TIMESTAMP(slot_date,end_time) > ?`,
+    [merchantId, serviceId, slotEnd, slotStart]
+  );
+  const blocksAllStaff = blocked.some(item => item.staff_id === null);
+  const blockedStaffIds = new Set(blocked.map(item => Number(item.staff_id)).filter(Boolean));
+  const [reservedReplacements] = await connection.query(
+    `SELECT b.proposed_staff_id AS staff_id FROM booking b
+     JOIN time_slot ts ON ts.slot_id=b.slot_id
+     WHERE b.merchant_id=? AND b.staff_change_status='pending'
+       AND TIMESTAMP(ts.slot_date, ts.start_time) < ?
+       AND TIMESTAMP(ts.slot_date, ts.end_time) > ?`,
+    [merchantId, slotEnd, slotStart]
+  );
+  reservedReplacements.forEach(item => blockedStaffIds.add(Number(item.staff_id)));
+  const operationalRows = blocksAllStaff ? [] : rows.filter(item => !blockedStaffIds.has(Number(item.staff_id)));
+
   // Legacy bookings with no staff_id hold a slot that must reduce available count.
   const [legacyRows] = await connection.query(
     `SELECT COUNT(*) AS legacy_count
@@ -116,14 +153,14 @@ async function getAvailableStaffForSlot({
   );
 
   const legacyHoldCount = Number(legacyRows[0]?.legacy_count || 0);
-  if (!legacyHoldCount) return rows;
+  if (!legacyHoldCount) return operationalRows;
 
   if (staffId) {
-    return rows;
+    return operationalRows;
   }
 
   // Remove one available staff entry per legacy-booked slot.
-  return rows.slice(legacyHoldCount);
+  return operationalRows.slice(legacyHoldCount);
 }
 
 // Picks an available staff member for a booking, throwing if none are free.
@@ -284,6 +321,13 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate, 
   if (!availability) return [];
 
   const slots = [];
+  await require('./bookingDisruptionModel').ensureSchema();
+  const [closureRows] = await db.query(
+    `SELECT start_time, end_time, block_reason
+     FROM time_slot WHERE merchant_id=? AND service_id=? AND slot_date=?
+       AND block_type='emergency_closure'`,
+    [merchantId, serviceId, bookingDate]
+  );
   const waitlistCounts = includeUnavailable
     ? await waitlistModel.getSlotWaitlistCounts({ merchantId, serviceId, bookingDate })
     : new Map();
@@ -300,6 +344,11 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate, 
 
     if (slotEnd <= closing && current >= new Date()) {
       const timeValue = current.toTimeString().slice(0, 5);
+      const closure = closureRows.find(row => {
+        const closureStart = new Date(`${bookingDate}T${String(row.start_time).slice(0, 8)}`);
+        const closureEnd = new Date(`${bookingDate}T${String(row.end_time).slice(0, 8)}`);
+        return current < closureEnd && slotEnd > closureStart;
+      });
       const availableStaff = await getAvailableStaffForSlot({
         merchantId,
         serviceId,
@@ -310,7 +359,8 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate, 
       });
       const waitlist = waitlistCounts.get(timeValue) || { waitlist_count: 0, active_offer_count: 0 };
       const hasBlockingOffer = Number(waitlist.active_offer_count || 0) > 0;
-      const isAvailable = availableStaff.length > 0 && !hasBlockingOffer;
+      const isClosed = Boolean(closure);
+      const isAvailable = !isClosed && availableStaff.length > 0 && !hasBlockingOffer;
 
       if (isAvailable || includeUnavailable) {
         slots.push({
@@ -320,6 +370,10 @@ async function getAvailableSlots({ merchantId, serviceId, staffId, bookingDate, 
           is_available: isAvailable,
           waitlist_count: Number(waitlist.waitlist_count || 0),
           has_active_waitlist_offer: hasBlockingOffer,
+          is_closed: isClosed,
+          closure_reason: closure?.block_reason || null,
+          closure_start: closure ? String(closure.start_time).slice(0, 5) : null,
+          closure_end: closure ? String(closure.end_time).slice(0, 5) : null,
         });
       }
     }

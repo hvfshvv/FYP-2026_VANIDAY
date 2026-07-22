@@ -1,15 +1,18 @@
 const availabilityModel = require('../models/availabilityModel');
+const bookingDisruptionModel = require('../models/bookingDisruptionModel');
 
 async function showAvailability(req, res) {
   const merchantId = req.session.user.merchant_id;
 
-  const availability = await availabilityModel
-    .getAvailabilityByMerchant(merchantId)
-    .catch(() => []);
+  const [availability, closures] = await Promise.all([
+    availabilityModel.getAvailabilityByMerchant(merchantId).catch(() => []),
+    bookingDisruptionModel.listClosures(merchantId).catch(() => [])
+  ]);
 
   res.render('merchant/availability', {
     title: 'Merchant Availability',
-    availability
+    availability,
+    closures
   });
 }
 

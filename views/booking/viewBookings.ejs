@@ -116,6 +116,7 @@
     ? bookings.filter(booking => effectiveStatus(booking) !== 'payment_failed')
     : [];
   const waitlistList = Array.isArray(waitlists) ? waitlists : [];
+  const changeRequestList = (typeof changeRequests !== 'undefined' && Array.isArray(changeRequests)) ? changeRequests : [];
   const statusStyles = {
     pending_payment: { label: t('bookings.pendingPayment'), bg: 'var(--warn-bg)', color: 'var(--warn)' },
     confirmed:       { label: t('bookings.confirmed'), bg: 'var(--success-bg)', color: 'var(--success)' },
@@ -218,14 +219,7 @@
     return Number.isNaN(createdAt) ? 0 : createdAt;
   }
 
-  function bookingStatusRank(booking) {
-    return effectiveStatus(booking) === 'cancelled' ? 1 : 0;
-  }
-
   const displayBookings = [...bookingList].sort((a, b) => {
-    const statusDiff = bookingStatusRank(a) - bookingStatusRank(b);
-    if (statusDiff) return statusDiff;
-
     const bookingTimeDiff = bookingStartTime(b) - bookingStartTime(a);
     if (bookingTimeDiff) return bookingTimeDiff;
 
@@ -255,6 +249,27 @@
       <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
         <i class="bi bi-check-circle me-2"></i><%= success %>
       </div>
+    <% } %>
+
+    <% if (changeRequestList.length) { %>
+      <p class="section-label mb-2">Action required</p>
+      <% changeRequestList.forEach(request => { %>
+      <section class="card border-0 mb-4 p-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);border-left:4px solid var(--warn)!important;">
+        <div class="d-flex flex-wrap justify-content-between gap-3">
+          <div>
+            <h5 style="font-weight:800;color:var(--ink);">Staff replacement proposed</h5>
+            <p style="color:var(--ink);margin-bottom:.35rem;"><strong><%= request.merchant_name %></strong> proposes <strong><%= request.proposed_staff_name %></strong> for your <%= request.service_name %> appointment.</p>
+            <p style="color:var(--muted);margin-bottom:.35rem;"><i class="bi bi-calendar3 me-1"></i><%= formatDate(request.booking_date) %> at <%= formatTime(request.booking_time) %></p>
+            <p style="color:var(--muted);margin:0;">Reason: <%= request.reason %></p>
+          </div>
+          <div class="d-flex flex-wrap gap-2 align-items-start">
+            <form action="/book/changes/<%= request.change_request_id %>/accept" method="POST"><button class="btn btn-primary btn-sm btn-pill">Accept replacement staff</button></form>
+            <form action="/book/changes/<%= request.change_request_id %>/reschedule" method="POST"><button class="btn btn-outline-secondary btn-sm btn-pill">Choose another date/time</button></form>
+            <form action="/book/changes/<%= request.change_request_id %>/cancel" method="POST" onsubmit="return confirm('Cancel this booking and receive a 100% refund?');"><button class="btn btn-outline-danger btn-sm btn-pill">Cancel with 100% refund</button></form>
+          </div>
+        </div>
+      </section>
+      <% }) %>
     <% } %>
 
     <% if (waitlistList.length) { %>
@@ -450,8 +465,19 @@
                     </a>
                   </div>
                 <% } %>
+                </div>
+                <% if (bookingStatus === 'cancelled') { %>
+                  <div class="mt-3 rounded-xl p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>
+                      <%= booking.cancelled_by === 'merchant' ? 'Cancelled by merchant' : (booking.cancelled_by === 'customer' ? 'Cancelled by you' : 'Booking cancelled') %>
+                    </strong>
+                    <% if (booking.cancellation_reason) { %>
+                      <span> — <%= booking.cancellation_reason %></span>
+                    <% } %>
+                  </div>
+                <% } %>
               </div>
-            </div>
           </div>
         <% }) %>
       </div>

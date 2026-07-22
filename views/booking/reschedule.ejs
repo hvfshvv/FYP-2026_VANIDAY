@@ -67,6 +67,7 @@
       </div>
 
       <form action="/book/<%= booking.booking_id %>/reschedule" method="POST">
+        <% if (typeof changeRequest !== 'undefined' && changeRequest) { %><input type="hidden" name="change_request_id" value="<%= changeRequest.change_request_id %>"><% } %>
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('reschedule.newDate') %></label>

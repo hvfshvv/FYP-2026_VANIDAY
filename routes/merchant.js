@@ -12,6 +12,8 @@ const staffCtrl = require('../controllers/staffController');
 const availabilityCtrl = require('../controllers/availabilityController');
 const reviewCtrl = require('../controllers/reviewController');
 const cancellationPolicyCtrl = require('../controllers/cancellationPolicyController');
+const disruptionCtrl = require('../controllers/bookingDisruptionController');
+const disruptionModel = require('../models/bookingDisruptionModel');
 
 const bookingModel = require('../models/bookingModel');
 const revenueModel = require('../models/revenueModel');
@@ -190,10 +192,20 @@ router.post(
 router.get('/bookings', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
   const bookings = await bookingModel.getMerchantBookings(merchantId).catch(() => []);
+  const replacementEntries = await Promise.all(bookings.map(async booking => [
+    booking.booking_id,
+    ['confirmed', 'rescheduled'].includes(booking.status)
+      ? await disruptionModel.getReplacementStaff(booking.booking_id, merchantId).catch(() => [])
+      : [],
+  ]));
+  const replacementStaff = Object.fromEntries(replacementEntries);
+  const closures = await disruptionModel.listClosures(merchantId).catch(() => []);
 
   res.render('merchant/bookings', {
     title: 'Merchant Bookings',
     bookings,
+    replacementStaff,
+    closures,
     success: req.query.success,
     error: req.query.error,
   });
@@ -312,6 +324,10 @@ router.post('/bookings/:bookingId/no-show', async (req, res) => {
     : `?error=${encodeURIComponent('Only past confirmed appointments can be marked as no-show.')}`;
   res.redirect(`/merchant/bookings${query}`);
 });
+
+router.post('/bookings/:bookingId/cancel-other', disruptionCtrl.cancelOther);
+router.post('/bookings/:bookingId/propose-replacement', disruptionCtrl.proposeReplacement);
+router.post('/emergency-closures', disruptionCtrl.emergencyClosure);
 
 // QR Code pages and actions.
 router.get('/qr', qrCtrl.showQRPage);

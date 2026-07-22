@@ -39,8 +39,11 @@
       <% } %>
       <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
       <li><a href="/merchant/dashboard"><%= t('nav.dashboard') %></a></li>
-      <li><a href="/merchant/services"><%= t('nav.services') %></a></li>
-      <li><a href="/merchant/promotions"><%= t('nav.promotions') %></a></li>
+      <li>
+        <a href="/marketplace/merchant/<%= user.merchant_id %>" target="_blank" rel="noopener noreferrer">
+          View Storefront <i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i>
+        </a>
+      </li>
       <li><a href="/merchant/reviews"><%= t('nav.reviews') %></a></li>
       <% } %>
       <% if (user && user.role === 'admin') { %>
@@ -125,8 +128,9 @@
   <% } %>
   <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
   <a href="/merchant/dashboard"><%= t('nav.dashboard') %></a>
-  <a href="/merchant/services"><%= t('nav.services') %></a>
-  <a href="/merchant/promotions"><%= t('nav.promotions') %></a>
+  <a href="/marketplace/merchant/<%= user.merchant_id %>" target="_blank" rel="noopener noreferrer">
+    View Storefront <i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i>
+  </a>
   <a href="/merchant/reviews"><%= t('nav.reviews') %></a>
   <% } %>
   <% if (user && user.role === 'admin') { %>

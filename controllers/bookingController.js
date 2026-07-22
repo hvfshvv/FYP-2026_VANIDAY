@@ -332,6 +332,8 @@ async function viewCustomerBookings(req, res) {
   try {
     const customerId = req.session.user.customer_id || req.session.user.user_id;
     const bookings = await bookingModel.getCustomerBookings(customerId);
+    const changeRequests = await require('../models/bookingDisruptionModel')
+      .getPendingRequestsForCustomer(customerId).catch(() => []);
     const waitlists = await waitlistModel.getCustomerWaitlists(customerId).catch((err) => {
       console.error('customer waitlists failed:', err);
       return [];
@@ -340,6 +342,7 @@ async function viewCustomerBookings(req, res) {
       title: 'My Bookings',
       bookings,
       waitlists,
+      changeRequests,
       success: req.query.success,
       error: req.query.error,
     });
@@ -349,6 +352,7 @@ async function viewCustomerBookings(req, res) {
       title: 'My Bookings',
       bookings: [],
       waitlists: [],
+      changeRequests: [],
       error: 'Could not load your bookings. Please try again.',
     });
   }
@@ -462,21 +466,26 @@ async function cancelCustomerBooking(req, res) {
 
 async function showRescheduleBooking(req, res) {
   try {
-    const booking = await bookingModel.getCustomerBookingById(req.params.bookingId, currentCustomerId(req));
+    const customerId = currentCustomerId(req);
+    const booking = await bookingModel.getCustomerBookingById(req.params.bookingId, customerId);
 
     if (!booking) {
       return res.redirect('/book/viewBookings?error=Booking not found.');
     }
 
+    const changeRequest = req.query.changeRequest
+      ? await require('../models/bookingDisruptionModel').getPendingRequestForCustomer(req.query.changeRequest, customerId)
+      : null;
     const startsAt = new Date(`${bookingModel.formatDateValue(booking.booking_date)}T${String(booking.booking_time).slice(0, 5)}:00`);
     const hoursUntil = (startsAt.getTime() - Date.now()) / (60 * 60 * 1000);
-    if (!Number.isFinite(hoursUntil) || hoursUntil < cancellationPolicyModel.PLATFORM_POLICY.rescheduleCutoffHours) {
+    if (!changeRequest && (!Number.isFinite(hoursUntil) || hoursUntil < cancellationPolicyModel.PLATFORM_POLICY.rescheduleCutoffHours)) {
       return res.redirect('/book/viewBookings?error=' + encodeURIComponent('Bookings can only be rescheduled until 6 hours before the appointment.'));
     }
 
     res.render('booking/reschedule', {
       title: 'Reschedule Booking',
       booking,
+      changeRequest,
       error: null,
     });
   } catch (err) {
@@ -490,12 +499,19 @@ async function rescheduleCustomerBooking(req, res) {
 
   try {
     const previousBooking = await bookingModel.getBookingById(req.params.bookingId);
+    const changeRequest = req.body.change_request_id
+      ? await require('../models/bookingDisruptionModel').getPendingRequestForCustomer(req.body.change_request_id, currentCustomerId(req))
+      : null;
     await bookingModel.rescheduleCustomerBooking(
       req.params.bookingId,
       currentCustomerId(req),
       booking_date,
-      booking_time
+      booking_time,
+      { allowPolicyOverride: Boolean(changeRequest) }
     );
+    if (changeRequest) {
+      await require('../models/bookingDisruptionModel').markRequest(changeRequest.change_request_id, currentCustomerId(req), 'reschedule_requested');
+    }
     const booking = await bookingModel.getBookingById(req.params.bookingId);
     if (booking && previousBooking) {
       await sendRescheduleEmails(booking, previousBooking);
@@ -514,6 +530,7 @@ async function rescheduleCustomerBooking(req, res) {
     res.render('booking/reschedule', {
       title: 'Reschedule Booking',
       booking,
+      changeRequest: null,
       error: err.message || 'Could not reschedule booking.',
     });
   }

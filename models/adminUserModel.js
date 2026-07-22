@@ -125,13 +125,10 @@ async function getManagedMerchants(search = '', verification = 'all') {
        m.address,
        m.is_active,
        m.verification_status,
-       COUNT(DISTINCT b.booking_id) AS bookings,
-       COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS total_revenue,
-       MAX(COALESCE(p.paid_at, b.created_at)) AS last_booking_at
+       MAX(b.created_at) AS last_booking_at
      FROM users u
      JOIN merchant m ON m.user_id = u.user_id
      LEFT JOIN booking b ON b.merchant_id = m.merchant_id
-     LEFT JOIN payment p ON p.booking_id = b.booking_id
      WHERE u.role = 'merchant'
        AND m.verification_status <> 'rejected'
        ${filter.clause}

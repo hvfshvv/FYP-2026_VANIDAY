@@ -76,6 +76,11 @@
       </div>
     <% } %>
 
+    <div id="bookingClosureNotice" class="rounded-xl p-3 mb-4" style="display:none;background:var(--warn-bg);color:var(--warn);border:1px solid rgba(217,119,6,.2);">
+      <p style="font-weight:800;margin:0 0 .25rem;"><i class="bi bi-shop-window me-2"></i>Merchant closed during selected period</p>
+      <p id="bookingClosureNoticeText" style="margin:0;font-size:.875rem;"></p>
+    </div>
+
     <form action="/book/confirm" method="POST" class="row g-4" id="portalBookingForm">
       <input type="hidden" name="merchant_id" value="<%= merchant ? merchant.merchant_id : '' %>" />
 
@@ -806,6 +811,13 @@
       );
 
       const slots = await response.json();
+      const closureNotice = document.getElementById('bookingClosureNotice');
+      const closureNoticeText = document.getElementById('bookingClosureNoticeText');
+      const closureSlot = slots.find(slot => slot.is_closed === true);
+      if (closureNotice) closureNotice.style.display = closureSlot ? 'block' : 'none';
+      if (closureSlot && closureNoticeText) {
+        closureNoticeText.textContent = `Closed from ${closureSlot.closure_start} to ${closureSlot.closure_end}. ${closureSlot.closure_reason || 'Please choose another date or time.'}`;
+      }
 
       if (!slots.length) {
         bookingTime.innerHTML =
@@ -819,12 +831,15 @@
       bookingTime.innerHTML = slots.map(slot => {
         const time = String(slot.start_time).slice(0, 5);
         const isAvailable = slot.is_available !== false;
+        const isClosed = slot.is_closed === true;
         const queue = Number(slot.waitlist_count || 0);
-        const suffix = isAvailable
+        const suffix = isClosed
+          ? ' — Closed'
+          : isAvailable
           ? ''
           : ` — Fully booked · ${queue ? queue + ' waiting' : 'Join waitlist'}`;
         return `
-          <option value="${slot.start_time}" data-available="${isAvailable ? 'true' : 'false'}">
+          <option value="${slot.start_time}" data-available="${isAvailable ? 'true' : 'false'}" data-closed="${isClosed ? 'true' : 'false'}" ${isClosed ? 'disabled' : ''}>
             ${slot.label || time}${suffix}
           </option>
         `;

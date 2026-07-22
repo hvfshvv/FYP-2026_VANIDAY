@@ -230,6 +230,68 @@
       <% } %>
     </div>
   </div>
+
+  <div
+    class="card border-0 mt-4"
+    style="box-shadow: var(--shadow); border-radius: var(--r-xl);"
+  >
+    <div class="card-body p-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h5 style="font-weight: 800; margin-bottom: .35rem;">
+            <i class="bi bi-calendar-x me-2" style="color: var(--accent);"></i>
+            Temporary Closures
+          </h5>
+          <p style="color: var(--muted); margin-bottom: 0;">
+            Emergency closures override your regular weekly operating hours.
+          </p>
+        </div>
+        <a href="/merchant/bookings" class="btn btn-outline-danger btn-pill">
+          Declare a closure
+        </a>
+      </div>
+
+      <% const closureList = Array.isArray(closures) ? closures : []; %>
+      <% if (closureList.length === 0) { %>
+        <div class="rounded-xl bg-light p-4 text-center" style="color: var(--muted);">
+          No active or upcoming emergency closures.
+        </div>
+      <% } else { %>
+        <div class="d-grid gap-3">
+          <% closureList.forEach((closure) => { %>
+            <%
+              const startsAt = new Date(closure.starts_at);
+              const endsAt = new Date(closure.ends_at);
+              const now = new Date();
+              const isActive = startsAt <= now && endsAt > now;
+              const displayOptions = {
+                day: 'numeric', month: 'short', year: 'numeric',
+                hour: 'numeric', minute: '2-digit'
+              };
+            %>
+            <div class="border rounded-xl p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+              <div>
+                <div style="font-weight: 700; color: var(--ink);">
+                  <%= startsAt.toLocaleString('en-SG', displayOptions) %>
+                  <span style="color: var(--muted);"> to </span>
+                  <%= endsAt.toLocaleString('en-SG', displayOptions) %>
+                </div>
+                <div class="small mt-1" style="color: var(--muted);">
+                  <%= closure.reason || 'Unexpected emergency closure' %>
+                </div>
+              </div>
+              <span
+                class="badge"
+                style="background: var(--danger-bg, #fff0f2); color: var(--danger, #ef4056); padding: .55rem .85rem;"
+              >
+                <%= isActive ? 'Active now' : 'Scheduled' %>
+              </span>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  </div>
 </div>
 
 <script>

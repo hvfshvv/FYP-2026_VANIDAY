@@ -2,6 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const ctrl    = require('../controllers/bookingController');
 const reviewCtrl = require('../controllers/reviewController');
+const disruptionCtrl = require('../controllers/bookingDisruptionController');
 const { requireLogin, requireCustomer, blockMerchantBookingAccess } = require('../middleware/auth');
 
 router.use(blockMerchantBookingAccess);
@@ -13,6 +14,9 @@ router.get('/api/email-member', ctrl.checkEmailMember);
 router.get('/viewBookings', requireLogin, ctrl.viewCustomerBookings);
 router.post('/waitlist/:waitlistId/confirm', requireLogin, ctrl.confirmWaitlistOffer);
 router.post('/waitlist/:waitlistId/cancel', requireLogin, ctrl.cancelWaitlistRequest);
+router.post('/changes/:requestId/accept', requireLogin, requireCustomer, disruptionCtrl.acceptReplacement);
+router.post('/changes/:requestId/reschedule', requireLogin, requireCustomer, disruptionCtrl.requestReschedule);
+router.post('/changes/:requestId/cancel', requireLogin, requireCustomer, disruptionCtrl.cancelReplacement);
 router.post('/:bookingId/cancel', requireLogin, ctrl.cancelCustomerBooking);
 router.get('/:bookingId/reschedule', requireLogin, ctrl.showRescheduleBooking);
 router.post('/:bookingId/reschedule', requireLogin, ctrl.rescheduleCustomerBooking);

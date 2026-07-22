@@ -138,13 +138,32 @@ async function joinWaitlist({ customerId, merchantId, serviceId, bookingDate, bo
   assertFutureWaitlistSlot(safeDate, safeTime);
 
   const [[service]] = await db.query(
-    `SELECT service_id
+    `SELECT service_id, duration_mins
      FROM service
      WHERE service_id = ? AND merchant_id = ? AND is_active = 1
      LIMIT 1`,
     [serviceId, merchantId]
   );
   if (!service) throw new Error('Selected service is not available for this merchant.');
+
+  await require('./bookingDisruptionModel').ensureSchema();
+  const [[closure]] = await db.query(
+    `SELECT slot_id FROM time_slot
+     WHERE merchant_id=? AND service_id=? AND slot_date=? AND block_type='emergency_closure'
+       AND start_time < ADDTIME(?, SEC_TO_TIME(? * 60)) AND end_time > ? LIMIT 1`,
+    [merchantId, serviceId, safeDate, safeTime, Number(service.duration_mins || 0), safeTime]
+  );
+  if (closure) throw new Error('The merchant is closed during this period. Please choose another date or time.');
+
+  const availableStaff = await require('./slotModel').getAvailableStaffForSlot({
+    merchantId,
+    serviceId,
+    bookingDate: safeDate,
+    bookingTime: safeTime,
+  });
+  if (availableStaff.length) {
+    throw new Error('A qualified staff member is available. Please book this slot instead of joining the waitlist.');
+  }
 
   const [[existing]] = await db.query(
     `SELECT waitlist_id, status
@@ -218,19 +237,13 @@ async function assertNoBlockingOffer({ merchantId, serviceId, bookingDate, booki
 }
 
 async function slotHasOpenCapacity({ merchantId, serviceId, bookingDate, bookingTime }) {
-  const [[row]] = await db.query(
-    `SELECT slot_id
-     FROM time_slot
-     WHERE merchant_id = ?
-       AND service_id = ?
-       AND slot_date = ?
-       AND start_time = ?
-       AND is_available = TRUE
-     LIMIT 1`,
-    [merchantId, serviceId, formatDateValue(bookingDate), `${formatTimeValue(bookingTime)}:00`]
-  );
-
-  return Boolean(row);
+  const staff = await require('./slotModel').getAvailableStaffForSlot({
+    merchantId,
+    serviceId,
+    bookingDate: formatDateValue(bookingDate),
+    bookingTime: formatTimeValue(bookingTime),
+  });
+  return staff.length > 0;
 }
 
 async function offerNextForSlot(slot) {

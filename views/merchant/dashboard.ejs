@@ -580,13 +580,13 @@
     </div>
     <div class="row g-3">
       <% [
+        {href:'/merchant/bookings', icon:'bi-calendar-check', label:'View Bookings'},
         {href:'/merchant/services', icon:'bi-scissors', label:'Manage Services'},
         {href:'/merchant/staff', icon:'bi-people', label:'Manage Staff'},
         {href:'/merchant/availability', icon:'bi-clock', label:'Manage Availability'},
         {href:'/merchant/promotions', icon:'bi-tag', label:'Manage Promotions'},
         {href:'/merchant/qr', icon:'bi-qr-code', label:'Manage QR Code'},
         {href:'/merchant/waitlists', icon:'bi-list-ol', label:'View Waitlists', badge:activeWaitlists},
-        {href:'/#featured-listings', icon:'bi-star', label:'View Featured Listing'},
         {href:'/merchant/revenue?month=' + selectedPeriod, icon:'bi-graph-up', label:'View Revenue Report'},
       ].forEach(action => { %>
         <div class="col-6 col-md-3">

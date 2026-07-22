@@ -410,6 +410,7 @@ async function markCustomerArrivedForMerchant(customerId, merchantId) {
 
 // Cancels a customer booking before the appointment starts.
 async function cancelCustomerBooking(bookingId, customerId) {
+  await require('./bookingDisruptionModel').ensureSchema();
   const connection = await db.getConnection();
   let releasedSlot = null;
   let refundDecision = null;
@@ -450,7 +451,10 @@ async function cancelCustomerBooking(bookingId, customerId) {
       bookingTime: booking.start_time,
     });
 
-    await connection.query('UPDATE booking SET status = ? WHERE booking_id = ?', ['cancelled', bookingId]);
+    await connection.query(
+      "UPDATE booking SET status=?, cancelled_by='customer', cancellation_reason='Cancelled by customer' WHERE booking_id=?",
+      ['cancelled', bookingId]
+    );
     await connection.query('UPDATE time_slot SET is_available = TRUE WHERE slot_id = ?', [booking.slot_id]);
 
     await connection.commit();
@@ -472,7 +476,7 @@ async function cancelCustomerBooking(bookingId, customerId) {
 // ── RESCHEDULING ───────────────────────────────────────────────────────────
 
 // Moves a booking to a new date/time, freeing the old slot and claiming a new one.
-async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, bookingTime) {
+async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, bookingTime, { allowPolicyOverride = false } = {}) {
   const connection = await db.getConnection();
   let releasedSlot = null;
 
@@ -500,7 +504,7 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
     const currentDateForPolicy = formatDateValue(booking.slot_date);
     const currentStartsAt = new Date(`${currentDateForPolicy}T${String(booking.start_time).slice(0, 5)}:00`);
     const hoursUntilCurrentSlot = (currentStartsAt.getTime() - Date.now()) / (60 * 60 * 1000);
-    if (!Number.isFinite(hoursUntilCurrentSlot) || hoursUntilCurrentSlot < cancellationPolicyModel.PLATFORM_POLICY.rescheduleCutoffHours) {
+    if (!allowPolicyOverride && (!Number.isFinite(hoursUntilCurrentSlot) || hoursUntilCurrentSlot < cancellationPolicyModel.PLATFORM_POLICY.rescheduleCutoffHours)) {
       throw new Error('Bookings can only be rescheduled until 6 hours before the appointment.');
     }
 

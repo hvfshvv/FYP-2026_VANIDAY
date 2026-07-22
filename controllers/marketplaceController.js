@@ -129,11 +129,12 @@ async function showMerchantDetails(req, res) {
         );
     }
 
-    const [merchantServices, merchantPromotions, merchantReviews, cancellationPolicy] = await Promise.all([
+    const [merchantServices, merchantPromotions, merchantReviews, cancellationPolicy, upcomingClosures] = await Promise.all([
       merchantModel.getMerchantServices(merchantId),
       promotionModel.getMerchantApprovedPromotions(merchantId),
       reviewModel.getRecentMerchantReviews(merchantId, 8),
       cancellationPolicyModel.getPolicyByMerchantId(merchantId),
+      require('../models/bookingDisruptionModel').listClosures(merchantId).catch(() => []),
     ]);
     const services = merchantServices.map(service => ({
       ...service,
@@ -157,7 +158,8 @@ async function showMerchantDetails(req, res) {
       serviceCategories,
       selectedServiceCategory,
       favouriteServiceIds,
-      whatsappBookingNumber: getWhatsAppBookingNumber()
+      whatsappBookingNumber: getWhatsAppBookingNumber(),
+      upcomingClosures,
     });
 
   } catch (err) {
