@@ -123,6 +123,29 @@ async function appendValidationLogReply(logId, reply, adminName) {
   return result.affectedRows;
 }
 
+// Appends a delivered email reply to a web support log entry and marks it resolved.
+async function appendWebSupportEmailReply(logId, reply, adminName) {
+  const replyBlock = [
+    '',
+    'Admin reply by ' + (adminName || 'Uniday Support') + ':',
+    'Channel: email',
+    String(reply || '').trim(),
+    'Reply sent at: ' + new Date().toISOString()
+  ].join('\n');
+
+  const [result] = await db.query(
+    `UPDATE validation_log
+     SET error_message = CONCAT(error_message, ?),
+         is_resolved = TRUE
+     WHERE log_id = ?
+       AND module = 'web_support'
+       AND is_resolved = FALSE`,
+    [replyBlock, logId]
+  );
+
+  return result.affectedRows;
+}
+
 // ── ADMIN ACTION LOGGING ───────────────────────────────────────────────────
 
 // Writes a structured admin action entry for audit trail purposes.
@@ -145,5 +168,6 @@ module.exports = {
   markValidationLogResolved,
   getValidationLogById,
   appendValidationLogReply,
+  appendWebSupportEmailReply,
   logAdminAction,
 };

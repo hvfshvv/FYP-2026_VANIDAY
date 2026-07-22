@@ -6,6 +6,7 @@
 
 const adminValidationModel = require('../models/adminValidationModel');
 const whatsappNotificationService = require('../services/whatsappNotificationService');
+const emailService = require('../services/emailService');
 
 // ── PRIVATE HELPERS ────────────────────────────────────────────────────────
 
@@ -18,6 +19,37 @@ function extractSupportPhone(log) {
   // Fall back to parsing the phone from the raw error_message field.
   const match = String(log.error_message || '').match(/^Phone:\s*(.+)$/m);
   return match ? match[1].trim() : null;
+}
+
+function extractWebSupportEmail(log) {
+  const match = String(log.error_message || '').match(/^Email:\s*(.+)$/m);
+  return match ? match[1].trim() : null;
+}
+
+function normalizeRecipientEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!email || email.length > 254) return null;
+  if (/[\r\n]/.test(email)) return null;
+  if (!emailPattern.test(email)) return null;
+
+  return email;
+}
+
+function getWebSupportRecipientEmail(log) {
+  const requestEmail = normalizeRecipientEmail(extractWebSupportEmail(log));
+  if (requestEmail) return requestEmail;
+
+  if (log.user_id) {
+    return normalizeRecipientEmail(log.customer_email);
+  }
+
+  return null;
+}
+
+function isDeliveredEmailResult(result) {
+  return Boolean(result && result.sent === true && result.provider !== 'noop' && !result.skipped);
 }
 
 // ── VALIDATION LOG PAGES ───────────────────────────────────────────────────
@@ -97,8 +129,71 @@ async function replyToWhatsAppSupport(req, res) {
   }
 }
 
+// Sends an email reply for an open web support log, then marks it resolved.
+async function replyToWebSupport(req, res) {
+  const reply = String(req.body.reply || '').trim();
+
+  try {
+    if (!req.session.user || req.session.user.role !== 'admin') {
+      return res.redirect('/admin/validation?error=webReplyAuth');
+    }
+
+    if (reply.length < 2 || reply.length > 2000) {
+      return res.redirect('/admin/validation?error=webReplyValidation');
+    }
+
+    const log = await adminValidationModel.getValidationLogById(req.params.logId);
+
+    if (!log || log.module !== 'web_support') {
+      return res.redirect('/admin/validation?error=webReplyNotFound');
+    }
+
+    if (log.is_resolved) {
+      return res.redirect('/admin/validation?error=webReplyResolved');
+    }
+
+    const recipientEmail = getWebSupportRecipientEmail(log);
+    if (!recipientEmail) {
+      return res.redirect('/admin/validation?error=webReplyEmail');
+    }
+
+    const emailResult = await emailService.sendWebSupportReplyEmail({
+      ...log,
+      recipient_email: recipientEmail,
+      reply
+    });
+
+    if (!isDeliveredEmailResult(emailResult)) {
+      console.error('[admin-validation] Web support email was not delivered:', {
+        logId: log.log_id,
+        provider: emailResult && emailResult.provider,
+        reason: emailResult && emailResult.reason,
+        skipped: emailResult && emailResult.skipped,
+        sent: emailResult && emailResult.sent
+      });
+      return res.redirect('/admin/validation?error=webReplySend');
+    }
+
+    const affectedRows = await adminValidationModel.appendWebSupportEmailReply(
+      req.params.logId,
+      reply,
+      req.session.user && req.session.user.full_name
+    );
+
+    if (!affectedRows) {
+      return res.redirect('/admin/validation?error=webReplyResolved');
+    }
+
+    res.redirect('/admin/validation?webReplySent=1');
+  } catch (err) {
+    console.error('[admin-validation] Web support reply failed:', err.message);
+    res.redirect('/admin/validation?error=webReplySend');
+  }
+}
+
 module.exports = {
   showValidationLogs,
   resolveValidationLog,
   replyToWhatsAppSupport,
+  replyToWebSupport,
 };

@@ -25,6 +25,7 @@
       <li><a href="/"><%= t('nav.home') %></a></li>
       <li><a href="/#featured-listings" onclick="scrollToMarketplace(event)"><%= t('nav.marketplace') %></a></li>
       <li><a href="/client-diaries"><%= t('nav.clientDiaries') %></a></li>
+      <li><a href="/support">Help / Support</a></li>
       <% } %>
       <% if (user && user.role === 'customer') { %>
       <li>
@@ -106,6 +107,7 @@
   <a href="/"><%= t('nav.home') %></a>
   <a href="/#featured-listings" onclick="scrollToMarketplace(event)"><%= t('nav.marketplace') %></a>
   <a href="/client-diaries"><%= t('nav.clientDiaries') %></a>
+  <a href="/support">Help / Support</a>
   <% } %>
   <% if (user && user.role === 'customer') { %>
   <a href="/book/viewBookings" class="nav-bookings-link">

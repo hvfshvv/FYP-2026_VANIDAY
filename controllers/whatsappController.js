@@ -213,6 +213,27 @@ function getSupportPrompt(status) {
   );
 }
 
+function isMainMenuCommand(message) {
+  return ['reset', 'restart', 'menu', 'hi', 'hello'].includes(message);
+}
+
+function isGlobalSupportCommand(message) {
+  return message === 'support' || message === 'help';
+}
+
+async function startSupportSession(sender, twiml) {
+  const customer = await getVerifiedCustomerForSender(sender);
+  const supportStatus = getSupportHoursStatus();
+
+  await saveSession(sender, {
+    state: 'support_awaiting_issue',
+    customer: customer,
+    supportStatus: supportStatus
+  });
+
+  twiml.message(getSupportPrompt(supportStatus));
+}
+
 function formatBookingDate(value) {
   if (!value) {
     return 'Not available';
@@ -798,7 +819,12 @@ async function receiveMessage(req, res) {
     console.log('Incoming WhatsApp message:', incomingMessage);
     await logIncomingMessage(sessionRecord, incomingMessage, latestMessageType);
 
-    if (bookingRef) {
+    if (isMainMenuCommand(message)) {
+      await clearSession(sender, 'completed');
+      twiml.message(getMainMenu());
+    } else if (isGlobalSupportCommand(message)) {
+      await startSupportSession(sender, twiml);
+    } else if (bookingRef) {
       const context = await loadBookingRefContext(bookingRef);
 
       if (!context) {
@@ -827,9 +853,6 @@ async function receiveMessage(req, res) {
 
         twiml.message(getLinkedDatePrompt(customer, context.merchant, context.service));
       }
-    } else if (message === 'reset' || message === 'menu' || message === 'hi' || message === 'hello') {
-      await clearSession(sender, 'completed');
-      twiml.message(getMainMenu());
     } else if (message === '0' || message === 'back') {
       if (session && session.state === 'booking_view_submenu') {
         await clearSession(sender, 'completed');
@@ -1430,17 +1453,8 @@ async function receiveMessage(req, res) {
 
         twiml.message('Please enter the booking ID you want to reschedule.');
       }
-    } else if (message === '5' || message === 'help' || message === 'support') {
-      const customer = await getVerifiedCustomerForSender(sender);
-      const supportStatus = getSupportHoursStatus();
-
-      await saveSession(sender, {
-        state: 'support_awaiting_issue',
-        customer: customer,
-        supportStatus: supportStatus
-      });
-
-      twiml.message(getSupportPrompt(supportStatus));
+    } else if (message === '5') {
+      await startSupportSession(sender, twiml);
     } else {
       await clearSession(sender, 'completed');
       twiml.message(getMainMenu());

@@ -55,6 +55,7 @@ router.post('/featured/:listingId/remove',      merchantCtrl.removeFeaturedMerch
 router.get('/validation',                       validationCtrl.showValidationLogs);
 router.post('/validation/:logId/resolve',       validationCtrl.resolveValidationLog);
 router.post('/validation/:logId/reply',         validationCtrl.replyToWhatsAppSupport);
+router.post('/validation/:logId/web-reply',     validationCtrl.replyToWebSupport);
 
 // ── USER MANAGEMENT ────────────────────────────────────────────────────────
 
