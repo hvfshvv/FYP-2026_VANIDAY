@@ -1,6 +1,8 @@
 const { GoogleGenAI } = require('@google/genai');
 
-const GEMINI_CAMPAIGN_MODEL = 'gemini-2.5-flash';
+const GEMINI_CAMPAIGN_MODEL = process.env.GEMINI_CAMPAIGN_MODEL
+  || process.env.GEMINI_MODEL
+  || 'gemini-3.6-flash';
 
 const campaignRecommendationSchema = {
   type: 'OBJECT',

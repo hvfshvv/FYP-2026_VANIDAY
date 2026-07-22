@@ -54,6 +54,25 @@
         <h6 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">
           <i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i>New Promotion Request
         </h6>
+        <div class="rounded-xl p-3 mb-4" style="border:1px solid var(--border);background:var(--accent-light);">
+          <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+            <p class="mb-0" style="font-weight:800;color:var(--ink);">
+              <i class="bi bi-stars me-1" style="color:var(--accent);"></i>AI Promotion Assistant
+            </p>
+          </div>
+          <div class="mb-2">
+            <label class="form-label" style="font-size:.8rem;font-weight:700;">Goal</label>
+            <input type="text" id="aiPromotionGoal" class="form-control form-control-sm rounded-xl" placeholder="e.g. fill weekday slots" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.8rem;font-weight:700;">Occasion</label>
+            <input type="text" id="aiPromotionSeason" class="form-control form-control-sm rounded-xl" placeholder="e.g. school holiday, payday, Valentine" />
+          </div>
+          <button type="button" id="aiPromotionButton" class="btn btn-outline-secondary btn-sm btn-pill w-100" style="background:#fff;">
+            <i class="bi bi-magic me-1"></i>Generate Suggestion
+          </button>
+          <div id="aiPromotionMessage" class="small mt-2" style="display:none;"></div>
+        </div>
         <form id="promotionRequestForm" action="/merchant/promotions/create" method="POST" enctype="multipart/form-data">
           <div class="mb-3">
             <label class="form-label" style="font-size:.875rem;font-weight:600;">Promotion Title</label>
@@ -193,6 +212,94 @@
 <script>
   const promotionForm = document.getElementById('promotionRequestForm');
   const promotionMessage = document.getElementById('promotionSubmitMessage');
+  const aiPromotionButton = document.getElementById('aiPromotionButton');
+  const aiPromotionMessage = document.getElementById('aiPromotionMessage');
+  const aiPromotionGoal = document.getElementById('aiPromotionGoal');
+  const aiPromotionSeason = document.getElementById('aiPromotionSeason');
+
+  function setAiMessage(message, tone) {
+    if (!aiPromotionMessage) return;
+    aiPromotionMessage.style.display = message ? 'block' : 'none';
+    aiPromotionMessage.style.color = tone === 'danger' ? 'var(--danger)' : tone === 'success' ? 'var(--success)' : 'var(--muted)';
+    aiPromotionMessage.textContent = message || '';
+  }
+
+  function setPromotionField(name, value) {
+    if (!promotionForm) return;
+    const field = promotionForm.elements[name];
+    if (!field || value === null || typeof value === 'undefined') return;
+    field.value = value;
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function applyAiSuggestion(suggestion) {
+    setPromotionField('title', suggestion.title);
+    setPromotionField('offer_text', suggestion.offerText);
+    setPromotionField('description', suggestion.description);
+    setPromotionField('discount_pct', suggestion.discountPct);
+    setPromotionField('min_spend', Number(suggestion.minSpend || 0) > 0 ? suggestion.minSpend : '');
+    setPromotionField('start_date', suggestion.startDate);
+    setPromotionField('end_date', suggestion.endDate);
+    setPromotionField('service_id', suggestion.serviceId ? String(suggestion.serviceId) : '');
+
+    const days = Array.isArray(suggestion.applicableDays) ? suggestion.applicableDays : [];
+    promotionForm.querySelectorAll('input[name="applicable_days"]').forEach(input => {
+      input.checked = days.includes(input.value);
+    });
+  }
+
+  if (aiPromotionButton && promotionForm) {
+    aiPromotionButton.addEventListener('click', async () => {
+      const originalHtml = aiPromotionButton.innerHTML;
+      aiPromotionButton.disabled = true;
+      aiPromotionButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
+      setAiMessage('', 'muted');
+
+      try {
+        const formData = new FormData(promotionForm);
+        const payloadBody = {
+          goal: aiPromotionGoal ? aiPromotionGoal.value : '',
+          season: aiPromotionSeason ? aiPromotionSeason.value : '',
+          title: formData.get('title') || '',
+          offer_text: formData.get('offer_text') || '',
+          description: formData.get('description') || '',
+          service_id: formData.get('service_id') || '',
+          discount_pct: formData.get('discount_pct') || '',
+          min_spend: formData.get('min_spend') || '',
+          start_date: formData.get('start_date') || '',
+          end_date: formData.get('end_date') || '',
+        };
+
+        const response = await fetch('/merchant/promotions/ai-suggestion', {
+          method: 'POST',
+          body: JSON.stringify(payloadBody),
+          credentials: 'same-origin',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+        const payload = await response.json().catch(() => ({ error: 'Unexpected server response.' }));
+
+        if (response.status === 401 && payload.loginUrl) {
+          window.location.href = payload.loginUrl;
+          return;
+        }
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error || 'Unable to generate a promotion suggestion right now.');
+        }
+
+        applyAiSuggestion(payload.suggestion);
+        setAiMessage(payload.suggestion.reason || 'Suggestion applied.', 'success');
+      } catch (err) {
+        setAiMessage(err.message || 'Unable to generate a promotion suggestion right now.', 'danger');
+      } finally {
+        aiPromotionButton.disabled = false;
+        aiPromotionButton.innerHTML = originalHtml;
+      }
+    });
+  }
 
   if (promotionForm) {
     promotionForm.addEventListener('submit', async event => {

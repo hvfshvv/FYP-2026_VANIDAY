@@ -334,6 +334,7 @@ router.get('/qr', qrCtrl.showQRPage);
 
 // Promotion management for merchant-created deals.
 router.get('/promotions', promoCtrl.showPromotions);
+router.post('/promotions/ai-suggestion', promoCtrl.generateAiPromotion);
 router.post('/promotions/create', promoCtrl.handlePromotionUpload, promoCtrl.createPromotion);
 router.post('/promotions/:promoId/toggle', promoCtrl.togglePromotion);
 router.post('/promotions/:promoId/delete', promoCtrl.deletePromotion);

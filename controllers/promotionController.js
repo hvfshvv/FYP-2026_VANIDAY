@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { wantsJson } = require('../middleware/auth');
+const { generatePromotionSuggestion } = require('../services/geminiPromotionService');
 
 const uploadDir = path.join(__dirname, '..', 'public', 'images', 'promotions');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -95,6 +96,23 @@ function validatePromotionForm(form) {
   if (new Date(form.endDate) < new Date(form.startDate)) {
     throw new Error('End date cannot be before start date.');
   }
+}
+
+function normalizeAiPromotionRequest(body) {
+  return {
+    goal: String(body.goal || '').trim().slice(0, 240),
+    season: String(body.season || '').trim().slice(0, 120),
+    currentForm: {
+      title: String(body.title || '').trim(),
+      offerText: String(body.offer_text || '').trim(),
+      description: String(body.description || '').trim(),
+      serviceId: String(body.service_id || '').trim(),
+      discountPct: String(body.discount_pct || '').trim(),
+      minSpend: String(body.min_spend || '').trim(),
+      startDate: String(body.start_date || '').trim(),
+      endDate: String(body.end_date || '').trim(),
+    },
+  };
 }
 
 async function renderPromotionsPage(req, res, {
@@ -206,6 +224,40 @@ async function createPromotion(req, res) {
   }
 }
 
+async function generateAiPromotion(req, res) {
+  const merchantId = req.session.user.merchant_id;
+  const input = normalizeAiPromotionRequest(req.body || {});
+
+  if (!input.goal && !input.season && !input.currentForm.title && !input.currentForm.offerText) {
+    return res.status(400).json({
+      success: false,
+      error: 'Enter a goal or occasion first.',
+    });
+  }
+
+  try {
+    const services = await serviceModel.getServicesByMerchant(merchantId).catch(() => []);
+    const suggestion = await generatePromotionSuggestion({
+      merchantName: req.session.user.merchant_name || req.session.user.full_name || 'Merchant',
+      services,
+      goal: input.goal,
+      season: input.season,
+      currentForm: input.currentForm,
+    });
+
+    return res.status(200).json({
+      success: true,
+      suggestion,
+    });
+  } catch (err) {
+    console.error('[promotion] AI suggestion failed:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to generate a promotion suggestion right now.',
+    });
+  }
+}
+
 async function togglePromotion(req, res) {
   const merchantId = req.session.user.merchant_id;
   const { promoId } = req.params;
@@ -221,4 +273,12 @@ async function deletePromotion(req, res) {
   res.redirect('/merchant/promotions');
 }
 
-module.exports = { showPromotions, createPromotion, togglePromotion, deletePromotion, upload, handlePromotionUpload };
+module.exports = {
+  showPromotions,
+  createPromotion,
+  generateAiPromotion,
+  togglePromotion,
+  deletePromotion,
+  upload,
+  handlePromotionUpload,
+};
