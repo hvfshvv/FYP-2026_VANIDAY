@@ -258,6 +258,52 @@ async function getCustomerBookingById(bookingId, customerId) {
   return rows[0] || null;
 }
 
+// Returns one WhatsApp page of bookings scoped to the linked customer account.
+async function getCustomerBookingsForWhatsApp(customerId, viewType, { limit = 5, offset = 0 } = {}) {
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 5, 10));
+  const safeOffset = Math.max(0, Number(offset) || 0);
+  const activeStatuses = ['pending_payment', 'confirmed', 'rescheduled', 'arrived'];
+  const terminalStatuses = ['completed', 'cancelled', 'payment_failed', 'no_show'];
+  const upcomingWhere = `
+    b.customer_id = ?
+    AND b.status IN (?)
+    AND TIMESTAMP(ts.slot_date, ts.start_time) >= DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+  `;
+  const historyWhere = `
+    b.customer_id = ?
+    AND (
+      b.status IN (?)
+      OR TIMESTAMP(ts.slot_date, ts.start_time) < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+    )
+  `;
+  const isHistory = viewType === 'history';
+  const [rows] = await db.query(
+    `SELECT b.booking_id,
+            b.customer_id,
+            b.status,
+            b.total_amount,
+            ts.slot_date  AS booking_date,
+            ts.start_time AS booking_time,
+            s.service_name,
+            m.merchant_name
+     FROM booking b
+     JOIN time_slot ts ON b.slot_id     = ts.slot_id
+     JOIN service   s  ON b.service_id  = s.service_id
+     JOIN merchant  m  ON b.merchant_id = m.merchant_id
+     WHERE ${isHistory ? historyWhere : upcomingWhere}
+     ORDER BY ts.slot_date ${isHistory ? 'DESC' : 'ASC'}, ts.start_time ${isHistory ? 'DESC' : 'ASC'}, b.booking_id ${isHistory ? 'DESC' : 'ASC'}
+     LIMIT ? OFFSET ?`,
+    [
+      customerId,
+      isHistory ? terminalStatuses : activeStatuses,
+      safeLimit,
+      safeOffset
+    ]
+  );
+
+  return rows;
+}
+
 // ── BOOKING STATUS UPDATES ─────────────────────────────────────────────────
 
 // Changes the booking status (used after payment confirmation or admin action).
@@ -817,6 +863,7 @@ module.exports = {
   lockCustomerForBooking,
   getBookingById,
   getCustomerBookingById,
+  getCustomerBookingsForWhatsApp,
   updateBookingStatus,
   updateMerchantBookingStatus,
   markCustomerArrivedForMerchant,

@@ -210,7 +210,7 @@ async function assertNoCustomerBookingConflict(connection, {
 }) {
   // Join service and merchant to build a human-readable conflict message.
   let query = `
-    SELECT b.booking_id, ts.start_time, ts.end_time, s.service_name, m.merchant_name
+    SELECT b.booking_id, ts.slot_date, ts.start_time, ts.end_time, s.service_name, m.merchant_name
     FROM booking b
     JOIN time_slot ts ON b.slot_id = ts.slot_id
     JOIN service s ON b.service_id = s.service_id
@@ -242,9 +242,19 @@ async function assertNoCustomerBookingConflict(connection, {
   if (conflict) {
     const start = String(conflict.start_time).slice(0, 5);
     const end = String(conflict.end_time).slice(0, 5);
-    throw new Error(
+    const error = new Error(
       `You already have a booking at ${conflict.merchant_name} (${conflict.service_name}) from ${start} to ${end}. Please choose a different time.`
     );
+    error.code = 'CUSTOMER_BOOKING_OVERLAP';
+    error.conflict = {
+      bookingId: conflict.booking_id,
+      merchantName: conflict.merchant_name,
+      serviceName: conflict.service_name,
+      bookingDate: conflict.slot_date,
+      startTime: conflict.start_time,
+      endTime: conflict.end_time
+    };
+    throw error;
   }
 }
 

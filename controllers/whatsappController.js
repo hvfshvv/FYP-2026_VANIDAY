@@ -7,6 +7,7 @@ const whatsappModel = require('../models/whatsappModel');
 const supportModel = require('../models/supportModel');
 
 const userSessions = {};
+const WHATSAPP_BOOKING_PAGE_SIZE = 5;
 
 const categories = {
   1: 'Hair',
@@ -24,7 +25,7 @@ function getMainMenu() {
     'Hi, welcome to Uniday!\n' +
     'What would you like to do today?\n\n' +
     '1. Book a Service\n' +
-    '2. View Booking\n' +
+    '2. View My Bookings\n' +
     '3. Cancel Booking\n' +
     '4. Reschedule Booking\n' +
     '5. Help / Support\n\n' +
@@ -257,6 +258,140 @@ function getReservationSummary(booking) {
     'Status: ' + booking.status + '\n' +
     'Total: $' + Number(booking.payable_amount || booking.total_amount || 0).toFixed(2)
   );
+}
+
+function isCustomerOverlapError(error) {
+  return error && error.code === 'CUSTOMER_BOOKING_OVERLAP' && error.conflict;
+}
+
+function getCustomerOverlapMessage(error) {
+  const conflict = error.conflict;
+
+  return (
+    'You already have another booking that overlaps with this time:\n\n' +
+    'Merchant: ' + conflict.merchantName + '\n' +
+    'Service: ' + conflict.serviceName + '\n' +
+    'Date: ' + formatBookingDate(conflict.bookingDate) + '\n' +
+    'Time: ' + formatBookingTime(conflict.startTime) + '-' + formatBookingTime(conflict.endTime) + '\n\n' +
+    'Please choose a different time.'
+  );
+}
+
+function getBookingViewMenu() {
+  return (
+    'Which bookings would you like to view?\n\n' +
+    '1. Current / Upcoming Bookings\n' +
+    '2. Booking History\n' +
+    '3. Find Booking by ID\n\n' +
+    'Reply with 1, 2, or 3.\n' +
+    'Reply 0 or back to return to the main menu.'
+  );
+}
+
+function statusLabel(status) {
+  return String(status || 'Unknown')
+    .split('_')
+    .map(function (part) {
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join(' ');
+}
+
+function formatShortBookingDate(value) {
+  const date = formatBookingDate(value);
+  const parts = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  if (!parts) {
+    return date;
+  }
+
+  return Number(parts[3]) + ' ' + months[Number(parts[2]) - 1] + ' ' + parts[1];
+}
+
+function formatBookingList(viewType, bookings, page, hasNext) {
+  const title = viewType === 'history'
+    ? 'Your booking history:'
+    : 'Your upcoming bookings:';
+  const lines = [title];
+
+  bookings.forEach(function (booking, index) {
+    lines.push(
+      '',
+      (index + 1) + '. #' + booking.booking_id + ' — ' + booking.service_name,
+      '   ' + booking.merchant_name,
+      '   ' + formatShortBookingDate(booking.booking_date) + ' at ' + formatBookingTime(booking.booking_time),
+      '   Status: ' + statusLabel(booking.status)
+    );
+  });
+
+  lines.push(
+    '',
+    'Reply with the list number for full details.'
+  );
+
+  if (hasNext) {
+    lines.push('Reply NEXT to view more.');
+  }
+
+  if (page > 0) {
+    lines.push('Reply PREVIOUS to go back.');
+  }
+
+  lines.push(
+    'Reply BACK to choose another booking view.',
+    'Reply MENU to restart.'
+  );
+
+  return lines.join('\n');
+}
+
+async function showBookingViewMenu(sender, twiml, customer) {
+  await saveSession(sender, {
+    state: 'booking_view_submenu',
+    customer: customer
+  });
+
+  twiml.message(getBookingViewMenu());
+}
+
+async function showBookingListPage(sender, twiml, customer, viewType, page) {
+  const safePage = Math.max(0, Number(page) || 0);
+  const rows = await bookingModel.getCustomerBookingsForWhatsApp(customer.customer_id, viewType, {
+    limit: WHATSAPP_BOOKING_PAGE_SIZE + 1,
+    offset: safePage * WHATSAPP_BOOKING_PAGE_SIZE
+  });
+  const bookings = rows.slice(0, WHATSAPP_BOOKING_PAGE_SIZE);
+  const hasNext = rows.length > WHATSAPP_BOOKING_PAGE_SIZE;
+
+  if (!bookings.length) {
+    await saveSession(sender, {
+      state: 'booking_view_empty',
+      customer: customer
+    });
+
+    twiml.message(
+      (viewType === 'history'
+        ? 'You do not have any past bookings yet.'
+        : 'You do not have any current or upcoming bookings.') +
+      '\n\nReply BACK to choose another booking view.\n' +
+      'Reply MENU to restart.'
+    );
+    return;
+  }
+
+  await saveSession(sender, {
+    state: 'booking_view_list',
+    customer: customer,
+    bookingViewType: viewType,
+    page: safePage,
+    displayedBookingIds: bookings.map(function (booking) {
+      return booking.booking_id;
+    }),
+    hasNext: hasNext
+  });
+
+  twiml.message(formatBookingList(viewType, bookings, safePage, hasNext));
 }
 
 function getCancellationSummary(booking) {
@@ -696,7 +831,101 @@ async function receiveMessage(req, res) {
       await clearSession(sender, 'completed');
       twiml.message(getMainMenu());
     } else if (message === '0' || message === 'back') {
-      await goBack(sender, twiml);
+      if (session && session.state === 'booking_view_submenu') {
+        await clearSession(sender, 'completed');
+        twiml.message(getMainMenu());
+      } else if (session && (session.state === 'booking_view_list' || session.state === 'booking_view_empty')) {
+        const customer = session.customer || await getVerifiedCustomerForSender(sender);
+
+        if (!customer) {
+          twiml.message(
+            'Please log in or create a Uniday account before viewing a booking through WhatsApp:\n' +
+            getLoginLink(sender)
+          );
+          await clearSession(sender, 'completed');
+          return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
+        }
+
+        await showBookingViewMenu(sender, twiml, customer);
+      } else {
+        await goBack(sender, twiml);
+      }
+    } else if (session && session.state === 'booking_view_submenu') {
+      const customer = session.customer || await getVerifiedCustomerForSender(sender);
+
+      if (!customer) {
+        twiml.message(
+          'Please log in or create a Uniday account before viewing a booking through WhatsApp:\n' +
+          getLoginLink(sender)
+        );
+        await clearSession(sender, 'completed');
+        return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
+      }
+
+      if (message === '1') {
+        await showBookingListPage(sender, twiml, customer, 'upcoming', 0);
+      } else if (message === '2') {
+        await showBookingListPage(sender, twiml, customer, 'history', 0);
+      } else if (message === '3') {
+        await saveSession(sender, {
+          state: 'checking_reservation',
+          customer: customer
+        });
+
+        twiml.message('Please enter your booking ID to check your reservation.');
+      } else {
+        twiml.message(getBookingViewMenu());
+      }
+    } else if (session && session.state === 'booking_view_list') {
+      const customer = session.customer || await getVerifiedCustomerForSender(sender);
+
+      if (!customer) {
+        twiml.message(
+          'Please log in or create a Uniday account before viewing a booking through WhatsApp:\n' +
+          getLoginLink(sender)
+        );
+        await clearSession(sender, 'completed');
+        return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
+      }
+
+      if (message === 'next') {
+        if (session.hasNext) {
+          await showBookingListPage(sender, twiml, customer, session.bookingViewType, Number(session.page || 0) + 1);
+        } else {
+          twiml.message('There are no more bookings to show.\n\nReply BACK to choose another booking view, or MENU to restart.');
+        }
+      } else if (message === 'previous') {
+        if (Number(session.page || 0) > 0) {
+          await showBookingListPage(sender, twiml, customer, session.bookingViewType, Number(session.page || 0) - 1);
+        } else {
+          twiml.message('You are already on the first page.\n\nReply BACK to choose another booking view, or MENU to restart.');
+        }
+      } else {
+        const listNumber = parseInt(message, 10);
+        const displayedBookingIds = Array.isArray(session.displayedBookingIds) ? session.displayedBookingIds : [];
+        const bookingId = displayedBookingIds[listNumber - 1];
+
+        if (!bookingId) {
+          twiml.message('Please reply with a list number, NEXT, PREVIOUS, BACK, or MENU.');
+        } else {
+          const booking = await bookingModel.getBookingById(bookingId);
+
+          if (!booking || !isCustomerBooking(booking, customer)) {
+            twiml.message(
+              'Sorry, I could not find that booking under your Uniday account.\n\n' +
+              'Reply BACK to choose another booking view, or MENU to restart.'
+            );
+          } else {
+            linkedBookingId = booking.booking_id;
+            twiml.message(
+              getReservationSummary(booking) + '\n\n' +
+              'Reply BACK to choose another booking view, or MENU to restart.'
+            );
+          }
+        }
+      }
+    } else if (session && session.state === 'booking_view_empty') {
+      twiml.message('Reply BACK to choose another booking view, or MENU to restart.');
     } else if (session && session.state === 'checking_reservation') {
       const bookingId = incomingMessage.trim();
       const customer = session.customer || await getVerifiedCustomerForSender(sender);
@@ -1078,15 +1307,41 @@ async function receiveMessage(req, res) {
           return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
         }
 
-        const bookingId = await bookingModel.createBooking({
-          customerId: session.customer.customer_id,
-          serviceId: session.service.service_id,
-          merchantId: session.merchant.merchant_id,
-          bookingDate: session.bookingDate,
-          bookingTime: session.selectedSlot.start_time,
-          staffId: selectedStaff ? selectedStaff.staff_id : null,
-          source: 'whatsapp'
-        });
+        let bookingId;
+
+        try {
+          bookingId = await bookingModel.createBooking({
+            customerId: session.customer.customer_id,
+            serviceId: session.service.service_id,
+            merchantId: session.merchant.merchant_id,
+            bookingDate: session.bookingDate,
+            bookingTime: session.selectedSlot.start_time,
+            staffId: selectedStaff ? selectedStaff.staff_id : null,
+            source: 'whatsapp'
+          });
+        } catch (error) {
+          if (!isCustomerOverlapError(error)) {
+            throw error;
+          }
+
+          const slots = await getTimeSlotsForDate(session, session.bookingDate);
+          await saveSession(sender, {
+            state: 'choosing_time_slot',
+            category: session.category,
+            merchant: session.merchant,
+            service: session.service,
+            customer: session.customer,
+            bookingDate: session.bookingDate,
+            slots: slots
+          });
+
+          twiml.message(
+            getCustomerOverlapMessage(error) + '\n\n' +
+            getTimeSlotMenu(session.bookingDate, slots) + '\n' +
+            'Reply MENU to restart.'
+          );
+          return finishWhatsAppResponse(res, twiml, sessionRecord, outgoingMessages, latestMessageType, linkedBookingId);
+        }
         linkedBookingId = bookingId;
 
         try {
@@ -1141,12 +1396,7 @@ async function receiveMessage(req, res) {
           getLoginLink(sender)
         );
       } else {
-        await saveSession(sender, {
-          state: 'checking_reservation',
-          customer: customer
-        });
-
-        twiml.message('Please enter your booking ID to check your reservation.');
+        await showBookingViewMenu(sender, twiml, customer);
       }
     } else if (message === '3' || message === 'cancel' || message === 'cancel booking') {
       const customer = await getVerifiedCustomerForSender(sender);
