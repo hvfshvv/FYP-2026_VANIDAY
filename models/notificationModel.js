@@ -85,7 +85,7 @@ const NOTIFICATION_ACTION_SELECT = `
     WHEN n.notification_type IN ('payment_failed', 'payment_window_expired') AND n.booking_id IS NOT NULL
       THEN CONCAT('/book/', n.booking_id, '/rebook')
     WHEN n.booking_id IS NOT NULL
-      THEN '/book/viewBookings'
+      THEN CONCAT('/book/viewBookings#booking-', n.booking_id)
     ELSE NULL
   END AS action_url,
   CASE

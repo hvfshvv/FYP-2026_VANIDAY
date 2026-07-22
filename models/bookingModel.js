@@ -497,9 +497,11 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
       throw new Error('This booking cannot be rescheduled');
     }
 
-    const policy = await cancellationPolicyModel.getPolicyByMerchantId(booking.merchant_id, connection);
-    if (policy.is_active && !policy.allow_reschedule) {
-      throw new Error('This merchant does not allow rescheduling through the platform.');
+    const currentDateForPolicy = formatDateValue(booking.slot_date);
+    const currentStartsAt = new Date(`${currentDateForPolicy}T${String(booking.start_time).slice(0, 5)}:00`);
+    const hoursUntilCurrentSlot = (currentStartsAt.getTime() - Date.now()) / (60 * 60 * 1000);
+    if (!Number.isFinite(hoursUntilCurrentSlot) || hoursUntilCurrentSlot < cancellationPolicyModel.PLATFORM_POLICY.rescheduleCutoffHours) {
+      throw new Error('Bookings can only be rescheduled until 6 hours before the appointment.');
     }
 
     assertCurrentOrFutureSlot(bookingDate, bookingTime);
@@ -510,7 +512,7 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
       bookingTime,
     });
 
-    const currentDate = formatDateValue(booking.slot_date);
+    const currentDate = currentDateForPolicy;
     const currentTime = String(booking.start_time).slice(0, 5);
     const requestedTime = String(bookingTime).slice(0, 5);
 
@@ -754,10 +756,6 @@ async function getCustomerBookings(customerId) {
                 COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE))
               )
             ) AS pending_remaining_seconds,
-            COALESCE(CASE WHEN m.cancellation_policy_active = 1 THEN m.min_cancel_hours END, 6) AS min_cancel_hours,
-            COALESCE(CASE WHEN m.cancellation_policy_active = 1 THEN m.refund_percentage END, 95.00) AS refund_percentage,
-            COALESCE(CASE WHEN m.cancellation_policy_active = 1 THEN m.allow_reschedule END, 1) AS allow_reschedule,
-            COALESCE(m.cancellation_policy_active, 1) AS cancellation_policy_active,
             mr.review_id AS merchant_review_id,
             pf.review_id AS platform_feedback_id
      FROM booking b

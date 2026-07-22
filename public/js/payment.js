@@ -36,7 +36,10 @@
     // Load Stripe payment form for this booking.
     if (!STRIPE_KEY) {
       showError(translate('payment.errors.missingStripeKey', null, 'Stripe publishable key is missing. Add STRIPE_PUBLISHABLE_KEY to .env.'));
-      if (stripeButton) stripeButton.disabled = true;
+      if (stripeButton) {
+        stripeButton.dataset.blocked = 'true';
+        stripeButton.disabled = true;
+      }
       return;
     }
 
@@ -82,7 +85,10 @@
       });
     } catch (err) {
       showError(err.message);
-      if (stripeButton) stripeButton.disabled = true;
+      if (stripeButton) {
+        stripeButton.dataset.blocked = 'true';
+        stripeButton.disabled = true;
+      }
     }
   }
 
@@ -102,7 +108,11 @@
     const btn = document.getElementById(`${prefix}-pay-btn`);
     const label = document.getElementById(`${prefix}-lbl`);
     const spinner = document.getElementById(`${prefix}-spin`);
-    if (btn) btn.disabled = loading;
+    if (btn) {
+      btn.dataset.loading = loading ? 'true' : 'false';
+      const disabled = loading || btn.dataset.blocked === 'true';
+      btn.disabled = disabled;
+    }
     if (label) label.classList.toggle('d-none', loading);
     if (spinner) spinner.classList.toggle('d-none', !loading);
   }

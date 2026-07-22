@@ -101,15 +101,6 @@
             </div>
           </div>
 
-          <% if (typeof cancellationPolicySummary !== 'undefined' && cancellationPolicySummary) { %>
-          <div class="p-3 rounded-xl mb-4" style="background:#fff;border:1px solid var(--border);">
-            <p style="font-weight:700;font-size:.8125rem;color:var(--accent);margin-bottom:.5rem;">
-              <i class="bi bi-hourglass-split me-1"></i><%= t('payment.cancellationPolicy') %>
-            </p>
-            <p style="color:var(--ink);font-weight:700;margin:0;font-size:.875rem;"><%= cancellationPolicySummary %></p>
-          </div>
-          <% } %>
-
           <%
             const checkoutVouchers = (typeof voucherOptions !== 'undefined' && voucherOptions)
               ? voucherOptions

@@ -328,7 +328,6 @@ router.post('/reviews/:reviewId/reply', reviewCtrl.replyToReview);
 
 // Merchant cancellation policy.
 router.get('/cancellation-policy', cancellationPolicyCtrl.showPolicy);
-router.post('/cancellation-policy', cancellationPolicyCtrl.updatePolicy);
 
 // Service management: add, hide/show, and delete bookable services.
 router.get('/services', svcCtrl.showServices);

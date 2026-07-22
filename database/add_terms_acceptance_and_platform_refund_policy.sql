@@ -9,8 +9,3 @@ SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEM
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
-
-UPDATE merchant
-SET refund_percentage = LEAST(COALESCE(refund_percentage, 95), 95),
-    min_cancel_hours = GREATEST(COALESCE(min_cancel_hours, 6), 6),
-    cancellation_policy_active = COALESCE(cancellation_policy_active, TRUE);

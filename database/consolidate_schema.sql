@@ -1,28 +1,9 @@
--- Unified wallet, transactions, reviews, and merchant cancellation policy.
+-- Unified wallet, transactions, and reviews.
 -- Safe rollout phase: copies data but intentionally does not drop legacy tables.
 -- Select the intended schema as default before running this file manually.
 
 -- MySQL does not consistently support ADD COLUMN IF NOT EXISTS, so each
 -- conditional change is built from INFORMATION_SCHEMA and executed safely.
-SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'merchant' AND COLUMN_NAME = 'min_cancel_hours') = 0,
-  'ALTER TABLE merchant ADD COLUMN min_cancel_hours INT NOT NULL DEFAULT 6', 'SELECT 1');
-PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'merchant' AND COLUMN_NAME = 'refund_percentage') = 0,
-  'ALTER TABLE merchant ADD COLUMN refund_percentage DECIMAL(5,2) NOT NULL DEFAULT 100.00', 'SELECT 1');
-PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'merchant' AND COLUMN_NAME = 'allow_reschedule') = 0,
-  'ALTER TABLE merchant ADD COLUMN allow_reschedule BOOLEAN NOT NULL DEFAULT TRUE', 'SELECT 1');
-PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @ddl = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'merchant' AND COLUMN_NAME = 'cancellation_policy_active') = 0,
-  'ALTER TABLE merchant ADD COLUMN cancellation_policy_active BOOLEAN NOT NULL DEFAULT TRUE', 'SELECT 1');
-PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-UPDATE merchant m
-JOIN cancellation_policy cp ON cp.merchant_id = m.merchant_id
-SET m.min_cancel_hours = cp.min_cancel_hours,
-    m.refund_percentage = cp.refund_percentage,
-    m.allow_reschedule = cp.allow_reschedule,
-    m.cancellation_policy_active = cp.is_active;
 
 CREATE TABLE IF NOT EXISTS wallet (
   wallet_id INT AUTO_INCREMENT PRIMARY KEY,

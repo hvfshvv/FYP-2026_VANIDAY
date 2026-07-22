@@ -25,7 +25,10 @@
     "signOut": "退出登录",
     "signInRegister": "登录 / 注册",
     "browseByCategory": "按类别浏览",
-    "myAccount": "我的账户"
+    "myAccount": "我的账户",
+    "myReviews": "我的评价",
+    "loyaltyRewards": "会员奖励",
+    "notifications": "通知"
   },
   "categories": {
     "hair": "美发",
@@ -258,7 +261,53 @@
     "booking": "预约",
     "read": "已读",
     "askPlaceholder": "问我任何问题",
-    "ask": "提问"
+    "ask": "提问",
+    "section": "通知",
+    "title": "更新",
+    "subtitle": "预约、付款、评价、奖励和候补通知。",
+    "labels": {
+      "paymentNeeded": "需要付款",
+      "booking": "预约",
+      "payment": "付款",
+      "review": "评价",
+      "rewards": "奖励",
+      "waitlist": "候补",
+      "account": "账户",
+      "update": "更新"
+    },
+    "titles": {
+      "bookingCreated": "完成付款",
+      "bookingConfirmed": "预约成功",
+      "bookingCancelled": "预约已取消",
+      "bookingRescheduled": "预约已改期",
+      "paymentAttemptFailed": "付款尝试失败",
+      "paymentWindowExpired": "付款时间已过",
+      "paymentFailed": "付款失败",
+      "reviewAvailable": "评价体验",
+      "reviewReward": "已获得会员积分",
+      "waitlistOffer": "有可用时段",
+      "waitlistJoined": "已加入候补",
+      "waitlistOfferExpired": "候补时段已过期",
+      "waitlistExpired": "候补已过期",
+      "waitlistCancelled": "候补请求已取消",
+      "waitlistRemoved": "候补请求已移除"
+    },
+    "actions": {
+      "continuePayment": "继续付款",
+      "tryPaymentAgain": "重新付款",
+      "rateExperience": "评价体验",
+      "viewRewards": "查看奖励",
+      "confirmSlot": "确认时段",
+      "viewWaitlist": "查看候补",
+      "bookAgain": "再次预约",
+      "viewBooking": "查看预约"
+    },
+    "errors": {
+      "loadFailed": "无法加载通知。请重试。"
+    },
+    "messages": {
+      "markedRead": "消息已标记为已读。"
+    }
   },
   "services": {
     "byName": {
@@ -313,9 +362,9 @@
     "anyAvailableStaff": "任何可用员工",
     "mins": "{{count}} 分钟",
     "cancellationPolicy": "取消政策",
-    "cancelPolicyText": "预约前超过 {{hours}} 小时取消，可退款 {{refund}}%。",
-    "cancelPolicyPartialText": " 预约前 {{hours}}-24 小时取消，可退款 {{refund}}%。",
-    "cancelPolicyLateText": " 少于 6 小时或未到场：不退款。",
+    "cancelPolicyText": "More than 24hrs -> 95%",
+    "cancelPolicyPartialText": "6 to 24hrs before -> 50%",
+    "cancelPolicyLateText": "Less than 6hrs / no-show -> 0%",
     "currentRefund": "当前退款：{{refund}}%",
     "cancelWindowOpen": "可取消",
     "cancelWindowClosed": "取消窗口已关闭",
@@ -331,7 +380,14 @@
     "expired": "已过期",
     "daysHoursLeftToCancel": "还剩 {{days}} 天 {{hours}} 小时可取消",
     "hoursMinutesLeftToCancel": "还剩 {{hours}} 小时 {{minutes}} 分钟可取消",
-    "minutesLeftToCancel": "还剩 {{minutes}} 分钟可取消"
+    "minutesLeftToCancel": "还剩 {{minutes}} 分钟可取消",
+    "cancelWaitlistSecondConfirm": "Are you sure? This waitlist cancellation cannot be undone.",
+    "cancelBookingRefundConfirm": "Are you sure you want to proceed? Your eligible refund is {{refund}}%.",
+    "reschedulePolicyShort": "可改期，视商家档期而定。",
+    "confirmCancellationTitle": "确认取消",
+    "keepBooking": "保留预约",
+    "yesProceed": "是，继续",
+    "cancelGenericConfirm": "确定吗？此操作无法撤销。"
   },
   "arrival": {
     "qr": "到店 QR",
@@ -466,7 +522,7 @@
     "privacyTitle": "隐私政策",
     "cancellationRefundTitle": "取消与退款政策",
     "merchantTermsTitle": "商家条款",
-    "cancellationRefundIntro": "生效版本：2026-07。除非结账前显示更严格的商家规则，否则这些规则适用于已付款的 Uniday 预约。",
+    "cancellationRefundIntro": "Effective version: 2026-07. These admin-set platform rules apply to all paid Uniday bookings and cannot be changed by individual merchants.",
     "customerCausedTitle": "顾客原因取消",
     "merchantCausedTitle": "商家原因变更",
     "processingFeesTitle": "处理费用",
@@ -486,7 +542,12 @@
     "privacyIntro": "Uniday 会收集运营预约平台所需的账号、预约、付款状态、通知和支持信息。",
     "privacyContactBody": "顾客联系方式用于预约确认、提醒、等候名单通知、退款和支持。商家业务资料会在发现、预约和顾客沟通所需处显示。",
     "privacyPaymentBody": "付款卡资料由支付网关处理。Uniday 存储付款状态、参考编号、收据链接和退款记录，但不存储原始卡号。",
-    "privacyRetentionBody": "账号和预约记录可能会因运营、安全、审计和争议处理目的而保留。"
+    "privacyRetentionBody": "账号和预约记录可能会因运营、安全、审计和争议处理目的而保留。",
+    "reschedulingTitle": "Rescheduling",
+    "rescheduleUntil": "Rescheduling is allowed until 6 hours before the appointment.",
+    "rescheduleAvailability": "Rescheduling is subject to merchant availability.",
+    "rescheduleNoCharge": "There is no additional charge for rescheduling.",
+    "reschedulePaymentTransfer": "Existing payment is transferred to the new booking."
   },
   "merchantTerms": {
     "section": "商家",
@@ -498,14 +559,14 @@
     "signupAgreementPrefix": "我同意 Uniday 的",
     "signupAgreementPolicy": "以及平台退款规则：顾客在预约前超过 24 小时取消可退款 95%，6-24 小时可退款 50%，少于 6 小时/未到场不退款，商家原因取消退款 100%。",
     "bodyAppointments": "商家同意履行已确认预约，保持服务可用时间准确，并保持业务联系方式最新。",
-    "bodyRefundRules": "商家接受 Uniday 平台取消与退款规则。顾客原因取消可根据时间获得 95%、50% 或 0% 退款。商家原因取消、无法提供服务，或商家改期后顾客拒绝新时间，退款 100%。",
+    "bodyRefundRules": "Merchants accept Uniday admin-set platform cancellation, refund, and rescheduling rules. Customer-caused cancellations receive 95%, 50%, or 0% refund depending on timing. Rescheduling is allowed until 6 hours before the appointment, subject to merchant availability, with no additional charge and the existing payment transferred to the new booking.",
     "bodyProcessingFees": "退款时，支付网关处理费可能不会退还。商家确认 Uniday 的退款政策旨在减少不公平的额外费用，同时维护顾客信任。",
-    "bodyStricterSettings": "商家可在可用时设置更严格的取消规则，但商家设置不能覆盖 Uniday 对商家原因问题要求的全额退款。"
+    "bodyStricterSettings": "Cancellation, refund, and rescheduling rules are set by Uniday admin and apply to all merchants. Merchants cannot edit or override these platform terms."
   },
   "merchantPolicy": {
-    "subtitle": "在 Uniday 平台退款政策基础上设置更严格的商家规则。",
-    "baseline": "Uniday 基准：超过 24 小时 = 95% 退款，6-24 小时 = 50%，少于 6 小时/未到场 = 0%，商家原因取消 = 100%。",
-    "refundCapHelp": "这只限制顾客原因取消的退款。商家原因取消仍为 100% 退款。"
+    "subtitle": "View Uniday admin-set cancellation and rescheduling terms.",
+    "baseline": "Uniday policy: more than 24 hours = 95% refund, 6-24 hours = 50%, less than 6 hours/no-show = 0%. Rescheduling is allowed until 6 hours before the appointment.",
+    "refundCapHelp": "These platform terms apply to all merchants and cannot be edited by individual merchants."
   },
   "account": {
     "title": "我的账户",
@@ -571,7 +632,8 @@
       "passwordLength": "新密码必须至少 6 个字符。",
       "passwordMismatch": "两次输入的新密码不一致。",
       "currentPassword": "当前密码不正确。",
-      "passwordFailed": "无法更新密码。"
+      "passwordFailed": "无法更新密码。",
+      "invalidSgPhone": "Please enter a valid Singapore phone number."
     },
     "passwordGate": {
       "enterCurrent": "请先输入当前密码。",

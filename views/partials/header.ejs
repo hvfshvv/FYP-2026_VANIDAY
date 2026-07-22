@@ -35,7 +35,7 @@
           <% } %>
         </a>
       </li>
-      <li><a href="/book/reviews">My Reviews</a></li>
+      <li><a href="/book/reviews"><%= t('nav.myReviews') %></a></li>
       <% } %>
       <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
       <li><a href="/merchant/dashboard"><%= t('nav.dashboard') %></a></li>
@@ -66,8 +66,8 @@
       <a href="/wallet" class="nav-icon-action" aria-label="<%= t('nav.myWallet') %>" title="<%= t('nav.myWallet') %>">
         <i class="bi bi-wallet2"></i>
       </a>
-      <a href="/loyalty" class="nav-icon-action" aria-label="Loyalty rewards" title="Loyalty rewards"><i class="bi bi-stars"></i></a>
-      <a href="/notifications" class="nav-icon-action nav-notification-action" aria-label="Notifications" title="Notifications">
+      <a href="/loyalty" class="nav-icon-action" aria-label="<%= t('nav.loyaltyRewards') %>" title="<%= t('nav.loyaltyRewards') %>"><i class="bi bi-stars"></i></a>
+      <a href="/notifications" class="nav-icon-action nav-notification-action" aria-label="<%= t('nav.notifications') %>" title="<%= t('nav.notifications') %>">
         <i class="bi bi-bell"></i>
         <% if (Number(locals.unreadNotificationCount || 0) > 0) { %>
         <span class="nav-notification-badge"><%= unreadNotificationCount %></span>
@@ -111,12 +111,12 @@
     <span class="nav-pending-badge"><%= pendingPaymentCount %></span>
     <% } %>
   </a>
-  <a href="/book/reviews">My Reviews</a>
+  <a href="/book/reviews"><%= t('nav.myReviews') %></a>
   <a href="/favourite"><%= t('nav.myFavourites') %></a>
   <a href="/wallet"><%= t('nav.wallet') %></a>
-  <a href="/loyalty">Loyalty Rewards</a>
+  <a href="/loyalty"><%= t('nav.loyaltyRewards') %></a>
   <a href="/notifications">
-    Notifications
+    <%= t('nav.notifications') %>
     <% if (Number(locals.unreadNotificationCount || 0) > 0) { %>
     <span class="nav-pending-badge"><%= unreadNotificationCount %></span>
     <% } %>

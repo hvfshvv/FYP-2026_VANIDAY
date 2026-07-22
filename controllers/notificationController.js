@@ -16,7 +16,7 @@ async function listNotifications(req, res) {
     }
 
     res.render('notifications/index', {
-      title: 'Notifications',
+      title: res.locals.t('notifications.section'),
       notifications,
       success: req.query.success || null,
       error: null,
@@ -25,10 +25,10 @@ async function listNotifications(req, res) {
   } catch (err) {
     console.error('notifications load failed:', err);
     res.render('notifications/index', {
-      title: 'Notifications',
+      title: res.locals.t('notifications.section'),
       notifications: [],
       success: null,
-      error: 'Could not load notifications. Please try again.',
+      error: res.locals.t('notifications.errors.loadFailed'),
       query: req.query,
     });
   }
@@ -47,7 +47,7 @@ async function markRead(req, res) {
 async function markAllRead(req, res) {
   try {
     await notificationModel.markAllRead(req.session.user.user_id);
-    res.redirect('/notifications?success=' + encodeURIComponent('Messages marked as read.'));
+    res.redirect('/notifications?success=' + encodeURIComponent(res.locals.t('notifications.messages.markedRead')));
   } catch (err) {
     console.error('notification mark-all-read failed:', err);
     res.redirect('/notifications');

@@ -1,39 +1,23 @@
 <% locals.hideCatNav = true %>
 <%- include('../partials/header') %>
 <%
-  const parseDate = value => {
-    const parsed = value ? new Date(value) : null;
-    return parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
-  };
   const dateInputValue = value => {
-    const parsed = parseDate(value);
-    return parsed ? parsed.toISOString().slice(0, 10) : '';
+    if (!value) return '';
+    if (typeof value === 'string') {
+      const match = value.match(/\d{4}-\d{2}-\d{2}/);
+      return match ? match[0] : '';
+    }
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    return '';
   };
-  const countryCodes = [
-    { code: '+65', label: 'Singapore', flag: 'SG' },
-    { code: '+60', label: 'Malaysia', flag: 'MY' },
-    { code: '+62', label: 'Indonesia', flag: 'ID' },
-    { code: '+66', label: 'Thailand', flag: 'TH' },
-    { code: '+63', label: 'Philippines', flag: 'PH' },
-    { code: '+84', label: 'Vietnam', flag: 'VN' },
-    { code: '+91', label: 'India', flag: 'IN' },
-    { code: '+86', label: 'China', flag: 'CN' },
-    { code: '+852', label: 'Hong Kong', flag: 'HK' },
-    { code: '+886', label: 'Taiwan', flag: 'TW' },
-    { code: '+81', label: 'Japan', flag: 'JP' },
-    { code: '+82', label: 'South Korea', flag: 'KR' },
-    { code: '+61', label: 'Australia', flag: 'AU' },
-    { code: '+44', label: 'United Kingdom', flag: 'UK' },
-    { code: '+1', label: 'United States / Canada', flag: 'US/CA' },
-  ];
   const rawPhone = String(accountUser.phone || '').trim();
-  const matchedCountry = countryCodes
-    .slice()
-    .sort((a, b) => b.code.length - a.code.length)
-    .find(country => rawPhone.startsWith(country.code));
-  const selectedCountryCode = matchedCountry ? matchedCountry.code : '+65';
-  const localPhone = rawPhone.startsWith(selectedCountryCode)
-    ? rawPhone.slice(selectedCountryCode.length)
+  const localPhone = rawPhone.startsWith('+65')
+    ? rawPhone.slice(3)
     : rawPhone.replace(/[^\d]/g, '');
   const firstName = String(accountUser.full_name || '').split(' ')[0] || t('account.customer');
 %>
@@ -97,13 +81,9 @@
 
             <label class="account-field">
               <span><%= t('account.fields.phone') %></span>
-              <div class="account-phone-row">
-                <select class="account-country-select" name="country_code" aria-label="<%= t('account.fields.countryCode') %>">
-                  <% countryCodes.forEach(country => { %>
-                  <option value="<%= country.code %>" <%= country.code === selectedCountryCode ? 'selected' : '' %>><%= country.flag %>  <%= country.code %>  <%= country.label %></option>
-                  <% }) %>
-                </select>
-                <input id="accountPhoneField" type="tel" name="phone_local" value="<%= localPhone %>" inputmode="tel" maxlength="20">
+              <div class="input-group account-phone-group">
+                <span class="input-group-text"><i class="bi bi-telephone me-1"></i>+65</span>
+                <input id="accountPhoneField" type="tel" name="phone_local" class="form-control" value="<%= localPhone %>" inputmode="numeric" minlength="8" maxlength="8" pattern="[689][0-9]{7}" placeholder="<%= t('auth.phonePlaceholder', {}, '9XXXXXXX') %>">
               </div>
             </label>
 

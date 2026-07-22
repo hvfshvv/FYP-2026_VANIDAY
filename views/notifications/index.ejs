@@ -3,48 +3,62 @@
 <%
   const notificationList = Array.isArray(notifications) ? notifications : [];
   const typeMeta = {
-    booking_created:     { icon: 'bi-credit-card', label: 'Payment needed', tone: 'warn' },
-    booking_confirmed:   { icon: 'bi-calendar-check', label: 'Booking', tone: 'success' },
-    booking_cancelled:   { icon: 'bi-calendar-x', label: 'Booking', tone: 'danger' },
-    booking_rescheduled: { icon: 'bi-calendar-event', label: 'Booking', tone: 'info' },
-    payment_attempt_failed: { icon: 'bi-exclamation-triangle', label: 'Payment', tone: 'warn' },
-    payment_window_expired: { icon: 'bi-hourglass-bottom', label: 'Payment', tone: 'danger' },
-    payment_failed:      { icon: 'bi-exclamation-triangle', label: 'Payment', tone: 'danger' },
-    review_available:    { icon: 'bi-star', label: 'Review', tone: 'accent' },
-    review_reward:       { icon: 'bi-gift', label: 'Rewards', tone: 'success' },
-    waitlist_offer:      { icon: 'bi-hourglass-split', label: 'Waitlist', tone: 'accent' },
-    waitlist_joined:     { icon: 'bi-list-ol', label: 'Waitlist', tone: 'info' },
-    waitlist_offer_expired: { icon: 'bi-hourglass-bottom', label: 'Waitlist', tone: 'danger' },
-    waitlist_expired:   { icon: 'bi-calendar-x', label: 'Waitlist', tone: 'danger' },
-    waitlist_cancelled:  { icon: 'bi-x-circle', label: 'Waitlist', tone: 'danger' },
-    waitlist_removed:    { icon: 'bi-x-circle', label: 'Waitlist', tone: 'danger' },
-    signup:              { icon: 'bi-person-check', label: 'Account', tone: 'success' },
+    booking_created:     { icon: 'bi-credit-card', labelKey: 'notifications.labels.paymentNeeded', tone: 'warn' },
+    booking_confirmed:   { icon: 'bi-calendar-check', labelKey: 'notifications.labels.booking', tone: 'success' },
+    booking_cancelled:   { icon: 'bi-calendar-x', labelKey: 'notifications.labels.booking', tone: 'danger' },
+    booking_rescheduled: { icon: 'bi-calendar-event', labelKey: 'notifications.labels.booking', tone: 'info' },
+    payment_attempt_failed: { icon: 'bi-exclamation-triangle', labelKey: 'notifications.labels.payment', tone: 'warn' },
+    payment_window_expired: { icon: 'bi-hourglass-bottom', labelKey: 'notifications.labels.payment', tone: 'danger' },
+    payment_failed:      { icon: 'bi-exclamation-triangle', labelKey: 'notifications.labels.payment', tone: 'danger' },
+    review_available:    { icon: 'bi-star', labelKey: 'notifications.labels.review', tone: 'accent' },
+    review_reward:       { icon: 'bi-gift', labelKey: 'notifications.labels.rewards', tone: 'success' },
+    waitlist_offer:      { icon: 'bi-hourglass-split', labelKey: 'notifications.labels.waitlist', tone: 'accent' },
+    waitlist_joined:     { icon: 'bi-list-ol', labelKey: 'notifications.labels.waitlist', tone: 'info' },
+    waitlist_offer_expired: { icon: 'bi-hourglass-bottom', labelKey: 'notifications.labels.waitlist', tone: 'danger' },
+    waitlist_expired:   { icon: 'bi-calendar-x', labelKey: 'notifications.labels.waitlist', tone: 'danger' },
+    waitlist_cancelled:  { icon: 'bi-x-circle', labelKey: 'notifications.labels.waitlist', tone: 'danger' },
+    waitlist_removed:    { icon: 'bi-x-circle', labelKey: 'notifications.labels.waitlist', tone: 'danger' },
+    signup:              { icon: 'bi-person-check', labelKey: 'notifications.labels.account', tone: 'success' },
   };
 
   function metaFor(notification) {
-    return typeMeta[notification.notification_type] || { icon: 'bi-bell', label: 'Update', tone: 'info' };
+    const meta = typeMeta[notification.notification_type] || { icon: 'bi-bell', labelKey: 'notifications.labels.update', tone: 'info' };
+    return { ...meta, label: t(meta.labelKey) };
   }
 
   function titleFor(notification) {
-    if (notification.title && notification.title !== 'Uniday Assistant') return notification.title;
     const fallback = {
-      booking_created: 'Complete your payment',
-      booking_confirmed: 'Booking successful',
-      booking_cancelled: 'Booking cancelled',
-      booking_rescheduled: 'Booking rescheduled',
-      payment_attempt_failed: 'Payment attempt failed',
-      payment_window_expired: 'Payment window expired',
-      payment_failed: 'Payment failed',
-      review_available: 'Rate your experience',
-      review_reward: 'Loyalty points earned',
-      waitlist_offer: 'Slot available',
-      waitlist_joined: 'Waitlist joined',
-      waitlist_offer_expired: 'Waitlist offer expired',
-      waitlist_expired: 'Waitlist expired',
-      waitlist_cancelled: 'Waitlist request cancelled',
-      waitlist_removed: 'Waitlist request removed',
+      booking_created: 'notifications.titles.bookingCreated',
+      booking_confirmed: 'notifications.titles.bookingConfirmed',
+      booking_cancelled: 'notifications.titles.bookingCancelled',
+      booking_rescheduled: 'notifications.titles.bookingRescheduled',
+      payment_attempt_failed: 'notifications.titles.paymentAttemptFailed',
+      payment_window_expired: 'notifications.titles.paymentWindowExpired',
+      payment_failed: 'notifications.titles.paymentFailed',
+      review_available: 'notifications.titles.reviewAvailable',
+      review_reward: 'notifications.titles.reviewReward',
+      waitlist_offer: 'notifications.titles.waitlistOffer',
+      waitlist_joined: 'notifications.titles.waitlistJoined',
+      waitlist_offer_expired: 'notifications.titles.waitlistOfferExpired',
+      waitlist_expired: 'notifications.titles.waitlistExpired',
+      waitlist_cancelled: 'notifications.titles.waitlistCancelled',
+      waitlist_removed: 'notifications.titles.waitlistRemoved',
     };
-    return fallback[notification.notification_type] || notification.title || 'Update';
+    return fallback[notification.notification_type] ? t(fallback[notification.notification_type]) : (notification.title || t('notifications.labels.update'));
+  }
+
+  function actionLabelFor(notification) {
+    const map = {
+      'Continue payment': 'notifications.actions.continuePayment',
+      'Try payment again': 'notifications.actions.tryPaymentAgain',
+      'Rate experience': 'notifications.actions.rateExperience',
+      'View rewards': 'notifications.actions.viewRewards',
+      'Confirm slot': 'notifications.actions.confirmSlot',
+      'View waitlist': 'notifications.actions.viewWaitlist',
+      'Book again': 'notifications.actions.bookAgain',
+      'View booking': 'notifications.actions.viewBooking',
+    };
+    return t(map[notification.action_label] || '', {}, notification.action_label);
   }
 
   function toneStyle(tone) {
@@ -60,14 +74,14 @@
   <div class="container" style="max-width:900px;">
     <div class="d-flex align-items-center justify-content-between gap-3 mb-4">
       <div>
-        <p class="section-label mb-1">Notifications</p>
-        <h1 style="font-size:clamp(1.75rem,3vw,2.5rem);font-weight:800;color:var(--ink);margin:0;">Updates</h1>
-        <p style="color:var(--muted);margin:.35rem 0 0;">Booking, payment, review, reward, and waitlist alerts.</p>
+        <p class="section-label mb-1"><%= t('notifications.section') %></p>
+        <h1 style="font-size:clamp(1.75rem,3vw,2.5rem);font-weight:800;color:var(--ink);margin:0;"><%= t('notifications.title') %></h1>
+        <p style="color:var(--muted);margin:.35rem 0 0;"><%= t('notifications.subtitle') %></p>
       </div>
       <% if (notificationList.some(n => !n.is_read)) { %>
       <form action="/notifications/read-all" method="POST">
         <button class="btn btn-outline-secondary btn-sm btn-pill" type="submit">
-          <i class="bi bi-check2-all me-1"></i>Mark all read
+          <i class="bi bi-check2-all me-1"></i><%= t('notifications.markAllRead') %>
         </button>
       </form>
       <% } %>
@@ -125,12 +139,12 @@
             <% if (notification.action_url && notification.action_label && notification.action_method === 'POST') { %>
             <form action="<%= notification.action_url %>" method="POST">
               <button class="btn btn-primary btn-sm btn-pill" type="submit">
-                <i class="bi <%= notification.action_icon || 'bi-arrow-right' %> me-1"></i><%= notification.action_label %>
+                <i class="bi <%= notification.action_icon || 'bi-arrow-right' %> me-1"></i><%= actionLabelFor(notification) %>
               </button>
             </form>
             <% } else if (notification.action_url && notification.action_label) { %>
             <a href="<%= notification.action_url %>" class="btn btn-primary btn-sm btn-pill">
-              <i class="bi <%= notification.action_icon || 'bi-arrow-right' %> me-1"></i><%= notification.action_label %>
+              <i class="bi <%= notification.action_icon || 'bi-arrow-right' %> me-1"></i><%= actionLabelFor(notification) %>
             </a>
             <% } %>
           </div>

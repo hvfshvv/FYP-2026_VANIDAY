@@ -468,6 +468,12 @@ async function showRescheduleBooking(req, res) {
       return res.redirect('/book/viewBookings?error=Booking not found.');
     }
 
+    const startsAt = new Date(`${bookingModel.formatDateValue(booking.booking_date)}T${String(booking.booking_time).slice(0, 5)}:00`);
+    const hoursUntil = (startsAt.getTime() - Date.now()) / (60 * 60 * 1000);
+    if (!Number.isFinite(hoursUntil) || hoursUntil < cancellationPolicyModel.PLATFORM_POLICY.rescheduleCutoffHours) {
+      return res.redirect('/book/viewBookings?error=' + encodeURIComponent('Bookings can only be rescheduled until 6 hours before the appointment.'));
+    }
+
     res.render('booking/reschedule', {
       title: 'Reschedule Booking',
       booking,

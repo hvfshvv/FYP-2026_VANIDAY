@@ -25,7 +25,10 @@
     "signOut": "Log keluar",
     "signInRegister": "Log masuk / Daftar",
     "browseByCategory": "Cari mengikut kategori",
-    "myAccount": "Akaun Saya"
+    "myAccount": "Akaun Saya",
+    "myReviews": "Ulasan Saya",
+    "loyaltyRewards": "Ganjaran Loyalti",
+    "notifications": "Notifikasi"
   },
   "categories": {
     "hair": "Rambut",
@@ -258,7 +261,53 @@
     "booking": "Tempahan",
     "read": "Baca",
     "askPlaceholder": "Tanya apa-apa",
-    "ask": "Tanya"
+    "ask": "Tanya",
+    "section": "Notifikasi",
+    "title": "Kemas kini",
+    "subtitle": "Makluman tempahan, bayaran, ulasan, ganjaran, dan waitlist.",
+    "labels": {
+      "paymentNeeded": "Bayaran diperlukan",
+      "booking": "Tempahan",
+      "payment": "Bayaran",
+      "review": "Ulasan",
+      "rewards": "Ganjaran",
+      "waitlist": "Waitlist",
+      "account": "Akaun",
+      "update": "Kemas kini"
+    },
+    "titles": {
+      "bookingCreated": "Lengkapkan bayaran anda",
+      "bookingConfirmed": "Tempahan berjaya",
+      "bookingCancelled": "Tempahan dibatalkan",
+      "bookingRescheduled": "Tempahan dijadualkan semula",
+      "paymentAttemptFailed": "Cubaan bayaran gagal",
+      "paymentWindowExpired": "Tempoh bayaran tamat",
+      "paymentFailed": "Bayaran gagal",
+      "reviewAvailable": "Nilai pengalaman anda",
+      "reviewReward": "Mata loyalti diperoleh",
+      "waitlistOffer": "Slot tersedia",
+      "waitlistJoined": "Waitlist disertai",
+      "waitlistOfferExpired": "Tawaran waitlist tamat",
+      "waitlistExpired": "Waitlist tamat",
+      "waitlistCancelled": "Permintaan waitlist dibatalkan",
+      "waitlistRemoved": "Permintaan waitlist dikeluarkan"
+    },
+    "actions": {
+      "continuePayment": "Teruskan bayaran",
+      "tryPaymentAgain": "Cuba bayar lagi",
+      "rateExperience": "Nilai pengalaman",
+      "viewRewards": "Lihat ganjaran",
+      "confirmSlot": "Sahkan slot",
+      "viewWaitlist": "Lihat waitlist",
+      "bookAgain": "Tempah lagi",
+      "viewBooking": "Lihat tempahan"
+    },
+    "errors": {
+      "loadFailed": "Tidak dapat memuatkan notifikasi. Sila cuba lagi."
+    },
+    "messages": {
+      "markedRead": "Mesej telah ditandakan sebagai dibaca."
+    }
   },
   "services": {
     "byName": {
@@ -289,6 +338,7 @@
     "confirmSlot": "Sahkan Slot",
     "cancelWaitlist": "Batal Waitlist",
     "cancelWaitlistConfirm": "Batalkan permintaan waitlist ini?",
+    "cancelWaitlistSecondConfirm": "Anda pasti? Pembatalan waitlist ini tidak boleh dibatalkan semula.",
     "bookingNumber": "Tempahan #{{number}}",
     "noBookingsTitle": "Belum ada tempahan",
     "noBookingsBody": "Janji temu anda akan muncul di sini selepas membuat tempahan.",
@@ -313,9 +363,10 @@
     "anyAvailableStaff": "Mana-mana staf tersedia",
     "mins": "{{count}} min",
     "cancellationPolicy": "Polisi Pembatalan",
-    "cancelPolicyText": "Batal lebih daripada {{hours}} jam sebelum janji temu untuk refund {{refund}}%.",
-    "cancelPolicyPartialText": " Batal {{hours}}-24 jam sebelum untuk refund {{refund}}%.",
-    "cancelPolicyLateText": " Kurang daripada 6 jam atau tidak hadir: tiada refund.",
+    "cancelPolicyText": "Lebih 24 jam -> 95%",
+    "cancelPolicyPartialText": "6 hingga 24 jam sebelum -> 50%",
+    "cancelPolicyLateText": "Kurang 6 jam / tidak hadir -> 0%",
+    "reschedulePolicyShort": "Jadual semula dibenarkan tertakluk kepada ketersediaan merchant.",
     "currentRefund": "Refund semasa: {{refund}}%",
     "cancelWindowOpen": "Tetingkap batal dibuka",
     "cancelWindowClosed": "Tetingkap batal ditutup",
@@ -326,12 +377,17 @@
     "reschedule": "Jadual Semula",
     "cancel": "Batal",
     "cancelBookingConfirm": "Batalkan tempahan ini?",
+    "cancelBookingRefundConfirm": "Anda pasti mahu teruskan? Refund yang layak ialah {{refund}}%.",
     "leaveReview": "Tinggalkan Ulasan +2/3 mata",
     "reviewed": "Telah diulas",
     "expired": "Tamat tempoh",
     "daysHoursLeftToCancel": "{{days}}h {{hours}}j lagi untuk batal",
     "hoursMinutesLeftToCancel": "{{hours}}j {{minutes}}m lagi untuk batal",
-    "minutesLeftToCancel": "{{minutes}}m lagi untuk batal"
+    "minutesLeftToCancel": "{{minutes}}m lagi untuk batal",
+    "confirmCancellationTitle": "Sahkan pembatalan",
+    "keepBooking": "Kekalkan tempahan",
+    "yesProceed": "Ya, teruskan",
+    "cancelGenericConfirm": "Anda pasti? Tindakan ini tidak boleh dibuat asal."
   },
   "arrival": {
     "qr": "QR Ketibaan",
@@ -466,15 +522,20 @@
     "privacyTitle": "Polisi Privasi",
     "cancellationRefundTitle": "Polisi Pembatalan & Refund",
     "merchantTermsTitle": "Terma Merchant",
-    "cancellationRefundIntro": "Versi berkuat kuasa: 2026-07. Peraturan ini terpakai kepada tempahan Uniday berbayar melainkan peraturan merchant yang lebih ketat dipaparkan sebelum checkout.",
+    "cancellationRefundIntro": "Versi berkuat kuasa: 2026-07. Peraturan platform yang ditetapkan admin ini terpakai kepada semua tempahan Uniday berbayar dan tidak boleh diubah oleh merchant individu.",
     "customerCausedTitle": "Pembatalan Disebabkan Pelanggan",
     "merchantCausedTitle": "Perubahan Disebabkan Merchant",
+    "reschedulingTitle": "Penjadualan Semula",
     "processingFeesTitle": "Yuran Pemprosesan",
     "refundCustomerEarly": "Lebih 24 jam sebelum janji temu: refund 95%.",
     "refundCustomerPartial": "6 hingga 24 jam sebelum janji temu: refund 50%.",
     "refundCustomerLate": "Kurang daripada 6 jam sebelum janji temu: tiada refund.",
     "refundNoShow": "Tidak hadir: tiada refund.",
     "refundMerchantCaused": "Pembatalan oleh merchant, servis tidak tersedia, atau jadual semula merchant ditolak pelanggan menerima refund 100%.",
+    "rescheduleUntil": "Penjadualan semula dibenarkan sehingga 6 jam sebelum janji temu.",
+    "rescheduleAvailability": "Penjadualan semula tertakluk kepada ketersediaan merchant.",
+    "rescheduleNoCharge": "Tiada caj tambahan untuk penjadualan semula.",
+    "reschedulePaymentTransfer": "Bayaran sedia ada dipindahkan kepada tempahan baharu.",
     "processingFeesSummary": "Yuran pemprosesan bayaran mungkin tidak dipulangkan oleh payment gateway apabila refund dibuat.",
     "merchantCausedBody": "Jika merchant membatalkan tempahan disahkan, tidak dapat menyediakan servis yang ditempah, atau menukar janji temu dan pelanggan menolak masa baharu, pelanggan layak menerima refund 100%.",
     "processingFeesBody": "Yuran pemprosesan yang dikenakan oleh payment gateway mungkin tidak dipulangkan kepada Uniday atau merchant apabila refund dibuat. Refund awal 95% direka untuk mengurangkan kos luar poket merchant sambil masih memberi refund yang adil kepada pelanggan.",
@@ -498,14 +559,14 @@
     "signupAgreementPrefix": "Saya bersetuju dengan",
     "signupAgreementPolicy": "dan peraturan refund platform: pembatalan pelanggan lebih 24 jam sebelum janji temu menerima 95%, 6-24 jam menerima 50%, kurang 6 jam/tidak hadir menerima 0%, dan pembatalan oleh merchant menerima 100%.",
     "bodyAppointments": "Merchant bersetuju untuk memenuhi janji temu disahkan, mengekalkan ketersediaan servis yang tepat, dan memastikan butiran hubungan bisnes dikemas kini.",
-    "bodyRefundRules": "Merchant menerima peraturan pembatalan dan refund platform Uniday. Pembatalan oleh pelanggan boleh menerima refund 95%, 50%, atau 0% bergantung pada masa. Pembatalan oleh merchant, servis tidak tersedia, atau jadual semula merchant ditolak pelanggan menerima refund 100%.",
+    "bodyRefundRules": "Merchant menerima peraturan pembatalan, refund, dan penjadualan semula platform yang ditetapkan admin Uniday. Pembatalan oleh pelanggan menerima refund 95%, 50%, atau 0% bergantung pada masa. Penjadualan semula dibenarkan sehingga 6 jam sebelum janji temu, tertakluk kepada ketersediaan merchant, tanpa caj tambahan dan bayaran sedia ada dipindahkan kepada tempahan baharu.",
     "bodyProcessingFees": "Yuran pemprosesan payment gateway mungkin tidak dipulangkan apabila refund dibuat. Merchant mengakui polisi refund Uniday direka untuk mengurangkan kos luar poket yang tidak adil sambil mengekalkan kepercayaan pelanggan.",
-    "bodyStricterSettings": "Merchant boleh menetapkan peraturan pembatalan yang lebih ketat jika tersedia, tetapi tetapan merchant tidak boleh mengatasi refund penuh yang diperlukan oleh Uniday untuk isu disebabkan merchant."
+    "bodyStricterSettings": "Peraturan pembatalan, refund, dan penjadualan semula ditetapkan oleh admin Uniday dan terpakai kepada semua merchant. Merchant tidak boleh mengedit atau mengatasi terma platform ini."
   },
   "merchantPolicy": {
-    "subtitle": "Tetapkan peraturan merchant yang lebih ketat di atas polisi refund platform Uniday.",
-    "baseline": "Asas Uniday: lebih 24 jam = refund 95%, 6-24 jam = 50%, kurang 6 jam/tidak hadir = 0%, pembatalan oleh merchant = 100%.",
-    "refundCapHelp": "Ini hanya mengehadkan refund pembatalan oleh pelanggan. Pembatalan oleh merchant kekal refund 100%."
+    "subtitle": "Lihat terma pembatalan dan penjadualan semula yang ditetapkan admin Uniday.",
+    "baseline": "Polisi Uniday: lebih 24 jam = refund 95%, 6-24 jam = 50%, kurang 6 jam/tidak hadir = 0%. Penjadualan semula dibenarkan sehingga 6 jam sebelum janji temu.",
+    "refundCapHelp": "Terma platform ini terpakai kepada semua merchant dan tidak boleh diedit oleh merchant individu."
   },
   "account": {
     "title": "Akaun Saya",
@@ -571,7 +632,8 @@
       "passwordLength": "Kata laluan baharu mesti sekurang-kurangnya 6 aksara.",
       "passwordMismatch": "Kata laluan baharu tidak sepadan.",
       "currentPassword": "Kata laluan semasa tidak betul.",
-      "passwordFailed": "Tidak dapat mengemas kini kata laluan anda."
+      "passwordFailed": "Tidak dapat mengemas kini kata laluan anda.",
+      "invalidSgPhone": "Sila masukkan nombor telefon Singapura yang sah."
     },
     "passwordGate": {
       "enterCurrent": "Masukkan kata laluan semasa dahulu.",

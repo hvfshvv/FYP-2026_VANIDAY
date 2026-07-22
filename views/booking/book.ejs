@@ -76,16 +76,6 @@
       </div>
     <% } %>
 
-    <% if (typeof cancellationPolicySummary !== 'undefined' && cancellationPolicySummary) { %>
-      <div class="rounded-xl p-3 mb-4" style="background:#fff;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
-        <p class="section-label mb-2"><%= t('bookings.cancellationPolicy') %></p>
-        <p style="color:var(--ink);font-weight:700;margin:0;">
-          <i class="bi bi-hourglass-split me-2" style="color:var(--accent);"></i><%= cancellationPolicySummary %>
-        </p>
-        <a href="/legal/cancellation-refund-policy" target="_blank" rel="noopener" style="display:inline-block;margin-top:.5rem;color:var(--accent);font-weight:800;font-size:.85rem;">View full policy</a>
-      </div>
-    <% } %>
-
     <form action="/book/confirm" method="POST" class="row g-4" id="portalBookingForm">
       <input type="hidden" name="merchant_id" value="<%= merchant ? merchant.merchant_id : '' %>" />
 
@@ -306,6 +296,45 @@
           </div>
         </div>
 
+        <% if (typeof cancellationPolicySummary !== 'undefined' && cancellationPolicySummary) { %>
+          <div class="rounded-xl p-4 mt-4" style="background:#fff;border:1px solid var(--border);box-shadow:var(--shadow-sm);">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+              <div>
+                <p class="section-label mb-1"><%= t('bookings.cancellationPolicy') %></p>
+                <p style="color:var(--muted);font-size:.875rem;margin:0;">Refunds depend on how early the booking is cancelled.</p>
+              </div>
+              <a href="/legal/cancellation-refund-policy" target="_blank" rel="noopener" style="color:var(--accent);font-weight:800;font-size:.85rem;">View full policy</a>
+            </div>
+            <div class="d-flex flex-column gap-2">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;border:1px solid var(--border);border-radius:var(--r);padding:.85rem;background:var(--surface);">
+                <div>
+                  <p style="font-weight:800;color:var(--ink);margin:0;">More than 24 hours</p>
+                  <p style="color:var(--muted);font-size:.78rem;margin:.1rem 0 0;">Before appointment</p>
+                </div>
+                <p style="font-family:var(--font-mono);font-weight:800;color:var(--success);margin:0;white-space:nowrap;">95% refund</p>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;border:1px solid var(--border);border-radius:var(--r);padding:.85rem;background:var(--surface);">
+                <div>
+                  <p style="font-weight:800;color:var(--ink);margin:0;">6-24 hours</p>
+                  <p style="color:var(--muted);font-size:.78rem;margin:.1rem 0 0;">Before appointment</p>
+                </div>
+                <p style="font-family:var(--font-mono);font-weight:800;color:#c2410c;margin:0;white-space:nowrap;">50% refund</p>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;border:1px solid var(--border);border-radius:var(--r);padding:.85rem;background:var(--surface);">
+                <div>
+                  <p style="font-weight:800;color:var(--ink);margin:0;">Under 6 hours or no-show</p>
+                  <p style="color:var(--muted);font-size:.78rem;margin:.1rem 0 0;">Before appointment</p>
+                </div>
+                <p style="font-family:var(--font-mono);font-weight:800;color:var(--danger);margin:0;white-space:nowrap;">No refund</p>
+              </div>
+            </div>
+            <p style="color:var(--ink);font-weight:700;margin:.9rem 0 0;font-size:.9rem;">
+              <i class="bi bi-info-circle me-1" style="color:var(--accent);"></i>
+              Rescheduling is allowed until 6 hours before the appointment if needed, subject to merchant availability.
+            </p>
+          </div>
+        <% } %>
+
       </section>
 
       <!-- Right Summary -->
@@ -349,6 +378,25 @@
               </span>
             </div>
 
+            <label
+              for="bookingPolicyAcknowledgement"
+              id="bookingPolicyAcknowledgementBox"
+              class="d-flex align-items-start gap-2 p-3 mb-3"
+              style="border:1px solid var(--border);border-radius:var(--r);background:var(--surface);cursor:pointer;transition:border-color .15s, box-shadow .15s, background .15s;"
+            >
+              <input
+                id="bookingPolicyAcknowledgement"
+                type="checkbox"
+                style="width:1.05rem;height:1.05rem;accent-color:var(--accent);flex:0 0 auto;margin-top:.15rem;"
+              />
+              <span style="color:var(--ink);font-weight:700;font-size:.86rem;line-height:1.45;">
+                I understand and agree to Uniday's cancellation and refund policy for this booking.
+              </span>
+            </label>
+            <p id="bookingPolicyAcknowledgementError" class="small mb-3" style="display:none;color:var(--danger);">
+              <i class="bi bi-exclamation-circle me-1"></i>Please tick the policy acknowledgement before proceeding to payment.
+            </p>
+
             <button
               id="bookingSubmitButton"
               class="btn btn-primary btn-pill w-100 py-2"
@@ -368,6 +416,10 @@
 <script>
   const bookingDate = document.getElementById('bookingDate');
   const bookingTime = document.getElementById('bookingTime');
+  const bookingPolicyAcknowledgement = document.getElementById('bookingPolicyAcknowledgement');
+  const bookingPolicyAcknowledgementBox = document.getElementById('bookingPolicyAcknowledgementBox');
+  const bookingPolicyAcknowledgementError = document.getElementById('bookingPolicyAcknowledgementError');
+  const bookingSubmitButton = document.getElementById('bookingSubmitButton');
   const maxAdvanceBookingDays = 365;
 
   const serviceInputs =
@@ -375,6 +427,50 @@
 
   const error =
     document.getElementById('bookingDateError');
+
+  function hasSelectedService() {
+    return Boolean(document.querySelector('input[name="service_id"]:checked'));
+  }
+
+  function hasAcceptedBookingPolicy() {
+    return !bookingPolicyAcknowledgement || bookingPolicyAcknowledgement.checked;
+  }
+
+  function updateBookingSubmitState() {
+    if (!bookingSubmitButton) return;
+    bookingSubmitButton.disabled = !hasSelectedService();
+  }
+
+  function setBookingPolicyErrorState(show) {
+    if (bookingPolicyAcknowledgementError) {
+      bookingPolicyAcknowledgementError.style.display = show ? 'block' : 'none';
+    }
+
+    if (bookingPolicyAcknowledgementBox) {
+      bookingPolicyAcknowledgementBox.style.borderColor = show ? 'var(--danger)' : 'var(--border)';
+      bookingPolicyAcknowledgementBox.style.boxShadow = show ? '0 0 0 3px var(--danger-bg)' : 'none';
+      bookingPolicyAcknowledgementBox.style.background = show ? '#fff' : 'var(--surface)';
+    }
+  }
+
+  function requireBookingPolicyAccepted() {
+    if (hasAcceptedBookingPolicy()) {
+      setBookingPolicyErrorState(false);
+      return true;
+    }
+
+    setBookingPolicyErrorState(true);
+
+    if (bookingPolicyAcknowledgementBox) {
+      bookingPolicyAcknowledgementBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    if (bookingPolicyAcknowledgement) {
+      bookingPolicyAcknowledgement.focus({ preventScroll: true });
+    }
+
+    return false;
+  }
 
   function styleStaffOption(option) {
     option.style.transition =
@@ -491,10 +587,11 @@
   function updateBookingAction() {
     const selectedOption = bookingTime.options[bookingTime.selectedIndex];
     const isWaitlist = selectedOption && selectedOption.dataset.available === 'false';
-    const submitButton = document.getElementById('bookingSubmitButton');
+    const submitButton = bookingSubmitButton;
     submitButton.textContent = isWaitlist ? 'Join Waitlist' : window.t('portalBooking.proceedPayment');
     submitButton.classList.toggle('btn-outline-primary', isWaitlist);
     submitButton.classList.toggle('btn-primary', !isWaitlist);
+    updateBookingSubmitState();
     return isWaitlist;
   }
 
@@ -801,9 +898,23 @@
     });
   });
 
+  if (bookingPolicyAcknowledgement) {
+    bookingPolicyAcknowledgement.addEventListener('change', () => {
+      if (bookingPolicyAcknowledgement.checked) {
+        setBookingPolicyErrorState(false);
+      }
+      updateBookingSubmitState();
+    });
+  }
+
   document.getElementById('portalBookingForm').addEventListener(
     'submit',
     event => {
+      if (!requireBookingPolicyAccepted()) {
+        event.preventDefault();
+        return;
+      }
+
       if (!validateSlot()) {
         event.preventDefault();
         return;
@@ -817,6 +928,7 @@
   );
 
   updateSummary();
+  updateBookingSubmitState();
 </script>
 
 <%- include('../partials/footer') %>

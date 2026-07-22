@@ -19,14 +19,17 @@ function sanitizeDateInput(value) {
   return raw;
 }
 
-function normalizePhone(countryCode, localNumber) {
-  const code = String(countryCode || '+65').trim();
+function normalizePhone(localNumber) {
   const digits = String(localNumber || '').replace(/[^\d]/g, '');
 
   if (!digits) return '';
+  if (!/^[689]\d{7}$/.test(digits)) {
+    const err = new Error('Please enter a valid Singapore phone number.');
+    err.code = 'INVALID_SG_PHONE';
+    throw err;
+  }
 
-  const safeCode = /^\+\d{1,4}$/.test(code) ? code : '+65';
-  return `${safeCode}${digits}`;
+  return `+65${digits}`;
 }
 
 async function showAccount(req, res) {
@@ -62,7 +65,7 @@ async function updateProfile(req, res) {
   if (req.session.user.role !== 'customer') return redirectByRole(req, res);
 
   const fullName = String(req.body.full_name || '').trim();
-  const phone = normalizePhone(req.body.country_code, req.body.phone_local || req.body.phone);
+  const phone = normalizePhone(req.body.phone_local || req.body.phone);
   const dateOfBirth = sanitizeDateInput(req.body.date_of_birth);
 
   if (fullName.length < 2) {
@@ -90,7 +93,10 @@ async function updateProfile(req, res) {
     res.redirect('/account?success=' + encodeURIComponent(res.locals.t('account.messages.profileSaved')));
   } catch (err) {
     console.error('[account] updateProfile error:', err);
-    res.redirect('/account?error=' + encodeURIComponent(res.locals.t('account.errors.profileFailed')));
+    const message = err.code === 'INVALID_SG_PHONE'
+      ? res.locals.t('account.errors.invalidSgPhone', null, 'Please enter a valid Singapore phone number.')
+      : res.locals.t('account.errors.profileFailed');
+    res.redirect('/account?error=' + encodeURIComponent(message));
   }
 }
 

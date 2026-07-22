@@ -25,7 +25,10 @@
     "signOut": "வெளியேறு",
     "signInRegister": "உள்நுழை / பதிவு",
     "browseByCategory": "வகை வாரியாக உலாவு",
-    "myAccount": "என் கணக்கு"
+    "myAccount": "என் கணக்கு",
+    "myReviews": "என் மதிப்புரைகள்",
+    "loyaltyRewards": "லாயல்டி பரிசுகள்",
+    "notifications": "அறிவிப்புகள்"
   },
   "categories": {
     "hair": "முடி",
@@ -258,7 +261,53 @@
     "booking": "Booking",
     "read": "படித்தது",
     "askPlaceholder": "எதை வேண்டுமானாலும் கேளுங்கள்",
-    "ask": "கேள்"
+    "ask": "கேள்",
+    "section": "அறிவிப்புகள்",
+    "title": "புதுப்பிப்புகள்",
+    "subtitle": "Booking, payment, review, reward, waitlist alerts.",
+    "labels": {
+      "paymentNeeded": "Payment தேவை",
+      "booking": "Booking",
+      "payment": "Payment",
+      "review": "Review",
+      "rewards": "Rewards",
+      "waitlist": "Waitlist",
+      "account": "Account",
+      "update": "Update"
+    },
+    "titles": {
+      "bookingCreated": "Payment முடிக்கவும்",
+      "bookingConfirmed": "Booking வெற்றிகரமாகியது",
+      "bookingCancelled": "Booking ரத்து செய்யப்பட்டது",
+      "bookingRescheduled": "Booking reschedule செய்யப்பட்டது",
+      "paymentAttemptFailed": "Payment முயற்சி தோல்வியடைந்தது",
+      "paymentWindowExpired": "Payment நேரம் முடிந்தது",
+      "paymentFailed": "Payment தோல்வியடைந்தது",
+      "reviewAvailable": "உங்கள் அனுபவத்தை மதிப்பிடவும்",
+      "reviewReward": "Loyalty points கிடைத்தது",
+      "waitlistOffer": "Slot கிடைக்கிறது",
+      "waitlistJoined": "Waitlist சேர்ந்தீர்கள்",
+      "waitlistOfferExpired": "Waitlist offer காலாவதியானது",
+      "waitlistExpired": "Waitlist காலாவதியானது",
+      "waitlistCancelled": "Waitlist request ரத்து செய்யப்பட்டது",
+      "waitlistRemoved": "Waitlist request நீக்கப்பட்டது"
+    },
+    "actions": {
+      "continuePayment": "Payment தொடரவும்",
+      "tryPaymentAgain": "Payment மீண்டும் முயற்சிக்கவும்",
+      "rateExperience": "அனுபவத்தை மதிப்பிடவும்",
+      "viewRewards": "Rewards பார்க்கவும்",
+      "confirmSlot": "Slot உறுதிசெய்யவும்",
+      "viewWaitlist": "Waitlist பார்க்கவும்",
+      "bookAgain": "மீண்டும் book செய்யவும்",
+      "viewBooking": "Booking பார்க்கவும்"
+    },
+    "errors": {
+      "loadFailed": "அறிவிப்புகளை ஏற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்."
+    },
+    "messages": {
+      "markedRead": "Messages read என குறிக்கப்பட்டது."
+    }
   },
   "services": {
     "byName": {
@@ -313,9 +362,9 @@
     "anyAvailableStaff": "Any Available Staff",
     "mins": "{{count}} mins",
     "cancellationPolicy": "Cancellation Policy",
-    "cancelPolicyText": "{{refund}}% refund பெற appointment-க்கு {{hours}} மணி நேரத்திற்கும் மேல் முன் cancel செய்யவும்.",
-    "cancelPolicyPartialText": " {{hours}}-24 மணி நேரத்திற்கு முன் cancel செய்தால் {{refund}}% refund.",
-    "cancelPolicyLateText": " 6 மணி நேரத்திற்குக் குறைவாக அல்லது no-show: refund இல்லை.",
+    "cancelPolicyText": "More than 24hrs -> 95%",
+    "cancelPolicyPartialText": "6 to 24hrs before -> 50%",
+    "cancelPolicyLateText": "Less than 6hrs / no-show -> 0%",
     "currentRefund": "Current refund: {{refund}}%",
     "cancelWindowOpen": "Cancellation window open",
     "cancelWindowClosed": "Cancellation window closed",
@@ -331,7 +380,14 @@
     "expired": "Expired",
     "daysHoursLeftToCancel": "{{days}}d {{hours}}h left to cancel",
     "hoursMinutesLeftToCancel": "{{hours}}h {{minutes}}m left to cancel",
-    "minutesLeftToCancel": "{{minutes}}m left to cancel"
+    "minutesLeftToCancel": "{{minutes}}m left to cancel",
+    "cancelWaitlistSecondConfirm": "Are you sure? This waitlist cancellation cannot be undone.",
+    "cancelBookingRefundConfirm": "Are you sure you want to proceed? Your eligible refund is {{refund}}%.",
+    "reschedulePolicyShort": "Merchant கிடைக்கும் நேரத்தைப் பொறுத்து reschedule அனுமதிக்கப்படும்.",
+    "confirmCancellationTitle": "ரத்து செய்வதை உறுதிப்படுத்தவும்",
+    "keepBooking": "Booking வைத்திருக்கவும்",
+    "yesProceed": "ஆம், தொடரவும்",
+    "cancelGenericConfirm": "உறுதியாக உள்ளீர்களா? இந்த செயலை திரும்ப பெற முடியாது."
   },
   "arrival": {
     "qr": "Arrival QR",
@@ -466,7 +522,7 @@
     "privacyTitle": "Privacy Policy",
     "cancellationRefundTitle": "Cancellation & Refund Policy",
     "merchantTermsTitle": "Merchant Terms",
-    "cancellationRefundIntro": "Effective version: 2026-07. Checkout-க்கு முன் stricter merchant rule காட்டப்படாவிட்டால், இந்த rules paid Uniday bookings-க்கு பொருந்தும்.",
+    "cancellationRefundIntro": "Effective version: 2026-07. These admin-set platform rules apply to all paid Uniday bookings and cannot be changed by individual merchants.",
     "customerCausedTitle": "Customer-Caused Cancellations",
     "merchantCausedTitle": "Merchant-Caused Changes",
     "processingFeesTitle": "Processing Fees",
@@ -486,7 +542,12 @@
     "privacyIntro": "Booking platform operate செய்ய தேவையான account, booking, payment status, notification, support information-ஐ Uniday collect செய்கிறது.",
     "privacyContactBody": "Customer contact details booking confirmation, reminders, waitlist alerts, refunds, support-க்கு பயன்படுத்தப்படும். Merchant business details discovery, booking, customer communication-க்கு தேவையான இடங்களில் காட்டப்படும்.",
     "privacyPaymentBody": "Payment card details payment gateway மூலம் handle செய்யப்படும். Uniday payment status, references, receipt links, refund records store செய்யும்; raw card numbers store செய்யாது.",
-    "privacyRetentionBody": "Account மற்றும் booking records operational, security, audit, dispute-resolution purposes-க்கு retain செய்யப்படலாம்."
+    "privacyRetentionBody": "Account மற்றும் booking records operational, security, audit, dispute-resolution purposes-க்கு retain செய்யப்படலாம்.",
+    "reschedulingTitle": "Rescheduling",
+    "rescheduleUntil": "Rescheduling is allowed until 6 hours before the appointment.",
+    "rescheduleAvailability": "Rescheduling is subject to merchant availability.",
+    "rescheduleNoCharge": "There is no additional charge for rescheduling.",
+    "reschedulePaymentTransfer": "Existing payment is transferred to the new booking."
   },
   "merchantTerms": {
     "section": "Merchants",
@@ -498,14 +559,14 @@
     "signupAgreementPrefix": "நான் Uniday-ன்",
     "signupAgreementPolicy": "மற்றும் platform refund rules-ஐ ஏற்கிறேன்: customer cancellations 24 மணி நேரத்திற்கும் மேல் முன் 95%, 6-24 மணி நேரம் 50%, 6 மணி நேரத்திற்குள்/no-show 0%, merchant-caused cancellations 100%.",
     "bodyAppointments": "Merchants confirmed appointments honour செய்யவும், service availability accurate-ஆக வைத்திருக்கவும், business contact details update வைத்திருக்கவும் ஒப்புக்கொள்கிறார்கள்.",
-    "bodyRefundRules": "Merchants Uniday platform cancellation and refund rules-ஐ ஏற்கிறார்கள். Customer-caused cancellations timing-ஐ பொறுத்து 95%, 50%, அல்லது 0% refund பெறலாம். Merchant-caused cancellations, unavailable services, அல்லது rejected merchant reschedules 100% refund பெறும்.",
+    "bodyRefundRules": "Merchants accept Uniday admin-set platform cancellation, refund, and rescheduling rules. Customer-caused cancellations receive 95%, 50%, or 0% refund depending on timing. Rescheduling is allowed until 6 hours before the appointment, subject to merchant availability, with no additional charge and the existing payment transferred to the new booking.",
     "bodyProcessingFees": "Refund issue செய்தால் payment gateway processing fees திருப்பி தரப்படாமல் இருக்கலாம். Customer trust காக்கவும் unfair out-of-pocket fee exposure குறைக்கவும் Uniday refund policy வடிவமைக்கப்பட்டுள்ளது என்பதை merchants ஏற்கிறார்கள்.",
-    "bodyStricterSettings": "Available இருந்தால் merchants stricter cancellation settings configure செய்யலாம்; ஆனால் merchant-caused issues-க்கு Uniday required full refund-ஐ override செய்ய முடியாது."
+    "bodyStricterSettings": "Cancellation, refund, and rescheduling rules are set by Uniday admin and apply to all merchants. Merchants cannot edit or override these platform terms."
   },
   "merchantPolicy": {
-    "subtitle": "Uniday platform refund policy மேல் stricter merchant rules அமைக்கவும்.",
-    "baseline": "Uniday baseline: 24 மணி நேரத்திற்கும் மேல் = 95% refund, 6-24 மணி நேரம் = 50%, 6 மணி நேரத்திற்குக் குறைவாக/no-show = 0%, merchant-caused cancellation = 100%.",
-    "refundCapHelp": "இது customer-caused refunds-ஐ மட்டும் cap செய்கிறது. Merchant-caused cancellations 100% refundable ஆகவே இருக்கும்."
+    "subtitle": "View Uniday admin-set cancellation and rescheduling terms.",
+    "baseline": "Uniday policy: more than 24 hours = 95% refund, 6-24 hours = 50%, less than 6 hours/no-show = 0%. Rescheduling is allowed until 6 hours before the appointment.",
+    "refundCapHelp": "These platform terms apply to all merchants and cannot be edited by individual merchants."
   },
   "account": {
     "title": "என் கணக்கு",
@@ -571,7 +632,8 @@
       "passwordLength": "புதிய கடவுச்சொல் குறைந்தது 6 எழுத்துகள் இருக்க வேண்டும்.",
       "passwordMismatch": "புதிய கடவுச்சொற்கள் பொருந்தவில்லை.",
       "currentPassword": "தற்போதைய கடவுச்சொல் தவறானது.",
-      "passwordFailed": "உங்கள் கடவுச்சொல்லை புதுப்பிக்க முடியவில்லை."
+      "passwordFailed": "உங்கள் கடவுச்சொல்லை புதுப்பிக்க முடியவில்லை.",
+      "invalidSgPhone": "Please enter a valid Singapore phone number."
     },
     "passwordGate": {
       "enterCurrent": "முதலில் தற்போதைய கடவுச்சொல்லை உள்ளிடவும்.",

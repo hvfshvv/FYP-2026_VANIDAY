@@ -1491,30 +1491,24 @@ a:hover { color: var(--accent-dark); }
   box-shadow: 0 0 0 .2rem rgba(229, 24, 75, .12);
 }
 
-.account-phone-row {
-  display: grid;
-  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
-  gap: .6rem;
-}
-
-.account-country-select {
-  appearance: none;
-  background-color: var(--canvas) !important;
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
-    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) 50%,
-    calc(100% - 13px) 50%;
-  background-size: 5px 5px, 5px 5px;
-  background-repeat: no-repeat;
+.account-phone-group .input-group-text {
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  padding: .75rem 1rem;
+  border: 1px solid var(--border);
+  border-right: 0;
+  border-radius: var(--r) 0 0 var(--r);
+  background: var(--accent-light);
   color: var(--ink);
   font-weight: 700;
-  padding-right: 2.3rem !important;
 }
 
-.account-country-select:hover {
-  border-color: var(--accent);
+.account-phone-group .form-control {
+  min-height: 52px;
+  border-left: 0;
+  border-radius: 0 var(--r) var(--r) 0;
+  padding: .75rem 1rem;
 }
 
 .account-field-note {
@@ -1545,7 +1539,6 @@ a:hover { color: var(--accent-dark); }
   .account-heading { align-items: stretch; flex-direction: column; }
   .account-info-grid,
   .account-two-col { grid-template-columns: 1fr; }
-  .account-phone-row { grid-template-columns: 1fr; }
   .account-section-head { flex-direction: column; }
 }
 .rounded-2xl { border-radius: var(--r-lg) !important; }
