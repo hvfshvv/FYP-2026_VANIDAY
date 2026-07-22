@@ -36,7 +36,17 @@
               <label class="form-label" style="font-weight:600;font-size:.875rem;">Phone <span style="color:var(--muted);font-weight:500;">(optional)</span></label>
               <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-telephone me-1"></i>+65</span>
-                <input type="text" name="phone" class="form-control" placeholder="9XXXXXXX" />
+                <input
+                  type="tel"
+                  name="phone"
+                  class="form-control"
+                  placeholder="9XXXXXXX"
+                  inputmode="numeric"
+                  minlength="8"
+                  maxlength="8"
+                  pattern="[0-9]{8}"
+                  title="Phone number must be exactly 8 digits."
+                />
               </div>
             </div>
             <div class="mb-3">

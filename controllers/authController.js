@@ -282,6 +282,20 @@ async function register(req, res) {
       });
     }
 
+    if (normalizedPhone && !isValidSingaporePhone(normalizedPhone)) {
+      return res.render(registerView, {
+        title: registerTitle,
+        error: 'Phone number must be exactly 8 digits.'
+      });
+    }
+
+    if (business_phone && business_phone.trim() && !isValidSingaporePhone(business_phone)) {
+      return res.render(registerView, {
+        title: registerTitle,
+        error: 'Business contact number must be exactly 8 digits.'
+      });
+    }
+
     if (safeRole === 'customer' && birthday && !isValidBirthday(birthday)) {
       return res.render(registerView, {
         title: registerTitle,
@@ -603,6 +617,10 @@ function isValidBirthday(value) {
   today.setHours(0, 0, 0, 0);
 
   return birthday <= today;
+}
+
+function isValidSingaporePhone(value) {
+  return /^\d{8}$/.test(String(value || '').trim());
 }
 
 function logout(req, res) {

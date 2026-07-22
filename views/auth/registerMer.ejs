@@ -240,7 +240,17 @@
           <label class="form-label">Owner Contact Number</label>
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-telephone"></i>+65 <i class="bi bi-chevron-down" style="font-size:.75rem;"></i></span>
-            <input type="text" name="phone" class="form-control" placeholder="9XXXXXXXX" />
+            <input
+              type="tel"
+              name="phone"
+              class="form-control"
+              placeholder="9XXXXXXX"
+              inputmode="numeric"
+              minlength="8"
+              maxlength="8"
+              pattern="[0-9]{8}"
+              title="Owner contact number must be exactly 8 digits."
+            />
           </div>
         </div>
 
@@ -299,7 +309,17 @@
           <label class="form-label">Business Contact Number</label>
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-telephone"></i>+65 <i class="bi bi-chevron-down" style="font-size:.75rem;"></i></span>
-            <input type="text" name="business_phone" class="form-control" placeholder="6XXXXXXX / 9XXXXXXX" />
+            <input
+              type="tel"
+              name="business_phone"
+              class="form-control"
+              placeholder="6XXXXXXX / 9XXXXXXX"
+              inputmode="numeric"
+              minlength="8"
+              maxlength="8"
+              pattern="[0-9]{8}"
+              title="Business contact number must be exactly 8 digits."
+            />
           </div>
           <p class="merchant-help">Shown to customers as the merchant contact number. Leave blank to use the owner contact.</p>
         </div>
