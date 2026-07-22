@@ -718,11 +718,21 @@ async function confirmBooking(req, res) {
   if (redirectMerchantAwayFromBooking(req, res)) return;
 
   const { token } = req.params;
-  const { service_id, booking_date, booking_time, staff_id, full_name, phone, email, booking_mode } = req.body;
+  const { service_id, booking_date, booking_time, staff_id, full_name, phone, email, booking_mode, policy_acknowledged } = req.body;
   try {
     const qr = await qrModel.getQRByToken(token);
     if (!qr) return res.redirect(`/book/${token}`);
     const services = await merchantModel.getMerchantServices(qr.merchant_id).catch(() => []);
+
+    if (policy_acknowledged !== '1') {
+      return renderQRBookingPage(req, res, {
+        token,
+        qr,
+        services,
+        error: 'Please tick the cancellation and refund policy acknowledgement before proceeding to payment.',
+        statusCode: 400,
+      });
+    }
 
     if (!isCurrentOrFutureSlot(booking_date, booking_time)) {
       return renderQRBookingPage(req, res, {
@@ -846,59 +856,6 @@ async function confirmBooking(req, res) {
       services,
       error: err.message || 'Booking failed. Please try again.',
       statusCode: 400,
-    });
-  }
-}
-
-async function joinWaitlistFromQR(req, res) {
-  if (redirectMerchantAwayFromBooking(req, res)) return;
-
-  const { token } = req.params;
-  const { service_id, booking_date, booking_time } = req.body;
-
-  try {
-    if (!req.session.user || req.session.user.role !== 'customer') {
-      return res.redirect(`/auth/login?next=${encodeURIComponent(buildQrNextUrl(token, {
-        ...req.body,
-        waitlist: '1',
-      }))}`);
-    }
-
-    const qr = await qrModel.getQRByToken(token);
-    if (!qr) {
-      return res.status(404).render('booking/invalid', {
-        title: 'Invalid QR Code',
-      });
-    }
-
-    await waitlistModel.joinWaitlist({
-      customerId: currentCustomerId(req),
-      merchantId: qr.merchant_id,
-      serviceId: service_id,
-      bookingDate: booking_date,
-      bookingTime: booking_time,
-    });
-
-    res.redirect('/book/viewBookings?success=' + encodeURIComponent('You joined the waitlist for that slot.'));
-  } catch (err) {
-    console.error(err);
-    const qr = await qrModel.getQRByToken(token).catch(() => null);
-    const services = qr ? await merchantModel.getMerchantServices(qr.merchant_id).catch(() => []) : [];
-
-    if (!qr) {
-      return res.status(404).render('booking/invalid', { title: 'Invalid QR Code' });
-    }
-
-    return renderQRBookingPage(req, res, {
-      token,
-      qr,
-      services,
-      error: err.message || 'Could not join the waitlist.',
-      statusCode: 400,
-      formState: {
-        ...getQrFormState(req),
-        waitlist: '1',
-      },
     });
   }
 }
@@ -1056,7 +1013,6 @@ module.exports = {
   confirmArrival,
   getAvailableSlots,
   getAvailableStaff,
-  joinWaitlistFromQR,
   joinWaitlistFromPortal,
   confirmWaitlistOffer,
   cancelWaitlistRequest,

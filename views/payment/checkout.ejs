@@ -12,6 +12,7 @@
         checkoutBaseAmount - Number(booking.discount_amount || 0) - Number(booking.voucher_discount_amount || 0),
         0
       );
+  const gstIncludedAmount = payableAmount > 0 ? payableAmount * 9 / 109 : 0;
 %>
 <%- include('../partials/header') %>
 
@@ -99,6 +100,13 @@
               <span style="font-weight:700;"><%= t('payment.finalTotal') %></span>
               <span style="font-weight:700;color:var(--accent);font-size:1.2rem;font-family:var(--font-mono);">S$<%= payableAmount.toFixed(2) %></span>
             </div>
+            <div class="summary-row" style="font-size:.8rem;color:var(--muted);">
+              <span class="lbl"><%= t('payment.gstIncludedAmount', {}, 'GST included (9%)') %></span>
+              <span class="val" style="font-family:var(--font-mono);">S$<%= gstIncludedAmount.toFixed(2) %></span>
+            </div>
+            <p class="small mb-0 mt-2" style="color:var(--muted);">
+              <i class="bi bi-info-circle me-1"></i><%= t('payment.gstIncludedLine', {}, 'Includes GST at 9% where applicable') %>
+            </p>
           </div>
 
           <%

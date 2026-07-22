@@ -35,10 +35,6 @@ router.get('/arrival/:token', ctrl.confirmArrivalByQR);
 
 // Keep QR booking public only if walk-in QR guests are allowed
 router.get('/:token', ctrl.showBookingPage);
-router.get('/:token/waitlist', (req, res) => {
-  res.redirect(`/book/${encodeURIComponent(req.params.token)}`);
-});
-router.post('/:token/waitlist', requireLogin, ctrl.joinWaitlistFromQR);
 router.post('/:token/confirm', ctrl.confirmBooking);
 
 module.exports = router;

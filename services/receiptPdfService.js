@@ -142,6 +142,7 @@ function buildReceiptPdf({ booking, payment }) {
   const promoDiscount = Number(booking.discount_amount || 0);
   const voucherDiscount = Number(booking.voucher_discount_amount || 0);
   const totalPaid = Number(payment?.amount || booking.payable_amount || Math.max(subtotal - promoDiscount - voucherDiscount, 0));
+  const gstIncluded = totalPaid > 0 ? totalPaid * 9 / 109 : 0;
   const promoLabel = booking.promo_title || 'Promotion';
   const voucherLabel = booking.voucher_name || 'Voucher';
   const paymentMethod = String(payment?.payment_method || '-').toUpperCase();
@@ -250,6 +251,9 @@ function buildReceiptPdf({ booking, payment }) {
   line(360, totalLineY, 523, totalLineY);
   txt('Total Paid', totalsLabelX, totalY, 13, 'F2', ink);
   txtRight(money(totalPaid), totalsAmountX, totalY, 13, 'F2', accent);
+  txt('GST included (9%):', totalsLabelX, totalY - 20, 8, 'F2', muted);
+  txtRight(money(gstIncluded), totalsAmountX, totalY - 20, 8, 'F1', muted);
+  txt('Price payable includes GST where applicable.', totalsLabelX, totalY - 34, 7.5, 'F1', muted);
 
   setColor(soft);
   rect(72, 255, 451, 54, true);

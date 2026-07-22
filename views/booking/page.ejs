@@ -6,7 +6,6 @@
   const selectedDate = state.booking_date || '';
   const selectedBookingTime = state.booking_time ? String(state.booking_time).slice(0,5) : '';
   const selectedStaffId = state.staff_id || '';
-  const shouldAutoJoinWaitlist = state.waitlist === '1' || state.waitlist === 'true';
 %>
 <%- include('../partials/header') %>
 
@@ -79,6 +78,7 @@
               <h5 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('booking.chooseService') %></h5>
               <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;"><%= t('booking.chooseServiceHint') %></p>
 
+              <div id="qrServiceSelection">
               <% services.forEach(s => { %>
               <div class="service-card"
                 data-service-id="<%= s.service_id %>"
@@ -100,6 +100,7 @@
                 </div>
               </div>
               <% }) %>
+              </div>
 
               <div id="step1-error" style="display:none;color:var(--danger);font-size:.8125rem;margin-top:.75rem;">
                 <i class="bi bi-exclamation-circle me-1"></i><%= t('booking.selectServiceError') %>
@@ -124,7 +125,7 @@
                 <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('booking.availableTimes') %></label>
                 <div class="time-grid">
                   <div class="time-empty" id="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">
-                    <%= t('booking.selectServiceDate') %>
+                    <%= t('booking.selectDateForTimes') %>
                   </div>
                 </div>
                 <div id="step2-error" style="display:none;color:var(--danger);font-size:.8125rem;margin-top:.75rem;">
@@ -242,6 +243,53 @@
                 </div>
               </div>
 
+              <div class="rounded-xl p-3 mb-3" style="background:#fff;border:1px solid var(--border);">
+                <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                  <p class="section-label mb-0"><%= t('bookings.cancellationPolicy') %></p>
+                  <a href="/legal/cancellation-refund-policy" target="_blank" rel="noopener" style="color:var(--accent);font-weight:800;font-size:.78rem;">View full policy</a>
+                </div>
+                <p style="color:var(--muted);font-size:.82rem;margin:0 0 .75rem;">Refunds depend on how early the booking is cancelled.</p>
+                <div class="d-flex flex-column gap-2">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;border:1px solid var(--border);border-radius:var(--r);padding:.75rem;background:var(--surface);">
+                    <span style="font-weight:800;color:var(--ink);font-size:.85rem;">More than 24 hours</span>
+                    <span style="font-family:var(--font-mono);font-weight:800;color:var(--success);white-space:nowrap;">95% refund</span>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;border:1px solid var(--border);border-radius:var(--r);padding:.75rem;background:var(--surface);">
+                    <span style="font-weight:800;color:var(--ink);font-size:.85rem;">6-24 hours</span>
+                    <span style="font-family:var(--font-mono);font-weight:800;color:#c2410c;white-space:nowrap;">50% refund</span>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;border:1px solid var(--border);border-radius:var(--r);padding:.75rem;background:var(--surface);">
+                    <span style="font-weight:800;color:var(--ink);font-size:.85rem;">Under 6 hours or no-show</span>
+                    <span style="font-family:var(--font-mono);font-weight:800;color:var(--danger);white-space:nowrap;">No refund</span>
+                  </div>
+                </div>
+                <p style="color:var(--ink);font-weight:700;margin:.75rem 0 0;font-size:.84rem;">
+                  <i class="bi bi-info-circle me-1" style="color:var(--accent);"></i>
+                  Rescheduling is allowed until 6 hours before the appointment if needed, subject to merchant availability.
+                </p>
+              </div>
+
+              <label
+                for="qrBookingPolicyAcknowledgement"
+                id="qrBookingPolicyAcknowledgementBox"
+                class="d-flex align-items-start gap-2 p-3 mb-2"
+                style="border:1px solid var(--border);border-radius:var(--r);background:var(--surface);cursor:pointer;transition:border-color .15s, box-shadow .15s, background .15s;"
+              >
+                <input
+                  id="qrBookingPolicyAcknowledgement"
+                  name="policy_acknowledged"
+                  value="1"
+                  type="checkbox"
+                  style="width:1.05rem;height:1.05rem;accent-color:var(--accent);flex:0 0 auto;margin-top:.15rem;"
+                />
+                <span style="color:var(--ink);font-weight:700;font-size:.86rem;line-height:1.45;">
+                  I understand and agree to Uniday's cancellation and refund policy for this booking.
+                </span>
+              </label>
+              <p id="qrBookingPolicyAcknowledgementError" class="small mb-4" style="display:none;color:var(--danger);">
+                <i class="bi bi-exclamation-circle me-1"></i>Please tick the policy acknowledgement before proceeding to payment.
+              </p>
+
               <div class="d-flex gap-2">
                 <button type="button" class="btn btn-outline-secondary btn-pill w-50" style="font-weight:600;" onclick="prevStep(3)">
                   <i class="bi bi-arrow-left me-1"></i><%= t('common.back') %>
@@ -252,11 +300,6 @@
               </div>
             </div>
 
-          </form>
-          <form action="/book/<%= qr.qr_token %>/waitlist" method="POST" id="waitlistForm" class="d-none">
-            <input type="hidden" name="service_id" id="waitlist_service_id" />
-            <input type="hidden" name="booking_date" id="waitlist_booking_date" />
-            <input type="hidden" name="booking_time" id="waitlist_booking_time" />
           </form>
         </div>
       </div>
@@ -328,7 +371,6 @@ let selectedStaffName = window.t('common.noPreference');
 const initialServiceId = '<%= selectedServiceId %>';
 const initialTime = '<%= selectedBookingTime %>';
 const initialStaffId = '<%= selectedStaffId %>';
-const initialWaitlist = <%= shouldAutoJoinWaitlist ? 'true' : 'false' %>;
 const loggedInCustomer = <%= loggedInCustomer ? 'true' : 'false' %>;
 const maxAdvanceBookingDays = 365;
 const dateLocale = { en: 'en-SG', ms: 'ms-SG', zh: 'zh-CN', ta: 'ta-IN' }['<%= lang %>'] || 'en-SG';
@@ -452,6 +494,29 @@ function resetStaffOptions(message = window.t('booking.staffAvailabilityInitial'
   }
 }
 
+function timePeriodFor(time) {
+  const hour = Number(String(time || '00:00').slice(0, 2));
+  if (hour < 12) return 'Morning';
+  if (hour < 17) return 'Afternoon';
+  return 'Evening';
+}
+
+function renderTimeSlots(slots) {
+  let currentPeriod = '';
+
+  return slots.map(slot => {
+    const time = String(slot.start_time).slice(0, 5);
+    const label = slot.label || time;
+    const period = timePeriodFor(time);
+    const heading = period !== currentPeriod
+      ? `<div class="time-period-title">${period}</div>`
+      : '';
+    currentPeriod = period;
+
+    return `${heading}<button type="button" class="time-btn" data-time="${time}" onclick="selectTime(this,'${time}')">${label}</button>`;
+  }).join('');
+}
+
 function renderStaffOptions(availableStaff) {
   const staff = Array.isArray(availableStaff) ? availableStaff : [];
   const grid = document.getElementById('staffOptionsGrid');
@@ -544,7 +609,7 @@ async function updateAvailableTimes() {
   updateSummary();
 
   if (!date || !selectedService) {
-    grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">' + window.t('booking.selectServiceDate') + '</div>';
+    grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">' + window.t('booking.selectDateForTimes') + '</div>';
     return;
   }
 
@@ -560,60 +625,19 @@ async function updateAvailableTimes() {
     const response = await fetch('/book/api/slots?' + params.toString());
     const slots = await response.json();
 
-    if (!slots.length) {
+    const availableSlots = slots.filter(slot => slot.is_available !== false);
+
+    if (!availableSlots.length) {
       grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--muted);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">' + window.t('booking.validation.noSlots') + '</div>';
       resetStaffOptions(window.t('booking.validation.noStaffDate'));
       return;
     }
 
-    grid.innerHTML = slots.map(slot => {
-      const time = String(slot.start_time).slice(0, 5);
-      const label = slot.label || time;
-      const isAvailable = slot.is_available !== false;
-      if (isAvailable) {
-        return `<div class="time-btn" data-time="${time}" onclick="selectTime(this,'${time}')">${label}</div>`;
-      }
-
-      const queue = Number(slot.waitlist_count || 0);
-      const queueLabel = queue ? window.t('booking.waitlist.waiting', { count: queue }) : window.t('booking.waitlist.join');
-      const reason = slot.has_active_waitlist_offer
-        ? window.t('booking.waitlist.reserved')
-        : window.t('booking.waitlist.fullyBooked');
-      return `
-        <button type="button" class="time-btn waitlist" data-time="${time}" onclick="joinWaitlistForSlot('${time}')">
-          <span>${label}</span>
-          <small>${reason} · ${queueLabel}</small>
-        </button>
-      `;
-    }).join('');
+    grid.innerHTML = renderTimeSlots(availableSlots);
   } catch (err) {
     console.error(err);
     grid.innerHTML = '<div class="time-empty" style="grid-column:1/-1;color:var(--danger);font-size:.875rem;padding:.75rem;border:1px dashed var(--border);border-radius:var(--r);text-align:center;">' + window.t('booking.validation.unableTimes') + '</div>';
   }
-}
-
-function joinWaitlistForSlot(time) {
-  const date = document.getElementById('booking_date').value;
-  if (!selectedService || !date || !time) {
-    setStep2Error(window.t('booking.validation.serviceDateForWaitlist'));
-    return;
-  }
-
-  if (!loggedInCustomer) {
-    const params = new URLSearchParams({
-      serviceId: selectedService.id,
-      bookingDate: date,
-      bookingTime: time,
-      waitlist: '1',
-    });
-    window.location.href = '/auth/login?next=' + encodeURIComponent(window.location.pathname + '?' + params.toString());
-    return;
-  }
-
-  document.getElementById('waitlist_service_id').value = selectedService.id;
-  document.getElementById('waitlist_booking_date').value = date;
-  document.getElementById('waitlist_booking_time').value = time;
-  document.getElementById('waitlistForm').submit();
 }
 
 function validateSelectedDateTime() {
@@ -644,6 +668,8 @@ function selectService(el) {
     duration: el.dataset.duration,
   };
   document.getElementById('hidden_service_id').value = selectedService.id;
+  const selectionWrap = document.getElementById('qrServiceSelection');
+  if (selectionWrap) selectionWrap.classList.add('service-selection-has-choice');
   updateAvailableTimes();
   updateSummary();
   updateAuthLinks();
@@ -767,6 +793,42 @@ function nextStep(current) {
 }
 function prevStep(current) { setStep(current - 1); }
 
+const qrBookingPolicyAcknowledgement = document.getElementById('qrBookingPolicyAcknowledgement');
+const qrBookingPolicyAcknowledgementBox = document.getElementById('qrBookingPolicyAcknowledgementBox');
+const qrBookingPolicyAcknowledgementError = document.getElementById('qrBookingPolicyAcknowledgementError');
+
+function setQrBookingPolicyErrorState(show) {
+  if (qrBookingPolicyAcknowledgementError) {
+    qrBookingPolicyAcknowledgementError.style.display = show ? 'block' : 'none';
+  }
+
+  if (qrBookingPolicyAcknowledgementBox) {
+    qrBookingPolicyAcknowledgementBox.style.borderColor = show ? 'var(--danger)' : 'var(--border)';
+    qrBookingPolicyAcknowledgementBox.style.boxShadow = show ? '0 0 0 3px var(--danger-bg)' : 'none';
+    qrBookingPolicyAcknowledgementBox.style.background = show ? '#fff' : 'var(--surface)';
+  }
+}
+
+function requireQrBookingPolicyAccepted() {
+  if (!qrBookingPolicyAcknowledgement || qrBookingPolicyAcknowledgement.checked) {
+    setQrBookingPolicyErrorState(false);
+    return true;
+  }
+
+  setQrBookingPolicyErrorState(true);
+  if (qrBookingPolicyAcknowledgementBox) {
+    qrBookingPolicyAcknowledgementBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  qrBookingPolicyAcknowledgement.focus({ preventScroll: true });
+  return false;
+}
+
+if (qrBookingPolicyAcknowledgement) {
+  qrBookingPolicyAcknowledgement.addEventListener('change', () => {
+    if (qrBookingPolicyAcknowledgement.checked) setQrBookingPolicyErrorState(false);
+  });
+}
+
 const initialServiceCard = initialServiceId
   ? document.querySelector('.service-card[data-service-id="' + initialServiceId + '"]')
   : document.querySelector('.service-card[data-selected="1"]');
@@ -778,15 +840,7 @@ if (initialServiceCard) {
 validateBookingDate();
 updateAvailableTimes().then(() => {
   if (!initialTime) return;
-  if (initialWaitlist && loggedInCustomer) {
-    const waitlistButton = document.querySelector('.time-btn.waitlist[data-time="' + initialTime + '"]');
-    if (waitlistButton) {
-      joinWaitlistForSlot(initialTime);
-    }
-    return;
-  }
-
-  const initialTimeButton = document.querySelector('.time-btn:not(.waitlist)[data-time="' + initialTime + '"]');
+  const initialTimeButton = document.querySelector('.time-btn[data-time="' + initialTime + '"]');
   if (initialTimeButton) {
     selectedStaffId = initialStaffId;
     selectTime(initialTimeButton, initialTime);
@@ -822,6 +876,12 @@ document.getElementById('bookingForm').addEventListener('submit', function(event
   if (!validateSelectedDateTime()) {
     event.preventDefault();
     setStep(2);
+    return;
+  }
+
+  if (!requireQrBookingPolicyAccepted()) {
+    event.preventDefault();
+    setStep(3);
   }
 });
 </script>
