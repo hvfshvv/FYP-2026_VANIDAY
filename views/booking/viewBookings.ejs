@@ -119,23 +119,24 @@
     return Math.max(0, Math.min(platformRefund, merchantRefundCap));
   }
 
-  const activeBookingStatuses = ['confirmed', 'rescheduled', 'arrived'];
-  const isUpcomingBooking = booking => new Date(booking.booking_date) >= new Date(new Date().toDateString());
-  const pendingBookings = bookingList
-    .filter(booking => effectiveStatus(booking) === 'pending_payment')
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  const upcomingBookings = bookingList
-    .filter(booking =>
-      !pendingBookings.includes(booking)
-      && activeBookingStatuses.includes(effectiveStatus(booking))
-      && isUpcomingBooking(booking)
-    )
-    .sort((a, b) => bookingStartTime(a) - bookingStartTime(b));
-  const currentBookings = [...pendingBookings, ...upcomingBookings];
-  const historyBookings = bookingList
-    .filter(booking => !currentBookings.includes(booking))
-    .sort((a, b) => bookingStartTime(a) - bookingStartTime(b));
-  const displayBookings = [...currentBookings, ...historyBookings];
+  function fallbackCreatedTime(booking) {
+    const createdAt = new Date(booking.created_at).getTime();
+    return Number.isNaN(createdAt) ? 0 : createdAt;
+  }
+
+  function bookingStatusRank(booking) {
+    return effectiveStatus(booking) === 'cancelled' ? 1 : 0;
+  }
+
+  const displayBookings = [...bookingList].sort((a, b) => {
+    const statusDiff = bookingStatusRank(a) - bookingStatusRank(b);
+    if (statusDiff) return statusDiff;
+
+    const bookingTimeDiff = bookingStartTime(b) - bookingStartTime(a);
+    if (bookingTimeDiff) return bookingTimeDiff;
+
+    return fallbackCreatedTime(b) - fallbackCreatedTime(a);
+  });
 %>
 
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
@@ -146,7 +147,7 @@
         <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('bookings.title') %></h2>
         <p style="color:var(--muted);margin:0;"><%= t('bookings.subtitle') %></p>
       </div>
-      <a href="/marketplace" class="btn btn-primary btn-pill">
+      <a href="/#marketplace" class="btn btn-primary btn-pill">
         <i class="bi bi-calendar-plus me-2"></i><%= t('bookings.bookNow') %>
       </a>
     </div>
@@ -230,30 +231,19 @@
         </div>
         <h5 style="font-weight:800;color:var(--ink);"><%= t('bookings.noBookingsTitle') %></h5>
         <p style="color:var(--muted);margin:0 auto 1.25rem;max-width:420px;"><%= t('bookings.noBookingsBody') %></p>
-        <a href="/marketplace" class="btn btn-outline-secondary btn-pill"><%= t('bookings.exploreMerchants') %></a>
+        <a href="/#marketplace" class="btn btn-outline-secondary btn-pill"><%= t('bookings.exploreMerchants') %></a>
       </div>
     <% } else if (bookingList.length) { %>
-      <% if (currentBookings.length) { %>
-      <p class="section-label mb-2"><%= t('bookings.currentBookings') %></p>
-      <% } %>
-      <% if (!currentBookings.length && historyBookings.length) { %>
       <p class="section-label mb-2"><%= t('bookings.history') %></p>
-      <% } %>
       <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
         <% displayBookings.forEach((booking, index) => {
-          const startsHistory = index === currentBookings.length;
-          const sectionIndex = startsHistory ? 0 : (index < currentBookings.length ? index : index - currentBookings.length);
+          const sectionIndex = index;
           const bookingStatus = effectiveStatus(booking);
           const canContinuePayment = bookingStatus === 'pending_payment';
           const status = statusStyles[bookingStatus] || { label: bookingStatus || t('bookings.booked'), bg: 'var(--accent-light)', color: 'var(--accent)' };
           const isPast = new Date(booking.booking_date) < new Date(new Date().toDateString());
           const canManage = !isPast && !['pending_payment', 'cancelled', 'payment_failed', 'completed', 'no_show'].includes(bookingStatus);
         %>
-          <% if (startsHistory && historyBookings.length && currentBookings.length) { %>
-            </div>
-            <p class="section-label mb-2 mt-4"><%= t('bookings.history') %></p>
-            <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
-          <% } %>
           <div class="p-4 booking-entry" <%= booking.status === 'pending_payment' ? 'data-pending-payment-entry' : '' %> style="<%= sectionIndex ? 'border-top:1px solid var(--border);' : '' %>">
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
               <div class="booking-entry-details flex-grow-1">

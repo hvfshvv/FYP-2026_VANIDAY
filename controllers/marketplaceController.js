@@ -104,7 +104,7 @@ function redirectMarketplaceHome(req, res) {
     ? req.originalUrl.slice(req.originalUrl.indexOf('?'))
     : '';
 
-  res.redirect(`/${query}`);
+  res.redirect(`/${query}#marketplace`);
 }
 
 async function showMerchantDetails(req, res) {
