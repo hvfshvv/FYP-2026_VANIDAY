@@ -76,6 +76,11 @@ const NOTIFICATION_ACTION_SELECT = `
     WHEN n.notification_type = 'review_reward'
       THEN '/loyalty'
     WHEN n.notification_type = 'waitlist_offer'
+      AND n.booking_id IS NOT NULL
+      AND b.status = 'pending_payment'
+      AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 30 MINUTE)) >= NOW()
+      THEN CONCAT('/payment/checkout/', n.booking_id)
+    WHEN n.notification_type = 'waitlist_offer'
       AND w.status = 'offered'
       AND w.offer_expires_at >= NOW()
       THEN CONCAT('/book/waitlist/', n.waitlist_id, '/confirm')
@@ -102,6 +107,11 @@ const NOTIFICATION_ACTION_SELECT = `
     WHEN n.notification_type = 'review_reward'
       THEN 'View rewards'
     WHEN n.notification_type = 'waitlist_offer'
+      AND n.booking_id IS NOT NULL
+      AND b.status = 'pending_payment'
+      AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 30 MINUTE)) >= NOW()
+      THEN 'Make payment'
+    WHEN n.notification_type = 'waitlist_offer'
       AND w.status = 'offered'
       AND w.offer_expires_at >= NOW()
       THEN 'Confirm slot'
@@ -124,6 +134,11 @@ const NOTIFICATION_ACTION_SELECT = `
     WHEN n.notification_type = 'review_reward'
       THEN 'bi-gift'
     WHEN n.notification_type = 'waitlist_offer'
+      AND n.booking_id IS NOT NULL
+      AND b.status = 'pending_payment'
+      AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 30 MINUTE)) >= NOW()
+      THEN 'bi-credit-card'
+    WHEN n.notification_type = 'waitlist_offer'
       AND w.status = 'offered'
       AND w.offer_expires_at >= NOW()
       THEN 'bi-check2-circle'
@@ -138,6 +153,7 @@ const NOTIFICATION_ACTION_SELECT = `
   END AS action_icon,
   CASE
     WHEN n.notification_type = 'waitlist_offer'
+      AND n.booking_id IS NULL
       AND w.status = 'offered'
       AND w.offer_expires_at >= NOW()
       THEN 'POST'

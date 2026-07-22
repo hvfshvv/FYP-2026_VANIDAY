@@ -294,6 +294,7 @@
     },
     "actions": {
       "continuePayment": "Continue payment",
+      "makePayment": "Make payment",
       "tryPaymentAgain": "Try payment again",
       "rateExperience": "Rate experience",
       "viewRewards": "View rewards",

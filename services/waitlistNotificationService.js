@@ -76,31 +76,44 @@ async function shouldUseWhatsApp(entry) {
 }
 
 async function sendWaitlistOffer(entry) {
-  const confirmUrl = appUrl('/book/viewBookings');
   const enrichedEntry = {
     ...entry,
-    offer_minutes: entry.offer_minutes || 15,
+    offer_minutes: entry.offer_minutes || 30,
   };
+  const paymentUrl = enrichedEntry.confirmed_booking_id
+    ? appUrl(`/payment/checkout/${enrichedEntry.confirmed_booking_id}`)
+    : appUrl('/book/viewBookings');
   const results = {};
 
   if (phoneDigits(enrichedEntry.customer_phone)) {
-    results.whatsapp = await whatsappNotificationService.sendWaitlistOffer(enrichedEntry, confirmUrl);
+    results.whatsapp = await whatsappNotificationService.sendWaitlistOffer(enrichedEntry, paymentUrl);
     if (results.whatsapp?.error) {
       console.warn('[waitlist] WhatsApp offer failed:', results.whatsapp.error);
     }
-  } else {
-    results.whatsapp = { skipped: true, reason: 'not_whatsapp_customer' };
+    results.email = { skipped: true, reason: 'PHONE_AVAILABLE_WHATSAPP_USED' };
+    return { channel: 'whatsapp', results };
   }
+
+  results.whatsapp = { skipped: true, reason: 'NO_PHONE' };
 
   if (isLocalWhatsAppEmail(enrichedEntry.customer_email)) {
     results.email = { skipped: true, reason: 'NO_REAL_EMAIL' };
   } else if (enrichedEntry.customer_email) {
-    results.email = await emailService.sendWaitlistOfferEmail(enrichedEntry, confirmUrl);
+    results.email = await emailService.sendWaitlistOfferEmail(enrichedEntry, paymentUrl);
   } else {
     results.email = { skipped: true, reason: 'NO_EMAIL' };
   }
 
-  return { channel: 'email+whatsapp', results };
+  if (!results.email?.sent) {
+    console.warn('[waitlist] Email offer was not delivered:', {
+      customerId: enrichedEntry.customer_id,
+      waitlistId: enrichedEntry.waitlist_id,
+      to: enrichedEntry.customer_email || null,
+      reason: results.email?.reason || results.email?.error || 'unknown',
+    });
+  }
+
+  return { channel: 'email', results };
 }
 
 module.exports = {

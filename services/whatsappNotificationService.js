@@ -123,8 +123,8 @@ function buildWaitlistOfferMessage(entry, confirmUrl = null) {
     'Service: ' + entry.service_name + '\n' +
     'Date: ' + formatDate(entry.booking_date) + '\n' +
     'Time: ' + formatTime(entry.booking_time) + '\n\n' +
-    'You have ' + Number(entry.offer_minutes || 15) + ' minutes to confirm it from My Bookings.' +
-    (confirmUrl ? '\n\nOpen My Bookings: ' + confirmUrl : '')
+    'You have ' + Number(entry.offer_minutes || 30) + ' minutes to make payment before the slot is released.' +
+    (confirmUrl ? '\n\nPay now: ' + confirmUrl : '')
   );
 }
 

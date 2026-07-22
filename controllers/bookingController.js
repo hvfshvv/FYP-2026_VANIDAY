@@ -12,6 +12,7 @@ const emailService = require('../services/emailService');
 const whatsappNotificationService = require('../services/whatsappNotificationService');
 const walletModel = require('../models/walletModel');
 const waitlistModel = require('../models/waitlistModel');
+const paymentModel = require('../models/paymentModel');
 const refundService = require('../services/refundService');
 const adminValidationModel = require('../models/adminValidationModel');
 
@@ -448,6 +449,10 @@ async function confirmWaitlistOffer(req, res) {
       return res.redirect('/book/viewBookings?error=' + encodeURIComponent('This waitlist offer has expired.'));
     }
 
+    if (entry.confirmed_booking_id) {
+      return res.redirect(`/payment/checkout/${entry.confirmed_booking_id}`);
+    }
+
     const bookingId = await bookingModel.createBooking({
       customerId,
       serviceId: entry.service_id,
@@ -458,8 +463,11 @@ async function confirmWaitlistOffer(req, res) {
       waitlistId: entry.waitlist_id,
     });
 
-    await waitlistModel.markConfirmed(entry.waitlist_id, bookingId);
-    await sendBookingCreatedNotification(bookingId);
+    const booking = await bookingModel.getBookingById(bookingId);
+    await paymentModel.createOrUpdatePayment(bookingId, Number(booking.total_amount || 0), 'stripe', {
+      holdMinutes: waitlistModel.OFFER_MINUTES,
+    });
+    await waitlistModel.attachPendingBooking(entry.waitlist_id, bookingId);
 
     res.redirect(`/payment/checkout/${bookingId}`);
   } catch (err) {

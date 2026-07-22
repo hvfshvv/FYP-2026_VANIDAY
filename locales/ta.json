@@ -294,6 +294,7 @@
     },
     "actions": {
       "continuePayment": "Payment தொடரவும்",
+      "makePayment": "Payment செய்யவும்",
       "tryPaymentAgain": "Payment மீண்டும் முயற்சிக்கவும்",
       "rateExperience": "அனுபவத்தை மதிப்பிடவும்",
       "viewRewards": "Rewards பார்க்கவும்",

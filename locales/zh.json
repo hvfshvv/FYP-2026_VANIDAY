@@ -294,6 +294,7 @@
     },
     "actions": {
       "continuePayment": "继续付款",
+      "makePayment": "付款",
       "tryPaymentAgain": "重新付款",
       "rateExperience": "评价体验",
       "viewRewards": "查看奖励",

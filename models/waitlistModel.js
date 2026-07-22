@@ -108,7 +108,7 @@ async function getSlotLabel(waitlistId, connection = db) {
   };
 }
 
-async function notifyCustomer(waitlistId, title, message, type) {
+async function notifyCustomer(waitlistId, title, message, type, options = {}) {
   const entry = await getSlotLabel(waitlistId);
   if (!entry) return;
 
@@ -117,6 +117,7 @@ async function notifyCustomer(waitlistId, title, message, type) {
 
   await notificationModel.createNotification({
     userId,
+    bookingId: options.bookingId || null,
     waitlistId,
     title,
     message,
@@ -274,7 +275,7 @@ async function offerNextForSlot(slot) {
     await connection.beginTransaction();
 
     const [[next]] = await connection.query(
-      `SELECT waitlist_id
+      `SELECT waitlist_id, customer_id
        FROM waitlist
        WHERE merchant_id = ?
          AND service_id = ?
@@ -303,12 +304,44 @@ async function offerNextForSlot(slot) {
 
     await connection.commit();
 
+    let bookingId;
+    try {
+      const bookingModel = require('./bookingModel');
+      const paymentModel = require('./paymentModel');
+      bookingId = await bookingModel.createBooking({
+        customerId: next.customer_id,
+        serviceId,
+        merchantId,
+        bookingDate: safeDate,
+        bookingTime: safeTime,
+        source: 'web',
+        waitlistId: next.waitlist_id,
+      });
+      const booking = await bookingModel.getBookingById(bookingId);
+      await paymentModel.createOrUpdatePayment(bookingId, Number(booking.total_amount || 0), 'stripe', {
+        holdMinutes: OFFER_MINUTES,
+      });
+      await attachPendingBooking(next.waitlist_id, bookingId);
+    } catch (bookingErr) {
+      await db.query(
+        `UPDATE waitlist
+         SET status = 'waiting',
+             offered_at = NULL,
+             offer_expires_at = NULL,
+             confirmed_booking_id = NULL
+         WHERE waitlist_id = ?`,
+        [next.waitlist_id]
+      );
+      throw bookingErr;
+    }
+
     const entry = await getSlotLabel(next.waitlist_id);
     await notifyCustomer(
       next.waitlist_id,
       'Slot available',
-      `Good news: a ${entry.service_name} slot at ${entry.merchant_name} opened for ${entry.dateLabel} at ${entry.timeLabel}. You have ${OFFER_MINUTES} minutes to confirm it from My Bookings.`,
-      'waitlist_offer'
+      `Good news: a ${entry.service_name} slot at ${entry.merchant_name} opened for ${entry.dateLabel} at ${entry.timeLabel}. You have ${OFFER_MINUTES} minutes to make payment.`,
+      'waitlist_offer',
+      { bookingId }
     );
     await waitlistNotificationService.sendWaitlistOffer(entry).catch(err => {
       console.error('[waitlist] Failed to send external waitlist offer notification:', err.message);
@@ -441,6 +474,38 @@ async function markConfirmed(waitlistId, bookingId) {
   if (entry) {
     await markWaitlistNotificationsClosed(waitlistId, entry.customer_id);
   }
+}
+
+async function attachPendingBooking(waitlistId, bookingId) {
+  await ensureWaitlistSchema();
+  await db.query(
+    `UPDATE waitlist
+     SET confirmed_booking_id = ?
+     WHERE waitlist_id = ?`,
+    [bookingId, waitlistId]
+  );
+}
+
+async function markConfirmedByBookingId(bookingId) {
+  await ensureWaitlistSchema();
+  const [[entry]] = await db.query(
+    `SELECT waitlist_id, customer_id
+     FROM waitlist
+     WHERE confirmed_booking_id = ?
+     LIMIT 1`,
+    [bookingId]
+  );
+
+  if (!entry) return false;
+
+  await db.query(
+    `UPDATE waitlist
+     SET status = 'confirmed'
+     WHERE waitlist_id = ?`,
+    [entry.waitlist_id]
+  );
+  await markWaitlistNotificationsClosed(entry.waitlist_id, entry.customer_id);
+  return true;
 }
 
 async function cancelCustomerWaitlist(waitlistId, customerId) {
@@ -629,6 +694,8 @@ module.exports = {
   hasActiveOfferForSlot,
   getWaitlistByIdForCustomer,
   markConfirmed,
+  attachPendingBooking,
+  markConfirmedByBookingId,
   cancelCustomerWaitlist,
   removeMerchantWaitlist,
   getCustomerWaitlists,

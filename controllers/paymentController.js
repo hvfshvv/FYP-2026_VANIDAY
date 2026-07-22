@@ -17,6 +17,7 @@ const emailService = require('../services/emailService');
 const promotionModel = require('../models/promotionModel');
 const voucherModel = require('../models/voucherModel');
 const cancellationPolicyModel = require('../models/cancellationPolicyModel');
+const waitlistModel = require('../models/waitlistModel');
 const whatsappNotificationService = require('../services/whatsappNotificationService');
 const notificationModel = require('../models/notificationModel');
 const adminValidationModel = require('../models/adminValidationModel');
@@ -307,6 +308,19 @@ async function getAuthorizedBooking(req, res, bookingId, { json = false } = {}) 
     return null;
   }
 
+  if (!req.session.user && !hasGuestBookingAccess(req, booking.booking_id)) {
+    const loginUrl = '/auth/login?next=' + encodeURIComponent(req.originalUrl);
+    if (json) {
+      res.status(401).json({
+        error: 'Authentication required. Please log in to continue payment.',
+        loginUrl,
+      });
+    } else {
+      res.redirect(loginUrl);
+    }
+    return null;
+  }
+
   if (!canAccessBooking(req, booking)) {
     if (json) res.status(403).json({ error: res.locals.t('messages.noBookingAccess') });
     else res.status(403).send(res.locals.t('messages.noBookingAccess'));
@@ -328,6 +342,12 @@ async function confirmPaidBooking(bookingId) {
   if (current.status === 'pending_payment') {
     // Confirm booking only after successful payment.
     await bookingModel.updateBookingStatus(bookingId, 'confirmed');
+  }
+
+  try {
+    await waitlistModel.markConfirmedByBookingId(bookingId);
+  } catch (err) {
+    console.error('[payment] Failed to mark waitlist confirmed:', err.message);
   }
 
   try {

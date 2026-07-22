@@ -507,7 +507,7 @@ async function sendWaitlistOfferEmail(entry, confirmUrl = null) {
   const customerName = entry.customer_name || 'there';
   const date = formatDate(entry.booking_date);
   const time = formatTime(entry.booking_time);
-  const minutes = Number(entry.offer_minutes || 15);
+  const minutes = Number(entry.offer_minutes || 30);
   const text = [
     `Hi ${customerName},`,
     '',
@@ -515,15 +515,15 @@ async function sendWaitlistOfferEmail(entry, confirmUrl = null) {
     `Date: ${date}`,
     `Time: ${time}`,
     '',
-    `You have ${minutes} minutes to confirm this slot from My Bookings.`,
-    confirmUrl ? `Open My Bookings: ${confirmUrl}` : null,
+    `You have ${minutes} minutes to make payment before the slot is released.`,
+    confirmUrl ? `Pay now: ${confirmUrl}` : null,
     '',
     'Uniday',
   ].filter(Boolean).join('\n');
 
   return sendMailOrLog({
     to: entry.customer_email,
-    subject: `Slot available: ${entry.service_name}`,
+    subject: `Slot available: make payment for ${entry.service_name}`,
     text,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#18181B;">
@@ -539,8 +539,8 @@ async function sendWaitlistOfferEmail(entry, confirmUrl = null) {
             <td style="padding:8px 12px;font-weight:700;border-bottom:1px solid #F3E8EC;">${escapeHtml(time)}</td>
           </tr>
         </table>
-        <p style="color:#71717A;font-size:14px;">You have ${minutes} minutes to confirm this slot from My Bookings.</p>
-        ${confirmUrl ? `<p><a href="${escapeHtml(confirmUrl)}" style="display:inline-block;background:#E11D48;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-weight:700;">Open My Bookings</a></p>` : ''}
+        <p style="color:#71717A;font-size:14px;">You have ${minutes} minutes to make payment before the slot is released.</p>
+        ${confirmUrl ? `<p><a href="${escapeHtml(confirmUrl)}" style="display:inline-block;background:#E11D48;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-weight:700;">Pay now</a></p>` : ''}
       </div>
     `,
     logLabel: 'Waitlist slot offer',

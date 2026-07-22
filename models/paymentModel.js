@@ -133,7 +133,7 @@ async function createOrUpdatePayment(bookingId, amount, method, options = {}) {
        payment_method = VALUES(payment_method),
        currency = VALUES(currency),
        payment_status = 'pending',
-       payment_hold_expires_at = VALUES(payment_hold_expires_at),
+       payment_hold_expires_at = COALESCE(VALUES(payment_hold_expires_at), payment_hold_expires_at),
        paid_at = NULL`,
     [bookingId, amount, method, holdMinutes, holdMinutes]
   );

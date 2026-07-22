@@ -294,6 +294,7 @@
     },
     "actions": {
       "continuePayment": "Teruskan bayaran",
+      "makePayment": "Buat bayaran",
       "tryPaymentAgain": "Cuba bayar lagi",
       "rateExperience": "Nilai pengalaman",
       "viewRewards": "Lihat ganjaran",
