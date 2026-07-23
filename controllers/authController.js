@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const authModel = require('../models/authModel');
 const loyaltyModel = require('../models/loyaltyModel');
 const qrService = require('../services/qrService');
@@ -6,6 +7,41 @@ const emailService = require('../services/emailService');
 const notificationModel = require('../models/notificationModel');
 
 const ALLOWED_ROLES = ['customer', 'merchant'];
+const HARDCODED_OTP_EMAILS = new Set([
+  'glam@vaniday.com',
+  'luxenail@uniday.com',
+  'spa@uniday.com',
+  'hairrepublic@uniday.com',
+  'glow@uniday.com',
+  'zen@uniday.com',
+  'prettylash@uniday.com',
+  'goddess@uniday.com',
+  'johndoe@mail.com',
+  'mary@gmail.com',
+  'ka@gmail.com',
+  'mary@mary.com',
+  'crowncomb@uniday.com',
+  'admin@uniday.com',
+  'diane@diane.com',
+  'may@may.com',
+  'lilly@lilly.com',
+  'dewyglow@uniday.com',
+  'velvetbloom@uniday.com',
+  'lushaura@uniday.com',
+  'lunabeauty@uniday.com',
+  'musehair@uniday.com',
+  'whatsapp_6589483241@uniday.local',
+  'aisyah@aisyah.com',
+  'fathima123@gmail.com',
+  'mimi@mimi.com',
+  'minnie@uniday.com',
+  '24048983@myrp.edu.sg',
+  'sabrina@sabrina.com',
+  'kk@gmail.com',
+  'liza@liza.com',
+  '24049021@myrp.edu.sg',
+]);
+const TEST_LOGIN_OTP = '000000';
 
 function redirectDashboard(res, user) {
   if (user.role === 'admin') return res.redirect('/admin/dashboard');
@@ -69,21 +105,52 @@ async function sendWelcomeEmail(req, user) {
   }
 }
 
-async function sendLogin2faEmail(req, user, next) {
-  const token = await authModel.createLogin2faToken(user.user_id, next);
-  const loginUrl = `${getBaseUrl(req)}/auth/login/verify/${token}`;
+function shouldEmailLoginOtp(user) {
+  return !HARDCODED_OTP_EMAILS.has(String(user.email || '').trim().toLowerCase());
+}
+
+function generateLoginOtp(user) {
+  if (!shouldEmailLoginOtp(user)) return TEST_LOGIN_OTP;
+  return String(crypto.randomInt(100000, 1000000));
+}
+
+async function startLoginOtpChallenge(user, next) {
+  const otp = generateLoginOtp(user);
+  const emailRequired = shouldEmailLoginOtp(user);
+  await authModel.createLogin2faToken(user.user_id, otp, next);
+
+  if (!emailRequired) {
+    return { sent: false, emailRequired, testOtp: TEST_LOGIN_OTP };
+  }
 
   try {
-    const result = await emailService.sendLogin2faEmail(user, loginUrl);
-    return {
-      ...result,
-      loginUrl,
-    };
+    const result = await emailService.sendLoginOtpEmail(user, otp);
+    return { ...result, emailRequired };
   } catch (err) {
-    console.error('login verification email send failed:', err);
-    console.log(`Login verification link for ${user.email}: ${loginUrl}`);
-    return { sent: false, loginUrl };
+    console.error('login OTP email send failed:', err);
+    console.log(`Login OTP for ${user.email}: ${otp}`);
+    return { sent: false, emailRequired };
   }
+}
+
+function renderLoginOtpPage(res, {
+  email = '',
+  next = null,
+  otpEmailSent = false,
+  emailRequired = false,
+  resent = false,
+  error = null,
+} = {}) {
+  res.render('auth/login2fa', {
+    title: 'Enter Login OTP',
+    email,
+    next,
+    otpEmailSent,
+    emailRequired,
+    testOtp: emailRequired ? null : TEST_LOGIN_OTP,
+    resent,
+    error,
+  });
 }
 
 async function buildSessionUser(user) {
@@ -153,15 +220,13 @@ function showLogin2fa(req, res) {
   if (req.session.user) return redirectDashboard(res, req.session.user);
 
   const pendingLogin = req.session.pendingLogin || null;
+  if (!pendingLogin || !pendingLogin.user_id) return res.redirect('/auth/login');
 
-  res.render('auth/login2fa', {
-    title: 'Check Your Email',
+  renderLoginOtpPage(res, {
     email: pendingLogin ? pendingLogin.email : '',
     next: pendingLogin ? pendingLogin.next : null,
-    loginLink: null,
-    loginEmailSent: false,
+    emailRequired: pendingLogin ? Boolean(pendingLogin.emailRequired) : false,
     resent: Boolean(req.query.resent),
-    error: null,
   });
 }
 
@@ -239,22 +304,24 @@ async function login(req, res) {
       });
     }
 
-    const loginResult = await sendLogin2faEmail(req, user, next);
+    const loginResult = await startLoginOtpChallenge(user, next);
     req.session.pendingLogin = {
       user_id: user.user_id,
       email: user.email,
       next,
+      emailRequired: loginResult.emailRequired,
       createdAt: Date.now(),
     };
 
-    res.render('auth/login2fa', {
-      title: 'Check Your Email',
+    renderLoginOtpPage(res, {
       email: user.email,
       next,
-      loginLink: loginResult.sent ? null : loginResult.loginUrl,
-      loginEmailSent: Boolean(loginResult.sent),
+      otpEmailSent: Boolean(loginResult.sent),
+      emailRequired: loginResult.emailRequired,
       resent: false,
-      error: null,
+      error: loginResult.emailRequired && !loginResult.sent
+        ? 'Could not send your login code. Please try sending a new code.'
+        : null,
     });
 
   } catch (err) {
@@ -286,50 +353,63 @@ async function resendLogin2fa(req, res) {
     }
 
     const next = safeNext(pendingLogin.next);
-    const loginResult = await sendLogin2faEmail(req, user, next);
+    const loginResult = await startLoginOtpChallenge(user, next);
     req.session.pendingLogin = {
       user_id: user.user_id,
       email: user.email,
       next,
+      emailRequired: loginResult.emailRequired,
       createdAt: Date.now(),
     };
 
-    res.render('auth/login2fa', {
-      title: 'Check Your Email',
+    renderLoginOtpPage(res, {
       email: user.email,
       next,
-      loginLink: loginResult.sent ? null : loginResult.loginUrl,
-      loginEmailSent: Boolean(loginResult.sent),
+      otpEmailSent: Boolean(loginResult.sent),
+      emailRequired: loginResult.emailRequired,
       resent: true,
-      error: null,
+      error: loginResult.emailRequired && !loginResult.sent
+        ? 'Could not send your login code. Please try sending a new code.'
+        : null,
     });
   } catch (err) {
     console.error(err);
-    res.render('auth/login2fa', {
-      title: 'Check Your Email',
+    renderLoginOtpPage(res, {
       email: pendingLogin.email || '',
       next: pendingLogin.next || null,
-      loginLink: null,
-      loginEmailSent: false,
+      emailRequired: Boolean(pendingLogin.emailRequired),
       resent: false,
-      error: 'Could not send a new sign-in link. Please try again.',
+      error: 'Could not send a new login code. Please try again.',
     });
   }
 }
 
 async function verifyLogin2fa(req, res) {
+  const pendingLogin = req.session.pendingLogin || null;
+  const otp = String(req.body.otp || '').replace(/\D/g, '');
+
+  if (!pendingLogin || !pendingLogin.user_id) {
+    return res.redirect('/auth/login');
+  }
+
+  if (!/^\d{6}$/.test(otp)) {
+    return renderLoginOtpPage(res, {
+      email: pendingLogin.email || '',
+      next: pendingLogin.next || null,
+      emailRequired: Boolean(pendingLogin.emailRequired),
+      error: 'Enter the 6-digit login code.',
+    });
+  }
+
   try {
-    const loginToken = await authModel.consumeLogin2faToken(req.params.token);
+    const loginToken = await authModel.consumeLogin2faToken(pendingLogin.user_id, otp);
 
     if (!loginToken || loginToken.status === 'suspended') {
-      return res.render('auth/login2fa', {
-        title: 'Check Your Email',
-        email: '',
-        next: null,
-        loginLink: null,
-        loginEmailSent: false,
-        resent: false,
-        error: 'This sign-in link is invalid or expired. Please sign in again.',
+      return renderLoginOtpPage(res, {
+        email: pendingLogin.email || '',
+        next: pendingLogin.next || null,
+        emailRequired: Boolean(pendingLogin.emailRequired),
+        error: 'This login code is invalid or expired. Please try again.',
       });
     }
 
@@ -338,14 +418,11 @@ async function verifyLogin2fa(req, res) {
     finishLogin(req, res, sessionUser, safeNext(loginToken.next_path));
   } catch (err) {
     console.error(err);
-    res.render('auth/login2fa', {
-      title: 'Check Your Email',
-      email: '',
-      next: null,
-      loginLink: null,
-      loginEmailSent: false,
-      resent: false,
-      error: 'Could not verify your sign-in link. Please try again.',
+    renderLoginOtpPage(res, {
+      email: pendingLogin.email || '',
+      next: pendingLogin.next || null,
+      emailRequired: Boolean(pendingLogin.emailRequired),
+      error: 'Could not verify your login code. Please try again.',
     });
   }
 }

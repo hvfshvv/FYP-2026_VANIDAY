@@ -2,6 +2,7 @@ const db = require('../config/db');
 const crypto = require('crypto');
 
 let login2faSchemaReady = false;
+const LEGACY_TEST_LOGIN_OTP = '000000';
 
 async function findUserByEmail(email) {
   const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -224,6 +225,14 @@ async function ensureLogin2faSchema() {
     )`
   );
 
+  await db.query(
+    `UPDATE login_2fa_token
+     SET used_at = NOW()
+     WHERE token_hash = ?
+       AND used_at IS NULL`,
+    [hashToken(LEGACY_TEST_LOGIN_OTP)]
+  );
+
   if (!(await indexExists('login_2fa_token', 'idx_login_2fa_user'))) {
     await db.query('CREATE INDEX idx_login_2fa_user ON login_2fa_token (user_id)');
   }
@@ -302,6 +311,10 @@ function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+function hashLoginOtp(userId, otp) {
+  return hashToken(`${userId}:${otp}`);
+}
+
 async function createEmailVerificationToken(userId) {
   const token = crypto.randomBytes(32).toString('hex');
   const tokenHash = hashToken(token);
@@ -372,11 +385,10 @@ async function createPasswordResetToken(userId) {
   return token;
 }
 
-async function createLogin2faToken(userId, nextPath = null) {
+async function createLogin2faToken(userId, otp, nextPath = null) {
   await ensureLogin2faSchema();
 
-  const token = crypto.randomBytes(32).toString('hex');
-  const tokenHash = hashToken(token);
+  const tokenHash = hashLoginOtp(userId, otp);
   const safeNextPath = nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
     ? nextPath
     : null;
@@ -395,13 +407,19 @@ async function createLogin2faToken(userId, nextPath = null) {
     );
 
     await connection.query(
+      `DELETE FROM login_2fa_token
+       WHERE user_id = ?
+         AND token_hash = ?`,
+      [userId, tokenHash]
+    );
+
+    await connection.query(
       `INSERT INTO login_2fa_token (user_id, token_hash, next_path, expires_at)
        VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
       [userId, tokenHash, safeNextPath]
     );
 
     await connection.commit();
-    return token;
   } catch (err) {
     await connection.rollback();
     throw err;
@@ -410,10 +428,10 @@ async function createLogin2faToken(userId, nextPath = null) {
   }
 }
 
-async function consumeLogin2faToken(token) {
+async function consumeLogin2faToken(userId, otp) {
   await ensureLogin2faSchema();
 
-  const tokenHash = hashToken(token);
+  const tokenHash = hashLoginOtp(userId, otp);
   const connection = await db.getConnection();
 
   try {
@@ -423,12 +441,13 @@ async function consumeLogin2faToken(token) {
       `SELECT l2fa.*, u.*
        FROM login_2fa_token l2fa
        JOIN users u ON u.user_id = l2fa.user_id
-       WHERE l2fa.token_hash = ?
+       WHERE l2fa.user_id = ?
+         AND l2fa.token_hash = ?
          AND l2fa.used_at IS NULL
          AND l2fa.expires_at > NOW()
        LIMIT 1
        FOR UPDATE`,
-      [tokenHash]
+      [userId, tokenHash]
     );
 
     if (!loginToken) {

@@ -1,4 +1,4 @@
--- One-time email sign-in links after password login.
+-- One-time login OTP challenges after password login.
 -- Safe to run more than once.
 
 CREATE TABLE IF NOT EXISTS login_2fa_token (

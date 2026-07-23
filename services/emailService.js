@@ -187,16 +187,16 @@ async function sendPasswordResetEmail(user, resetUrl) {
   });
 }
 
-async function sendLogin2faEmail(user, loginUrl) {
+async function sendLoginOtpEmail(user, otp) {
   const name = user.full_name || 'there';
-  const safeLoginUrl = escapeHtml(loginUrl);
+  const safeOtp = escapeHtml(otp);
   const text = [
     `Hi ${name},`,
     '',
-    'Your Uniday password was accepted. Use this secure link to finish signing in:',
-    loginUrl,
+    'Your Uniday password was accepted. Use this one-time password to finish signing in:',
+    otp,
     '',
-    'This link expires in 10 minutes. If you did not try to sign in, you can ignore this email.',
+    'This code expires in 10 minutes. If you did not try to sign in, you can ignore this email.',
     '',
     'Uniday',
   ].join('\n');
@@ -209,16 +209,12 @@ async function sendLogin2faEmail(user, loginUrl) {
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#18181B;">
         <h2 style="color:#E11D48;margin:0 0 12px;">Finish signing in to Uniday</h2>
         <p>Hi ${escapeHtml(name)},</p>
-        <p>Your password was accepted. Use this secure link to finish signing in:</p>
-        <p>
-          <a href="${safeLoginUrl}" style="display:inline-block;background:#E11D48;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-weight:700;">
-            Finish Sign In
-          </a>
-        </p>
-        <p style="color:#71717A;font-size:14px;">This link expires in 10 minutes. If you did not try to sign in, you can ignore this email.</p>
+        <p>Your password was accepted. Use this one-time password to finish signing in:</p>
+        <p style="font-size:28px;letter-spacing:6px;font-weight:800;margin:14px 0;color:#18181B;">${safeOtp}</p>
+        <p style="color:#71717A;font-size:14px;">This code expires in 10 minutes. If you did not try to sign in, you can ignore this email.</p>
       </div>
     `,
-    logLabel: 'Login verification link',
+    logLabel: 'Login OTP',
   });
 }
 
@@ -596,7 +592,7 @@ module.exports = {
   canDeliverEmail,
   createEmailProvider,
   sendPasswordResetEmail,
-  sendLogin2faEmail,
+  sendLoginOtpEmail,
   sendEmailVerificationEmail,
   sendWelcomeEmail,
   sendBookingCreatedEmail,

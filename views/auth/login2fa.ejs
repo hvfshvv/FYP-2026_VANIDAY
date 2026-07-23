@@ -7,7 +7,7 @@
       <div class="col-md-5 col-lg-4">
         <div class="text-center mb-5">
           <%- include('../partials/unidayLogo', { className: 'justify-content-center', size: 'sm' }) %>
-          <p style="color:var(--muted);margin-top:.5rem;margin-bottom:0;font-size:.875rem;">Check your email to finish signing in.</p>
+          <p style="color:var(--muted);margin-top:.5rem;margin-bottom:0;font-size:.875rem;">Enter your login code to continue.</p>
         </div>
 
         <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:2rem;">
@@ -19,35 +19,40 @@
             <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
               <i class="bi bi-envelope-check me-2"></i>
               <% if (resent) { %>
-                A new sign-in link has been sent<%= email ? ' to ' + email : '' %>.
-              <% } else if (loginEmailSent) { %>
-                Sign-in link sent<%= email ? ' to ' + email : '' %>.
+                A new login code is ready<%= emailRequired && email ? ' for ' + email : '' %>.
+              <% } else if (otpEmailSent) { %>
+                Login code sent<%= email ? ' to ' + email : '' %>.
               <% } else { %>
-                Your password was accepted. Open the sign-in link to continue.
+                Your password was accepted. Enter the login code to continue.
               <% } %>
             </div>
           <% } %>
 
-          <% if (loginLink) { %>
+          <% if (typeof testOtp !== 'undefined' && testOtp) { %>
             <div class="rounded-xl mb-3 p-3" style="background:var(--warn-bg);color:var(--warn);font-size:.875rem;">
-              <i class="bi bi-info-circle me-2"></i>Email is not configured yet, so use this local sign-in link for testing.
+              <i class="bi bi-info-circle me-2"></i>Test account OTP: <strong><%= testOtp %></strong>
             </div>
-            <a href="<%= loginLink %>" class="btn btn-outline-secondary w-100 btn-pill mb-3" style="font-weight:700;">
-              <i class="bi bi-shield-check me-2"></i>Open Sign-In Link
-            </a>
           <% } %>
 
-          <% if (!error) { %>
-            <p class="small mb-4" style="color:var(--muted);">
-              The link expires in 10 minutes. Keep this page open if you need another link.
-            </p>
+          <form action="/auth/login/2fa" method="POST" autocomplete="off">
+            <div class="mb-3">
+              <label class="form-label" style="font-weight:600;font-size:.875rem;">Login Code</label>
+              <input type="text" name="otp" class="form-control rounded-xl text-center" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" autocomplete="one-time-code" required autofocus style="font-size:1.25rem;font-weight:800;letter-spacing:.35rem;" />
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2 btn-pill" style="font-weight:700;">
+              <i class="bi bi-shield-check me-2"></i>Verify Code
+            </button>
+          </form>
 
-            <form action="/auth/login/2fa/resend" method="POST">
-              <button type="submit" class="btn btn-primary w-100 py-2 btn-pill" style="font-weight:700;">
-                <i class="bi bi-arrow-clockwise me-2"></i>Send New Link
-              </button>
-            </form>
-          <% } %>
+          <p class="small my-4" style="color:var(--muted);">
+            The code expires in 10 minutes. Keep this page open if you need another code.
+          </p>
+
+          <form action="/auth/login/2fa/resend" method="POST">
+            <button type="submit" class="btn btn-outline-secondary w-100 py-2 btn-pill" style="font-weight:700;">
+              <i class="bi bi-arrow-clockwise me-2"></i>Send New Code
+            </button>
+          </form>
 
           <div style="border-top:1px solid var(--border);margin:1.25rem 0;"></div>
           <p class="text-center small mb-0" style="color:var(--muted);">
