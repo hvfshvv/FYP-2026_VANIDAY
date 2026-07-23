@@ -138,9 +138,9 @@
                 ['all', 'All modules'],
                 ['whatsapp_support', 'WhatsApp support'],
                 ['web_support', 'Web Support'],
-                ['booking', 'Booking'],
-                ['payment', 'Payment'],
-                ['whatsapp', 'WhatsApp/API']
+                ['booking', 'Booking Errors'],
+                ['payment', 'Payment Errors'],
+                ['whatsapp', 'WhatsApp Errors']
               ].forEach(option => { %>
               <option value="<%= option[0] %>" <%= filters.module === option[0] ? 'selected' : '' %>><%= option[1] %></option>
               <% }) %>

@@ -19,8 +19,49 @@ const voucherModel = require('../models/voucherModel');
 const cancellationPolicyModel = require('../models/cancellationPolicyModel');
 const whatsappNotificationService = require('../services/whatsappNotificationService');
 const notificationModel = require('../models/notificationModel');
+const adminValidationModel = require('../models/adminValidationModel');
 
 const MIN_STRIPE_CHECKOUT_HOLD_MINUTES = 31;
+
+function sessionUserId(req) {
+  return req.session && req.session.user ? req.session.user.user_id : null;
+}
+
+async function logPaymentValidationError(req, {
+  bookingId = null,
+  errorType,
+  errorMessage
+}) {
+  await adminValidationModel.logTechnicalValidationError({
+    userId: sessionUserId(req),
+    bookingId,
+    module: 'payment',
+    errorType,
+    errorMessage
+  });
+}
+
+async function logPaymentSystemError({
+  bookingId = null,
+  errorType,
+  errorMessage
+}) {
+  await adminValidationModel.logTechnicalValidationError({
+    bookingId,
+    module: 'payment',
+    errorType,
+    errorMessage
+  });
+}
+
+async function logWhatsAppValidationError(bookingId, errorMessage) {
+  await adminValidationModel.logTechnicalValidationError({
+    bookingId,
+    module: 'whatsapp',
+    errorType: 'WHATSAPP_NOTIFICATION_FAILED',
+    errorMessage
+  });
+}
 
 function getRedirectPaymentHoldMinutes() {
   const configured = Number(process.env.REDIRECT_PAYMENT_HOLD_MINUTES);
@@ -314,6 +355,10 @@ async function confirmPaidBooking(bookingId) {
       }
     } catch (err) {
       console.error('[whatsapp] confirmation failed for booking %s:', bookingId, err.message || err);
+      await logWhatsAppValidationError(
+        bookingId,
+        'Outgoing WhatsApp payment confirmation notification failed.'
+      );
       try {
         const booking = await bookingModel.getBookingById(bookingId);
         if (booking) {
@@ -613,6 +658,11 @@ async function createStripeIntent(req, res) {
     res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id });
   } catch (err) {
     console.error('createStripeIntent error:', err);
+    await logPaymentValidationError(req, {
+      bookingId,
+      errorType: 'PAYMENT_PROCESSING_FAILED',
+      errorMessage: 'Stripe payment intent creation failed.'
+    });
     res.status(err.statusCode || 500).json({ error: err.statusCode ? err.message : res.locals.t('payment.errors.initialisePayment') });
   }
 }
@@ -667,6 +717,11 @@ async function confirmStripePayment(req, res) {
     res.json({ success: true, redirectUrl: `/payment/success?booking_id=${bookingId}` });
   } catch (err) {
     console.error('confirmStripePayment error:', err);
+    await logPaymentValidationError(req, {
+      bookingId,
+      errorType: 'PAYMENT_CONFIRM_FAILED',
+      errorMessage: 'Stripe payment confirmation failed.'
+    });
     res.status(500).json({ error: res.locals.t('payment.errors.confirmPayment', null, 'Failed to confirm payment') });
   }
 }
@@ -745,6 +800,11 @@ async function handleStripeWebhook(req, res) {
         const result = await persistStripePaymentIntent(event.data.object);
         if (result) {
           await paymentModel.updatePaymentStatus(result.bookingId, 'failed', event.data.object.id);
+          await logPaymentSystemError({
+            bookingId: result.bookingId,
+            errorType: 'PAYMENT_MARKED_FAILED',
+            errorMessage: 'Payment provider reported a failed payment attempt.'
+          });
           await notifyPaymentAttemptFailedByBookingId(result.bookingId);
         }
       }
@@ -771,6 +831,11 @@ async function handleStripeWebhook(req, res) {
       if (bookingId) {
         await paymentModel.updateStripeCheckoutSession(bookingId, session.id, session.payment_intent);
         await paymentModel.updatePaymentStatus(bookingId, 'failed', session.payment_intent || session.id);
+        await logPaymentSystemError({
+          bookingId,
+          errorType: 'PAYMENT_MARKED_FAILED',
+          errorMessage: 'Payment provider reported a failed checkout session.'
+        });
         await notifyPaymentAttemptFailedByBookingId(bookingId);
       }
     } else if (event.type === 'charge.updated') {
@@ -792,6 +857,10 @@ async function handleStripeWebhook(req, res) {
     res.json({ received: true });
   } catch (err) {
     console.error('[stripe] webhook handling error:', err);
+    await logPaymentSystemError({
+      errorType: 'PAYMENT_PROCESSING_FAILED',
+      errorMessage: 'Stripe webhook processing failed.'
+    });
     res.status(500).json({ error: 'Webhook handling failed' });
   }
 }
@@ -836,10 +905,20 @@ async function markStripePaymentFailed(req, res) {
 
     // Failed/cancelled attempts do not release the hold early; expiry owns that.
     await paymentModel.updatePaymentStatus(bookingId, 'failed', intent.id);
+    await logPaymentValidationError(req, {
+      bookingId,
+      errorType: 'PAYMENT_MARKED_FAILED',
+      errorMessage: 'Customer payment attempt was marked as failed.'
+    });
     await notifyPaymentAttemptFailedByBookingId(bookingId);
     res.json({ success: true });
   } catch (err) {
     console.error('markStripePaymentFailed error:', err);
+    await logPaymentValidationError(req, {
+      bookingId,
+      errorType: 'PAYMENT_PROCESSING_FAILED',
+      errorMessage: 'Could not save payment failure status.'
+    });
     res.status(500).json({ error: 'Failed to save payment failure' });
   }
 }

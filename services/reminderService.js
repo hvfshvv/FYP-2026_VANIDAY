@@ -1,6 +1,7 @@
 const bookingNotificationModel = require('../models/bookingNotificationModel');
 const emailService = require('./emailService');
 const whatsappNotificationService = require('./whatsappNotificationService');
+const adminValidationModel = require('../models/adminValidationModel');
 
 let running = false;
 
@@ -66,11 +67,30 @@ async function sendDueBookingWhatsAppReminders() {
         result && !result.skipped && !result.error ? 'sent' : 'failed'
       );
 
-      if (result && !result.skipped && !result.error) sent += 1;
-      else failed += 1;
+      if (result && !result.skipped && !result.error) {
+        sent += 1;
+      } else {
+        failed += 1;
+        if (result && result.error) {
+          await adminValidationModel.logTechnicalValidationError({
+            userId: booking.customer_id,
+            bookingId: booking.booking_id,
+            module: 'whatsapp',
+            errorType: 'WHATSAPP_REMINDER_FAILED',
+            errorMessage: 'WhatsApp booking reminder send failed.'
+          });
+        }
+      }
     } catch (err) {
       failed += 1;
       console.error('booking WhatsApp reminder failed:', err);
+      await adminValidationModel.logTechnicalValidationError({
+        userId: booking.customer_id,
+        bookingId: booking.booking_id,
+        module: 'whatsapp',
+        errorType: 'WHATSAPP_REMINDER_FAILED',
+        errorMessage: 'WhatsApp booking reminder send failed.'
+      });
       await bookingNotificationModel.recordWhatsAppNotification(
         booking,
         'reminder_24h',

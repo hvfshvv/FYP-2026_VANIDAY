@@ -5,6 +5,7 @@ const slotModel = require('../models/slotModel');
 const staffModel = require('../models/staffModel');
 const whatsappModel = require('../models/whatsappModel');
 const supportModel = require('../models/supportModel');
+const adminValidationModel = require('../models/adminValidationModel');
 
 const userSessions = {};
 const WHATSAPP_BOOKING_PAGE_SIZE = 5;
@@ -1461,6 +1462,11 @@ async function receiveMessage(req, res) {
     }
   } catch (error) {
     console.error('WhatsApp webhook error:', error.message);
+    await adminValidationModel.logTechnicalValidationError({
+      module: 'whatsapp',
+      errorType: 'WHATSAPP_WEBHOOK_FAILED',
+      errorMessage: 'Top-level WhatsApp webhook processing failed.'
+    });
     twiml.message('Sorry, something went wrong. Please reply menu to start again.');
   }
 

@@ -13,9 +13,38 @@ const whatsappNotificationService = require('../services/whatsappNotificationSer
 const walletModel = require('../models/walletModel');
 const waitlistModel = require('../models/waitlistModel');
 const refundService = require('../services/refundService');
+const adminValidationModel = require('../models/adminValidationModel');
 
 // Power Automate webhook URL: paste your webhook URL here or set POWER_AUTOMATE_WEBHOOK_URL in .env
 const POWER_AUTOMATE_WEBHOOK_URL = process.env.POWER_AUTOMATE_WEBHOOK_URL || 'PASTE_YOUR_POWER_AUTOMATE_WEBHOOK_URL_HERE';
+
+function sessionUserId(req) {
+  return req.session && req.session.user ? req.session.user.user_id : null;
+}
+
+async function logBookingValidationError(req, {
+  bookingId = null,
+  errorType,
+  errorMessage
+}) {
+  await adminValidationModel.logTechnicalValidationError({
+    userId: sessionUserId(req),
+    bookingId,
+    module: 'booking',
+    errorType,
+    errorMessage
+  });
+}
+
+async function logWhatsAppValidationError(booking, errorType, errorMessage) {
+  await adminValidationModel.logTechnicalValidationError({
+    userId: booking && booking.customer_id,
+    bookingId: booking && booking.booking_id,
+    module: 'whatsapp',
+    errorType,
+    errorMessage
+  });
+}
 
 async function sendPowerAutomateWebhook(payload) {
   if (!POWER_AUTOMATE_WEBHOOK_URL || POWER_AUTOMATE_WEBHOOK_URL.includes('PASTE_YOUR_POWER_AUTOMATE_WEBHOOK_URL_HERE')) {
@@ -181,6 +210,11 @@ async function sendWhatsAppCancellationNotification(booking) {
       console.warn('[whatsapp] cancellation skipped for booking %s: %s', booking.booking_id, result.reason);
     } else if (result && result.error) {
       console.error('[whatsapp] cancellation failed for booking %s: %s', booking.booking_id, result.error);
+      await logWhatsAppValidationError(
+        booking,
+        'WHATSAPP_NOTIFICATION_FAILED',
+        'Outgoing WhatsApp cancellation notification failed.'
+      );
     }
 
     await bookingNotificationModel.recordWhatsAppNotification(
@@ -191,6 +225,11 @@ async function sendWhatsAppCancellationNotification(booking) {
     );
   } catch (err) {
     console.error('[whatsapp] cancellation notification failed for booking %s:', booking.booking_id, err.message || err);
+    await logWhatsAppValidationError(
+      booking,
+      'WHATSAPP_NOTIFICATION_FAILED',
+      'Outgoing WhatsApp cancellation notification failed.'
+    );
   }
 }
 
@@ -211,6 +250,11 @@ async function sendWhatsAppRescheduleNotification(booking, previousBooking) {
       console.warn('[whatsapp] reschedule skipped for booking %s: %s', booking.booking_id, result.reason);
     } else if (result && result.error) {
       console.error('[whatsapp] reschedule failed for booking %s: %s', booking.booking_id, result.error);
+      await logWhatsAppValidationError(
+        booking,
+        'WHATSAPP_NOTIFICATION_FAILED',
+        'Outgoing WhatsApp reschedule notification failed.'
+      );
     }
 
     await bookingNotificationModel.recordWhatsAppNotification(
@@ -221,6 +265,11 @@ async function sendWhatsAppRescheduleNotification(booking, previousBooking) {
     );
   } catch (err) {
     console.error('[whatsapp] reschedule notification failed for booking %s:', booking.booking_id, err.message || err);
+    await logWhatsAppValidationError(
+      booking,
+      'WHATSAPP_NOTIFICATION_FAILED',
+      'Outgoing WhatsApp reschedule notification failed.'
+    );
   }
 }
 
@@ -294,6 +343,12 @@ async function confirmPortalBooking(req, res) {
     res.redirect(`/payment/checkout/${bookingId}`);
   } catch (err) {
     console.error(err);
+    await logBookingValidationError(req, {
+      errorType: err.code === 'CUSTOMER_BOOKING_OVERLAP' ? 'CUSTOMER_BOOKING_OVERLAP' : 'BOOKING_CREATE_FAILED',
+      errorMessage: err.code === 'CUSTOMER_BOOKING_OVERLAP'
+        ? 'Customer attempted to create a booking that overlaps an existing active booking.'
+        : 'Customer booking creation failed before payment.'
+    });
     const bookingError = err.code === 'ER_DUP_ENTRY' && /slot_id/i.test(err.message || '')
       ? 'That time slot was just taken or is no longer available. Please choose another time.'
       : (err.message || 'Booking failed. Please try again.');
@@ -409,6 +464,12 @@ async function confirmWaitlistOffer(req, res) {
     res.redirect(`/payment/checkout/${bookingId}`);
   } catch (err) {
     console.error(err);
+    await logBookingValidationError(req, {
+      errorType: err.code === 'CUSTOMER_BOOKING_OVERLAP' ? 'CUSTOMER_BOOKING_OVERLAP' : 'BOOKING_CREATE_FAILED',
+      errorMessage: err.code === 'CUSTOMER_BOOKING_OVERLAP'
+        ? 'Customer attempted to create a booking that overlaps an existing active booking.'
+        : 'Waitlist offer booking creation failed.'
+    });
     res.redirect('/book/viewBookings?error=' + encodeURIComponent(err.message || 'Could not confirm the waitlist offer.'));
   }
 }
@@ -460,6 +521,11 @@ async function cancelCustomerBooking(req, res) {
     res.redirect('/book/viewBookings?success=' + encodeURIComponent(message));
   } catch (err) {
     console.error(err);
+    await logBookingValidationError(req, {
+      bookingId: req.params.bookingId,
+      errorType: 'BOOKING_CANCEL_FAILED',
+      errorMessage: 'Customer booking cancellation failed.'
+    });
     res.redirect(`/book/viewBookings?error=${encodeURIComponent(err.message || 'Could not cancel booking.')}`);
   }
 }
@@ -521,6 +587,13 @@ async function rescheduleCustomerBooking(req, res) {
     res.redirect('/book/viewBookings?success=Booking rescheduled successfully.');
   } catch (err) {
     console.error(err);
+    await logBookingValidationError(req, {
+      bookingId: req.params.bookingId,
+      errorType: err.code === 'CUSTOMER_BOOKING_OVERLAP' ? 'CUSTOMER_BOOKING_OVERLAP' : 'BOOKING_RESCHEDULE_FAILED',
+      errorMessage: err.code === 'CUSTOMER_BOOKING_OVERLAP'
+        ? 'Customer attempted to reschedule into a time that overlaps an existing active booking.'
+        : 'Customer booking reschedule failed.'
+    });
     const booking = await bookingModel.getCustomerBookingById(req.params.bookingId, currentCustomerId(req)).catch(() => null);
 
     if (!booking) {
@@ -748,6 +821,12 @@ async function confirmBooking(req, res) {
     res.redirect(`/payment/checkout/${bookingId}`);
   } catch (err) {
     console.error(err);
+    await logBookingValidationError(req, {
+      errorType: err.code === 'CUSTOMER_BOOKING_OVERLAP' ? 'CUSTOMER_BOOKING_OVERLAP' : 'BOOKING_CREATE_FAILED',
+      errorMessage: err.code === 'CUSTOMER_BOOKING_OVERLAP'
+        ? 'Customer attempted to create a QR booking that overlaps an existing active booking.'
+        : 'QR booking creation failed before payment.'
+    });
     const qr      = await qrModel.getQRByToken(token).catch(() => null);
     const services = qr ? await merchantModel.getMerchantServices(qr.merchant_id).catch(() => []) : [];
     if (!qr) {

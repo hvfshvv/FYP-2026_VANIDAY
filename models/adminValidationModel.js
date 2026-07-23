@@ -7,6 +7,30 @@
 
 const db = require('../config/db');
 
+const TECHNICAL_LOG_MODULES = ['booking', 'payment', 'whatsapp'];
+const MAX_ERROR_MESSAGE_LENGTH = 1000;
+
+function normalizeNullableId(value) {
+  const number = Number.parseInt(value, 10);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function normalizeErrorType(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, '_')
+    .slice(0, 100);
+}
+
+function sanitizeErrorMessage(value) {
+  return String(value || '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_ERROR_MESSAGE_LENGTH);
+}
+
 // ── VALIDATION LOG QUERIES ─────────────────────────────────────────────────
 
 // Returns filtered validation logs — supports module, open/resolved status, and keyword search.
@@ -146,6 +170,57 @@ async function appendWebSupportEmailReply(logId, reply, adminName) {
   return result.affectedRows;
 }
 
+// Best-effort technical error logging for the admin validation page.
+async function logTechnicalValidationError({
+  userId = null,
+  bookingId = null,
+  module,
+  errorType,
+  errorMessage
+} = {}) {
+  const safeModule = String(module || '').trim();
+  const safeErrorType = normalizeErrorType(errorType);
+  const safeErrorMessage = sanitizeErrorMessage(errorMessage);
+  const safeUserId = normalizeNullableId(userId);
+  const safeBookingId = normalizeNullableId(bookingId);
+
+  if (!TECHNICAL_LOG_MODULES.includes(safeModule) || !safeErrorType || !safeErrorMessage) {
+    return null;
+  }
+
+  try {
+    const [existing] = await db.query(
+      `SELECT log_id
+       FROM validation_log
+       WHERE module = ?
+         AND error_type = ?
+         AND COALESCE(user_id, 0) = COALESCE(?, 0)
+         AND COALESCE(booking_id, 0) = COALESCE(?, 0)
+         AND is_resolved = FALSE
+         AND created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE)
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [safeModule, safeErrorType, safeUserId, safeBookingId]
+    );
+
+    if (existing.length) {
+      return existing[0].log_id;
+    }
+
+    const [result] = await db.query(
+      `INSERT INTO validation_log
+         (user_id, booking_id, module, error_type, error_message, is_resolved)
+       VALUES (?, ?, ?, ?, ?, FALSE)`,
+      [safeUserId, safeBookingId, safeModule, safeErrorType, safeErrorMessage]
+    );
+
+    return result.insertId;
+  } catch (err) {
+    console.error('[validation-log] technical error log failed:', err.message);
+    return null;
+  }
+}
+
 // ── ADMIN ACTION LOGGING ───────────────────────────────────────────────────
 
 // Writes a structured admin action entry for audit trail purposes.
@@ -169,5 +244,6 @@ module.exports = {
   getValidationLogById,
   appendValidationLogReply,
   appendWebSupportEmailReply,
+  logTechnicalValidationError,
   logAdminAction,
 };
