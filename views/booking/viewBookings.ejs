@@ -16,6 +16,23 @@
     transition: background-color .25s ease, box-shadow .25s ease;
   }
 
+  .booking-entry.is-past {
+    background: #F1E7EB;
+    box-shadow: inset 4px 0 0 rgba(113, 113, 122, .35);
+  }
+
+  .booking-time-badge {
+    background: var(--canvas);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .booking-time-badge.is-past {
+    background: #D6C6CC;
+    color: #3F3F46;
+    border-color: #B8A7AE;
+  }
+
   .booking-entry.is-targeted {
     background: var(--accent-light) !important;
     box-shadow: inset 4px 0 0 var(--accent);
@@ -117,16 +134,6 @@
     : [];
   const waitlistList = Array.isArray(waitlists) ? waitlists : [];
   const changeRequestList = (typeof changeRequests !== 'undefined' && Array.isArray(changeRequests)) ? changeRequests : [];
-  const statusStyles = {
-    pending_payment: { label: t('bookings.pendingPayment'), bg: 'var(--warn-bg)', color: 'var(--warn)' },
-    confirmed:       { label: t('bookings.confirmed'), bg: 'var(--success-bg)', color: 'var(--success)' },
-    rescheduled:     { label: t('bookings.rescheduled'), bg: '#EFF6FF', color: '#1D4ED8' },
-    arrived:         { label: t('bookings.arrived'), bg: 'var(--accent-light)', color: 'var(--accent)' },
-    completed:       { label: t('bookings.completed'), bg: 'var(--success-bg)', color: 'var(--success)' },
-    cancelled:       { label: t('bookings.cancelled'), bg: 'var(--danger-bg)', color: 'var(--danger)' },
-    payment_failed:  { label: t('bookings.paymentExpired'), bg: 'var(--danger-bg)', color: 'var(--danger)' },
-    no_show:         { label: t('bookings.noShow'), bg: 'var(--danger-bg)', color: 'var(--danger)' },
-  };
   const waitlistStatusStyles = {
     waiting:   { label: t('bookings.waiting'), bg: 'var(--warn-bg)', color: 'var(--warn)' },
     offered:   { label: t('bookings.slotOpen'), bg: 'var(--success-bg)', color: 'var(--success)' },
@@ -355,23 +362,19 @@
           const sectionIndex = index;
           const bookingStatus = effectiveStatus(booking);
           const canContinuePayment = bookingStatus === 'pending_payment';
-          const status = statusStyles[bookingStatus] || { label: bookingStatus || t('bookings.booked'), bg: 'var(--accent-light)', color: 'var(--accent)' };
           const isPast = new Date(booking.booking_date) < new Date(new Date().toDateString());
           const canManage = !isPast && !['pending_payment', 'cancelled', 'payment_failed', 'completed', 'no_show'].includes(bookingStatus);
         %>
-          <div id="booking-<%= booking.booking_id %>" class="p-4 booking-entry" <%= booking.status === 'pending_payment' ? 'data-pending-payment-entry' : '' %> style="<%= sectionIndex ? 'border-top:1px solid var(--border);' : '' %>">
+          <div id="booking-<%= booking.booking_id %>" class="p-4 booking-entry <%= isPast ? 'is-past' : '' %>" <%= booking.status === 'pending_payment' ? 'data-pending-payment-entry' : '' %> style="<%= sectionIndex ? 'border-top:1px solid var(--border);' : '' %>">
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
               <div class="booking-entry-details flex-grow-1">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                   <h5 style="font-weight:800;color:var(--ink);margin:0;"><%= serviceText(booking, 'name') || booking.service_name %></h5>
-                  <span class="badge rounded-pill" data-status-badge style="background:<%= status.bg %>;color:<%= status.color %>;"><%= status.label %></span>
+                  <span class="badge rounded-pill booking-time-badge <%= isPast ? 'is-past' : '' %>"><%= t('bookings.upcoming') %></span>
                   <% if (canContinuePayment) { %>
                     <span class="badge rounded-pill pending-payment-timer" data-expires-at="<%= pendingExpiryIso(booking) %>" data-remaining-seconds="<%= pendingRemainingSeconds(booking) %>" style="background:var(--accent-light);color:var(--accent);border:1px solid rgba(225,29,72,.2);">
                       <i class="bi bi-hourglass-split me-1"></i><span data-countdown>--:--</span> <%= t('bookings.left') %>
                     </span>
-                  <% } %>
-                  <% if (isPast) { %>
-                    <span class="badge rounded-pill" style="background:var(--canvas);color:var(--muted);border:1px solid var(--border);"><%= t('bookings.past') %></span>
                   <% } %>
                 </div>
                 <p style="color:var(--muted);margin:0 0 .75rem;">
@@ -649,14 +652,8 @@
         }
         if (!remaining) {
           const entry = timer.closest('[data-pending-payment-entry]');
-          const statusBadge = entry ? entry.querySelector('[data-status-badge]') : null;
           const paymentAction = entry ? entry.querySelector('[data-payment-action]') : null;
 
-          if (statusBadge) {
-            statusBadge.textContent = window.t('bookings.paymentExpired');
-            statusBadge.style.background = 'var(--danger-bg)';
-            statusBadge.style.color = 'var(--danger)';
-          }
           if (paymentAction) paymentAction.remove();
           timer.innerHTML = '<i class="bi bi-hourglass-bottom me-1"></i>' + window.t('bookings.expired');
           if (!reloadScheduled) {

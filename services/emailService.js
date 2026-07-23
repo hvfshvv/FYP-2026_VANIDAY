@@ -187,6 +187,41 @@ async function sendPasswordResetEmail(user, resetUrl) {
   });
 }
 
+async function sendLogin2faEmail(user, loginUrl) {
+  const name = user.full_name || 'there';
+  const safeLoginUrl = escapeHtml(loginUrl);
+  const text = [
+    `Hi ${name},`,
+    '',
+    'Your Uniday password was accepted. Use this secure link to finish signing in:',
+    loginUrl,
+    '',
+    'This link expires in 10 minutes. If you did not try to sign in, you can ignore this email.',
+    '',
+    'Uniday',
+  ].join('\n');
+
+  return sendMailOrLog({
+    to: user.email,
+    subject: 'Finish signing in to Uniday',
+    text,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#18181B;">
+        <h2 style="color:#E11D48;margin:0 0 12px;">Finish signing in to Uniday</h2>
+        <p>Hi ${escapeHtml(name)},</p>
+        <p>Your password was accepted. Use this secure link to finish signing in:</p>
+        <p>
+          <a href="${safeLoginUrl}" style="display:inline-block;background:#E11D48;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-weight:700;">
+            Finish Sign In
+          </a>
+        </p>
+        <p style="color:#71717A;font-size:14px;">This link expires in 10 minutes. If you did not try to sign in, you can ignore this email.</p>
+      </div>
+    `,
+    logLabel: 'Login verification link',
+  });
+}
+
 async function sendEmailVerificationEmail(user, verificationUrl) {
   const name = user.full_name || 'there';
   const text = [
@@ -404,11 +439,15 @@ async function sendBookingReminderEmail(booking) {
 
 async function sendBookingCancellationEmail(booking, recipient) {
   const name = recipient.name || 'there';
+  const reason = String(booking.cancellation_reason || '').trim();
+  const refundAmount = Number(booking.refund_amount || booking.refundAmount || 0);
   const details = bookingLines(booking);
   const text = [
     `Hi ${name},`,
     '',
     'This Uniday booking has been cancelled.',
+    reason ? `Reason: ${reason}` : null,
+    refundAmount > 0 ? `A refund of S$${refundAmount.toFixed(2)} has been initiated.` : null,
     '',
     ...details,
     '',
@@ -423,6 +462,8 @@ async function sendBookingCancellationEmail(booking, recipient) {
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#18181B;">
         <h2 style="color:#E11D48;margin:0 0 12px;">Booking cancelled</h2>
         <p>Hi ${escapeHtml(name)}, this Uniday booking has been cancelled.</p>
+        ${reason ? `<p><strong>Reason:</strong> ${escapeHtml(reason)}</p>` : ''}
+        ${refundAmount > 0 ? `<p>A refund of <strong>S$${refundAmount.toFixed(2)}</strong> has been initiated.</p>` : ''}
         <table style="border-collapse:collapse;width:100%;max-width:520px;background:#fff;border:1px solid #F3E8EC;border-radius:12px;overflow:hidden;">
           ${bookingHtmlRows(booking)}
         </table>
@@ -555,6 +596,7 @@ module.exports = {
   canDeliverEmail,
   createEmailProvider,
   sendPasswordResetEmail,
+  sendLogin2faEmail,
   sendEmailVerificationEmail,
   sendWelcomeEmail,
   sendBookingCreatedEmail,

@@ -1,6 +1,8 @@
 const db = require('../config/db');
 const crypto = require('crypto');
 
+let login2faSchemaReady = false;
+
 async function findUserByEmail(email) {
   const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
   return rows[0] || null;
@@ -193,6 +195,46 @@ async function columnExists(tableName, columnName) {
   return Number(row?.count || 0) > 0;
 }
 
+async function indexExists(tableName, indexName) {
+  const [[row]] = await db.query(
+    `SELECT COUNT(*) AS count
+     FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND INDEX_NAME = ?`,
+    [tableName, indexName]
+  );
+
+  return Number(row?.count || 0) > 0;
+}
+
+async function ensureLogin2faSchema() {
+  if (login2faSchemaReady) return;
+
+  await db.query(
+    `CREATE TABLE IF NOT EXISTS login_2fa_token (
+      login_2fa_id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      token_hash CHAR(64) NOT NULL UNIQUE,
+      next_path VARCHAR(2048) NULL,
+      expires_at DATETIME NOT NULL,
+      used_at DATETIME NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(user_id)
+    )`
+  );
+
+  if (!(await indexExists('login_2fa_token', 'idx_login_2fa_user'))) {
+    await db.query('CREATE INDEX idx_login_2fa_user ON login_2fa_token (user_id)');
+  }
+
+  if (!(await indexExists('login_2fa_token', 'idx_login_2fa_expires'))) {
+    await db.query('CREATE INDEX idx_login_2fa_expires ON login_2fa_token (expires_at)');
+  }
+
+  login2faSchemaReady = true;
+}
+
 async function setUserDateOfBirthIfSupported(userId, dateOfBirth) {
   if (!dateOfBirth) return;
   if (!(await columnExists('users', 'date_of_birth'))) return;
@@ -330,6 +372,85 @@ async function createPasswordResetToken(userId) {
   return token;
 }
 
+async function createLogin2faToken(userId, nextPath = null) {
+  await ensureLogin2faSchema();
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashToken(token);
+  const safeNextPath = nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
+    ? nextPath
+    : null;
+
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    await connection.query(
+      `UPDATE login_2fa_token
+       SET used_at = NOW()
+       WHERE user_id = ?
+         AND used_at IS NULL`,
+      [userId]
+    );
+
+    await connection.query(
+      `INSERT INTO login_2fa_token (user_id, token_hash, next_path, expires_at)
+       VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
+      [userId, tokenHash, safeNextPath]
+    );
+
+    await connection.commit();
+    return token;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
+async function consumeLogin2faToken(token) {
+  await ensureLogin2faSchema();
+
+  const tokenHash = hashToken(token);
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[loginToken]] = await connection.query(
+      `SELECT l2fa.*, u.*
+       FROM login_2fa_token l2fa
+       JOIN users u ON u.user_id = l2fa.user_id
+       WHERE l2fa.token_hash = ?
+         AND l2fa.used_at IS NULL
+         AND l2fa.expires_at > NOW()
+       LIMIT 1
+       FOR UPDATE`,
+      [tokenHash]
+    );
+
+    if (!loginToken) {
+      await connection.rollback();
+      return null;
+    }
+
+    await connection.query(
+      'UPDATE login_2fa_token SET used_at = NOW() WHERE login_2fa_id = ?',
+      [loginToken.login_2fa_id]
+    );
+
+    await connection.commit();
+    return loginToken;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 async function getValidPasswordResetToken(token) {
   const tokenHash = hashToken(token);
   const [rows] = await db.query(
@@ -392,6 +513,8 @@ module.exports = {
   acceptMerchantTerms,
   createEmailVerificationToken,
   verifyEmailToken,
+  createLogin2faToken,
+  consumeLogin2faToken,
   createPasswordResetToken,
   getValidPasswordResetToken,
   resetUserPassword,

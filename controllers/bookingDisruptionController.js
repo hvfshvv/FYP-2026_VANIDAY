@@ -2,6 +2,8 @@ const disruptionModel = require('../models/bookingDisruptionModel');
 const bookingModel = require('../models/bookingModel');
 const walletModel = require('../models/walletModel');
 const notificationModel = require('../models/notificationModel');
+const bookingNotificationModel = require('../models/bookingNotificationModel');
+const emailService = require('../services/emailService');
 const refundService = require('../services/refundService');
 
 function customerId(req) {
@@ -38,6 +40,42 @@ async function notifyCustomer(booking, message, title = 'Booking cancelled') {
   });
 }
 
+async function sendCustomerCancellationEmail(booking, reason, refundAmount = 0) {
+  if (!booking.customer_email) return;
+
+  const recipient = {
+    kind: 'customer',
+    email: booking.customer_email,
+    name: booking.customer_name,
+  };
+
+  try {
+    const alreadySent = await bookingNotificationModel.hasSentEmailNotification(
+      booking.booking_id,
+      'cancellation',
+      'customer'
+    );
+
+    if (alreadySent) return;
+
+    const result = await emailService.sendBookingCancellationEmail({
+      ...booking,
+      cancelled_by: 'merchant',
+      cancellation_reason: reason,
+      refund_amount: refundAmount,
+    }, recipient);
+
+    await bookingNotificationModel.recordEmailNotification(
+      booking,
+      'cancellation',
+      `cancellation email to customer (${recipient.email}) for booking #${booking.booking_id}`,
+      result.sent ? 'sent' : 'failed'
+    );
+  } catch (err) {
+    console.error('merchant cancellation email failed:', err);
+  }
+}
+
 async function cancelOther(req, res) {
   const merchantId = req.session.user.merchant_id;
   const reason = String(req.body.reason || '').trim();
@@ -53,6 +91,7 @@ async function cancelOther(req, res) {
     await notifyCustomer(booking,
       `We are sorry, but your ${booking.service_name} appointment at ${booking.merchant_name} on ${String(booking.booking_date).slice(0, 10)} at ${String(booking.booking_time).slice(0, 5)} was cancelled by the merchant. Reason: ${reason}. A 100% refund${amount ? ` of S$${amount.toFixed(2)}` : ''} has been initiated. We sincerely apologise for the inconvenience.`
     );
+    await sendCustomerCancellationEmail(booking, reason, amount);
     res.redirect('/merchant/bookings?success=' + encodeURIComponent('Booking cancelled, slot blocked, and 100% refund initiated.'));
   } catch (err) {
     console.error('[merchant cancellation]', err);
@@ -142,6 +181,11 @@ async function emergencyClosure(req, res) {
         const amount = Number(refund.amount || refund.refundAmount || 0);
         await notifyCustomer(booking,
           `Due to an unexpected closure, your ${booking.service_name} appointment at ${booking.merchant_name} on ${String(booking.booking_date).slice(0, 10)} at ${String(booking.booking_time).slice(0, 5)} has been cancelled. The merchant will be closed from ${formatDateTime(req.body.starts_at)} to ${formatDateTime(req.body.ends_at)}. A 100% refund${amount ? ` of S$${amount.toFixed(2)}` : ''} has been initiated. We sincerely apologise for the inconvenience.`
+        );
+        await sendCustomerCancellationEmail(
+          booking,
+          `${reason} Closure period: ${formatDateTime(req.body.starts_at)} to ${formatDateTime(req.body.ends_at)}.`,
+          amount
         );
         cancelled += 1;
       } catch (err) {

@@ -359,6 +359,7 @@
     "booked": "Booked",
     "left": "left",
     "past": "Past",
+    "upcoming": "Upcoming",
     "anyAvailableStaff": "Any Available Staff",
     "mins": "{{count}} mins",
     "cancellationPolicy": "Cancellation Policy",

@@ -4,6 +4,9 @@ const ctrl    = require('../controllers/authController');
 
 router.get('/login',    ctrl.showLogin);
 router.post('/login',   ctrl.login);
+router.get('/login/2fa', ctrl.showLogin2fa);
+router.post('/login/2fa/resend', ctrl.resendLogin2fa);
+router.get('/login/verify/:token', ctrl.verifyLogin2fa);
 router.get('/forgot-password', ctrl.showForgotPassword);
 router.post('/forgot-password', ctrl.requestPasswordReset);
 router.post('/reset-password', ctrl.startPasswordResetFromLogin);

@@ -37,7 +37,10 @@ async function getMerchantBooking(bookingId, merchantId, connection = db) {
     `SELECT b.*, ts.slot_date AS booking_date, ts.start_time AS booking_time,
             ts.end_time AS booking_end_time, s.service_name, s.duration_mins,
             m.merchant_name, st.full_name AS staff_name,
-            u.user_id AS customer_user_id, u.full_name AS customer_name
+            u.user_id AS customer_user_id,
+            COALESCE(u.full_name, b.guest_name) AS customer_name,
+            COALESCE(u.email, b.guest_email) AS customer_email,
+            COALESCE(u.phone, b.guest_phone) AS customer_phone
      FROM booking b
      JOIN time_slot ts ON ts.slot_id=b.slot_id
      JOIN service s ON s.service_id=b.service_id

@@ -360,6 +360,7 @@
     "booked": "Ditempah",
     "left": "lagi",
     "past": "Lepas",
+    "upcoming": "Akan Datang",
     "anyAvailableStaff": "Mana-mana staf tersedia",
     "mins": "{{count}} min",
     "cancellationPolicy": "Polisi Pembatalan",

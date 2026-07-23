@@ -69,6 +69,23 @@ async function sendWelcomeEmail(req, user) {
   }
 }
 
+async function sendLogin2faEmail(req, user, next) {
+  const token = await authModel.createLogin2faToken(user.user_id, next);
+  const loginUrl = `${getBaseUrl(req)}/auth/login/verify/${token}`;
+
+  try {
+    const result = await emailService.sendLogin2faEmail(user, loginUrl);
+    return {
+      ...result,
+      loginUrl,
+    };
+  } catch (err) {
+    console.error('login verification email send failed:', err);
+    console.log(`Login verification link for ${user.email}: ${loginUrl}`);
+    return { sent: false, loginUrl };
+  }
+}
+
 async function buildSessionUser(user) {
   const sessionUser = {
     user_id: user.user_id,
@@ -129,6 +146,22 @@ function showLogin(req, res) {
     query: req.query,
     verificationLink: null,
     email: ''
+  });
+}
+
+function showLogin2fa(req, res) {
+  if (req.session.user) return redirectDashboard(res, req.session.user);
+
+  const pendingLogin = req.session.pendingLogin || null;
+
+  res.render('auth/login2fa', {
+    title: 'Check Your Email',
+    email: pendingLogin ? pendingLogin.email : '',
+    next: pendingLogin ? pendingLogin.next : null,
+    loginLink: null,
+    loginEmailSent: false,
+    resent: Boolean(req.query.resent),
+    error: null,
   });
 }
 
@@ -206,8 +239,23 @@ async function login(req, res) {
       });
     }
 
-    const sessionUser = await buildSessionUser(user);
-    finishLogin(req, res, sessionUser, next);
+    const loginResult = await sendLogin2faEmail(req, user, next);
+    req.session.pendingLogin = {
+      user_id: user.user_id,
+      email: user.email,
+      next,
+      createdAt: Date.now(),
+    };
+
+    res.render('auth/login2fa', {
+      title: 'Check Your Email',
+      email: user.email,
+      next,
+      loginLink: loginResult.sent ? null : loginResult.loginUrl,
+      loginEmailSent: Boolean(loginResult.sent),
+      resent: false,
+      error: null,
+    });
 
   } catch (err) {
     console.error(err);
@@ -218,6 +266,86 @@ async function login(req, res) {
       query: req.query,
       verificationLink: null,
       email
+    });
+  }
+}
+
+async function resendLogin2fa(req, res) {
+  const pendingLogin = req.session.pendingLogin || null;
+
+  if (!pendingLogin || !pendingLogin.user_id) {
+    return res.redirect('/auth/login');
+  }
+
+  try {
+    const user = await authModel.getUserById(pendingLogin.user_id);
+
+    if (!user || user.status === 'suspended') {
+      delete req.session.pendingLogin;
+      return res.redirect('/auth/login');
+    }
+
+    const next = safeNext(pendingLogin.next);
+    const loginResult = await sendLogin2faEmail(req, user, next);
+    req.session.pendingLogin = {
+      user_id: user.user_id,
+      email: user.email,
+      next,
+      createdAt: Date.now(),
+    };
+
+    res.render('auth/login2fa', {
+      title: 'Check Your Email',
+      email: user.email,
+      next,
+      loginLink: loginResult.sent ? null : loginResult.loginUrl,
+      loginEmailSent: Boolean(loginResult.sent),
+      resent: true,
+      error: null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('auth/login2fa', {
+      title: 'Check Your Email',
+      email: pendingLogin.email || '',
+      next: pendingLogin.next || null,
+      loginLink: null,
+      loginEmailSent: false,
+      resent: false,
+      error: 'Could not send a new sign-in link. Please try again.',
+    });
+  }
+}
+
+async function verifyLogin2fa(req, res) {
+  try {
+    const loginToken = await authModel.consumeLogin2faToken(req.params.token);
+
+    if (!loginToken || loginToken.status === 'suspended') {
+      return res.render('auth/login2fa', {
+        title: 'Check Your Email',
+        email: '',
+        next: null,
+        loginLink: null,
+        loginEmailSent: false,
+        resent: false,
+        error: 'This sign-in link is invalid or expired. Please sign in again.',
+      });
+    }
+
+    delete req.session.pendingLogin;
+    const sessionUser = await buildSessionUser(loginToken);
+    finishLogin(req, res, sessionUser, safeNext(loginToken.next_path));
+  } catch (err) {
+    console.error(err);
+    res.render('auth/login2fa', {
+      title: 'Check Your Email',
+      email: '',
+      next: null,
+      loginLink: null,
+      loginEmailSent: false,
+      resent: false,
+      error: 'Could not verify your sign-in link. Please try again.',
     });
   }
 }
@@ -687,12 +815,15 @@ async function acceptMerchantTerms(req, res) {
 
 module.exports = {
   showLogin,
+  showLogin2fa,
   showStartpage,
   showRegister,
   showMerchantRegister,
   showForgotPassword,
   requestPasswordReset,
   startPasswordResetFromLogin,
+  resendLogin2fa,
+  verifyLogin2fa,
   verifyEmail,
   showResetPassword,
   resetPassword,
