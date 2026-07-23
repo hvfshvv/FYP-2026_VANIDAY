@@ -7,6 +7,23 @@
 
 const db = require('../config/db');
 const reviewModel = require('./reviewModel');
+const payoutModel = require('./payoutModel');
+
+const merchantSettlementSql = `
+  COALESCE(SUM(
+    CASE WHEN p.payment_status = 'paid'
+      THEN GREATEST(p.amount * 0.90 - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0)
+      ELSE 0
+    END
+  ), 0)
+`;
+
+function maskSettlementAmount(value) {
+  const amount = Number(value || 0);
+  if (amount <= 0) return 'S$0';
+  if (amount < 100) return 'S$XX';
+  return `S$${Math.floor(amount / 100)}XX`;
+}
 
 // ── DASHBOARD SUMMARY ──────────────────────────────────────────────────────
 
@@ -35,6 +52,7 @@ async function getDashboardSummary() {
 
 // Builds the full revenue report for a date range: overview, monthly trend, category breakdown, and more.
 async function getPlatformRevenueReport({ startDate, endDate } = {}) {
+  await payoutModel.ensurePayoutSchema();
   const paymentDateFilter = 'DATE(COALESCE(p.paid_at, b.created_at)) BETWEEN ? AND ?';
   const rangeParams = [startDate, endDate];
 
@@ -50,8 +68,8 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
     db.query(
       `SELECT
          COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS gross_revenue,
-         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount * 0.20 ELSE 0 END), 0) AS platform_commission,
-         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount * 0.80 ELSE 0 END), 0) AS merchant_payout,
+         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount * 0.10 ELSE 0 END), 0) AS platform_commission,
+         ${merchantSettlementSql} AS merchant_settlement_private,
          COUNT(DISTINCT CASE WHEN p.payment_status = 'paid' THEN b.booking_id END) AS paid_bookings,
          COUNT(DISTINCT b.merchant_id) AS merchants_with_payments,
          COALESCE(AVG(CASE WHEN p.payment_status = 'paid' THEN p.amount END), 0) AS average_order_value,
@@ -68,8 +86,8 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
          DATE_FORMAT(COALESCE(p.paid_at, b.created_at), '%Y-%m') AS month,
          COUNT(DISTINCT b.booking_id) AS paid_bookings,
          COALESCE(SUM(p.amount), 0) AS gross_revenue,
-         COALESCE(SUM(p.amount * 0.20), 0) AS platform_commission,
-         COALESCE(SUM(p.amount * 0.80), 0) AS merchant_payout
+         COALESCE(SUM(p.amount * 0.10), 0) AS platform_commission,
+         ${merchantSettlementSql} AS merchant_settlement_private
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
        WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
@@ -84,7 +102,7 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
          COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category,
          COUNT(DISTINCT b.booking_id) AS paid_bookings,
          COALESCE(SUM(p.amount), 0) AS gross_revenue,
-         COALESCE(SUM(p.amount * 0.20), 0) AS platform_commission
+         COALESCE(SUM(p.amount * 0.10), 0) AS platform_commission
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
        JOIN merchant m ON m.merchant_id = b.merchant_id
@@ -102,8 +120,8 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
          COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
          COUNT(DISTINCT b.booking_id) AS paid_bookings,
          COALESCE(SUM(p.amount), 0) AS gross_revenue,
-         COALESCE(SUM(p.amount * 0.20), 0) AS platform_commission,
-         COALESCE(SUM(p.amount * 0.80), 0) AS merchant_payout
+         COALESCE(SUM(p.amount * 0.10), 0) AS platform_commission,
+         ${merchantSettlementSql} AS merchant_settlement_private
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
        JOIN merchant m ON m.merchant_id = b.merchant_id
@@ -162,11 +180,31 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
     ),
   ]);
 
+  const overview = overviewRows[0] || {};
+  overview.merchant_settlement_band = maskSettlementAmount(overview.merchant_settlement_private);
+  delete overview.merchant_settlement_private;
+
+  const monthlyMasked = monthly.map(row => {
+    const { merchant_settlement_private: privateAmount, ...publicRow } = row;
+    return {
+      ...publicRow,
+      merchant_settlement_band: maskSettlementAmount(privateAmount),
+    };
+  });
+
+  const topMerchantsMasked = topMerchants.map(row => {
+    const { merchant_settlement_private: privateAmount, ...publicRow } = row;
+    return {
+      ...publicRow,
+      merchant_settlement_band: maskSettlementAmount(privateAmount),
+    };
+  });
+
   return {
-    overview: overviewRows[0] || {},
-    monthly,
+    overview,
+    monthly: monthlyMasked,
     categoryBreakdown,
-    topMerchants,
+    topMerchants: topMerchantsMasked,
     paymentStatus,
     bookingSource,
     recentTransactions,

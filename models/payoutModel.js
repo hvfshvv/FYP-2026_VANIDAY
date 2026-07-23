@@ -1,12 +1,16 @@
 const db = require('../config/db');
 
-const PLATFORM_COMMISSION_RATE = 0.20;
+const PLATFORM_COMMISSION_RATE = 0.10;
 const MERCHANT_SHARE_RATE = 1 - PLATFORM_COMMISSION_RATE;
 
 let payoutSchemaReady = false;
 
 function roundMoney(value) {
   return Math.round(Number(value || 0) * 100) / 100;
+}
+
+function currentWeekStartSql() {
+  return 'DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)';
 }
 
 async function ensurePayoutSchema() {
@@ -32,6 +36,16 @@ async function ensurePayoutSchema() {
       if (err.code !== 'ER_DUP_FIELDNAME') throw err;
     }
   };
+  const tableExists = async tableName => {
+    const [[row]] = await db.query(
+      `SELECT COUNT(*) AS count
+       FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = ?`,
+      [tableName]
+    );
+    return Number(row?.count || 0) > 0;
+  };
 
   await addPaymentColumnIfMissing(
     'platform_hold_status',
@@ -46,8 +60,20 @@ async function ensurePayoutSchema() {
     'ALTER TABLE payment ADD COLUMN merchant_payout_at DATETIME NULL AFTER merchant_payout_status'
   );
   await addPaymentColumnIfMissing(
+    'merchant_payout_id',
+    'ALTER TABLE payment ADD COLUMN merchant_payout_id INT NULL AFTER merchant_payout_at'
+  );
+  await addPaymentColumnIfMissing(
     'refund_status',
     "ALTER TABLE payment ADD COLUMN refund_status ENUM('none','pending','refunded','failed') DEFAULT 'none'"
+  );
+  await addPaymentColumnIfMissing(
+    'processor_fee_amount',
+    'ALTER TABLE payment ADD COLUMN processor_fee_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER amount'
+  );
+  await addPaymentColumnIfMissing(
+    'dispute_fee_amount',
+    'ALTER TABLE payment ADD COLUMN dispute_fee_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER processor_fee_amount'
   );
 
   await db.query(`
@@ -57,8 +83,12 @@ async function ensurePayoutSchema() {
       status ENUM('pending','processing','paid','failed','cancelled') NOT NULL DEFAULT 'pending',
       gross_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
       platform_commission DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      processor_fee_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      dispute_fee_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
       payout_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
       booking_count INT NOT NULL DEFAULT 0,
+      payout_period_start DATE NULL,
+      payout_period_end DATE NULL,
       currency VARCHAR(8) NOT NULL DEFAULT 'sgd',
       payout_reference VARCHAR(255) NULL,
       admin_note VARCHAR(500) NULL,
@@ -76,24 +106,55 @@ async function ensurePayoutSchema() {
     )
   `);
 
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS merchant_payout_item (
-      payout_item_id INT AUTO_INCREMENT PRIMARY KEY,
-      payout_id INT NOT NULL,
-      booking_id INT NOT NULL,
-      payment_id INT NOT NULL,
-      gross_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-      platform_commission DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-      payout_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE KEY uq_payout_item_booking (booking_id),
-      KEY idx_payout_item_payout (payout_id),
-      CONSTRAINT fk_payout_item_payout FOREIGN KEY (payout_id) REFERENCES merchant_payout(payout_id),
-      CONSTRAINT fk_payout_item_booking FOREIGN KEY (booking_id) REFERENCES booking(booking_id),
-      CONSTRAINT fk_payout_item_payment FOREIGN KEY (payment_id) REFERENCES payment(payment_id)
-    )
-  `);
+  const payoutColumnExists = async (tableName, columnName) => {
+    const [[row]] = await db.query(
+      `SELECT COUNT(*) AS count
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = ?
+         AND COLUMN_NAME = ?`,
+      [tableName, columnName]
+    );
+    return Number(row?.count || 0) > 0;
+  };
 
+  const addPayoutColumnIfMissing = async (tableName, columnName, ddl) => {
+    if (await payoutColumnExists(tableName, columnName)) return;
+    try {
+      await db.query(ddl);
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+  };
+
+  await addPayoutColumnIfMissing(
+    'merchant_payout',
+    'processor_fee_amount',
+    'ALTER TABLE merchant_payout ADD COLUMN processor_fee_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER platform_commission'
+  );
+  await addPayoutColumnIfMissing(
+    'merchant_payout',
+    'dispute_fee_amount',
+    'ALTER TABLE merchant_payout ADD COLUMN dispute_fee_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER processor_fee_amount'
+  );
+  await addPayoutColumnIfMissing(
+    'merchant_payout',
+    'payout_period_start',
+    'ALTER TABLE merchant_payout ADD COLUMN payout_period_start DATE NULL AFTER booking_count'
+  );
+  await addPayoutColumnIfMissing(
+    'merchant_payout',
+    'payout_period_end',
+    'ALTER TABLE merchant_payout ADD COLUMN payout_period_end DATE NULL AFTER payout_period_start'
+  );
+  if (await tableExists('merchant_payout_item')) {
+    await db.query(`
+      UPDATE payment p
+      JOIN merchant_payout_item mpi ON mpi.payment_id = p.payment_id
+      SET p.merchant_payout_id = mpi.payout_id
+      WHERE p.merchant_payout_id IS NULL
+    `);
+  }
   payoutSchemaReady = true;
 }
 
@@ -102,8 +163,18 @@ function eligibleBookingWhereClause(extra = '') {
     b.status = 'completed'
     AND p.payment_status = 'paid'
     AND COALESCE(p.refund_status, 'none') = 'none'
+    AND COALESCE(p.platform_hold_status, 'held') = 'held'
+    AND COALESCE(p.merchant_payout_status, 'pending') = 'pending'
+    AND p.merchant_payout_id IS NULL
     AND p.amount > 0
-    AND mpi.payout_item_id IS NULL
+    AND ts.slot_date < ${currentWeekStartSql()}
+    AND NOT EXISTS (
+      SELECT 1
+      FROM merchant_payout weekly_mp
+      WHERE weekly_mp.merchant_id = b.merchant_id
+        AND weekly_mp.status NOT IN ('failed', 'cancelled')
+        AND DATE(weekly_mp.created_at) >= ${currentWeekStartSql()}
+    )
     ${extra}
   `;
 }
@@ -119,13 +190,17 @@ async function getEligiblePayoutGroups() {
        COUNT(*) AS booking_count,
        COALESCE(SUM(p.amount), 0) AS gross_amount,
        COALESCE(SUM(ROUND(p.amount * ?, 2)), 0) AS platform_commission,
-       COALESCE(SUM(ROUND(p.amount * ?, 2)), 0) AS payout_amount,
+       COALESCE(SUM(COALESCE(p.processor_fee_amount, 0)), 0) AS processor_fee_amount,
+       COALESCE(SUM(COALESCE(p.dispute_fee_amount, 0)), 0) AS dispute_fee_amount,
+       COALESCE(SUM(GREATEST(ROUND(p.amount * ?, 2) - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0)), 0) AS payout_amount,
+       MIN(ts.slot_date) AS payout_period_start,
+       MAX(ts.slot_date) AS payout_period_end,
        MIN(p.paid_at) AS first_paid_at,
        MAX(p.paid_at) AS last_paid_at
      FROM booking b
      JOIN payment p ON p.booking_id = b.booking_id
+     JOIN time_slot ts ON ts.slot_id = b.slot_id
      JOIN merchant m ON m.merchant_id = b.merchant_id
-     LEFT JOIN merchant_payout_item mpi ON mpi.booking_id = b.booking_id
      WHERE ${eligibleBookingWhereClause()}
      GROUP BY m.merchant_id, m.merchant_name, m.email
      ORDER BY payout_amount DESC, m.merchant_name ASC`,
@@ -145,7 +220,9 @@ async function getEligiblePayoutBookings(merchantId) {
        p.payment_id,
        p.amount AS gross_amount,
        ROUND(p.amount * ?, 2) AS platform_commission,
-       ROUND(p.amount * ?, 2) AS payout_amount,
+       COALESCE(p.processor_fee_amount, 0) AS processor_fee_amount,
+       COALESCE(p.dispute_fee_amount, 0) AS dispute_fee_amount,
+       GREATEST(ROUND(p.amount * ?, 2) - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0) AS payout_amount,
        p.payment_method,
        p.paid_at,
        ts.slot_date,
@@ -157,7 +234,6 @@ async function getEligiblePayoutBookings(merchantId) {
      JOIN time_slot ts ON ts.slot_id = b.slot_id
      JOIN service s ON s.service_id = b.service_id
      JOIN users u ON u.user_id = b.customer_id
-     LEFT JOIN merchant_payout_item mpi ON mpi.booking_id = b.booking_id
      WHERE ${eligibleBookingWhereClause('AND b.merchant_id = ?')}
      ORDER BY ts.slot_date ASC, ts.start_time ASC, b.booking_id ASC`,
     [PLATFORM_COMMISSION_RATE, MERCHANT_SHARE_RATE, merchantId]
@@ -179,10 +255,13 @@ async function createMerchantPayout(merchantId, adminUserId) {
          p.payment_id,
          p.amount AS gross_amount,
          ROUND(p.amount * ?, 2) AS platform_commission,
-         ROUND(p.amount * ?, 2) AS payout_amount
+         COALESCE(p.processor_fee_amount, 0) AS processor_fee_amount,
+         COALESCE(p.dispute_fee_amount, 0) AS dispute_fee_amount,
+         GREATEST(ROUND(p.amount * ?, 2) - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0) AS payout_amount,
+         ts.slot_date
        FROM booking b
        JOIN payment p ON p.booking_id = b.booking_id
-       LEFT JOIN merchant_payout_item mpi ON mpi.booking_id = b.booking_id
+       JOIN time_slot ts ON ts.slot_id = b.slot_id
        WHERE ${eligibleBookingWhereClause('AND b.merchant_id = ?')}
        ORDER BY b.booking_id ASC
        FOR UPDATE`,
@@ -196,28 +275,31 @@ async function createMerchantPayout(merchantId, adminUserId) {
 
     const grossAmount = roundMoney(bookings.reduce((sum, row) => sum + Number(row.gross_amount || 0), 0));
     const platformCommission = roundMoney(bookings.reduce((sum, row) => sum + Number(row.platform_commission || 0), 0));
+    const processorFeeAmount = roundMoney(bookings.reduce((sum, row) => sum + Number(row.processor_fee_amount || 0), 0));
+    const disputeFeeAmount = roundMoney(bookings.reduce((sum, row) => sum + Number(row.dispute_fee_amount || 0), 0));
     const payoutAmount = roundMoney(bookings.reduce((sum, row) => sum + Number(row.payout_amount || 0), 0));
+    const payoutPeriodStart = bookings.reduce((min, row) => {
+      const value = row.slot_date;
+      return !min || value < min ? value : min;
+    }, null);
+    const payoutPeriodEnd = bookings.reduce((max, row) => {
+      const value = row.slot_date;
+      return !max || value > max ? value : max;
+    }, null);
 
     const [payoutResult] = await connection.query(
       `INSERT INTO merchant_payout
-         (merchant_id, status, gross_amount, platform_commission, payout_amount, booking_count, created_by)
-       VALUES (?, 'pending', ?, ?, ?, ?, ?)`,
-      [merchantId, grossAmount, platformCommission, payoutAmount, bookings.length, adminUserId || null]
+         (merchant_id, status, gross_amount, platform_commission, processor_fee_amount, dispute_fee_amount, payout_amount, booking_count, payout_period_start, payout_period_end, created_by)
+       VALUES (?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [merchantId, grossAmount, platformCommission, processorFeeAmount, disputeFeeAmount, payoutAmount, bookings.length, payoutPeriodStart, payoutPeriodEnd, adminUserId || null]
     );
 
     const payoutId = payoutResult.insertId;
     await connection.query(
-      `INSERT INTO merchant_payout_item
-         (payout_id, booking_id, payment_id, gross_amount, platform_commission, payout_amount)
-       VALUES ?`,
-      [bookings.map(row => [
-        payoutId,
-        row.booking_id,
-        row.payment_id,
-        roundMoney(row.gross_amount),
-        roundMoney(row.platform_commission),
-        roundMoney(row.payout_amount),
-      ])]
+      `UPDATE payment
+       SET merchant_payout_id = ?
+       WHERE payment_id IN (?)`,
+      [payoutId, bookings.map(row => row.payment_id)]
     );
 
     await connection.commit();
@@ -307,15 +389,26 @@ async function getPayoutById(payoutId) {
   if (!payout) return null;
 
   const [items] = await db.query(
-    `SELECT mpi.*, s.service_name, ts.slot_date, ts.start_time, u.full_name AS customer_name
-     FROM merchant_payout_item mpi
-     JOIN booking b ON b.booking_id = mpi.booking_id
+    `SELECT
+       b.booking_id,
+       p.payment_id,
+       p.amount AS gross_amount,
+       ROUND(p.amount * ?, 2) AS platform_commission,
+       COALESCE(p.processor_fee_amount, 0) AS processor_fee_amount,
+       COALESCE(p.dispute_fee_amount, 0) AS dispute_fee_amount,
+       GREATEST(ROUND(p.amount * ?, 2) - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0) AS payout_amount,
+       s.service_name,
+       ts.slot_date,
+       ts.start_time,
+       u.full_name AS customer_name
+     FROM payment p
+     JOIN booking b ON b.booking_id = p.booking_id
      JOIN service s ON s.service_id = b.service_id
      JOIN time_slot ts ON ts.slot_id = b.slot_id
      JOIN users u ON u.user_id = b.customer_id
-     WHERE mpi.payout_id = ?
+     WHERE p.merchant_payout_id = ?
      ORDER BY ts.slot_date ASC, ts.start_time ASC`,
-    [payoutId]
+    [PLATFORM_COMMISSION_RATE, MERCHANT_SHARE_RATE, payoutId]
   );
 
   return { payout, items };
@@ -347,12 +440,11 @@ async function markPayoutPaid(payoutId, adminUserId, { payoutReference = null, a
 
     if (result.affectedRows) {
       await connection.query(
-        `UPDATE payment p
-         JOIN merchant_payout_item mpi ON mpi.payment_id = p.payment_id
-         SET p.platform_hold_status = 'released_to_merchant',
-             p.merchant_payout_status = 'paid',
-             p.merchant_payout_at = NOW()
-         WHERE mpi.payout_id = ?`,
+        `UPDATE payment
+         SET platform_hold_status = 'released_to_merchant',
+             merchant_payout_status = 'paid',
+             merchant_payout_at = NOW()
+         WHERE merchant_payout_id = ?`,
         [payoutId]
       );
     }

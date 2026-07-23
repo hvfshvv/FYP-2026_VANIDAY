@@ -174,7 +174,7 @@
       "reserved": "Reserved for waitlist",
       "fullyBooked": "Fully booked"
     },
-    "staffAvailable": "{{count}} staff member{{plural}} available for this time.",
+    "staffAvailable": "{{count}} staff available for this time.",
     "staffFallback": "No specific staff are available; no preference will assign any available staff."
   },
   "payment": {
@@ -545,29 +545,36 @@
     "processingFeesSummary": "Payment processing fees may not be returned by the payment gateway when a refund is issued.",
     "merchantCausedBody": "If a merchant cancels a confirmed booking, cannot provide the booked service, or changes the appointment and the customer rejects the new time, the customer is entitled to a 100% refund.",
     "processingFeesBody": "Payment processing fees charged by payment gateways may not be returned to Uniday or the merchant when a refund is issued. The 95% early-cancellation refund is designed to reduce merchant out-of-pocket fee exposure while still giving customers a fair refund.",
-    "termsIntro": "Effective version: 2026-07. By using Uniday, customers and merchants agree to the booking, payment, cancellation, refund, and account rules shown on the platform.",
-    "termsCustomerBody": "Customers must provide accurate booking and contact details, complete payment before the payment hold expires, and attend appointments on time.",
-    "termsMerchantBody": "Merchants must keep services, prices, availability, staff, and business details accurate. Merchants are responsible for fulfilling confirmed bookings or resolving merchant-caused cancellations according to Uniday policy.",
+    "termsIntro": "Effective version: 2026-07. By using Uniday, customers and merchants agree to the booking, payment, cancellation, refund, payout, and account rules shown on the platform.",
+    "termsCustomerBody": "Customer terms: Customers must provide accurate booking and contact details, complete payment before the payment hold expires, attend appointments on time, and follow the cancellation/rescheduling rules shown before checkout.",
+    "termsMerchantBody": "Merchant terms: Merchants must keep services, prices, availability, staff, and business details accurate. Merchants are responsible for fulfilling confirmed bookings or resolving merchant-caused cancellations according to Uniday policy.",
+    "termsPayoutBody": "Merchant payout terms: Uniday keeps a 10% platform commission from paid bookings. The merchant share is 90% of the paid booking amount minus Stripe processing fees and any dispute fees. Eligible completed paid bookings from past weeks are grouped into one weekly payout batch per merchant.",
     "termsPolicyPrefix": "All paid bookings are subject to the",
     "termsSuspensionBody": "Uniday may suspend accounts for fraud, abuse, repeated no-shows, payment abuse, or misuse of platform features.",
-    "privacyIntro": "Uniday collects account, booking, payment status, notification, and support information needed to operate the booking platform.",
-    "privacyContactBody": "Customer contact details are used for booking confirmation, reminders, waitlist alerts, refunds, and support. Merchant business details are shown where needed for discovery, booking, and customer communication.",
-    "privacyPaymentBody": "Payment card details are handled by the payment gateway. Uniday stores payment status, references, receipt links, and refund records, but does not store raw card numbers.",
-    "privacyRetentionBody": "Account and booking records may be retained for operational, security, audit, and dispute-resolution purposes."
+    "privacyIntro": "Uniday collects only the account, booking, payment status, notification, payout, and support information needed to operate the platform.",
+    "privacyCustomerTitle": "Customer Privacy",
+    "privacyCustomerBody": "For customers, Uniday uses profile and contact details to create bookings, send confirmations, reminders, waitlist alerts, refund updates, receipts, loyalty rewards, and support replies.",
+    "privacyMerchantTitle": "Merchant Privacy",
+    "privacyMerchantBody": "For merchants, Uniday uses business, staff, service, availability, verification, promotion, payout, and contact details to operate storefronts, bookings, admin approvals, settlement records, and merchant support.",
+    "privacyPaymentTitle": "Payment & Payout Data",
+    "privacyPaymentBody": "Payment card details are handled by the payment gateway. Uniday stores payment status, references, receipt links, refund records, and fee records where applicable, but does not store raw card numbers.",
+    "privacyRetentionTitle": "Retention & Safety",
+    "privacyRetentionBody": "Account, booking, payment, refund, payout, review, and support records may be retained for operational, security, audit, and dispute-resolution purposes."
   },
   "merchantTerms": {
     "section": "Merchants",
     "intro": "Effective version: 2026-07. Merchant accounts must accept these terms during registration before the account can be submitted for verification.",
     "acceptTitle": "Accept Merchant Terms",
-    "acceptIntro": "Uniday has updated the platform cancellation and refund rules. Please accept them before continuing to the merchant dashboard.",
+    "acceptIntro": "Uniday has updated the platform cancellation, refund, payout, and fee rules. Please accept them before continuing to the merchant dashboard.",
     "acceptCheckboxPrefix": "I agree to Uniday's",
     "acceptButton": "Accept and Continue",
     "signupAgreementPrefix": "I agree to Uniday's",
-    "signupAgreementPolicy": "and platform refund rules: customer cancellations more than 24 hours before appointment receive 95%, 6-24 hours receive 50%, less than 6 hours/no-show receive 0%, and merchant-caused cancellations receive 100%.",
+    "signupAgreementPolicy": "and platform refund/payout rules: customer cancellations more than 24 hours before appointment receive 95%, 6-24 hours receive 50%, less than 6 hours/no-show receive 0%, merchant-caused cancellations receive 100%, and merchant payout is 90% minus processor/dispute fees after Uniday's 10% commission.",
     "bodyAppointments": "Merchants agree to honour confirmed appointments, maintain accurate service availability, and keep business contact details up to date.",
     "bodyRefundRules": "Merchants accept Uniday admin-set platform cancellation, refund, and rescheduling rules. Customer-caused cancellations receive 95%, 50%, or 0% refund depending on timing. Rescheduling is allowed until 6 hours before the appointment, subject to merchant availability, with no additional charge and the existing payment transferred to the new booking.",
-    "bodyProcessingFees": "Payment gateway processing fees may not be returned when refunds are issued. Merchants acknowledge that Uniday's refund policy is designed to reduce unfair out-of-pocket fee exposure while preserving customer trust.",
-    "bodyStricterSettings": "Cancellation, refund, and rescheduling rules are set by Uniday admin and apply to all merchants. Merchants cannot edit or override these platform terms."
+    "bodyProcessingFees": "Merchants absorb Stripe/payment gateway processing fees and any dispute fees connected to their bookings. These fees are deducted from the merchant payout where applicable.",
+    "bodyPayoutRules": "Uniday keeps a 10% platform commission. Merchant payout is calculated as 90% of the paid booking amount minus processor and dispute fees. Eligible completed paid bookings from past weeks are grouped into one weekly payout batch per merchant, and each booking can only be added to one payout batch after meeting all payout requirements.",
+    "bodyStricterSettings": "Cancellation, refund, rescheduling, payout, and fee rules are set by Uniday admin and apply to all merchants. Merchants cannot edit or override these platform terms."
   },
   "merchantPolicy": {
     "subtitle": "View Uniday's admin-set cancellation and rescheduling terms.",

@@ -7,10 +7,35 @@
     <h1 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);"><%= t('legal.privacyTitle') %></h1>
     <p style="color:var(--muted);max-width:720px;"><%= t('legal.privacyIntro') %></p>
 
+    <% const isMerchantPrivacyView = user && user.role === 'merchant'; %>
+    <% if (!isMerchantPrivacyView) { %>
+    <div class="card border-0 mb-3" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="card-body p-4" style="color:var(--ink);line-height:1.75;">
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);"><%= t('legal.privacyCustomerTitle') %></h2>
+        <p><%= t('legal.privacyCustomerBody') %></p>
+      </div>
+    </div>
+    <% } %>
+
+    <% if (isMerchantPrivacyView) { %>
+    <div class="card border-0 mb-3" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="card-body p-4" style="color:var(--ink);line-height:1.75;">
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);"><%= t('legal.privacyMerchantTitle') %></h2>
+        <p><%= t('legal.privacyMerchantBody') %></p>
+      </div>
+    </div>
+    <% } %>
+
+    <div class="card border-0 mb-3" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="card-body p-4" style="color:var(--ink);line-height:1.75;">
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);"><%= t('legal.privacyPaymentTitle') %></h2>
+        <p><%= t('legal.privacyPaymentBody') %></p>
+      </div>
+    </div>
+
     <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
       <div class="card-body p-4" style="color:var(--ink);line-height:1.75;">
-        <p><%= t('legal.privacyContactBody') %></p>
-        <p><%= t('legal.privacyPaymentBody') %></p>
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);"><%= t('legal.privacyRetentionTitle') %></h2>
         <p><%= t('legal.privacyRetentionBody') %></p>
       </div>
     </div>

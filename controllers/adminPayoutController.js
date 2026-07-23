@@ -1,9 +1,5 @@
 const payoutModel = require('../models/payoutModel');
 
-function money(value) {
-  return Number(value || 0).toFixed(2);
-}
-
 async function showPayouts(req, res) {
   try {
     const status = ['pending', 'processing', 'paid', 'failed', 'cancelled'].includes(String(req.query.status || ''))
@@ -51,7 +47,7 @@ async function createPayout(req, res) {
       return res.redirect('/admin/payouts?error=' + encodeURIComponent('No eligible completed paid bookings for this merchant.'));
     }
 
-    res.redirect('/admin/payouts?success=' + encodeURIComponent(`Created payout #${result.payoutId} for S$${money(result.payoutAmount)}.`));
+    res.redirect('/admin/payouts?success=' + encodeURIComponent(`Created payout #${result.payoutId}. Settlement amount is masked in admin views.`));
   } catch (err) {
     console.error('[admin payouts] createPayout error:', err);
     res.redirect('/admin/payouts?error=' + encodeURIComponent('Could not create payout batch.'));

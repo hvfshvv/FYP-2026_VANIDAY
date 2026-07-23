@@ -531,6 +531,9 @@ function extractStripePaymentDetails(intent) {
   const balanceTransactionId = balanceTransaction && typeof balanceTransaction === 'object'
     ? balanceTransaction.id
     : balanceTransaction;
+  const processorFeeAmount = balanceTransaction && typeof balanceTransaction === 'object'
+    ? Number(balanceTransaction.fee || 0) / 100
+    : 0;
 
   return {
     paymentStatus: intent.status === 'succeeded' ? 'paid' : intent.status === 'canceled' ? 'failed' : 'pending',
@@ -538,6 +541,7 @@ function extractStripePaymentDetails(intent) {
     paymentIntentId: intent.id,
     latestChargeId: latestCharge ? latestCharge.id : intent.latest_charge,
     balanceTransactionId: balanceTransactionId || null,
+    processorFeeAmount,
     stripeStatus: intent.status,
     amount: Number(intent.amount_received || intent.amount || 0) / 100,
     currency: intent.currency,

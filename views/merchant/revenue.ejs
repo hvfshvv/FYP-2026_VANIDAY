@@ -6,6 +6,7 @@
     const payout = payoutOverview || { eligibleBookings: [], eligibleAmount: 0, eligibleGross: 0, eligibleCommission: 0, payouts: [] };
     const money = value => 'S$' + Number(value || 0).toFixed(2);
     const dateTime = value => value ? new Date(value).toLocaleString('en-SG', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
+    const monthFees = Number(summary.month_processor_fees || 0) + Number(summary.month_dispute_fees || 0);
   %>
   <a href="/merchant/dashboard?month=<%= selectedPeriod %>" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
     <i class="bi bi-arrow-left me-1"></i>Dashboard
@@ -17,7 +18,7 @@
       </div>
       <div>
         <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;">Revenue Report</h2>
-        <p style="color:var(--muted);margin-bottom:0;font-size:.875rem;">Showing successful payments for <strong><%= periodLabel %></strong>.</p>
+        <p style="color:var(--muted);margin-bottom:0;font-size:.875rem;">Showing actual paid bookings, platform commission, merchant-borne fees, and your payout for <strong><%= periodLabel %></strong>.</p>
       </div>
     </div>
     <form action="/merchant/revenue" method="GET" class="d-flex gap-2 align-items-center">
@@ -31,30 +32,30 @@
   <div class="row g-3 mb-5">
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= periodLabel %> Revenue</p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Gross Paid Revenue</p>
         <p class="stat-value" style="color:var(--accent);">S$<%= Number(summary.month_revenue || 0).toFixed(2) %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Successful customer payments</p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Customer payments received</p>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Successful Payments</p>
-        <p class="stat-value" style="color:var(--success);"><%= Number(summary.month_successful_payments || 0) %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Paid bookings in <%= periodLabel %></p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Uniday Commission</p>
+        <p class="stat-value" style="color:var(--accent);">S$<%= Number(summary.month_platform_commission || 0).toFixed(2) %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">10% platform fee</p>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
         <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Your Earnings</p>
         <p class="stat-value" style="color:var(--success);">S$<%= Number(summary.month_merchant_earnings || 0).toFixed(2) %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">From paid bookings in <%= periodLabel %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">90% minus Stripe/dispute fees</p>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Avg. Order Value</p>
-        <p class="stat-value" style="color:var(--ink);">S$<%= Number(summary.month_avg_order_value || 0).toFixed(2) %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Per booking</p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;">Fees Absorbed</p>
+        <p class="stat-value" style="color:var(--ink);">S$<%= monthFees.toFixed(2) %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= Number(summary.month_successful_payments || 0) %> paid bookings · avg <%= money(summary.month_avg_order_value) %></p>
       </div>
     </div>
   </div>
@@ -64,9 +65,9 @@
       <div>
         <p class="section-label mb-1">Payouts</p>
         <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Merchant Settlement</h5>
-        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Completed paid bookings become payable after admin creates a payout batch.</p>
+        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Completed paid bookings from past weeks become payable after admin creates a weekly payout batch.</p>
       </div>
-      <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">80% merchant share</span>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">90% minus fees</span>
     </div>
 
     <div class="row g-3 mb-4">
@@ -74,7 +75,7 @@
         <div class="rounded-xl p-3 h-100" style="background:var(--canvas);border:1px solid var(--border);">
           <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;">Eligible for next payout</p>
           <strong class="mono" style="font-size:1.45rem;color:var(--success);"><%= money(payout.eligibleAmount) %></strong>
-          <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= payout.eligibleBookings.length %> completed paid bookings not yet batched</p>
+          <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= payout.eligibleBookings.length %> past-week completed paid bookings not yet batched</p>
         </div>
       </div>
       <div class="col-md-4">
@@ -88,7 +89,7 @@
         <div class="rounded-xl p-3 h-100" style="background:var(--canvas);border:1px solid var(--border);">
           <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;">Uniday commission</p>
           <strong class="mono" style="font-size:1.45rem;color:var(--accent);"><%= money(payout.eligibleCommission) %></strong>
-          <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Held by platform from eligible bookings</p>
+          <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">10% held by platform from eligible bookings</p>
         </div>
       </div>
     </div>
@@ -143,7 +144,9 @@
           <tr>
             <th>Month</th>
             <th>Bookings</th>
-            <th>Revenue</th>
+            <th>Gross</th>
+            <th>Uniday 10%</th>
+            <th>Fees</th>
             <th>Your Earnings</th>
           </tr>
         </thead>
@@ -153,6 +156,8 @@
             <td style="font-weight:600;"><%= m.month %></td>
             <td><%= m.bookings %></td>
             <td style="font-family:var(--font-mono);">S$<%= Number(m.revenue || 0).toFixed(2) %></td>
+            <td style="font-family:var(--font-mono);color:var(--accent);">S$<%= Number(m.platform_commission || 0).toFixed(2) %></td>
+            <td style="font-family:var(--font-mono);">S$<%= (Number(m.processor_fee_amount || 0) + Number(m.dispute_fee_amount || 0)).toFixed(2) %></td>
             <td style="font-weight:700;color:var(--success);font-family:var(--font-mono);">S$<%= Number(m.merchant_earnings || 0).toFixed(2) %></td>
           </tr>
           <% }) %>
@@ -183,7 +188,8 @@
             <th>Service</th>
             <th>Date</th>
             <th>Source</th>
-            <th>Amount</th>
+            <th>Gross</th>
+            <th>Fees</th>
             <th>Your Earnings</th>
             <th>Status</th>
           </tr>
@@ -214,6 +220,7 @@
               <% } %>
             </td>
             <td style="font-family:var(--font-mono);font-weight:600;"><%= t.amount ? 'S$' + Number(t.amount).toFixed(2) : '—' %></td>
+            <td style="font-family:var(--font-mono);"><%= t.amount ? 'S$' + (Number(t.processor_fee_amount || 0) + Number(t.dispute_fee_amount || 0)).toFixed(2) : '—' %></td>
             <td style="font-weight:700;color:var(--success);font-family:var(--font-mono);"><%= t.merchant_earnings ? 'S$' + Number(t.merchant_earnings).toFixed(2) : '—' %></td>
             <td>
               <span class="badge" style="background:<%= t.payment_status==='paid'?'var(--success-bg)':t.payment_status==='pending'?'var(--warn-bg)':'var(--accent-light)' %>;color:<%= t.payment_status==='paid'?'var(--success)':t.payment_status==='pending'?'var(--warn)':'var(--accent)' %>;">

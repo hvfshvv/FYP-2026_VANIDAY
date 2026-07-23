@@ -7,10 +7,33 @@
     <h1 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);"><%= t('legal.termsTitle') %></h1>
     <p style="color:var(--muted);max-width:720px;"><%= t('legal.termsIntro') %></p>
 
+    <%
+      const role = user && user.role;
+      const showCustomerTerms = !role || role === 'customer' || role === 'admin';
+      const showMerchantTerms = role === 'merchant' || role === 'admin';
+    %>
+    <% if (showCustomerTerms) { %>
+    <div class="card border-0 mb-3" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="card-body p-4" style="color:var(--ink);line-height:1.75;">
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);">Customer Terms</h2>
+        <p><%= t('legal.termsCustomerBody') %></p>
+      </div>
+    </div>
+    <% } %>
+
+    <% if (showMerchantTerms) { %>
+    <div class="card border-0 mb-3" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="card-body p-4" style="color:var(--ink);line-height:1.75;">
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);">Merchant Terms</h2>
+        <p><%= t('legal.termsMerchantBody') %></p>
+        <p><%= t('legal.termsPayoutBody') %></p>
+      </div>
+    </div>
+    <% } %>
+
     <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
       <div class="card-body p-4" style="color:var(--ink);line-height:1.75;">
-        <p><%= t('legal.termsCustomerBody') %></p>
-        <p><%= t('legal.termsMerchantBody') %></p>
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);">Platform Rules</h2>
         <p><%= t('legal.termsPolicyPrefix') %> <a href="/legal/cancellation-refund-policy" style="color:var(--accent);font-weight:800;"><%= t('legal.cancellationRefundTitle') %></a>. <%= t('legal.termsSuspensionBody') %></p>
       </div>
     </div>

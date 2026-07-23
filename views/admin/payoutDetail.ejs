@@ -2,6 +2,12 @@
 <%- include('../partials/header') %>
 <%
   const money = value => 'S$' + Number(value || 0).toFixed(2);
+  const settlementBand = value => {
+    const amount = Number(value || 0);
+    if (amount <= 0) return 'S$0';
+    if (amount < 100) return 'S$XX';
+    return 'S$' + Math.floor(amount / 100) + 'XX';
+  };
   const dateTime = value => value ? new Date(value).toLocaleString('en-SG', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
   const dateSlot = (date, time) => `${date ? new Date(date).toLocaleDateString('en-SG', { day:'numeric', month:'short', year:'numeric' }) : '-'} ${time ? String(time).slice(0,5) : ''}`;
 %>
@@ -18,9 +24,9 @@
     <div class="card-body p-4">
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
-          <p class="section-label mb-2">Merchant Payout</p>
+          <p class="section-label mb-2">Merchant Settlement</p>
           <h2 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Payout #<%= payout.payout_id %></h2>
-          <p style="color:var(--muted);margin:0;"><%= payout.merchant_name %> · <%= payout.booking_count %> completed paid bookings</p>
+          <p style="color:var(--muted);margin:0;"><%= payout.merchant_name %> · <%= payout.booking_count %> eligible completed paid bookings</p>
         </div>
         <span class="badge" style="background:<%= payout.status === 'paid' ? 'var(--success-bg)' : 'var(--warn-bg)' %>;color:<%= payout.status === 'paid' ? 'var(--success)' : 'var(--warn)' %>;font-weight:800;text-transform:capitalize;"><%= payout.status %></span>
       </div>
@@ -28,8 +34,8 @@
       <div class="row g-3 mt-3">
         <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;">Gross</span><strong class="d-block mono"><%= money(payout.gross_amount) %></strong></div></div>
         <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;">Uniday commission</span><strong class="d-block mono" style="color:var(--accent);"><%= money(payout.platform_commission) %></strong></div></div>
-        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;">Merchant payout</span><strong class="d-block mono" style="color:var(--success);"><%= money(payout.payout_amount) %></strong></div></div>
-        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;">Paid at</span><strong class="d-block"><%= dateTime(payout.paid_at) %></strong></div></div>
+        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;">Processor/dispute fees</span><strong class="d-block mono"><%= money(Number(payout.processor_fee_amount || 0) + Number(payout.dispute_fee_amount || 0)) %></strong></div></div>
+        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;">Settlement band</span><strong class="d-block mono" style="color:var(--success);"><%= settlementBand(payout.payout_amount) %></strong></div></div>
       </div>
     </div>
   </div>
@@ -69,7 +75,8 @@
               <th>Slot</th>
               <th>Gross</th>
               <th>Uniday</th>
-              <th>Payout</th>
+              <th>Fees</th>
+              <th>Settlement Band</th>
             </tr>
           </thead>
           <tbody>
@@ -81,7 +88,8 @@
               <td><%= dateSlot(item.slot_date, item.start_time) %></td>
               <td class="mono"><%= money(item.gross_amount) %></td>
               <td class="mono"><%= money(item.platform_commission) %></td>
-              <td class="mono" style="font-weight:800;color:var(--success);"><%= money(item.payout_amount) %></td>
+              <td class="mono"><%= money(Number(item.processor_fee_amount || 0) + Number(item.dispute_fee_amount || 0)) %></td>
+              <td class="mono" style="font-weight:800;color:var(--success);"><%= settlementBand(item.payout_amount) %></td>
             </tr>
             <% }) %>
           </tbody>

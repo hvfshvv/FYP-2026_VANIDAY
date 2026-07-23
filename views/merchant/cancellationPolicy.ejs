@@ -51,10 +51,21 @@
       </div>
     </section>
 
-    <section class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <section class="card border-0 mb-3" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
       <div class="card-body p-4">
         <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);"><%= t('legal.processingFeesTitle') %></h2>
         <p style="color:var(--ink);line-height:1.7;margin:0;"><%= t('legal.processingFeesBody') %></p>
+      </div>
+    </section>
+
+    <section class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="card-body p-4">
+        <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);">Merchant Payout & Platform Fees</h2>
+        <ul style="color:var(--ink);line-height:1.8;margin:0;">
+          <li><%= t('merchantTerms.bodyPayoutRules') %></li>
+          <li><%= t('merchantTerms.bodyProcessingFees') %></li>
+          <li><%= t('merchantTerms.bodyStricterSettings') %></li>
+        </ul>
       </div>
     </section>
   </div>

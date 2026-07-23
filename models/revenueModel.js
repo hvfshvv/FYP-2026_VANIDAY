@@ -1,6 +1,8 @@
 const db = require('../config/db');
+const payoutModel = require('./payoutModel');
 
 async function getMerchantRevenueSummary(merchantId, selectedPeriod = null) {
+  await payoutModel.ensurePayoutSchema();
   const period = selectedPeriod || new Date().toISOString().slice(0, 7);
   const [rows] = await db.query(
     `SELECT
@@ -13,7 +15,13 @@ async function getMerchantRevenueSummary(merchantId, selectedPeriod = null) {
        COALESCE(SUM(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
                          THEN p.amount ELSE 0 END), 0) AS month_revenue,
        COALESCE(SUM(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
-                         THEN p.amount * 0.80 ELSE 0 END), 0) AS month_merchant_earnings,
+                         THEN ROUND(p.amount * 0.10, 2) ELSE 0 END), 0) AS month_platform_commission,
+       COALESCE(SUM(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
+                         THEN COALESCE(p.processor_fee_amount, 0) ELSE 0 END), 0) AS month_processor_fees,
+       COALESCE(SUM(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
+                         THEN COALESCE(p.dispute_fee_amount, 0) ELSE 0 END), 0) AS month_dispute_fees,
+       COALESCE(SUM(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
+                         THEN GREATEST(p.amount * 0.90 - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0) ELSE 0 END), 0) AS month_merchant_earnings,
        COALESCE(AVG(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
                          THEN p.amount END), 0) AS month_avg_order_value,
        COUNT(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
@@ -26,7 +34,7 @@ async function getMerchantRevenueSummary(merchantId, selectedPeriod = null) {
      FROM booking b
      LEFT JOIN payment p ON b.booking_id = p.booking_id AND p.payment_status = 'paid'
      WHERE b.merchant_id = ?`,
-    [period, period, period, period, period, merchantId]
+    [period, period, period, period, period, period, period, period, merchantId]
   );
   return rows[0];
 }
@@ -71,6 +79,7 @@ async function getTopPerformingStaffThisMonth(merchantId, periodStart) {
 }
 
 async function getMerchantTransactions(merchantId, selectedPeriod = null) {
+  await payoutModel.ensurePayoutSchema();
   const periodFilter = selectedPeriod ? "AND DATE_FORMAT(p.paid_at, '%Y-%m') = ?" : '';
   const params = selectedPeriod ? [merchantId, selectedPeriod] : [merchantId];
   const [rows] = await db.query(
@@ -82,7 +91,11 @@ async function getMerchantTransactions(merchantId, selectedPeriod = null) {
        u.full_name   AS customer_name,
        u.phone       AS customer_phone,
        u.email       AS customer_email,
-       p.amount, ROUND(p.amount * 0.80, 2) AS merchant_earnings,
+       p.amount,
+       ROUND(p.amount * 0.10, 2) AS platform_commission,
+       COALESCE(p.processor_fee_amount, 0) AS processor_fee_amount,
+       COALESCE(p.dispute_fee_amount, 0) AS dispute_fee_amount,
+       GREATEST(ROUND(p.amount * 0.90, 2) - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0) AS merchant_earnings,
        p.payment_method, p.payment_status,
        p.transaction_ref, p.paid_at
      FROM booking b
@@ -99,12 +112,16 @@ async function getMerchantTransactions(merchantId, selectedPeriod = null) {
 }
 
 async function getMonthlyRevenue(merchantId) {
+  await payoutModel.ensurePayoutSchema();
   const [rows] = await db.query(
     `SELECT
        DATE_FORMAT(p.paid_at, '%Y-%m')    AS month,
        COUNT(*)                           AS bookings,
        SUM(p.amount)                      AS revenue,
-       SUM(p.amount * 0.80)               AS merchant_earnings
+       SUM(ROUND(p.amount * 0.10, 2))      AS platform_commission,
+       SUM(COALESCE(p.processor_fee_amount, 0)) AS processor_fee_amount,
+       SUM(COALESCE(p.dispute_fee_amount, 0)) AS dispute_fee_amount,
+       SUM(GREATEST(p.amount * 0.90 - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0)) AS merchant_earnings
      FROM payment p
      JOIN booking b ON p.booking_id = b.booking_id
      WHERE b.merchant_id = ? AND p.payment_status = 'paid'

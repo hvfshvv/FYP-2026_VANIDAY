@@ -38,6 +38,14 @@ async function ensurePaymentHoldSchema() {
     'stripe_refund_status',
     'ALTER TABLE payment ADD COLUMN stripe_refund_status VARCHAR(64) NULL AFTER stripe_refund_id'
   );
+  await addColumnIfMissing(
+    'processor_fee_amount',
+    'ALTER TABLE payment ADD COLUMN processor_fee_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER amount'
+  );
+  await addColumnIfMissing(
+    'dispute_fee_amount',
+    'ALTER TABLE payment ADD COLUMN dispute_fee_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER processor_fee_amount'
+  );
 
   paymentHoldSchemaReady = true;
 }
@@ -165,6 +173,7 @@ async function updateStripePaymentDetails(bookingId, details) {
          stripe_checkout_session_id=COALESCE(?, stripe_checkout_session_id),
          stripe_latest_charge_id=?,
          stripe_balance_transaction_id=?,
+         processor_fee_amount=?,
          stripe_status=?,
          amount=?,
          currency=?,
@@ -180,6 +189,7 @@ async function updateStripePaymentDetails(bookingId, details) {
       details.checkoutSessionId || null,
       details.latestChargeId,
       details.balanceTransactionId,
+      Number(details.processorFeeAmount || 0),
       details.stripeStatus,
       details.amount,
       details.currency,

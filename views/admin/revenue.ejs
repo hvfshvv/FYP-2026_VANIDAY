@@ -82,7 +82,7 @@
       <div>
         <p class="section-label mb-1">Admin Finance</p>
         <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.15rem;">Revenue Report</h2>
-        <p style="color:var(--muted);margin-bottom:0;">Platform gross revenue, Uniday commission, merchant payouts, and payment health.</p>
+        <p style="color:var(--muted);margin-bottom:0;">Platform gross revenue, Uniday commission, payment health, and masked merchant settlement bands.</p>
       </div>
     </div>
 
@@ -108,8 +108,8 @@
   <div class="row g-3 mb-5">
     <% [
       { label:'Gross Revenue', value:money(overview.gross_revenue), sub:'Successful customer payments', icon:'bi-cash-stack', color:'var(--accent)' },
-      { label:'Uniday Commission', value:money(overview.platform_commission), sub:'20% platform share', icon:'bi-percent', color:'var(--success)' },
-      { label:'Merchant Payouts', value:money(overview.merchant_payout), sub:'80% payable to merchants', icon:'bi-bank', color:'var(--ink)' },
+      { label:'Uniday Commission', value:money(overview.platform_commission), sub:'10% platform share', icon:'bi-percent', color:'var(--success)' },
+      { label:'Merchant Settlement Band', value:overview.merchant_settlement_band || 'S$0', sub:'Masked exact merchant earnings', icon:'bi-shield-lock', color:'var(--ink)' },
       { label:'Avg. Order Value', value:money(overview.average_order_value), sub:'Per paid booking', icon:'bi-bag-check', color:'#1D4ED8' },
       { label:'Paid Bookings', value:number(overview.paid_bookings), sub:'Bookings with paid payments', icon:'bi-calendar-check', color:'var(--success)' },
       { label:'Paid Payments', value:number(overview.paid_payments), sub:'Successful payment records', icon:'bi-receipt', color:'var(--accent)' },
@@ -139,25 +139,25 @@
         <p class="section-label mb-1">Commission Model</p>
         <h5 style="font-weight:800;color:var(--ink);margin-bottom:0;">Platform Revenue Split</h5>
       </div>
-      <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">20% Uniday / 80% Merchant</span>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">10% Uniday / 90% Merchant</span>
     </div>
     <div class="row g-3 align-items-center">
       <div class="col-lg-7">
         <div class="d-flex justify-content-between mb-1">
-          <strong style="color:var(--success);">Merchant payout pool</strong>
-          <span class="mono"><%= money(overview.merchant_payout) %> (<%= percent(overview.merchant_payout, grossRevenue) %>)</span>
+          <strong style="color:var(--success);">Merchant settlement band</strong>
+          <span class="mono"><%= overview.merchant_settlement_band || 'S$0' %> (masked)</span>
         </div>
-        <div class="revenue-bar mb-3"><span style="width:80%;background:var(--success);"></span></div>
+        <div class="revenue-bar mb-3"><span style="width:90%;background:var(--success);"></span></div>
         <div class="d-flex justify-content-between mb-1">
           <strong style="color:var(--accent);">Uniday commission earned</strong>
           <span class="mono"><%= money(overview.platform_commission) %> (<%= percent(overview.platform_commission, grossRevenue) %>)</span>
         </div>
-        <div class="revenue-bar"><span style="width:20%;"></span></div>
+        <div class="revenue-bar"><span style="width:10%;"></span></div>
       </div>
       <div class="col-lg-5">
         <div class="split-box">
           <p style="font-weight:800;color:var(--ink);margin-bottom:.4rem;"><i class="bi bi-info-circle me-1" style="color:var(--accent);"></i>Admin use</p>
-          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Use this page to check platform gross sales, expected Uniday commission, merchant payout exposure, failed payment volume, and which merchants or categories are driving revenue.</p>
+          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Use this page to check platform gross sales, exact Uniday commission, failed payment volume, and which merchants or categories are driving revenue. Exact merchant earnings stay visible only to the merchant.</p>
         </div>
       </div>
     </div>
@@ -221,7 +221,7 @@
                 <th>Paid Bookings</th>
                 <th>Gross</th>
                 <th>Commission</th>
-                <th>Merchant Payout</th>
+                <th>Settlement Band</th>
               </tr>
             </thead>
             <tbody>
@@ -231,7 +231,7 @@
                   <td><%= number(row.paid_bookings) %></td>
                   <td class="mono"><%= money(row.gross_revenue) %></td>
                   <td class="mono" style="color:var(--success);"><%= money(row.platform_commission) %></td>
-                  <td class="mono"><%= money(row.merchant_payout) %></td>
+                  <td class="mono"><%= row.merchant_settlement_band || 'S$0' %></td>
                 </tr>
               <% }) %>
               <% if (!(r.monthly || []).length) { %>
