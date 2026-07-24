@@ -2,6 +2,22 @@
 <%- include('../partials/header') %>
 
 <style>
+  .admin-dashboard-page {
+    background: linear-gradient(180deg, #fff1f5 0%, var(--canvas) 58%, #fff 100%);
+    min-height: 80vh;
+    padding: clamp(1rem, 3vw, 3rem) 1rem;
+  }
+
+  .admin-dashboard-shell {
+    background: linear-gradient(145deg, rgba(255,255,255,.98), #fff8fa);
+    border: 1px solid rgba(225, 29, 72, .09);
+    border-radius: clamp(20px, 2.6vw, 30px);
+    box-shadow: 0 28px 70px rgba(136, 19, 55, .1);
+    margin: 0 auto;
+    max-width: 1320px;
+    padding: clamp(1rem, 2.4vw, 2rem);
+  }
+
   .admin-module-header {
     align-items: center;
     display: flex;
@@ -13,13 +29,31 @@
   .admin-hero {
     align-items: flex-start;
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
     justify-content: space-between;
-    margin-bottom: 2rem;
+    margin-bottom: 2.25rem;
+    padding: .25rem .1rem 0;
+  }
+
+  .admin-hero h2 {
+    color: var(--ink);
+    font-weight: 800;
+    letter-spacing: -.03em;
+    margin-bottom: .25rem;
+  }
+
+  .admin-hero p:last-child {
+    color: var(--muted);
+    margin-bottom: 0;
+  }
+
+  .admin-hero .btn {
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+    white-space: nowrap;
   }
 
   .admin-section {
-    margin-bottom: 2.25rem;
+    margin-bottom: 2rem;
   }
 
   .admin-section-heading {
@@ -32,9 +66,95 @@
 
   .admin-section-heading h5 {
     color: var(--ink);
-    font-weight: 800;
+    font-weight: 850;
     letter-spacing: -.02em;
     margin: 0;
+  }
+
+  .admin-section-heading p:not(.section-label) {
+    line-height: 1.45;
+    max-width: 66ch;
+  }
+
+  .admin-dashboard-shell .stat-card {
+    background: #fff;
+    border: 1px solid rgba(225, 29, 72, .08);
+    border-radius: 18px;
+    box-shadow: 0 10px 28px rgba(136, 19, 55, .06);
+    display: block;
+    height: 100%;
+    overflow: hidden;
+    padding: 1.15rem;
+    position: relative;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+
+  .admin-dashboard-shell .stat-card::before {
+    background: var(--stat-color, var(--accent));
+    border-radius: 999px;
+    content: "";
+    height: calc(100% - 1.5rem);
+    left: 0;
+    opacity: .75;
+    position: absolute;
+    top: .75rem;
+    width: 4px;
+  }
+
+  .admin-dashboard-shell a.stat-card:hover,
+  .admin-dashboard-shell a.stat-card:focus-visible,
+  .admin-tool-card:hover,
+  .admin-tool-card:focus-visible {
+    border-color: rgba(225, 29, 72, .22);
+    box-shadow: 0 16px 38px rgba(136, 19, 55, .1);
+    transform: translateY(-2px);
+  }
+
+  .admin-dashboard-shell a.stat-card:focus-visible,
+  .admin-tool-card:focus-visible,
+  .admin-period-selector .filter-chip:focus-visible,
+  .admin-module-btn:focus-visible {
+    outline: 3px solid rgba(225, 29, 72, .22);
+    outline-offset: 3px;
+  }
+
+  .stat-card.is-featured {
+    background: linear-gradient(135deg, var(--accent), #fb7185);
+    border-color: transparent;
+    box-shadow: 0 18px 42px rgba(225, 29, 72, .2);
+  }
+
+  .stat-card.is-featured,
+  .stat-card.is-featured .stat-alert-label,
+  .stat-card.is-featured .stat-description,
+  .stat-card.is-featured .stat-value {
+    color: #fff !important;
+  }
+
+  .stat-card.is-featured .icon-circle {
+    background: rgba(255,255,255,.2) !important;
+    color: #fff !important;
+  }
+
+  .stat-card.is-quiet {
+    background: linear-gradient(145deg, #fff, #fffafa);
+  }
+
+  .stat-description {
+    color: var(--muted);
+    font-size: .72rem;
+    line-height: 1.4;
+    margin: .5rem 0 0;
+  }
+
+  .status-dot {
+    background: var(--stat-color, var(--accent));
+    border-radius: 50%;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--stat-color, var(--accent)) 12%, transparent);
+    display: inline-block;
+    height: 8px;
+    margin-top: .35rem;
+    width: 8px;
   }
 
   .admin-module-carousel {
@@ -63,9 +183,46 @@
   .admin-module-btn:hover:not(:disabled) { background:var(--accent-light);border-color:var(--accent);color:var(--accent); }
   .admin-module-btn:disabled { cursor:not-allowed;opacity:.35; }
 
-  .admin-module-card .action-card {
-    min-height: 260px;
+  .admin-tool-card {
+    background: #fff;
+    border: 1px solid rgba(225, 29, 72, .08);
+    border-radius: 18px;
+    box-shadow: 0 10px 24px rgba(136, 19, 55, .06);
+    display: flex;
+    flex-direction: column;
+    min-height: 250px;
     padding: 1.45rem;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+
+  .admin-tool-card .action-icon {
+    border-radius: 14px;
+    box-shadow: inset 0 0 0 1px rgba(225, 29, 72, .07);
+  }
+
+  .admin-tool-card-title {
+    color: var(--ink);
+    font-size: .95rem;
+    font-weight: 800;
+    line-height: 1.25;
+    margin: 0 0 .45rem;
+  }
+
+  .admin-tool-card-copy {
+    color: var(--muted);
+    font-size: .8rem;
+    line-height: 1.45;
+    margin: 0 0 1rem;
+  }
+
+  .admin-tool-card-link {
+    align-items: center;
+    color: var(--accent);
+    display: inline-flex;
+    font-size: .78rem;
+    font-weight: 800;
+    gap: .35rem;
+    margin-top: auto;
   }
 
   .stat-card.is-alert {
@@ -103,11 +260,11 @@
   }
 
   .admin-priority-grid .stat-card {
-    min-height: 132px;
+    min-height: 156px;
   }
 
   .admin-metric-grid .stat-card {
-    min-height: 132px;
+    min-height: 168px;
     min-width: 0;
   }
 
@@ -132,6 +289,10 @@
     font-size: clamp(1.85rem, 2.25vw, 2.35rem);
   }
 
+  .admin-metric-grid.is-performance {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .admin-period-selector {
     align-items: center;
     display: flex;
@@ -151,12 +312,26 @@
     font-weight: 800;
     padding: .5rem .85rem;
     text-decoration: none;
+    transition: background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
+  }
+
+  .admin-period-selector .filter-chip:hover {
+    background: var(--accent-light);
+    border-color: rgba(225, 29, 72, .25);
+    color: var(--accent);
   }
 
   .admin-period-selector .filter-chip.is-active {
     background: var(--accent);
     border-color: var(--accent);
     color: #fff;
+  }
+
+  .admin-dashboard-panel {
+    background: #fff;
+    border: 1px solid rgba(225, 29, 72, .08) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 12px 32px rgba(136, 19, 55, .07) !important;
   }
 
   .admin-system-log-card .p-4 {
@@ -178,6 +353,10 @@
     }
 
     .admin-metric-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-metric-grid.is-performance {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -207,11 +386,17 @@
       flex-basis: 82%;
       min-width: 260px;
     }
+
+    .admin-period-selector {
+      justify-content: flex-start;
+      width: 100%;
+    }
   }
 
   @media (max-width: 575.98px) {
     .admin-priority-grid,
-    .admin-metric-grid {
+    .admin-metric-grid,
+    .admin-metric-grid.is-performance {
       grid-template-columns: 1fr;
     }
 
@@ -251,30 +436,31 @@
     ? null
     : `/admin/revenue?from=${encodeURIComponent(period.startDate)}&to=${encodeURIComponent(period.endDate)}`;
   const queueStats = [
-    { label:'Photo Removal Requests', value:summary.pending_review_requests || 0, icon:'bi-image', color:'var(--warn)', href:'/admin/reviews', alertWhenPositive:true },
-    { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)', href:'/admin/merchant-validations', alertWhenPositive:true },
-    { label:'Pending Promotion Approvals', value:summary.pending_promotion_approvals || 0, icon:'bi-megaphone', color:'var(--warn)', href:'/admin/promotions', alertWhenPositive:true },
-    { label:'Unresolved Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)', href:'/admin/validation', alertWhenPositive:true },
+    { label:'Photo Removal Requests', value:summary.pending_review_requests || 0, icon:'bi-image', color:'var(--warn)', href:'/admin/reviews', alertWhenPositive:true, description:'Merchant review photos waiting for an admin decision.' },
+    { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)', href:'/admin/merchant-validations', alertWhenPositive:true, description:'Merchant applications that still need verification.' },
+    { label:'Pending Promotion Approvals', value:summary.pending_promotion_approvals || 0, icon:'bi-megaphone', color:'var(--warn)', href:'/admin/promotions', alertWhenPositive:true, description:'Submitted campaigns waiting for approval or rejection.' },
+    { label:'Unresolved Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)', href:'/admin/validation', alertWhenPositive:true, description:'Open validation or support issues that need follow-up.' },
   ];
   const totalStats = [
-    { label:'Active Customers', value:summary.total_customers || 0, icon:'bi-people', color:'var(--accent)' },
-    { label:'Active Merchants', value:summary.total_merchants || 0, icon:'bi-shop', color:'var(--ink)' },
-    { label:'Available Services', value:summary.total_services || 0, icon:'bi-scissors', color:'var(--ink)' },
-    { label:'Available Promotions', value:summary.total_promotions || 0, icon:'bi-tag', color:'var(--accent)' },
+    { label:'Active Customers', value:summary.total_customers || 0, icon:'bi-people', color:'var(--accent)', description:'Registered customer accounts that are currently active.' },
+    { label:'Active Merchants', value:summary.total_merchants || 0, icon:'bi-shop', color:'#0F172A', description:'Approved merchant accounts that are active and visible.' },
+    { label:'Available Services', value:summary.total_services || 0, icon:'bi-scissors', color:'#2563EB', description:'Active services offered by active approved merchants.' },
+    { label:'Available Promotions', value:summary.total_promotions || 0, icon:'bi-tag', color:'var(--accent)', description:'Approved live promotions currently available to customers.' },
   ];
   const performanceStats = [
-    { label:'Bookings Created', value:summary.total_bookings || 0, icon:'bi-calendar-check', color:'#1D4ED8' },
-    { label:'Gross Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)', href:revenueReportHref, money:true },
-    { label:'Successful Payments', value:summary.total_payments || 0, icon:'bi-receipt', color:'var(--accent)' },
+    { label:'Bookings Created', value:summary.total_bookings || 0, icon:'bi-calendar-check', color:'#1D4ED8', description:'Booking records created during the selected period.' },
+    { label:'Gross Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)', href:revenueReportHref, money:true, description:'Paid payment amount before refunds are shown separately.' },
+    { label:'Successful Payments', value:summary.total_payments || 0, icon:'bi-receipt', color:'var(--accent)', description:'Paid payments linked to bookings that are not cancelled.' },
   ];
 %>
 
-<div class="container py-5">
+<main class="admin-dashboard-page">
+<div class="admin-dashboard-shell">
   <div class="admin-hero">
     <div>
       <p class="section-label">Platform Control</p>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Admin Dashboard</h2>
-      <p style="color:var(--muted);margin-bottom:0;">Welcome back, <strong><%= user.full_name %></strong></p>
+      <h2>Admin Dashboard</h2>
+      <p>Welcome back, <strong><%= user.full_name %></strong></p>
     </div>
     <a href="/admin/revenue" class="btn btn-outline-secondary btn-pill" style="font-weight:800;">
       <i class="bi bi-graph-up me-1"></i>Revenue Report
@@ -293,20 +479,25 @@
       <div>
         <p class="section-label mb-1">Action Required</p>
         <h5>Needs Attention</h5>
+        <p style="color:var(--muted);font-size:.875rem;margin:.25rem 0 0;">Operational queues that may need admin review.</p>
       </div>
     </div>
     <div class="admin-priority-grid">
       <% queueStats.forEach(stat => { %>
       <% const statTag = stat.href ? 'a' : 'div'; %>
       <% const isAlert = stat.alertWhenPositive && Number(stat.value) > 0; %>
-      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %><%= stat.money ? ' is-money' : '' %>"<%- stat.href ? ` href="${stat.href}"` : '' %>>
+      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : ' is-quiet' %><%= stat.money ? ' is-money' : '' %>" style="--stat-color:<%= stat.color %>;"<%- stat.href ? ` href="${stat.href}"` : '' %>>
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
             <p class="stat-alert-label" style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
             <p class="stat-value" style="color:<%= isAlert ? '#b91c1c' : stat.color %>;"><%= stat.value %></p>
+            <p class="stat-description"><%= stat.description %></p>
           </div>
-          <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
-            <i class="bi <%= stat.icon %>"></i>
+          <div class="d-flex flex-column align-items-end gap-3">
+            <span class="status-dot" aria-hidden="true"></span>
+            <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+              <i class="bi <%= stat.icon %>"></i>
+            </div>
           </div>
         </div>
       </<%= statTag %>>
@@ -326,11 +517,12 @@
       <% totalStats.forEach(stat => { %>
       <% const statTag = stat.href ? 'a' : 'div'; %>
       <% const isAlert = stat.alertWhenPositive && Number(stat.value) > 0; %>
-      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %><%= stat.wide ? ' is-wide' : '' %>"<%- stat.href ? ` href="${stat.href}"` : '' %>>
+      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %><%= stat.wide ? ' is-wide' : '' %>" style="--stat-color:<%= stat.color %>;"<%- stat.href ? ` href="${stat.href}"` : '' %>>
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
             <p class="stat-alert-label" style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
             <p class="stat-value" style="color:<%= isAlert ? '#b91c1c' : stat.color %>;"><%= stat.value %></p>
+            <p class="stat-description"><%= stat.description %></p>
           </div>
           <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
             <i class="bi <%= stat.icon %>"></i>
@@ -354,15 +546,16 @@
         <% }) %>
       </form>
     </div>
-    <div class="admin-metric-grid">
+    <div class="admin-metric-grid is-performance">
       <% performanceStats.forEach(stat => { %>
       <% const statTag = stat.href ? 'a' : 'div'; %>
       <% const isAlert = stat.alertWhenPositive && Number(stat.value) > 0; %>
-      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %><%= stat.wide ? ' is-wide' : '' %>"<%- stat.href ? ` href="${stat.href}"` : '' %>>
+      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %><%= stat.money ? ' is-money' : '' %><%= stat.wide ? ' is-wide' : '' %>" style="--stat-color:<%= stat.color %>;"<%- stat.href ? ` href="${stat.href}"` : '' %>>
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
             <p class="stat-alert-label" style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
             <p class="stat-value" style="color:<%= isAlert ? '#b91c1c' : stat.color %>;"><%= stat.value %></p>
+            <p class="stat-description"><%= stat.description %></p>
           </div>
           <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
             <i class="bi <%= stat.icon %>"></i>
@@ -378,6 +571,7 @@
     <div>
       <p class="section-label mb-1">Management Tools</p>
       <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Platform Tools</h5>
+      <p style="color:var(--muted);font-size:.875rem;margin:.25rem 0 0;">Open the core admin workspaces.</p>
     </div>
     <div class="admin-module-controls" aria-label="Platform tool slider controls">
       <button type="button" class="admin-module-btn" id="modulePrevBtn" aria-label="Previous platform tools"><i class="bi bi-chevron-left"></i></button>
@@ -437,13 +631,13 @@
       },
     ].forEach(item => { %>
     <div class="admin-module-card">
-      <a href="<%= item.href %>" class="action-card h-100">
+      <a href="<%= item.href %>" class="action-card admin-tool-card h-100">
         <div class="action-icon">
           <i class="bi <%= item.icon %>"></i>
         </div>
-        <p style="font-weight:800;font-size:.95rem;color:var(--ink);margin-bottom:.4rem;line-height:1.25;"><%= item.label %></p>
-        <p style="color:var(--muted);font-size:.8125rem;line-height:1.5;margin-bottom:1rem;"><%= item.sub %></p>
-        <span style="margin-top:auto;color:var(--accent);font-size:.78rem;font-weight:700;display:inline-flex;align-items:center;gap:.35rem;">
+        <p class="admin-tool-card-title"><%= item.label %></p>
+        <p class="admin-tool-card-copy"><%= item.sub %></p>
+        <span class="admin-tool-card-link">
           Open module <i class="bi bi-arrow-right"></i>
         </span>
       </a>
@@ -455,7 +649,7 @@
   <section class="admin-section">
   <div class="row g-4">
     <div class="col-12">
-      <div class="card border-0 overflow-hidden h-100 admin-system-log-card" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+      <div class="card overflow-hidden h-100 admin-system-log-card admin-dashboard-panel">
         <div class="p-4" style="border-bottom:1px solid var(--border);">
           <p class="section-label mb-1">System Activity</p>
           <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent System Logs</h5>
@@ -504,6 +698,7 @@
   </div>
   </section>
 </div>
+</main>
 
 <script>
   (() => {
