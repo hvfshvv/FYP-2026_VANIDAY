@@ -433,6 +433,53 @@ async function sendBookingReminderEmail(booking) {
   });
 }
 
+async function sendStaffReplacementProposalEmail(booking, actionUrl) {
+  const customerName = booking.customer_name || 'there';
+  const proposedStaffName = booking.proposed_staff?.full_name || booking.proposed_staff_name || 'the proposed staff member';
+  const reason = String(booking.staff_change_reason || booking.reason || '').trim();
+  const safeActionUrl = escapeHtml(actionUrl);
+  const details = bookingLines(booking);
+  const text = [
+    `Hi ${customerName},`,
+    '',
+    `${booking.merchant_name} has proposed ${proposedStaffName} for your ${booking.service_name} appointment.`,
+    reason ? `Reason: ${reason}` : null,
+    '',
+    ...details,
+    '',
+    'Please review the proposal. You can accept the replacement, choose another date and time, or cancel for a full refund.',
+    `Review proposal: ${actionUrl}`,
+    '',
+    'Uniday',
+  ].filter(Boolean).join('\n');
+
+  return sendMailOrLog({
+    to: booking.customer_email,
+    subject: `Action required: staff replacement for ${booking.service_name}`,
+    text,
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#18181B;">
+        <p style="color:#E11D48;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Action required</p>
+        <h2 style="color:#18181B;margin:0 0 12px;">Staff replacement proposed</h2>
+        <p>Hi ${escapeHtml(customerName)},</p>
+        <p><strong>${escapeHtml(booking.merchant_name)}</strong> has proposed <strong>${escapeHtml(proposedStaffName)}</strong> for your <strong>${escapeHtml(booking.service_name)}</strong> appointment.</p>
+        ${reason ? `<p><strong>Reason:</strong> ${escapeHtml(reason)}</p>` : ''}
+        <table style="border-collapse:collapse;width:100%;max-width:520px;background:#fff;border:1px solid #F3E8EC;border-radius:12px;overflow:hidden;">
+          ${bookingHtmlRows(booking)}
+        </table>
+        <p>You can accept the replacement, choose another date and time, or cancel for a full refund.</p>
+        <p>
+          <a href="${safeActionUrl}" style="display:inline-block;background:#E11D48;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-weight:700;">
+            Review staff proposal
+          </a>
+        </p>
+        <p style="color:#71717A;font-size:14px;">Sign in to Uniday to confirm your choice.</p>
+      </div>
+    `,
+    logLabel: 'Staff replacement proposal',
+  });
+}
+
 async function sendBookingCancellationEmail(booking, recipient) {
   const name = recipient.name || 'there';
   const reason = String(booking.cancellation_reason || '').trim();
@@ -598,6 +645,7 @@ module.exports = {
   sendBookingCreatedEmail,
   sendBookingConfirmationEmail,
   sendBookingReminderEmail,
+  sendStaffReplacementProposalEmail,
   sendBookingCancellationEmail,
   sendBookingRescheduledEmail,
   sendWaitlistOfferEmail,

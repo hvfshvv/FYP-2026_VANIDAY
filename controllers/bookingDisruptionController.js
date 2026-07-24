@@ -80,6 +80,24 @@ async function sendCustomerCancellationEmail(booking, reason, refundAmount = 0) 
   }
 }
 
+async function sendStaffReplacementProposalEmail(request) {
+  if (!request.customer_email) return;
+  const baseUrl = (process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+  const actionUrl = `${baseUrl}/book/viewBookings#booking-${request.booking_id}`;
+
+  try {
+    const result = await emailService.sendStaffReplacementProposalEmail(request, actionUrl);
+    await bookingNotificationModel.recordEmailNotification(
+      request,
+      'staff_replacement_proposal',
+      `staff replacement proposal email to customer (${request.customer_email}) for booking #${request.booking_id}`,
+      result.sent ? 'sent' : 'failed'
+    );
+  } catch (err) {
+    console.error('staff replacement proposal email failed:', err);
+  }
+}
+
 async function cancelOther(req, res) {
   const merchantId = req.session.user.merchant_id;
   const reason = String(req.body.reason || '').trim();
@@ -117,6 +135,7 @@ async function proposeReplacement(req, res) {
       `${request.staff_name || 'Your selected staff member'} is unexpectedly unavailable for your ${request.service_name} appointment. ${request.proposed_staff.full_name} is available at the same time. Please accept the replacement, choose another date/time, or cancel for a 100% refund.`,
       'Staff replacement proposed'
     );
+    await sendStaffReplacementProposalEmail(request);
     res.redirect('/merchant/bookings?success=' + encodeURIComponent('Replacement proposal sent to the customer.'));
   } catch (err) {
     console.error('[replacement proposal]', err);
