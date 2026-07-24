@@ -132,6 +132,33 @@
     font-size: clamp(1.85rem, 2.25vw, 2.35rem);
   }
 
+  .admin-period-selector {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    justify-content: flex-end;
+  }
+
+  .admin-period-selector .filter-chip {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: .8125rem;
+    font-weight: 800;
+    padding: .5rem .85rem;
+    text-decoration: none;
+  }
+
+  .admin-period-selector .filter-chip.is-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
   .admin-system-log-card .p-4 {
     padding: 1.25rem !important;
   }
@@ -199,20 +226,46 @@
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+  const period = dashboardPeriod || {
+    key: 'this_month',
+    label: 'This Month',
+    startDate: null,
+    endDate: null,
+    isAllTime: false,
+    asOfDate: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Singapore' }),
+    options: {
+      this_month: 'This Month',
+      last_30_days: 'Last 30 Days',
+      this_year: 'This Year',
+      all_time: 'All Time',
+    },
+  };
+  const formatDate = value => value
+    ? new Date(`${value}T00:00:00+08:00`).toLocaleDateString('en-SG', { day:'numeric', month:'short', year:'numeric', timeZone:'Asia/Singapore' })
+    : '';
+  const totalsAsOfLabel = `Active and available platform records as of ${formatDate(period.asOfDate)}`;
+  const performancePeriodLabel = period.isAllTime
+    ? 'All Time'
+    : `${period.label}: ${formatDate(period.startDate)} to ${formatDate(period.endDate)}`;
+  const revenueReportHref = period.isAllTime || !period.startDate || !period.endDate
+    ? null
+    : `/admin/revenue?from=${encodeURIComponent(period.startDate)}&to=${encodeURIComponent(period.endDate)}`;
   const queueStats = [
     { label:'Photo Removal Requests', value:summary.pending_review_requests || 0, icon:'bi-image', color:'var(--warn)', href:'/admin/reviews', alertWhenPositive:true },
     { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)', href:'/admin/merchant-validations', alertWhenPositive:true },
     { label:'Pending Promotion Approvals', value:summary.pending_promotion_approvals || 0, icon:'bi-megaphone', color:'var(--warn)', href:'/admin/promotions', alertWhenPositive:true },
     { label:'Unresolved Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)', href:'/admin/validation', alertWhenPositive:true },
   ];
-  const metricStats = [
-    { label:'Customers', value:summary.total_customers || 0, icon:'bi-people', color:'var(--accent)' },
-    { label:'Merchants', value:summary.total_merchants || 0, icon:'bi-shop', color:'var(--ink)' },
-    { label:'Services', value:summary.total_services || 0, icon:'bi-scissors', color:'var(--ink)' },
-    { label:'Promotions', value:summary.total_promotions || 0, icon:'bi-tag', color:'var(--accent)' },
-    { label:'Bookings', value:summary.total_bookings || 0, icon:'bi-calendar-check', color:'#1D4ED8' },
-    { label:'Gross Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)', href:'/admin/revenue', money:true },
-    { label:'Payments', value:summary.total_payments || 0, icon:'bi-receipt', color:'var(--accent)' },
+  const totalStats = [
+    { label:'Active Customers', value:summary.total_customers || 0, icon:'bi-people', color:'var(--accent)' },
+    { label:'Active Merchants', value:summary.total_merchants || 0, icon:'bi-shop', color:'var(--ink)' },
+    { label:'Available Services', value:summary.total_services || 0, icon:'bi-scissors', color:'var(--ink)' },
+    { label:'Available Promotions', value:summary.total_promotions || 0, icon:'bi-tag', color:'var(--accent)' },
+  ];
+  const performanceStats = [
+    { label:'Bookings Created', value:summary.total_bookings || 0, icon:'bi-calendar-check', color:'#1D4ED8' },
+    { label:'Gross Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)', href:revenueReportHref, money:true },
+    { label:'Successful Payments', value:summary.total_payments || 0, icon:'bi-receipt', color:'var(--accent)' },
   ];
 %>
 
@@ -265,11 +318,44 @@
     <div class="admin-section-heading">
       <div>
         <p class="section-label mb-1">Overview</p>
-        <h5>Platform Snapshot</h5>
+        <h5>Platform Totals</h5>
+        <p style="color:var(--muted);font-size:.875rem;margin:.25rem 0 0;"><%= totalsAsOfLabel %></p>
       </div>
     </div>
     <div class="admin-metric-grid">
-      <% metricStats.forEach(stat => { %>
+      <% totalStats.forEach(stat => { %>
+      <% const statTag = stat.href ? 'a' : 'div'; %>
+      <% const isAlert = stat.alertWhenPositive && Number(stat.value) > 0; %>
+      <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %><%= stat.wide ? ' is-wide' : '' %>"<%- stat.href ? ` href="${stat.href}"` : '' %>>
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <p class="stat-alert-label" style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= stat.label %></p>
+            <p class="stat-value" style="color:<%= isAlert ? '#b91c1c' : stat.color %>;"><%= stat.value %></p>
+          </div>
+          <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+            <i class="bi <%= stat.icon %>"></i>
+          </div>
+        </div>
+      </<%= statTag %>>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="admin-section">
+    <div class="admin-section-heading">
+      <div>
+        <p class="section-label mb-1">Performance</p>
+        <h5>Platform Performance</h5>
+        <p style="color:var(--muted);font-size:.875rem;margin:.25rem 0 0;"><%= performancePeriodLabel %></p>
+      </div>
+      <form method="GET" action="/admin/dashboard" class="admin-period-selector" aria-label="Platform performance period">
+        <% Object.entries(period.options).forEach(([value, label]) => { %>
+          <button type="submit" name="period" value="<%= value %>" class="filter-chip<%= period.key === value ? ' is-active' : '' %>"><%= label %></button>
+        <% }) %>
+      </form>
+    </div>
+    <div class="admin-metric-grid">
+      <% performanceStats.forEach(stat => { %>
       <% const statTag = stat.href ? 'a' : 'div'; %>
       <% const isAlert = stat.alertWhenPositive && Number(stat.value) > 0; %>
       <<%= statTag %> class="stat-card<%= stat.href ? ' d-block text-decoration-none' : '' %><%= isAlert ? ' is-alert' : '' %><%= stat.wide ? ' is-wide' : '' %>"<%- stat.href ? ` href="${stat.href}"` : '' %>>

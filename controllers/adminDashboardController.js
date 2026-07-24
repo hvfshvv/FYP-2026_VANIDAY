@@ -24,6 +24,81 @@ function toDateInput(value) {
   return `${year}-${month}-${day}`;
 }
 
+const DASHBOARD_PERIODS = {
+  this_month: 'This Month',
+  last_30_days: 'Last 30 Days',
+  this_year: 'This Year',
+  all_time: 'All Time',
+};
+
+function getSingaporeDateParts(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-SG', {
+    timeZone: 'Asia/Singapore',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value).reduce((result, part) => {
+    result[part.type] = part.value;
+    return result;
+  }, {});
+
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+  };
+}
+
+function toSingaporeDateString({ year, month, day }) {
+  return [
+    String(year).padStart(4, '0'),
+    String(month).padStart(2, '0'),
+    String(day).padStart(2, '0'),
+  ].join('-');
+}
+
+function shiftDateString(dateParts, offsetDays) {
+  const date = new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day));
+  date.setUTCDate(date.getUTCDate() + offsetDays);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildDashboardPeriod(value) {
+  const selected = Object.prototype.hasOwnProperty.call(DASHBOARD_PERIODS, value)
+    ? value
+    : 'this_month';
+  const todayParts = getSingaporeDateParts();
+  const today = toSingaporeDateString(todayParts);
+
+  if (selected === 'all_time') {
+    return {
+      key: selected,
+      label: DASHBOARD_PERIODS[selected],
+      startDate: null,
+      endDate: null,
+      isAllTime: true,
+      asOfDate: today,
+      options: DASHBOARD_PERIODS,
+    };
+  }
+
+  const startDate = selected === 'last_30_days'
+    ? shiftDateString(todayParts, -29)
+    : selected === 'this_year'
+      ? `${todayParts.year}-01-01`
+      : `${todayParts.year}-${String(todayParts.month).padStart(2, '0')}-01`;
+
+  return {
+    key: selected,
+    label: DASHBOARD_PERIODS[selected],
+    startDate,
+    endDate: today,
+    isAllTime: false,
+    asOfDate: today,
+    options: DASHBOARD_PERIODS,
+  };
+}
+
 // ── EMPTY FALLBACKS ────────────────────────────────────────────────────────
 
 // Returns an empty merchant analytics object used when the DB query fails.
@@ -100,9 +175,11 @@ function emptyRevenueReport() {
 
 // Renders the admin dashboard home with platform KPI counts and recent validation errors.
 async function showDashboard(req, res) {
+  const dashboardPeriod = buildDashboardPeriod(req.query.period);
+
   try {
     const [summary, recentErrors] = await Promise.all([
-      adminDashboardModel.getDashboardSummary(),
+      adminDashboardModel.getDashboardSummary(dashboardPeriod),
       adminDashboardModel.getRecentValidationErrors().catch(err => {
         console.error('Failed to load validation logs:', err.message);
         return [];
@@ -113,6 +190,7 @@ async function showDashboard(req, res) {
       title: 'Admin Dashboard',
       summary,
       recentErrors,
+      dashboardPeriod,
     });
   } catch (err) {
     console.error(err);
@@ -120,6 +198,7 @@ async function showDashboard(req, res) {
       title: 'Admin Dashboard',
       summary: {},
       recentErrors: [],
+      dashboardPeriod,
       error: 'Failed to load admin dashboard data.',
     });
   }
@@ -221,10 +300,12 @@ async function showRevenueReport(req, res) {
   const today = new Date();
   const defaultStart = new Date(today);
   defaultStart.setDate(defaultStart.getDate() - 29);
+  const requestedStartDate = req.query.startDate || req.query.from;
+  const requestedEndDate = req.query.endDate || req.query.to;
 
   const range = {
-    startDate: isDate(req.query.startDate) ? req.query.startDate : toDateInput(defaultStart),
-    endDate: isDate(req.query.endDate) ? req.query.endDate : toDateInput(today),
+    startDate: isDate(requestedStartDate) ? requestedStartDate : toDateInput(defaultStart),
+    endDate: isDate(requestedEndDate) ? requestedEndDate : toDateInput(today),
   };
 
   if (new Date(range.endDate) < new Date(range.startDate)) {
@@ -293,4 +374,5 @@ module.exports = {
   showPlatformFeedback,
   isDate,
   toDateInput,
+  buildDashboardPeriod,
 };

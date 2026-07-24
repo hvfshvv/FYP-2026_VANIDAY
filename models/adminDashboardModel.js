@@ -35,25 +35,79 @@ function maskSettlementAmount(value) {
   return `S$${Math.floor(amount / 100)}XX`;
 }
 
+function nextDateString(value) {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 // ── DASHBOARD SUMMARY ──────────────────────────────────────────────────────
 
 // Returns platform-wide KPI counts for the admin dashboard home cards.
-async function getDashboardSummary() {
+async function getDashboardSummary(period = {}) {
   await reviewModel.ensureReviewSchema();
+  const hasRange = !period.isAllTime && period.startDate && period.endDate;
+  const bookingDateFilter = hasRange ? 'WHERE created_at >= ? AND created_at < ?' : '';
+  const paidPaymentDateFilter = hasRange ? 'AND paid_at >= ? AND paid_at < ?' : '';
+  const aliasedPaidPaymentDateFilter = hasRange ? 'AND p.paid_at >= ? AND p.paid_at < ?' : '';
+  const startBoundary = hasRange ? `${period.startDate} 00:00:00` : null;
+  const endBoundary = hasRange ? `${nextDateString(period.endDate)} 00:00:00` : null;
+  const params = hasRange
+    ? [
+        startBoundary,
+        endBoundary,
+        startBoundary,
+        endBoundary,
+        startBoundary,
+        endBoundary,
+      ]
+    : [];
+
   const [rows] = await db.query(`
     SELECT
-      (SELECT COUNT(*) FROM users WHERE role = 'customer') AS total_customers,
-      (SELECT COUNT(*) FROM merchant) AS total_merchants,
-      (SELECT COUNT(*) FROM booking) AS total_bookings,
-      (SELECT COALESCE(SUM(amount), 0) FROM payment WHERE payment_status = 'paid') AS total_revenue,
-      (SELECT COUNT(*) FROM payment) AS total_payments,
-      (SELECT COUNT(*) FROM service) AS total_services,
-      (SELECT COUNT(*) FROM promotion) AS total_promotions,
+      (SELECT COUNT(*) FROM users WHERE role = 'customer' AND status = 'active') AS total_customers,
+      (SELECT COUNT(*)
+       FROM merchant m
+       JOIN users u ON u.user_id = m.user_id
+       WHERE m.verification_status = 'approved'
+         AND m.is_active = 1
+         AND u.status = 'active') AS total_merchants,
+      (SELECT COUNT(*) FROM booking ${bookingDateFilter}) AS total_bookings,
+      (SELECT COALESCE(SUM(amount), 0)
+       FROM payment
+       WHERE payment_status = 'paid' ${paidPaymentDateFilter}) AS total_revenue,
+      (SELECT COUNT(*)
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE p.payment_status = 'paid'
+         AND b.status <> 'cancelled' ${aliasedPaidPaymentDateFilter}) AS total_payments,
+      (SELECT COUNT(*)
+       FROM service s
+       JOIN merchant m ON m.merchant_id = s.merchant_id
+       JOIN users u ON u.user_id = m.user_id
+       WHERE s.is_active = 1
+         AND m.verification_status = 'approved'
+         AND m.is_active = 1
+         AND u.status = 'active') AS total_services,
+      (SELECT COUNT(*)
+       FROM promotion p
+       JOIN merchant m ON m.merchant_id = p.merchant_id
+       JOIN users u ON u.user_id = m.user_id
+       LEFT JOIN service s ON s.service_id = p.service_id
+       WHERE p.is_active = 1
+         AND p.approval_status = 'approved'
+         AND p.discount_pct > 0
+         AND p.start_date <= CURDATE()
+         AND p.end_date >= CURDATE()
+         AND m.verification_status = 'approved'
+         AND m.is_active = 1
+         AND u.status = 'active'
+         AND (p.service_id IS NULL OR s.is_active = 1)) AS total_promotions,
       (SELECT COUNT(*) FROM promotion WHERE approval_status = 'pending') AS pending_promotion_approvals,
       (SELECT COUNT(*) FROM merchant WHERE verification_status = 'pending') AS pending_merchant_validations,
       (SELECT COUNT(*) FROM validation_log WHERE is_resolved = FALSE) AS total_validation_errors
       ,(SELECT COUNT(*) FROM reviews WHERE review_target = 'merchant' AND removal_request_status = 'pending') AS pending_review_requests
-  `);
+  `, params);
 
   return rows[0] || {};
 }
