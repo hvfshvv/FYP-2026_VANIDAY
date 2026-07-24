@@ -22,7 +22,6 @@
 
     <ul class="nav-links" role="list">
       <% if (!user || user.role === 'customer') { %>
-      <li><a href="/"><%= t('nav.home') %></a></li>
       <li><a href="/#featured-listings" onclick="scrollToMarketplace(event)"><%= t('nav.marketplace') %></a></li>
       <li><a href="/client-diaries"><%= t('nav.clientDiaries') %></a></li>
       <li><a href="/support">Help / Support</a></li>
@@ -36,7 +35,6 @@
           <% } %>
         </a>
       </li>
-      <li><a href="/book/reviews"><%= t('nav.myReviews') %></a></li>
       <% } %>
       <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
       <li><a href="/merchant/dashboard"><%= t('nav.dashboard') %></a></li>
@@ -67,10 +65,6 @@
       <a href="/favourite" class="nav-icon-action" aria-label="<%= t('nav.myFavourites') %>" title="<%= t('nav.myFavourites') %>">
         <i class="bi bi-heart"></i>
       </a>
-      <a href="/wallet" class="nav-icon-action" aria-label="<%= t('nav.myWallet') %>" title="<%= t('nav.myWallet') %>">
-        <i class="bi bi-wallet2"></i>
-      </a>
-      <a href="/loyalty" class="nav-icon-action" aria-label="<%= t('nav.loyaltyRewards') %>" title="<%= t('nav.loyaltyRewards') %>"><i class="bi bi-stars"></i></a>
       <a href="/notifications" class="nav-icon-action nav-notification-action" aria-label="<%= t('nav.notifications') %>" title="<%= t('nav.notifications') %>">
         <i class="bi bi-bell"></i>
         <% if (Number(locals.unreadNotificationCount || 0) > 0) { %>
@@ -78,11 +72,28 @@
         <% } %>
       </a>
       <% } %>
-      <% const accountHref = user.role === 'merchant' ? '/merchant/dashboard' : (user.role === 'admin' ? '/admin/dashboard' : '/account'); %>
-      <a href="<%= accountHref %>" class="nav-user-pill" aria-label="<%= t('nav.myAccount') %>">
-        <i class="bi bi-person-circle"></i><%= user.full_name.split(' ')[0] %>
-      </a>
-      <a href="/auth/logout" class="btn btn-outline-secondary btn-sm btn-pill"><%= t('nav.signOut') %></a>
+      <% const accountHref = user.role === 'admin' ? '/admin/dashboard' : '/account'; %>
+      <details class="nav-account">
+        <summary class="nav-user-pill" aria-label="<%= t('nav.myAccount') %>">
+          <span class="nav-user-avatar"><%= user.full_name.trim().charAt(0).toUpperCase() %></span>
+          <span class="nav-user-name"><%= user.full_name.split(' ')[0] %></span>
+          <i class="bi bi-chevron-down nav-account-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="nav-account-menu">
+          <div class="nav-account-heading">
+            <strong><%= user.full_name %></strong>
+            <span><%= user.role %></span>
+          </div>
+          <a href="<%= accountHref %>"><i class="bi bi-person"></i><%= t('nav.myAccount') %></a>
+          <% if (user.role === 'customer') { %>
+          <a href="/book/reviews"><i class="bi bi-chat-square-heart"></i><%= t('nav.myReviews') %></a>
+          <a href="/wallet"><i class="bi bi-wallet2"></i><%= t('nav.myWallet') %></a>
+          <a href="/loyalty"><i class="bi bi-stars"></i><%= t('nav.loyaltyRewards') %></a>
+          <% } %>
+          <div class="nav-account-divider"></div>
+          <a href="/auth/logout" class="nav-account-signout"><i class="bi bi-box-arrow-right"></i><%= t('nav.signOut') %></a>
+        </div>
+      </details>
       <% } else { %>
       <a href="/auth/login" class="btn btn-outline-secondary btn-sm btn-pill"><%= t('nav.signInRegister') %></a>
       <% } %>

@@ -152,6 +152,51 @@ async function getMerchantProfile(merchantId) {
   return withResolvedMerchantImage(rows[0] || null);
 }
 
+async function getMerchantAccountProfile(merchantId) {
+  const [rows] = await db.query(
+    `SELECT m.*, u.full_name, u.email AS login_email, u.phone AS owner_phone
+     FROM merchant m
+     JOIN users u ON u.user_id = m.user_id
+     WHERE m.merchant_id = ?
+     LIMIT 1`,
+    [merchantId]
+  );
+
+  return withResolvedMerchantImage(rows[0] || null);
+}
+
+async function updateMerchantAccountProfile(merchantId, userId, profile) {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query(
+      'UPDATE users SET full_name = ?, phone = ? WHERE user_id = ? AND role = ?',
+      [profile.fullName, profile.ownerPhone || null, userId, 'merchant']
+    );
+    await connection.query(
+      `UPDATE merchant
+       SET email = ?, contact_no = ?, address = ?, description = ?
+       WHERE merchant_id = ? AND user_id = ?`,
+      [
+        profile.businessEmail,
+        profile.businessPhone || null,
+        profile.address,
+        profile.description || null,
+        merchantId,
+        userId,
+      ]
+    );
+    await connection.commit();
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+
+  return getMerchantAccountProfile(merchantId);
+}
+
 async function updateMerchantProfileImage(merchantId, imagePath) {
   await db.query(
     `UPDATE merchant
@@ -166,5 +211,7 @@ module.exports = {
   getMerchantServices,
   getAllActiveMerchants,
   getMerchantProfile,
+  getMerchantAccountProfile,
+  updateMerchantAccountProfile,
   updateMerchantProfileImage
 };

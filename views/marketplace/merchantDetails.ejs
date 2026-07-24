@@ -125,6 +125,14 @@
             <span style="color:var(--ink);"><%= merchant.contact_no || 'Not provided' %></span>
           </div>
           <div class="d-flex gap-2 align-items-start">
+            <i class="bi bi-envelope-fill flex-shrink-0 mt-1" style="color:var(--accent);"></i>
+            <% if (merchant.email) { %>
+              <a href="mailto:<%= merchant.email %>" style="color:var(--ink);overflow-wrap:anywhere;"><%= merchant.email %></a>
+            <% } else { %>
+              <span style="color:var(--muted);">Email not provided</span>
+            <% } %>
+          </div>
+          <div class="d-flex gap-2 align-items-start">
             <i class="bi bi-clock-fill flex-shrink-0 mt-1" style="color:var(--accent);"></i>
             <div>
               <% operatingHoursLines(merchant).forEach(line => { %>

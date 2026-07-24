@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const authModel = require('../models/authModel');
+const merchantModel = require('../models/merchantModel');
 
 function customerId(req) {
   return req.session.user.customer_id || req.session.user.user_id;
@@ -33,6 +34,21 @@ function normalizePhone(localNumber) {
 }
 
 async function showAccount(req, res) {
+  if (req.session.user.role === 'merchant') {
+    try {
+      const merchant = await merchantModel.getMerchantAccountProfile(req.session.user.merchant_id);
+      if (!merchant) return res.redirect('/merchant/dashboard');
+      return res.render('merchant/account', {
+        title: 'Merchant Profile',
+        merchant,
+        success: req.query.success || null,
+        error: req.query.error || null,
+      });
+    } catch (err) {
+      console.error('[account] showMerchantAccount error:', err);
+      return res.status(500).redirect('/merchant/dashboard');
+    }
+  }
   if (req.session.user.role !== 'customer') return redirectByRole(req, res);
 
   const id = customerId(req);
@@ -58,6 +74,42 @@ async function showAccount(req, res) {
       success: null,
       error: res.locals.t('account.errors.loadFailed'),
     });
+  }
+}
+
+async function updateMerchantProfile(req, res) {
+  if (req.session.user.role !== 'merchant') return redirectByRole(req, res);
+
+  try {
+    const fullName = String(req.body.full_name || '').trim();
+    const businessEmail = String(req.body.business_email || '').trim().toLowerCase();
+    const address = String(req.body.address || '').trim();
+    const description = String(req.body.description || '').trim();
+    const ownerPhone = normalizePhone(req.body.owner_phone_local);
+    const businessPhone = normalizePhone(req.body.business_phone_local);
+
+    if (fullName.length < 2 || !businessEmail || !address) {
+      return res.redirect('/account?error=' + encodeURIComponent('Please complete all required profile fields.'));
+    }
+
+    const updated = await merchantModel.updateMerchantAccountProfile(
+      req.session.user.merchant_id,
+      req.session.user.user_id,
+      { fullName, ownerPhone, businessEmail, businessPhone, address, description }
+    );
+
+    req.session.user = {
+      ...req.session.user,
+      full_name: updated.full_name,
+      phone: updated.owner_phone,
+    };
+    return res.redirect('/account?success=' + encodeURIComponent('Merchant profile updated.'));
+  } catch (err) {
+    console.error('[account] updateMerchantProfile error:', err);
+    const message = err.code === 'INVALID_SG_PHONE'
+      ? 'Please enter valid Singapore phone numbers.'
+      : 'Could not update the merchant profile.';
+    return res.redirect('/account?error=' + encodeURIComponent(message));
   }
 }
 
@@ -101,7 +153,7 @@ async function updateProfile(req, res) {
 }
 
 async function changePassword(req, res) {
-  if (req.session.user.role !== 'customer') return redirectByRole(req, res);
+  if (!['customer', 'merchant'].includes(req.session.user.role)) return redirectByRole(req, res);
 
   const currentPassword = String(req.body.current_password || '');
   const newPassword = String(req.body.new_password || '');
@@ -132,7 +184,7 @@ async function changePassword(req, res) {
 }
 
 async function checkCurrentPassword(req, res) {
-  if (req.session.user.role !== 'customer') {
+  if (!['customer', 'merchant'].includes(req.session.user.role)) {
     return res.status(403).json({ valid: false });
   }
 
@@ -152,6 +204,7 @@ async function checkCurrentPassword(req, res) {
 module.exports = {
   showAccount,
   updateProfile,
+  updateMerchantProfile,
   changePassword,
   checkCurrentPassword,
 };
