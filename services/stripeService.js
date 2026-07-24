@@ -187,6 +187,68 @@ async function createRefund({ paymentIntentId = null, chargeId = null, amount, r
   return stripe.refunds.create(refundParams, requestOptions);
 }
 
+async function createExpressConnectedAccount({ email, businessName, productDescription }) {
+  assertStripeConfigured();
+
+  return stripe.accounts.create({
+    type: 'express',
+    country: process.env.STRIPE_CONNECT_COUNTRY || 'SG',
+    email,
+    business_type: 'company',
+    business_profile: {
+      name: businessName || 'Uniday merchant',
+      product_description: productDescription || 'Beauty and wellness appointment services on Uniday',
+    },
+    capabilities: {
+      transfers: { requested: true },
+    },
+    metadata: {
+      platform: 'uniday',
+    },
+  });
+}
+
+async function createConnectAccountLink({ accountId, refreshUrl, returnUrl }) {
+  assertStripeConfigured();
+
+  return stripe.accountLinks.create({
+    account: accountId,
+    refresh_url: refreshUrl,
+    return_url: returnUrl,
+    type: 'account_onboarding',
+  });
+}
+
+async function retrieveConnectedAccount(accountId) {
+  assertStripeConfigured();
+  return stripe.accounts.retrieve(accountId);
+}
+
+async function createTransferToConnectedAccount({ amount, destinationAccountId, payoutId, merchantId }) {
+  assertStripeConfigured();
+
+  const amountInCents = Math.round(Number(amount || 0) * 100);
+  if (!Number.isInteger(amountInCents) || amountInCents <= 0) {
+    throw new Error('Invalid payout transfer amount');
+  }
+  if (!destinationAccountId) {
+    throw new Error('Missing merchant Stripe connected account');
+  }
+
+  return stripe.transfers.create({
+    amount: amountInCents,
+    currency: 'sgd',
+    destination: destinationAccountId,
+    metadata: {
+      payout_id: String(payoutId),
+      merchant_id: String(merchantId),
+      platform: 'uniday',
+    },
+  }, {
+    idempotencyKey: `uniday-payout-transfer-${payoutId}`,
+  });
+}
+
 function constructWebhookEvent(rawBody, signature) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
@@ -208,6 +270,10 @@ module.exports = {
   retrievePaymentIntent,
   capturePaymentIntent,
   createRefund,
+  createExpressConnectedAccount,
+  createConnectAccountLink,
+  retrieveConnectedAccount,
+  createTransferToConnectedAccount,
   constructWebhookEvent,
   isTestModeKey,
 };

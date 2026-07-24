@@ -26,6 +26,7 @@ const reviewModel = require('../models/reviewModel');
 const promotionModel = require('../models/promotionModel');
 const loyaltyModel = require('../models/loyaltyModel');
 const waitlistModel = require('../models/waitlistModel');
+const stripeService = require('../services/stripeService');
 
 // Every route in this file requires a logged-in, approved merchant account.
 router.use(requireLogin, requireMerchant);
@@ -188,6 +189,62 @@ router.post(
   merchantProfileCtrl.updateMarketplaceImage
 );
 
+function appBaseUrl(req) {
+  return process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
+}
+
+async function createStripeConnectLink(req, res) {
+  const merchantId = req.session.user.merchant_id;
+
+  try {
+    let merchant = await merchantModel.getMerchantStripeAccount(merchantId);
+    let accountId = merchant?.stripe_account_id;
+
+    if (!accountId) {
+      const account = await stripeService.createExpressConnectedAccount({
+        email: merchant.email,
+        businessName: merchant.merchant_name,
+        productDescription: merchant.description,
+      });
+      accountId = account.id;
+      await merchantModel.saveMerchantStripeAccountId(merchantId, accountId);
+      await merchantModel.updateMerchantStripeAccountStatus(merchantId, account);
+      merchant = { ...merchant, stripe_account_id: accountId };
+    }
+
+    const baseUrl = appBaseUrl(req);
+    const link = await stripeService.createConnectAccountLink({
+      accountId,
+      refreshUrl: `${baseUrl}/merchant/stripe/refresh`,
+      returnUrl: `${baseUrl}/merchant/stripe/return`,
+    });
+
+    res.redirect(link.url);
+  } catch (err) {
+    console.error('[stripe connect] onboarding error:', err);
+    res.redirect('/merchant/revenue?error=' + encodeURIComponent('Could not start Stripe Connect onboarding. Check Stripe keys and try again.'));
+  }
+}
+
+router.post('/stripe/connect', createStripeConnectLink);
+router.get('/stripe/refresh', createStripeConnectLink);
+
+router.get('/stripe/return', async (req, res) => {
+  const merchantId = req.session.user.merchant_id;
+
+  try {
+    const merchant = await merchantModel.getMerchantStripeAccount(merchantId);
+    if (merchant?.stripe_account_id) {
+      const account = await stripeService.retrieveConnectedAccount(merchant.stripe_account_id);
+      await merchantModel.updateMerchantStripeAccountStatus(merchantId, account);
+    }
+    res.redirect('/merchant/revenue?success=' + encodeURIComponent('Stripe payout account updated.'));
+  } catch (err) {
+    console.error('[stripe connect] return error:', err);
+    res.redirect('/merchant/revenue?error=' + encodeURIComponent('Could not refresh Stripe payout account status.'));
+  }
+});
+
 // All merchant bookings for this merchant account.
 router.get('/bookings', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
@@ -237,12 +294,19 @@ router.get('/revenue', async (req, res) => {
     month: 'long',
     year: 'numeric',
   });
+  const eligibleThroughDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const eligibleThroughLabel = eligibleThroughDate.toLocaleDateString('en-SG', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 
   const [summary, transactions, monthly] = await Promise.all([
     revenueModel.getMerchantRevenueSummary(merchantId, selectedPeriod).catch(() => ({})),
     revenueModel.getMerchantTransactions(merchantId, selectedPeriod).catch(() => []),
     revenueModel.getMonthlyRevenue(merchantId).catch(() => []),
     payoutModel.ensurePayoutSchema().catch(() => null),
+    merchantModel.ensureMerchantStripeSchema().catch(() => null),
   ]);
   const payoutOverview = await payoutModel.getMerchantPayoutOverview(merchantId).catch(() => ({
     eligibleBookings: [],
@@ -251,16 +315,21 @@ router.get('/revenue', async (req, res) => {
     eligibleAmount: 0,
     payouts: [],
   }));
+  const stripeAccount = await merchantModel.getMerchantStripeAccount(merchantId).catch(() => null);
 
   res.render('merchant/revenue', {
-    title: 'Revenue Report',
+    title: 'Revenue Summary',
     summary,
     transactions,
     monthly,
     selectedPeriod,
     currentPeriod,
     periodLabel,
+    eligibleThroughLabel,
     payoutOverview,
+    stripeAccount,
+    success: req.query.success || null,
+    error: req.query.error || null,
   });
 });
 

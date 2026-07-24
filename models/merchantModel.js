@@ -2,6 +2,38 @@ const db = require('../config/db');
 const { withResolvedMerchantImage } = require('../utils/merchantImages');
 const reviewModel = require('./reviewModel');
 
+let merchantStripeSchemaReady = false;
+
+async function merchantColumnExists(columnName) {
+  const [[row]] = await db.query(
+    `SELECT COUNT(*) AS count
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'merchant'
+       AND COLUMN_NAME = ?`,
+    [columnName]
+  );
+  return Number(row.count || 0) > 0;
+}
+
+async function addMerchantColumn(columnName, ddl) {
+  if (!(await merchantColumnExists(columnName))) {
+    await db.query(`ALTER TABLE merchant ADD COLUMN ${ddl}`);
+  }
+}
+
+async function ensureMerchantStripeSchema() {
+  if (merchantStripeSchemaReady) return;
+
+  await addMerchantColumn('stripe_account_id', 'stripe_account_id VARCHAR(255) NULL');
+  await addMerchantColumn('stripe_account_charges_enabled', 'stripe_account_charges_enabled TINYINT(1) NOT NULL DEFAULT 0');
+  await addMerchantColumn('stripe_account_payouts_enabled', 'stripe_account_payouts_enabled TINYINT(1) NOT NULL DEFAULT 0');
+  await addMerchantColumn('stripe_account_details_submitted', 'stripe_account_details_submitted TINYINT(1) NOT NULL DEFAULT 0');
+  await addMerchantColumn('stripe_account_status_checked_at', 'stripe_account_status_checked_at DATETIME NULL');
+
+  merchantStripeSchemaReady = true;
+}
+
 async function getMerchantById(merchantId) {
   await reviewModel.ensureReviewSchema();
   const [rows] = await db.query(
@@ -142,8 +174,11 @@ async function getAllActiveMerchants(category = null, searchQuery = '') {
 }
 
 async function getMerchantProfile(merchantId) {
+  await ensureMerchantStripeSchema();
   const [rows] = await db.query(
-    `SELECT merchant_id, merchant_name, description, category, address, contact_no, profile_image
+    `SELECT merchant_id, merchant_name, description, category, address, contact_no, profile_image,
+            stripe_account_id, stripe_account_charges_enabled, stripe_account_payouts_enabled,
+            stripe_account_details_submitted, stripe_account_status_checked_at
      FROM merchant
      WHERE merchant_id = ?`,
     [merchantId]
@@ -153,6 +188,7 @@ async function getMerchantProfile(merchantId) {
 }
 
 async function getMerchantAccountProfile(merchantId) {
+  await ensureMerchantStripeSchema();
   const [rows] = await db.query(
     `SELECT m.*, u.full_name, u.email AS login_email, u.phone AS owner_phone
      FROM merchant m
@@ -197,6 +233,48 @@ async function updateMerchantAccountProfile(merchantId, userId, profile) {
   return getMerchantAccountProfile(merchantId);
 }
 
+async function getMerchantStripeAccount(merchantId) {
+  await ensureMerchantStripeSchema();
+  const [[row]] = await db.query(
+    `SELECT m.merchant_id, m.merchant_name, m.description, m.email,
+            m.stripe_account_id, m.stripe_account_charges_enabled,
+            m.stripe_account_payouts_enabled, m.stripe_account_details_submitted,
+            m.stripe_account_status_checked_at
+     FROM merchant m
+     WHERE m.merchant_id = ?`,
+    [merchantId]
+  );
+  return row || null;
+}
+
+async function saveMerchantStripeAccountId(merchantId, stripeAccountId) {
+  await ensureMerchantStripeSchema();
+  await db.query(
+    `UPDATE merchant
+     SET stripe_account_id = ?
+     WHERE merchant_id = ?`,
+    [stripeAccountId, merchantId]
+  );
+}
+
+async function updateMerchantStripeAccountStatus(merchantId, account) {
+  await ensureMerchantStripeSchema();
+  await db.query(
+    `UPDATE merchant
+     SET stripe_account_charges_enabled = ?,
+         stripe_account_payouts_enabled = ?,
+         stripe_account_details_submitted = ?,
+         stripe_account_status_checked_at = NOW()
+     WHERE merchant_id = ?`,
+    [
+      account?.charges_enabled ? 1 : 0,
+      account?.payouts_enabled ? 1 : 0,
+      account?.details_submitted ? 1 : 0,
+      merchantId,
+    ]
+  );
+}
+
 async function updateMerchantProfileImage(merchantId, imagePath) {
   await db.query(
     `UPDATE merchant
@@ -207,11 +285,15 @@ async function updateMerchantProfileImage(merchantId, imagePath) {
 }
 
 module.exports = {
+  ensureMerchantStripeSchema,
   getMerchantById,
   getMerchantServices,
   getAllActiveMerchants,
   getMerchantProfile,
   getMerchantAccountProfile,
   updateMerchantAccountProfile,
+  getMerchantStripeAccount,
+  saveMerchantStripeAccountId,
+  updateMerchantStripeAccountStatus,
   updateMerchantProfileImage
 };

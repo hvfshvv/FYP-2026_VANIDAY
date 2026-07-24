@@ -2,6 +2,35 @@ const db = require('../config/db');
 
 let paymentHoldSchemaReady = false;
 
+const STRIPE_CARD_FEE_RATE = 0.039;
+const STRIPE_CARD_FIXED_FEE = 0.50;
+const STRIPE_PAYNOW_FEE_RATE = 0.013;
+
+function calculateEstimatedProcessorFee(amount, method = 'stripe') {
+  const normalizedAmount = Number(amount || 0);
+  if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return 0;
+
+  const normalizedMethod = String(method || '').toLowerCase();
+  if (normalizedMethod === 'paynow') {
+    return Math.round(normalizedAmount * STRIPE_PAYNOW_FEE_RATE * 100) / 100;
+  }
+  if (normalizedMethod === 'stripe' || normalizedMethod === 'card') {
+    return Math.round((normalizedAmount * STRIPE_CARD_FEE_RATE + STRIPE_CARD_FIXED_FEE) * 100) / 100;
+  }
+  return 0;
+}
+
+function processorFeeExpression(alias = 'p') {
+  return `COALESCE(
+    NULLIF(${alias}.processor_fee_amount, 0),
+    CASE
+      WHEN ${alias}.payment_method = 'paynow' THEN ROUND(${alias}.amount * ${STRIPE_PAYNOW_FEE_RATE}, 2)
+      WHEN ${alias}.payment_method IN ('stripe', 'card') THEN ROUND(${alias}.amount * ${STRIPE_CARD_FEE_RATE} + ${STRIPE_CARD_FIXED_FEE}, 2)
+      ELSE 0
+    END
+  )`;
+}
+
 async function ensurePaymentHoldSchema() {
   if (paymentHoldSchemaReady) return;
 
@@ -223,6 +252,8 @@ async function getPaymentByBooking(bookingId) {
 }
 
 module.exports = {
+  calculateEstimatedProcessorFee,
+  processorFeeExpression,
   ensurePaymentHoldSchema,
   ensurePaymentRefundSchema,
   createPayment,

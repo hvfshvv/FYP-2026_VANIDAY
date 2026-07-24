@@ -225,13 +225,14 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
        ORDER BY start_date DESC
        LIMIT 8`
     ).then(([rows]) => rows),
-    // Booking channel labels (WhatsApp, QR walk-in, web, marketplace).
+    // Booking channel labels (WhatsApp, QR walk-in, marketplace).
     db.query(
       `SELECT
          CASE
            WHEN source = 'whatsapp' THEN 'WhatsApp booking'
            WHEN source = 'qr' AND booking_type = 'walk_in' THEN 'Walk-in QR'
            WHEN source = 'qr' THEN 'QR booking'
+           WHEN COALESCE(NULLIF(source, ''), 'marketplace') IN ('web', 'marketplace') THEN 'Marketplace booking'
            ELSE CONCAT(UPPER(LEFT(source, 1)), SUBSTRING(source, 2), ' booking')
          END AS channel_label,
          COUNT(*) AS total,

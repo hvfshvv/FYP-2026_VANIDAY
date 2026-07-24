@@ -315,6 +315,17 @@ async function createAssistantExchange(userId, question, answer) {
   });
 }
 
+async function notifyMerchantPayoutCredited({ merchantUserId, payoutAmount, payoutId }) {
+  if (!merchantUserId) return null;
+  const amount = Number(payoutAmount || 0).toFixed(2);
+  return createNotification({
+    userId: merchantUserId,
+    title: 'Payout credited',
+    message: `Good news, this week's payout of S$${amount} has been credited into your account.`,
+    notificationType: 'merchant_payout_paid',
+  });
+}
+
 async function normalizeStalePaymentNotifications(userId = null) {
   await ensureNotificationSchema();
 
@@ -773,6 +784,7 @@ module.exports = {
   createAssistantMessage,
   createAssistantMessageOnce,
   createAssistantExchange,
+  notifyMerchantPayoutCredited,
   normalizeStalePaymentNotifications,
   getNotificationsForUser,
   getUnreadForUser,

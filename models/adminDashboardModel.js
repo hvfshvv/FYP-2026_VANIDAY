@@ -8,11 +8,21 @@
 const db = require('../config/db');
 const reviewModel = require('./reviewModel');
 const payoutModel = require('./payoutModel');
+const paymentModel = require('./paymentModel');
 
 const merchantSettlementSql = `
   COALESCE(SUM(
     CASE WHEN p.payment_status = 'paid'
-      THEN GREATEST(p.amount * 0.90 - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0)
+      THEN GREATEST(p.amount * 0.90 - ${paymentModel.processorFeeExpression('p')} - COALESCE(p.dispute_fee_amount, 0), 0)
+      ELSE 0
+    END
+  ), 0)
+`;
+
+const gatewayFeeSql = `
+  COALESCE(SUM(
+    CASE WHEN p.payment_status = 'paid'
+      THEN ${paymentModel.processorFeeExpression('p')} + COALESCE(p.dispute_fee_amount, 0)
       ELSE 0
     END
   ), 0)
@@ -63,18 +73,22 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
     [topMerchants],
     [paymentStatus],
     [bookingSource],
+    [dailyTrend],
     [recentTransactions],
   ] = await Promise.all([
     db.query(
       `SELECT
          COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS gross_revenue,
          COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount * 0.10 ELSE 0 END), 0) AS platform_commission,
+         ${gatewayFeeSql} AS gateway_fees,
          ${merchantSettlementSql} AS merchant_settlement_private,
          COUNT(DISTINCT CASE WHEN p.payment_status = 'paid' THEN b.booking_id END) AS paid_bookings,
          COUNT(DISTINCT b.merchant_id) AS merchants_with_payments,
          COALESCE(AVG(CASE WHEN p.payment_status = 'paid' THEN p.amount END), 0) AS average_order_value,
          SUM(CASE WHEN p.payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_payments,
-         SUM(CASE WHEN p.payment_status IN ('failed', 'payment_failed') THEN 1 ELSE 0 END) AS failed_payments
+         SUM(CASE WHEN p.payment_status IN ('failed', 'payment_failed') THEN 1 ELSE 0 END) AS failed_payments,
+         SUM(CASE WHEN p.payment_status IN ('refunded', 'partially_refunded') THEN 1 ELSE 0 END) AS refund_count,
+         COALESCE(SUM(CASE WHEN p.payment_status IN ('refunded', 'partially_refunded') THEN COALESCE(p.refund_amount, 0) ELSE 0 END), 0) AS refund_amount
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
        WHERE ${paymentDateFilter}`,
@@ -87,6 +101,7 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
          COUNT(DISTINCT b.booking_id) AS paid_bookings,
          COALESCE(SUM(p.amount), 0) AS gross_revenue,
          COALESCE(SUM(p.amount * 0.10), 0) AS platform_commission,
+         ${gatewayFeeSql} AS gateway_fees,
          ${merchantSettlementSql} AS merchant_settlement_private
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
@@ -102,7 +117,8 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
          COALESCE(NULLIF(s.category, ''), NULLIF(m.category, ''), 'Uncategorised') AS category,
          COUNT(DISTINCT b.booking_id) AS paid_bookings,
          COALESCE(SUM(p.amount), 0) AS gross_revenue,
-         COALESCE(SUM(p.amount * 0.10), 0) AS platform_commission
+         COALESCE(SUM(p.amount * 0.10), 0) AS platform_commission,
+         ${gatewayFeeSql} AS gateway_fees
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
        JOIN merchant m ON m.merchant_id = b.merchant_id
@@ -121,6 +137,7 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
          COUNT(DISTINCT b.booking_id) AS paid_bookings,
          COALESCE(SUM(p.amount), 0) AS gross_revenue,
          COALESCE(SUM(p.amount * 0.10), 0) AS platform_commission,
+         ${gatewayFeeSql} AS gateway_fees,
          ${merchantSettlementSql} AS merchant_settlement_private
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
@@ -145,14 +162,33 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
     ),
     db.query(
       `SELECT
-         COALESCE(NULLIF(b.source, ''), 'web') AS source,
+         CASE
+           WHEN COALESCE(NULLIF(b.source, ''), 'marketplace') IN ('web', 'marketplace') THEN 'marketplace'
+           ELSE COALESCE(NULLIF(b.source, ''), 'marketplace')
+         END AS source,
          COUNT(DISTINCT b.booking_id) AS paid_bookings,
          COALESCE(SUM(p.amount), 0) AS gross_revenue
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
        WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
-       GROUP BY COALESCE(NULLIF(b.source, ''), 'web')
+       GROUP BY CASE
+           WHEN COALESCE(NULLIF(b.source, ''), 'marketplace') IN ('web', 'marketplace') THEN 'marketplace'
+           ELSE COALESCE(NULLIF(b.source, ''), 'marketplace')
+         END
        ORDER BY gross_revenue DESC`,
+      rangeParams
+    ),
+    db.query(
+      `SELECT
+         DATE(COALESCE(p.paid_at, b.created_at)) AS revenue_date,
+         COUNT(DISTINCT b.booking_id) AS paid_bookings,
+         COALESCE(SUM(p.amount), 0) AS gross_revenue,
+         COALESCE(SUM(p.amount * 0.10), 0) AS platform_commission
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       GROUP BY DATE(COALESCE(p.paid_at, b.created_at))
+       ORDER BY revenue_date ASC`,
       rangeParams
     ),
     db.query(
@@ -161,7 +197,10 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
          p.booking_id,
          p.amount,
          p.payment_status,
+         COALESCE(p.refund_status, 'none') AS refund_status,
+         COALESCE(p.refund_amount, 0) AS refund_amount,
          p.payment_method,
+         ${paymentModel.processorFeeExpression('p')} + COALESCE(p.dispute_fee_amount, 0) AS gateway_fee,
          p.transaction_ref,
          p.paid_at,
          b.source,
@@ -181,21 +220,26 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
   ]);
 
   const overview = overviewRows[0] || {};
+  overview.merchant_settlement_total = Number(overview.merchant_settlement_private || 0);
   overview.merchant_settlement_band = maskSettlementAmount(overview.merchant_settlement_private);
+  const settledCount = Number(overview.paid_payments || 0) + Number(overview.refund_count || 0);
+  overview.refund_rate = settledCount > 0 ? (Number(overview.refund_count || 0) / settledCount) * 100 : 0;
   delete overview.merchant_settlement_private;
 
   const monthlyMasked = monthly.map(row => {
     const { merchant_settlement_private: privateAmount, ...publicRow } = row;
     return {
       ...publicRow,
+      merchant_settlement_total: Number(privateAmount || 0),
       merchant_settlement_band: maskSettlementAmount(privateAmount),
     };
   });
 
   const topMerchantsMasked = topMerchants.map(row => {
-    const { merchant_settlement_private: privateAmount, ...publicRow } = row;
+    const { merchant_settlement_private: privateAmount, gateway_fees: gatewayFeesPrivate, platform_commission: platformCommissionPrivate, ...publicRow } = row;
     return {
       ...publicRow,
+      gross_revenue_band: maskSettlementAmount(publicRow.gross_revenue),
       merchant_settlement_band: maskSettlementAmount(privateAmount),
     };
   });
@@ -207,6 +251,7 @@ async function getPlatformRevenueReport({ startDate, endDate } = {}) {
     topMerchants: topMerchantsMasked,
     paymentStatus,
     bookingSource,
+    dailyTrend,
     recentTransactions,
   };
 }

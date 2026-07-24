@@ -21,6 +21,7 @@ const legalRoutes = require('./routes/legal');
 const accountRoutes = require('./routes/account');
 const supportRoutes = require('./routes/support');
 const reminderService   = require('./services/reminderService');
+const payoutService = require('./services/payoutService');
 const bookingNotificationModel = require('./models/bookingNotificationModel');
 const notificationModel = require('./models/notificationModel');
 const waitlistModel = require('./models/waitlistModel');
@@ -93,6 +94,26 @@ app.use('/legal', legalRoutes);
 app.use('/account', accountRoutes);
 app.use('/support', supportRoutes);
 
+app.get('/internal/payouts/run', async (req, res) => {
+  const expectedSecret = process.env.CRON_SECRET;
+  const authHeader = req.get('authorization') || '';
+  const providedSecret = authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length)
+    : req.query.secret;
+
+  if (expectedSecret && providedSecret !== expectedSecret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const result = await payoutService.createDueWeeklyPayouts();
+    res.json({ ok: true, result });
+  } catch (err) {
+    console.error('[cron] payout run failed:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 async function releaseExpiredPendingPayments() {
   try {
     const released = await bookingNotificationModel.expirePendingPaymentBookings();
@@ -104,22 +125,27 @@ async function releaseExpiredPendingPayments() {
   }
 }
 
-releaseExpiredPendingPayments();
-setInterval(releaseExpiredPendingPayments, 60 * 1000);
+function startBackgroundJobs() {
+  releaseExpiredPendingPayments();
+  setInterval(releaseExpiredPendingPayments, 60 * 1000);
 
-async function releaseExpiredWaitlistOffers() {
-  try {
-    const expired = await waitlistModel.expireOffersAndPromote();
-    if (expired) {
-      console.log(`[waitlist] Expired ${expired} waitlist offer(s).`);
+  async function releaseExpiredWaitlistOffers() {
+    try {
+      const expired = await waitlistModel.expireOffersAndPromote();
+      if (expired) {
+        console.log(`[waitlist] Expired ${expired} waitlist offer(s).`);
+      }
+    } catch (err) {
+      console.error('[waitlist] Failed to expire waitlist offers:', err.message);
     }
-  } catch (err) {
-    console.error('[waitlist] Failed to expire waitlist offers:', err.message);
   }
-}
 
-releaseExpiredWaitlistOffers();
-setInterval(releaseExpiredWaitlistOffers, 60 * 1000);
+  releaseExpiredWaitlistOffers();
+  setInterval(releaseExpiredWaitlistOffers, 60 * 1000);
+
+  reminderService.startReminderScheduler();
+  payoutService.startPayoutScheduler();
+}
 
 app.use((req, res) => {
   res.status(404).render('404', { title: 'Page Not Found' });
@@ -147,6 +173,9 @@ function startServer(port, attemptsLeft = MAX_PORT_ATTEMPTS) {
   });
 }
 
-startServer(DEFAULT_PORT);
+if (require.main === module) {
+  startServer(DEFAULT_PORT);
+  startBackgroundJobs();
+}
 
-reminderService.startReminderScheduler();
+module.exports = app;

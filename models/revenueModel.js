@@ -1,9 +1,11 @@
 const db = require('../config/db');
 const payoutModel = require('./payoutModel');
+const paymentModel = require('./paymentModel');
 
 async function getMerchantRevenueSummary(merchantId, selectedPeriod = null) {
   await payoutModel.ensurePayoutSchema();
   const period = selectedPeriod || new Date().toISOString().slice(0, 7);
+  const processorFee = paymentModel.processorFeeExpression('p');
   const [rows] = await db.query(
     `SELECT
        COUNT(b.booking_id)                            AS total_bookings,
@@ -17,11 +19,11 @@ async function getMerchantRevenueSummary(merchantId, selectedPeriod = null) {
        COALESCE(SUM(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
                          THEN ROUND(p.amount * 0.10, 2) ELSE 0 END), 0) AS month_platform_commission,
        COALESCE(SUM(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
-                         THEN COALESCE(p.processor_fee_amount, 0) ELSE 0 END), 0) AS month_processor_fees,
+                         THEN ${processorFee} ELSE 0 END), 0) AS month_processor_fees,
        COALESCE(SUM(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
                          THEN COALESCE(p.dispute_fee_amount, 0) ELSE 0 END), 0) AS month_dispute_fees,
        COALESCE(SUM(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
-                         THEN GREATEST(p.amount * 0.90 - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0) ELSE 0 END), 0) AS month_merchant_earnings,
+                         THEN GREATEST(p.amount * 0.90 - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0) ELSE 0 END), 0) AS month_merchant_earnings,
        COALESCE(AVG(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
                          THEN p.amount END), 0) AS month_avg_order_value,
        COUNT(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
@@ -82,6 +84,7 @@ async function getMerchantTransactions(merchantId, selectedPeriod = null) {
   await payoutModel.ensurePayoutSchema();
   const periodFilter = selectedPeriod ? "AND DATE_FORMAT(p.paid_at, '%Y-%m') = ?" : '';
   const params = selectedPeriod ? [merchantId, selectedPeriod] : [merchantId];
+  const processorFee = paymentModel.processorFeeExpression('p');
   const [rows] = await db.query(
     `SELECT
        b.booking_id, b.source, b.status,
@@ -93,19 +96,19 @@ async function getMerchantTransactions(merchantId, selectedPeriod = null) {
        u.email       AS customer_email,
        p.amount,
        ROUND(p.amount * 0.10, 2) AS platform_commission,
-       COALESCE(p.processor_fee_amount, 0) AS processor_fee_amount,
+       ${processorFee} AS processor_fee_amount,
        COALESCE(p.dispute_fee_amount, 0) AS dispute_fee_amount,
-       GREATEST(ROUND(p.amount * 0.90, 2) - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0) AS merchant_earnings,
+       GREATEST(ROUND(p.amount * 0.90, 2) - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0) AS merchant_earnings,
        p.payment_method, p.payment_status,
        p.transaction_ref, p.paid_at
      FROM booking b
      JOIN time_slot ts ON b.slot_id     = ts.slot_id
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN users     u  ON b.customer_id = u.user_id
-     LEFT JOIN payment p ON b.booking_id = p.booking_id
+     JOIN payment p ON b.booking_id = p.booking_id AND p.payment_status = 'paid'
      WHERE b.merchant_id = ?
        ${periodFilter}
-     ORDER BY b.created_at DESC`,
+     ORDER BY ts.slot_date DESC, ts.start_time DESC, b.booking_id DESC`,
     params
   );
   return rows;
@@ -113,24 +116,43 @@ async function getMerchantTransactions(merchantId, selectedPeriod = null) {
 
 async function getMonthlyRevenue(merchantId) {
   await payoutModel.ensurePayoutSchema();
+  const processorFee = paymentModel.processorFeeExpression('p');
+  const monthKeys = [];
+  const now = new Date();
+  for (let i = 0; i < 6; i += 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    monthKeys.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+  }
+
   const [rows] = await db.query(
     `SELECT
        DATE_FORMAT(p.paid_at, '%Y-%m')    AS month,
        COUNT(*)                           AS bookings,
        SUM(p.amount)                      AS revenue,
        SUM(ROUND(p.amount * 0.10, 2))      AS platform_commission,
-       SUM(COALESCE(p.processor_fee_amount, 0)) AS processor_fee_amount,
+       SUM(${processorFee}) AS processor_fee_amount,
        SUM(COALESCE(p.dispute_fee_amount, 0)) AS dispute_fee_amount,
-       SUM(GREATEST(p.amount * 0.90 - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0)) AS merchant_earnings
+       SUM(GREATEST(p.amount * 0.90 - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0)) AS merchant_earnings
      FROM payment p
      JOIN booking b ON p.booking_id = b.booking_id
      WHERE b.merchant_id = ? AND p.payment_status = 'paid'
+       AND DATE_FORMAT(p.paid_at, '%Y-%m') IN (?)
      GROUP BY DATE_FORMAT(p.paid_at, '%Y-%m')
-     ORDER BY month DESC
-     LIMIT 6`,
-    [merchantId]
+     ORDER BY month DESC`,
+    [merchantId, monthKeys]
   );
-  return rows;
+
+  const rowsByMonth = new Map(rows.map(row => [row.month, row]));
+  return monthKeys.map(month => ({
+    month,
+    bookings: 0,
+    revenue: 0,
+    platform_commission: 0,
+    processor_fee_amount: 0,
+    dispute_fee_amount: 0,
+    merchant_earnings: 0,
+    ...(rowsByMonth.get(month) || {}),
+  }));
 }
 
 module.exports = {

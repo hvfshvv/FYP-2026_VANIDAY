@@ -5,7 +5,8 @@
   const settlementBand = value => {
     const amount = Number(value || 0);
     if (amount <= 0) return 'S$0';
-    if (amount < 100) return 'S$XX';
+    if (amount < 10) return 'S$X';
+    if (amount < 100) return 'S$' + Math.floor(amount / 10) + 'X';
     return 'S$' + Math.floor(amount / 100) + 'XX';
   };
   const number = value => Number(value || 0).toLocaleString('en-SG');
@@ -17,6 +18,38 @@
     failed: 'danger',
     cancelled: 'muted',
   }[status] || 'muted');
+
+  const eligTotals = eligibleGroups.reduce((acc, row) => ({
+    bookings: acc.bookings + Number(row.booking_count || 0),
+    gross: acc.gross + Number(row.gross_amount || 0),
+    uniday: acc.uniday + Number(row.platform_commission || 0),
+    fees: acc.fees + Number(row.processor_fee_amount || 0) + Number(row.dispute_fee_amount || 0),
+    payout: acc.payout + Number(row.payout_amount || 0),
+  }), { bookings: 0, gross: 0, uniday: 0, fees: 0, payout: 0 });
+
+  const historyTotals = payouts.reduce((acc, payout) => ({
+    gross: acc.gross + Number(payout.gross_amount || 0),
+    uniday: acc.uniday + Number(payout.platform_commission || 0),
+    fees: acc.fees + Number(payout.processor_fee_amount || 0) + Number(payout.dispute_fee_amount || 0),
+    payout: acc.payout + Number(payout.payout_amount || 0),
+  }), { gross: 0, uniday: 0, fees: 0, payout: 0 });
+
+  const weekLabel = value => new Date(value).toLocaleDateString('en-SG', { day:'numeric', month:'short' });
+  const trendPoints = (eligibleTrend || []).map(row => ({ x: weekLabel(row.week_start), v: Number(row.value || 0), m: settlementBand(row.value) }));
+  const trendHalf = Math.ceil(trendPoints.length / 2) || 1;
+  const trendRecentSum = trendPoints.slice(trendHalf).reduce((sum, point) => sum + point.v, 0);
+  const trendPriorSum = trendPoints.slice(0, trendHalf).reduce((sum, point) => sum + point.v, 0);
+  const trendDeltaPct = trendPriorSum > 0 ? Math.round(((trendRecentSum - trendPriorSum) / trendPriorSum) * 100) : (trendRecentSum > 0 ? 100 : 0);
+  const trendHasData = trendPoints.some(point => point.v > 0);
+
+  const maxOutstanding = Math.max(1, ...(outstandingBreakdown || []).map(row => Number(row.payout_amount || 0)));
+  const paidTotal = Number(summary.paid_amount || 0);
+  const paidThisWeek = Number(summary.paid_this_week_amount || 0);
+  const outstandingTotal = Number(summary.outstanding_amount || 0);
+  const paidRatioPct = (paidTotal + outstandingTotal) > 0 ? Math.round((paidTotal / (paidTotal + outstandingTotal)) * 100) : 0;
+
+  const maxBucketCount = Math.max(1, ...(merchantSizeBuckets || []).map(bucket => bucket.count));
+  const totalBucketCount = (merchantSizeBuckets || []).reduce((sum, bucket) => sum + bucket.count, 0);
 %>
 
 <style>
@@ -25,9 +58,45 @@
     border:1px solid var(--border);
     border-radius:var(--r-xl);
     box-shadow:var(--shadow-sm);
-    padding:1.35rem;
+    padding:1.5rem;
   }
-  .payout-table th { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+  .payout-panel-title {
+    display:flex;
+    align-items:center;
+    gap:.6rem;
+    font-weight:800;
+    color:var(--ink);
+    margin-bottom:.25rem;
+  }
+  .payout-panel-title .bi { color:var(--accent); font-size:1.05rem; }
+  .payout-table th {
+    color:var(--muted);
+    font-size:.72rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+  }
+  .payout-table th.text-end,
+  .payout-table td.text-end { text-align:right; }
+  .payout-table tbody tr:last-child td { border-bottom:none; }
+  .payout-table tfoot td {
+    border-top:2px solid var(--border);
+    border-bottom:none;
+    background:var(--canvas);
+    font-weight:800;
+    color:var(--ink);
+    padding-top:.85rem;
+    padding-bottom:.85rem;
+  }
+  .payout-mask-hint {
+    color:var(--ghost);
+    font-size:.72rem;
+    cursor:help;
+    margin-left:.3rem;
+    text-transform:none;
+    letter-spacing:0;
+    font-weight:500;
+  }
   .payout-status {
     display:inline-flex;
     align-items:center;
@@ -41,6 +110,149 @@
   .payout-status.warn { background:var(--warn-bg); color:var(--warn); }
   .payout-status.danger { background:var(--danger-bg); color:var(--danger); }
   .payout-status.muted { background:var(--neutral-bg); color:var(--muted); }
+  .payout-stat-card {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:1.75rem;
+    padding:1.5rem 1.4rem 1.3rem;
+    box-shadow:0 1px 2px rgba(0,0,0,.04), 0 14px 30px -16px rgba(0,0,0,.10);
+    transition:box-shadow .2s ease, transform .2s ease;
+  }
+  .payout-stat-card:hover {
+    box-shadow:0 4px 10px rgba(0,0,0,.05), 0 22px 40px -16px rgba(0,0,0,.14);
+    transform:translateY(-2px);
+  }
+  .payout-stat-head {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:1rem;
+  }
+  .payout-stat-label {
+    font-size:.78rem;
+    font-weight:600;
+    color:var(--muted);
+    letter-spacing:.01em;
+    margin:0;
+  }
+  .payout-stat-icon {
+    width:28px;
+    height:28px;
+    border-radius:999px;
+    flex-shrink:0;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--canvas);
+    color:var(--ghost);
+    font-size:.8rem;
+  }
+  .payout-stat-value {
+    font-family:var(--font-mono);
+    font-size:2.1rem;
+    font-weight:700;
+    letter-spacing:-.02em;
+    color:var(--ink);
+    line-height:1;
+    margin:0 0 .7rem;
+  }
+  .payout-stat-badge {
+    display:inline-flex;
+    align-items:center;
+    gap:.3rem;
+    font-size:.72rem;
+    font-weight:700;
+    padding:.3rem .65rem;
+    border-radius:999px;
+    background:var(--canvas);
+    border:1px solid var(--border);
+    color:var(--muted);
+    margin-bottom:1.1rem;
+  }
+  .payout-stat-badge.up { color:var(--success); }
+  .payout-stat-badge.down { color:var(--danger); }
+  .payout-stat-sub { font-size:.72rem; color:var(--ghost); margin:.9rem 0 0; }
+  .payout-sparkline-wrap { position:relative; }
+  .payout-sparkline { width:100%; height:56px; display:block; overflow:visible; }
+  .payout-sparkline-tip {
+    position:absolute;
+    transform:translate(-50%,-142%);
+    background:var(--ink);
+    color:#fff;
+    font-size:.68rem;
+    font-weight:700;
+    padding:.3rem .6rem;
+    border-radius:.6rem;
+    white-space:nowrap;
+    pointer-events:none;
+    z-index:2;
+    box-shadow:0 6px 16px rgba(0,0,0,.18);
+  }
+  .payout-sparkline-tip::after {
+    content:'';
+    position:absolute;
+    left:50%;
+    bottom:-4px;
+    transform:translateX(-50%);
+    border:4px solid transparent;
+    border-top-color:var(--ink);
+  }
+  .payout-mini-bar-row {
+    display:flex;
+    align-items:center;
+    gap:.55rem;
+    font-size:.72rem;
+    margin-bottom:.55rem;
+  }
+  .payout-mini-bar-row:last-child { margin-bottom:0; }
+  .payout-mini-bar-label {
+    flex:0 0 68px;
+    color:var(--muted);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .payout-mini-bar-track {
+    flex:1;
+    background:var(--canvas);
+    border-radius:999px;
+    height:6px;
+    overflow:hidden;
+  }
+  .payout-mini-bar-fill {
+    display:block;
+    height:100%;
+    border-radius:999px;
+    background:var(--ink);
+    opacity:.8;
+  }
+  .payout-mini-bar-value {
+    flex:0 0 auto;
+    color:var(--ink);
+    font-weight:700;
+    font-family:var(--font-mono);
+  }
+  .payout-ratio-bar {
+    display:flex;
+    height:8px;
+    border-radius:999px;
+    overflow:hidden;
+    background:var(--canvas);
+  }
+  .payout-ratio-legend {
+    display:flex;
+    gap:1.1rem;
+    font-size:.7rem;
+    color:var(--muted);
+    margin-top:.75rem;
+  }
+  .payout-ratio-legend .dot {
+    display:inline-block;
+    width:7px;
+    height:7px;
+    border-radius:999px;
+    margin-right:.35rem;
+  }
 </style>
 
 <main class="container py-5">
@@ -52,7 +264,7 @@
     <div>
       <p class="section-label mb-2">Admin Finance</p>
       <h2 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Merchant Payouts</h2>
-      <p style="color:var(--muted);margin-bottom:0;">Create weekly payout batches from eligible completed paid bookings and track manual merchant settlements.</p>
+      <p style="color:var(--muted);margin-bottom:0;">Automatically creates one weekly payout batch per merchant from eligible completed paid bookings up to yesterday.</p>
     </div>
     <form method="GET" action="/admin/payouts" class="d-flex gap-2 align-items-center">
       <select name="status" class="form-select rounded-xl" style="width:170px;">
@@ -69,41 +281,200 @@
   <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
 
   <div class="row g-3 mb-4">
-    <% [
-      { label:'Eligible Now', value:settlementBand(summary.eligible_amount), sub:number(summary.eligible_booking_count) + ' completed paid bookings from past weeks', color:'var(--accent)' },
-      { label:'Outstanding', value:settlementBand(summary.outstanding_amount), sub:number(summary.pending_count) + ' pending batches', color:'var(--warn)' },
-      { label:'Paid Out', value:settlementBand(summary.paid_amount), sub:number(summary.paid_count) + ' paid batches', color:'var(--success)' },
-      { label:'Eligible Merchants', value:number(summary.eligible_count), sub:'ready for payout creation', color:'var(--ink)' },
-    ].forEach(stat => { %>
     <div class="col-6 col-lg-3">
-      <div class="stat-card h-100">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;"><%= stat.label %></p>
-        <p class="stat-value" style="color:<%= stat.color %>;font-size:1.45rem;"><%= stat.value %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= stat.sub %></p>
+      <div class="payout-stat-card h-100">
+        <div class="payout-stat-head">
+          <p class="payout-stat-label">Eligible for Payout</p>
+          <span class="payout-stat-icon"><i class="bi bi-cash-stack"></i></span>
+        </div>
+        <p class="payout-stat-value"><%= settlementBand(summary.eligible_amount) %></p>
+        <% if (trendHasData) { %>
+        <span class="payout-stat-badge <%= trendDeltaPct >= 0 ? 'up' : 'down' %>">
+          <i class="bi bi-arrow-<%= trendDeltaPct >= 0 ? 'up' : 'down' %>-short"></i><%= Math.abs(trendDeltaPct) %>% vs prior cycles
+        </span>
+        <div class="payout-sparkline-wrap" data-color="#E11D48" data-sparkline='<%- JSON.stringify(trendPoints).replace(/</g, "\\u003c") %>'>
+          <svg class="payout-sparkline" viewBox="0 0 280 56" preserveAspectRatio="none"></svg>
+          <div class="payout-sparkline-tip" hidden></div>
+        </div>
+        <% } else { %>
+        <p class="payout-stat-sub" style="margin-top:0;">No payout-ready revenue in the last 8 cycles.</p>
+        <% } %>
+        <p class="payout-stat-sub"><%= number(summary.eligible_booking_count) %> completed paid bookings ready for the next weekly batch</p>
       </div>
     </div>
-    <% }) %>
+
+    <div class="col-6 col-lg-3">
+      <div class="payout-stat-card h-100">
+        <div class="payout-stat-head">
+          <p class="payout-stat-label">Pending Review</p>
+          <span class="payout-stat-icon"><i class="bi bi-hourglass-split"></i></span>
+        </div>
+        <p class="payout-stat-value"><%= settlementBand(summary.outstanding_amount) %></p>
+        <span class="payout-stat-badge"><%= number(summary.pending_count) %> batches waiting to be credited</span>
+        <% if (outstandingBreakdown.length) { %>
+        <% outstandingBreakdown.slice(0, 4).forEach(row => { %>
+        <div class="payout-mini-bar-row">
+          <span class="payout-mini-bar-label" title="<%= row.merchant_name %>"><%= row.merchant_name %></span>
+          <span class="payout-mini-bar-track"><span class="payout-mini-bar-fill" style="width:<%= Math.round((Number(row.payout_amount) / maxOutstanding) * 100) %>%;"></span></span>
+          <span class="payout-mini-bar-value"><%= settlementBand(row.payout_amount) %></span>
+        </div>
+        <% }) %>
+        <% } else { %>
+        <p class="payout-stat-sub" style="margin-top:0;">No outstanding batches right now.</p>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="payout-stat-card h-100">
+        <div class="payout-stat-head">
+          <p class="payout-stat-label">Paid This Week</p>
+          <span class="payout-stat-icon"><i class="bi bi-check-circle"></i></span>
+        </div>
+        <p class="payout-stat-value"><%= settlementBand(paidThisWeek) %></p>
+        <span class="payout-stat-badge"><%= number(summary.paid_this_week_count) %> batches credited this cycle</span>
+        <% if (paidTotal + outstandingTotal > 0) { %>
+        <div class="payout-ratio-bar">
+          <span style="width:<%= paidRatioPct %>%;background:var(--success);"></span>
+          <span style="width:<%= 100 - paidRatioPct %>%;background:var(--warn);"></span>
+        </div>
+        <p class="payout-stat-sub" style="margin-top:.6rem;"><%= paidRatioPct %>% of settled volume paid out</p>
+        <div class="payout-ratio-legend">
+          <span><span class="dot" style="background:var(--success);"></span>Paid</span>
+          <span><span class="dot" style="background:var(--warn);"></span>Outstanding</span>
+        </div>
+        <% } else { %>
+        <p class="payout-stat-sub" style="margin-top:0;">No settlement volume yet.</p>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="payout-stat-card h-100">
+        <div class="payout-stat-head">
+          <p class="payout-stat-label">Merchants Waiting</p>
+          <span class="payout-stat-icon"><i class="bi bi-shop"></i></span>
+        </div>
+        <p class="payout-stat-value"><%= number(summary.eligible_count) %></p>
+        <% if (totalBucketCount > 0) { %>
+        <span class="payout-stat-badge">ready for payout creation</span>
+        <% merchantSizeBuckets.forEach(bucket => { %>
+        <div class="payout-mini-bar-row">
+          <span class="payout-mini-bar-label"><%= bucket.label %></span>
+          <span class="payout-mini-bar-track"><span class="payout-mini-bar-fill" style="width:<%= Math.round((bucket.count / maxBucketCount) * 100) %>%;"></span></span>
+          <span class="payout-mini-bar-value"><%= bucket.count %></span>
+        </div>
+        <% }) %>
+        <% } else { %>
+        <p class="payout-stat-sub" style="margin-top:0;">All payouts are up to date. The next weekly batch will be generated automatically.</p>
+        <% } %>
+      </div>
+    </div>
   </div>
+
+  <script>
+  (function () {
+    function drawSparkline(wrap) {
+      var svg = wrap.querySelector('.payout-sparkline');
+      var tip = wrap.querySelector('.payout-sparkline-tip');
+      var points;
+      try { points = JSON.parse(wrap.getAttribute('data-sparkline')); } catch (e) { return; }
+      if (!svg || !points || !points.length) return;
+
+      var W = 280;
+      var H = 56;
+      var padTop = 6;
+      var padBottom = 6;
+      var values = points.map(function (point) { return point.v; });
+      var max = Math.max.apply(null, values.concat([0]));
+      var min = Math.min.apply(null, values.concat([0]));
+      var range = (max - min) || 1;
+
+      function xAt(i) { return points.length > 1 ? (i / (points.length - 1)) * W : W / 2; }
+      function yAt(v) { return H - padBottom - ((v - min) / range) * (H - padTop - padBottom); }
+
+      var coords = points.map(function (point, i) { return [xAt(i), yAt(point.v)]; });
+      var linePath = 'M ' + coords[0][0] + ' ' + coords[0][1];
+      for (var i = 0; i < coords.length - 1; i += 1) {
+        var c0 = coords[i - 1] || coords[i];
+        var c1 = coords[i];
+        var c2 = coords[i + 1];
+        var c3 = coords[i + 2] || c2;
+        var t = 0.3;
+        var cp1x = c1[0] + (c2[0] - c0[0]) * t;
+        var cp1y = c1[1] + (c2[1] - c0[1]) * t;
+        var cp2x = c2[0] - (c3[0] - c1[0]) * t;
+        var cp2y = c2[1] - (c3[1] - c1[1]) * t;
+        linePath += ' C ' + cp1x + ' ' + cp1y + ', ' + cp2x + ' ' + cp2y + ', ' + c2[0] + ' ' + c2[1];
+      }
+      var areaPath = linePath + ' L ' + coords[coords.length - 1][0] + ' ' + H + ' L ' + coords[0][0] + ' ' + H + ' Z';
+      var color = wrap.getAttribute('data-color') || '#E11D48';
+      var uid = 'spark' + Math.random().toString(36).slice(2, 8);
+
+      svg.innerHTML =
+        '<defs><linearGradient id="' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0%" stop-color="' + color + '" stop-opacity="0.28"></stop>' +
+        '<stop offset="100%" stop-color="' + color + '" stop-opacity="0.02"></stop>' +
+        '</linearGradient></defs>' +
+        '<path d="' + areaPath + '" fill="url(#' + uid + ')"></path>' +
+        '<path d="' + linePath + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
+        '<circle class="payout-spark-dot" r="4" fill="' + color + '" stroke="var(--surface)" stroke-width="2" style="opacity:0"></circle>';
+
+      var dot = svg.querySelector('.payout-spark-dot');
+      function showPoint(i) {
+        var c = coords[i];
+        dot.setAttribute('cx', c[0]);
+        dot.setAttribute('cy', c[1]);
+        dot.style.opacity = '1';
+        tip.hidden = false;
+        tip.textContent = points[i].x + ': ' + points[i].m;
+        tip.style.left = ((c[0] / W) * 100) + '%';
+        tip.style.top = ((c[1] / H) * 100) + '%';
+      }
+      function hidePoint() {
+        dot.style.opacity = '0';
+        tip.hidden = true;
+      }
+      svg.addEventListener('mousemove', function (event) {
+        var rect = svg.getBoundingClientRect();
+        var relX = ((event.clientX - rect.left) / rect.width) * W;
+        var closest = 0;
+        var closestDist = Infinity;
+        coords.forEach(function (c, i) {
+          var dist = Math.abs(c[0] - relX);
+          if (dist < closestDist) {
+            closestDist = dist;
+            closest = i;
+          }
+        });
+        showPoint(closest);
+      });
+      svg.addEventListener('mouseleave', hidePoint);
+      showPoint(points.length - 1);
+    }
+
+    document.querySelectorAll('.payout-sparkline-wrap').forEach(drawSparkline);
+  })();
+  </script>
 
   <section class="payout-panel mb-4">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
       <div>
-        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Eligible Merchant Payouts</h5>
-        <p style="color:var(--muted);margin:0;font-size:.9rem;">Only completed bookings from past weeks with paid, non-refunded, held payments appear here. Merchant payout is 90% minus processor/dispute fees. Once batched, a booking cannot be included again.</p>
+        <h5 class="payout-panel-title"><i class="bi bi-cash-coin"></i>Eligible Merchant Payouts</h5>
+        <p style="color:var(--muted);margin:0;font-size:.9rem;">Only completed bookings up to yesterday with paid, non-refunded, held payments appear here. Gross merchant revenue is masked; settlement is visible for finance reconciliation.</p>
       </div>
     </div>
     <div class="table-responsive">
-      <table class="table align-middle payout-table mb-0">
+      <table class="table table-hover align-middle payout-table mb-0">
         <thead>
           <tr>
             <th>Merchant</th>
-            <th>Bookings</th>
-            <th>Gross</th>
-            <th>Uniday</th>
-            <th>Fees</th>
-            <th>Settlement Band</th>
+            <th class="text-end">Bookings</th>
+            <th class="text-end">Gross<i class="bi bi-eye-slash payout-mask-hint" title="Rounded to the nearest S$100 band to keep individual merchant revenue private"></i></th>
+            <th class="text-end">Uniday</th>
+            <th class="text-end">Gateway Fees</th>
+            <th class="text-end">Settlement</th>
             <th>Period</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -113,42 +484,48 @@
               <strong><%= row.merchant_name %></strong>
               <div style="color:var(--muted);font-size:.8rem;"><%= row.email || '-' %></div>
             </td>
-            <td><%= number(row.booking_count) %></td>
-            <td class="mono"><%= money(row.gross_amount) %></td>
-            <td class="mono" style="color:var(--accent);"><%= money(row.platform_commission) %></td>
-            <td class="mono"><%= money(Number(row.processor_fee_amount || 0) + Number(row.dispute_fee_amount || 0)) %></td>
-            <td class="mono" style="color:var(--success);font-weight:800;"><%= settlementBand(row.payout_amount) %></td>
+            <td class="mono text-end"><%= number(row.booking_count) %></td>
+            <td class="mono text-end"><%= settlementBand(row.gross_amount) %></td>
+            <td class="mono text-end" style="color:var(--accent);"><%= money(row.platform_commission) %></td>
+            <td class="mono text-end"><%= money(Number(row.processor_fee_amount || 0) + Number(row.dispute_fee_amount || 0)) %></td>
+            <td class="mono text-end" style="color:var(--success);font-weight:800;"><%= money(row.payout_amount) %></td>
             <td style="color:var(--muted);font-size:.82rem;"><%= row.payout_period_start ? new Date(row.payout_period_start).toLocaleDateString('en-SG', { day:'numeric', month:'short', year:'numeric' }) : '-' %><br><%= row.payout_period_end ? new Date(row.payout_period_end).toLocaleDateString('en-SG', { day:'numeric', month:'short', year:'numeric' }) : '-' %></td>
-            <td class="text-end">
-              <form method="POST" action="/admin/payouts/merchant/<%= row.merchant_id %>/create">
-                <button class="btn btn-primary btn-sm btn-pill" type="submit">
-                  <i class="bi bi-plus-circle me-1"></i>Create payout
-                </button>
-              </form>
-            </td>
           </tr>
           <% }) %>
           <% if (!eligibleGroups.length) { %>
-          <tr><td colspan="8" class="text-center py-4" style="color:var(--muted);">No eligible merchant payouts right now.</td></tr>
+          <tr><td colspan="7" class="text-center py-4" style="color:var(--muted);">All payouts are up to date. The next weekly batch will be generated automatically when bookings become eligible.</td></tr>
           <% } %>
         </tbody>
+        <% if (eligibleGroups.length) { %>
+        <tfoot>
+          <tr>
+            <td>Total</td>
+            <td class="mono text-end"><%= number(eligTotals.bookings) %></td>
+            <td class="mono text-end"><%= settlementBand(eligTotals.gross) %></td>
+            <td class="mono text-end" style="color:var(--accent);"><%= money(eligTotals.uniday) %></td>
+            <td class="mono text-end"><%= money(eligTotals.fees) %></td>
+            <td class="mono text-end" style="color:var(--success);"><%= money(eligTotals.payout) %></td>
+            <td></td>
+          </tr>
+        </tfoot>
+        <% } %>
       </table>
     </div>
   </section>
 
   <section class="payout-panel">
-    <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Payout History</h5>
+    <h5 class="payout-panel-title"><i class="bi bi-clock-history"></i>Payout History</h5>
     <div class="table-responsive">
-      <table class="table align-middle payout-table mb-0">
+      <table class="table table-hover align-middle payout-table mb-0">
         <thead>
           <tr>
             <th>ID</th>
             <th>Merchant</th>
             <th>Status</th>
-            <th>Gross</th>
-            <th>Uniday</th>
-            <th>Fees</th>
-            <th>Settlement Band</th>
+            <th class="text-end">Gross<i class="bi bi-eye-slash payout-mask-hint" title="Rounded to the nearest S$100 band to keep individual merchant revenue private"></i></th>
+            <th class="text-end">Uniday</th>
+            <th class="text-end">Gateway Fees</th>
+            <th class="text-end">Settlement</th>
             <th>Created</th>
             <th>Paid</th>
             <th></th>
@@ -160,19 +537,35 @@
             <td class="mono">#<%= payout.payout_id %></td>
             <td><strong><%= payout.merchant_name %></strong><div style="color:var(--muted);font-size:.8rem;"><%= payout.booking_count %> bookings</div></td>
             <td><span class="payout-status <%= statusClass(payout.status) %>"><%= payout.status %></span></td>
-            <td class="mono"><%= money(payout.gross_amount) %></td>
-            <td class="mono"><%= money(payout.platform_commission) %></td>
-            <td class="mono"><%= money(Number(payout.processor_fee_amount || 0) + Number(payout.dispute_fee_amount || 0)) %></td>
-            <td class="mono" style="font-weight:800;color:var(--success);"><%= settlementBand(payout.payout_amount) %></td>
+            <td class="mono text-end"><%= settlementBand(payout.gross_amount) %></td>
+            <td class="mono text-end"><%= money(payout.platform_commission) %></td>
+            <td class="mono text-end"><%= money(Number(payout.processor_fee_amount || 0) + Number(payout.dispute_fee_amount || 0)) %></td>
+            <td class="mono text-end" style="font-weight:800;color:var(--success);"><%= money(payout.payout_amount) %></td>
             <td style="color:var(--muted);font-size:.82rem;"><%= dateTime(payout.created_at) %></td>
             <td style="color:var(--muted);font-size:.82rem;"><%= dateTime(payout.paid_at) %></td>
             <td class="text-end"><a href="/admin/payouts/<%= payout.payout_id %>" class="btn btn-outline-secondary btn-sm btn-pill">View</a></td>
           </tr>
           <% }) %>
           <% if (!payouts.length) { %>
-          <tr><td colspan="10" class="text-center py-4" style="color:var(--muted);">No payout batches found.</td></tr>
+          <tr><td colspan="10" class="text-center py-4" style="color:var(--muted);">No payout batches found. Merchants only appear here after they have completed paid bookings that passed payout checks.</td></tr>
           <% } %>
         </tbody>
+        <% if (payouts.length) { %>
+        <tfoot>
+          <tr>
+            <td></td>
+            <td>Total</td>
+            <td></td>
+            <td class="mono text-end"><%= settlementBand(historyTotals.gross) %></td>
+            <td class="mono text-end"><%= money(historyTotals.uniday) %></td>
+            <td class="mono text-end"><%= money(historyTotals.fees) %></td>
+            <td class="mono text-end" style="color:var(--success);"><%= money(historyTotals.payout) %></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tfoot>
+        <% } %>
       </table>
     </div>
   </section>

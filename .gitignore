@@ -9,3 +9,5 @@ public/images/promotions/*.png
 !public/images/promotions/hairrepublic-promo-weds10.png
 public/images/merchants/merchant_*
 public/images/gallery/*
+.vercel
+.env*

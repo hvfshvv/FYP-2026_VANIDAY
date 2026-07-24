@@ -1,4 +1,6 @@
 const db = require('../config/db');
+const paymentModel = require('./paymentModel');
+const merchantModel = require('./merchantModel');
 
 const PLATFORM_COMMISSION_RATE = 0.10;
 const MERCHANT_SHARE_RATE = 1 - PLATFORM_COMMISSION_RATE;
@@ -9,12 +11,45 @@ function roundMoney(value) {
   return Math.round(Number(value || 0) * 100) / 100;
 }
 
-function currentWeekStartSql() {
-  return 'DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)';
+function thursdayOf(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const daysSinceThursday = (d.getDay() + 3) % 7;
+  d.setDate(d.getDate() - daysSinceThursday);
+  return d;
+}
+
+function localDateKey(date) {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function fillWeeklySeries(rows, weeks, valueKey = 'value') {
+  const byWeek = new Map(rows.map(row => [localDateKey(row.week_start), Number(row[valueKey] || 0)]));
+  const currentThursday = thursdayOf(new Date());
+  const out = [];
+
+  for (let i = weeks - 1; i >= 0; i -= 1) {
+    const date = new Date(currentThursday);
+    date.setDate(date.getDate() - i * 7);
+    const key = localDateKey(date);
+    out.push({ week_start: key, value: roundMoney(byWeek.get(key) || 0) });
+  }
+
+  return out;
+}
+
+function payoutCutoffSql() {
+  return 'CURDATE()';
+}
+
+function currentPayoutCycleStartSql() {
+  return 'DATE_SUB(CURDATE(), INTERVAL MOD(WEEKDAY(CURDATE()) + 4, 7) DAY)';
 }
 
 async function ensurePayoutSchema() {
   if (payoutSchemaReady) return;
+  await merchantModel.ensureMerchantStripeSchema();
 
   const paymentColumnExists = async columnName => {
     const [[row]] = await db.query(
@@ -147,6 +182,21 @@ async function ensurePayoutSchema() {
     'payout_period_end',
     'ALTER TABLE merchant_payout ADD COLUMN payout_period_end DATE NULL AFTER payout_period_start'
   );
+  await addPayoutColumnIfMissing(
+    'merchant_payout',
+    'stripe_transfer_id',
+    'ALTER TABLE merchant_payout ADD COLUMN stripe_transfer_id VARCHAR(255) NULL AFTER payout_reference'
+  );
+  await addPayoutColumnIfMissing(
+    'merchant_payout',
+    'stripe_transfer_status',
+    'ALTER TABLE merchant_payout ADD COLUMN stripe_transfer_status VARCHAR(64) NULL AFTER stripe_transfer_id'
+  );
+  await addPayoutColumnIfMissing(
+    'merchant_payout',
+    'stripe_transfer_error',
+    'ALTER TABLE merchant_payout ADD COLUMN stripe_transfer_error TEXT NULL AFTER stripe_transfer_status'
+  );
   if (await tableExists('merchant_payout_item')) {
     await db.query(`
       UPDATE payment p
@@ -167,13 +217,13 @@ function eligibleBookingWhereClause(extra = '') {
     AND COALESCE(p.merchant_payout_status, 'pending') = 'pending'
     AND p.merchant_payout_id IS NULL
     AND p.amount > 0
-    AND ts.slot_date < ${currentWeekStartSql()}
+    AND ts.slot_date < ${payoutCutoffSql()}
     AND NOT EXISTS (
       SELECT 1
       FROM merchant_payout weekly_mp
       WHERE weekly_mp.merchant_id = b.merchant_id
         AND weekly_mp.status NOT IN ('failed', 'cancelled')
-        AND DATE(weekly_mp.created_at) >= ${currentWeekStartSql()}
+        AND DATE(weekly_mp.created_at) >= ${currentPayoutCycleStartSql()}
     )
     ${extra}
   `;
@@ -181,6 +231,7 @@ function eligibleBookingWhereClause(extra = '') {
 
 async function getEligiblePayoutGroups() {
   await ensurePayoutSchema();
+  const processorFee = paymentModel.processorFeeExpression('p');
 
   const [rows] = await db.query(
     `SELECT
@@ -190,9 +241,9 @@ async function getEligiblePayoutGroups() {
        COUNT(*) AS booking_count,
        COALESCE(SUM(p.amount), 0) AS gross_amount,
        COALESCE(SUM(ROUND(p.amount * ?, 2)), 0) AS platform_commission,
-       COALESCE(SUM(COALESCE(p.processor_fee_amount, 0)), 0) AS processor_fee_amount,
+       COALESCE(SUM(${processorFee}), 0) AS processor_fee_amount,
        COALESCE(SUM(COALESCE(p.dispute_fee_amount, 0)), 0) AS dispute_fee_amount,
-       COALESCE(SUM(GREATEST(ROUND(p.amount * ?, 2) - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0)), 0) AS payout_amount,
+       COALESCE(SUM(GREATEST(ROUND(p.amount * ?, 2) - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0)), 0) AS payout_amount,
        MIN(ts.slot_date) AS payout_period_start,
        MAX(ts.slot_date) AS payout_period_end,
        MIN(p.paid_at) AS first_paid_at,
@@ -212,6 +263,7 @@ async function getEligiblePayoutGroups() {
 
 async function getEligiblePayoutBookings(merchantId) {
   await ensurePayoutSchema();
+  const processorFee = paymentModel.processorFeeExpression('p');
 
   const [rows] = await db.query(
     `SELECT
@@ -220,9 +272,9 @@ async function getEligiblePayoutBookings(merchantId) {
        p.payment_id,
        p.amount AS gross_amount,
        ROUND(p.amount * ?, 2) AS platform_commission,
-       COALESCE(p.processor_fee_amount, 0) AS processor_fee_amount,
+       ${processorFee} AS processor_fee_amount,
        COALESCE(p.dispute_fee_amount, 0) AS dispute_fee_amount,
-       GREATEST(ROUND(p.amount * ?, 2) - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0) AS payout_amount,
+       GREATEST(ROUND(p.amount * ?, 2) - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0) AS payout_amount,
        p.payment_method,
        p.paid_at,
        ts.slot_date,
@@ -244,6 +296,7 @@ async function getEligiblePayoutBookings(merchantId) {
 
 async function createMerchantPayout(merchantId, adminUserId) {
   await ensurePayoutSchema();
+  const processorFee = paymentModel.processorFeeExpression('p');
   const connection = await db.getConnection();
 
   try {
@@ -255,9 +308,9 @@ async function createMerchantPayout(merchantId, adminUserId) {
          p.payment_id,
          p.amount AS gross_amount,
          ROUND(p.amount * ?, 2) AS platform_commission,
-         COALESCE(p.processor_fee_amount, 0) AS processor_fee_amount,
+         ${processorFee} AS processor_fee_amount,
          COALESCE(p.dispute_fee_amount, 0) AS dispute_fee_amount,
-         GREATEST(ROUND(p.amount * ?, 2) - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0) AS payout_amount,
+         GREATEST(ROUND(p.amount * ?, 2) - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0) AS payout_amount,
          ts.slot_date
        FROM booking b
        JOIN payment p ON p.booking_id = b.booking_id
@@ -329,8 +382,10 @@ async function getPayoutSummary() {
     `SELECT
        COALESCE(SUM(CASE WHEN status IN ('pending','processing') THEN payout_amount ELSE 0 END), 0) AS outstanding_amount,
        COALESCE(SUM(CASE WHEN status = 'paid' THEN payout_amount ELSE 0 END), 0) AS paid_amount,
+       COALESCE(SUM(CASE WHEN status = 'paid' AND DATE(COALESCE(paid_at, created_at)) >= ${currentPayoutCycleStartSql()} THEN payout_amount ELSE 0 END), 0) AS paid_this_week_amount,
        COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) AS pending_count,
-       COALESCE(SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END), 0) AS paid_count
+       COALESCE(SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END), 0) AS paid_count,
+       COALESCE(SUM(CASE WHEN status = 'paid' AND DATE(COALESCE(paid_at, created_at)) >= ${currentPayoutCycleStartSql()} THEN 1 ELSE 0 END), 0) AS paid_this_week_count
      FROM merchant_payout`
   );
 
@@ -341,6 +396,64 @@ async function getPayoutSummary() {
     eligible_count: eligible.length,
     eligible_booking_count: eligible.reduce((sum, row) => sum + Number(row.booking_count || 0), 0),
   };
+}
+
+async function getEligibleWeeklyTrend(weeks = 8) {
+  await ensurePayoutSchema();
+  const processorFee = paymentModel.processorFeeExpression('p');
+
+  const [rows] = await db.query(
+    `SELECT
+       DATE_SUB(ts.slot_date, INTERVAL MOD(WEEKDAY(ts.slot_date) + 4, 7) DAY) AS week_start,
+       COALESCE(SUM(GREATEST(ROUND(p.amount * ?, 2) - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0)), 0) AS value
+     FROM booking b
+     JOIN payment p ON p.booking_id = b.booking_id
+     JOIN time_slot ts ON ts.slot_id = b.slot_id
+     WHERE b.status = 'completed'
+       AND p.payment_status = 'paid'
+       AND COALESCE(p.refund_status, 'none') = 'none'
+       AND COALESCE(p.platform_hold_status, 'held') = 'held'
+       AND ts.slot_date < ${payoutCutoffSql()}
+       AND ts.slot_date >= DATE_SUB(${currentPayoutCycleStartSql()}, INTERVAL ? WEEK)
+     GROUP BY week_start
+     ORDER BY week_start ASC`,
+    [MERCHANT_SHARE_RATE, Math.max(1, Math.min(Number(weeks) || 8, 26))]
+  );
+
+  return fillWeeklySeries(rows, Math.max(1, Math.min(Number(weeks) || 8, 26)));
+}
+
+async function getOutstandingBreakdown(limit = 5) {
+  await ensurePayoutSchema();
+
+  const [rows] = await db.query(
+    `SELECT mp.merchant_id, m.merchant_name, mp.payout_amount
+     FROM merchant_payout mp
+     JOIN merchant m ON m.merchant_id = mp.merchant_id
+     WHERE mp.status IN ('pending','processing')
+     ORDER BY mp.payout_amount DESC
+     LIMIT ?`,
+    [Math.max(1, Math.min(Number(limit) || 5, 20))]
+  );
+
+  return rows;
+}
+
+async function getEligibleMerchantSizeBuckets() {
+  const groups = await getEligiblePayoutGroups();
+  const buckets = [
+    { label: '1-2 bookings', min: 1, max: 2, count: 0 },
+    { label: '3-5 bookings', min: 3, max: 5, count: 0 },
+    { label: '6+ bookings', min: 6, max: Infinity, count: 0 },
+  ];
+
+  groups.forEach(row => {
+    const count = Number(row.booking_count || 0);
+    const bucket = buckets.find(item => count >= item.min && count <= item.max);
+    if (bucket) bucket.count += 1;
+  });
+
+  return buckets;
 }
 
 async function getPayouts({ merchantId = null, status = null, limit = 100 } = {}) {
@@ -362,7 +475,8 @@ async function getPayouts({ merchantId = null, status = null, limit = 100 } = {}
   params.push(Math.max(1, Math.min(Number(limit) || 100, 500)));
 
   const [rows] = await db.query(
-    `SELECT mp.*, m.merchant_name, m.email AS merchant_email
+    `SELECT mp.*, m.merchant_name, m.email AS merchant_email, m.user_id AS merchant_user_id,
+            m.stripe_account_id, m.stripe_account_payouts_enabled, m.stripe_account_details_submitted
      FROM merchant_payout mp
      JOIN merchant m ON m.merchant_id = mp.merchant_id
      ${where}
@@ -376,9 +490,11 @@ async function getPayouts({ merchantId = null, status = null, limit = 100 } = {}
 
 async function getPayoutById(payoutId) {
   await ensurePayoutSchema();
+  const processorFee = paymentModel.processorFeeExpression('p');
 
   const [[payout]] = await db.query(
-    `SELECT mp.*, m.merchant_name, m.email AS merchant_email
+    `SELECT mp.*, m.merchant_name, m.email AS merchant_email, m.user_id AS merchant_user_id,
+            m.stripe_account_id, m.stripe_account_payouts_enabled, m.stripe_account_details_submitted
      FROM merchant_payout mp
      JOIN merchant m ON m.merchant_id = mp.merchant_id
      WHERE mp.payout_id = ?
@@ -394,9 +510,9 @@ async function getPayoutById(payoutId) {
        p.payment_id,
        p.amount AS gross_amount,
        ROUND(p.amount * ?, 2) AS platform_commission,
-       COALESCE(p.processor_fee_amount, 0) AS processor_fee_amount,
+       ${processorFee} AS processor_fee_amount,
        COALESCE(p.dispute_fee_amount, 0) AS dispute_fee_amount,
-       GREATEST(ROUND(p.amount * ?, 2) - COALESCE(p.processor_fee_amount, 0) - COALESCE(p.dispute_fee_amount, 0), 0) AS payout_amount,
+       GREATEST(ROUND(p.amount * ?, 2) - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0) AS payout_amount,
        s.service_name,
        ts.slot_date,
        ts.start_time,
@@ -414,9 +530,30 @@ async function getPayoutById(payoutId) {
   return { payout, items };
 }
 
+async function markPayoutProcessing(payoutId, { stripeTransferStatus = null, adminNote = null } = {}) {
+  await ensurePayoutSchema();
+  const [result] = await db.query(
+    `UPDATE merchant_payout
+     SET status = 'processing',
+         stripe_transfer_status = ?,
+         admin_note = COALESCE(?, admin_note)
+     WHERE payout_id = ?
+       AND status = 'pending'`,
+    [
+      stripeTransferStatus ? String(stripeTransferStatus).slice(0, 64) : null,
+      adminNote ? String(adminNote).slice(0, 500) : null,
+      payoutId,
+    ]
+  );
+  return result.affectedRows;
+}
+
 async function markPayoutPaid(payoutId, adminUserId, { payoutReference = null, adminNote = null } = {}) {
   await ensurePayoutSchema();
   const connection = await db.getConnection();
+  const transferId = payoutReference && String(payoutReference).startsWith('tr_')
+    ? String(payoutReference).slice(0, 255)
+    : null;
 
   try {
     await connection.beginTransaction();
@@ -425,6 +562,9 @@ async function markPayoutPaid(payoutId, adminUserId, { payoutReference = null, a
       `UPDATE merchant_payout
        SET status = 'paid',
            payout_reference = ?,
+           stripe_transfer_id = COALESCE(?, stripe_transfer_id),
+           stripe_transfer_status = COALESCE(?, stripe_transfer_status),
+           stripe_transfer_error = NULL,
            admin_note = ?,
            paid_by = ?,
            paid_at = NOW()
@@ -432,6 +572,8 @@ async function markPayoutPaid(payoutId, adminUserId, { payoutReference = null, a
          AND status IN ('pending','processing')`,
       [
         payoutReference ? String(payoutReference).slice(0, 255) : null,
+        transferId,
+        transferId ? 'created' : null,
         adminNote ? String(adminNote).slice(0, 500) : null,
         adminUserId || null,
         payoutId,
@@ -459,6 +601,20 @@ async function markPayoutPaid(payoutId, adminUserId, { payoutReference = null, a
   }
 }
 
+async function markPayoutFailed(payoutId, errorMessage) {
+  await ensurePayoutSchema();
+  const [result] = await db.query(
+    `UPDATE merchant_payout
+     SET status = 'failed',
+         stripe_transfer_status = 'failed',
+         stripe_transfer_error = ?
+     WHERE payout_id = ?
+       AND status IN ('pending','processing')`,
+    [String(errorMessage || 'Stripe transfer failed').slice(0, 1000), payoutId]
+  );
+  return result.affectedRows;
+}
+
 async function getMerchantPayoutOverview(merchantId) {
   await ensurePayoutSchema();
 
@@ -484,8 +640,13 @@ module.exports = {
   getEligiblePayoutBookings,
   createMerchantPayout,
   getPayoutSummary,
+  getEligibleWeeklyTrend,
+  getOutstandingBreakdown,
+  getEligibleMerchantSizeBuckets,
   getPayouts,
   getPayoutById,
+  markPayoutProcessing,
   markPayoutPaid,
+  markPayoutFailed,
   getMerchantPayoutOverview,
 };

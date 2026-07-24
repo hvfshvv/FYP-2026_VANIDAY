@@ -531,9 +531,16 @@ function extractStripePaymentDetails(intent) {
   const balanceTransactionId = balanceTransaction && typeof balanceTransaction === 'object'
     ? balanceTransaction.id
     : balanceTransaction;
-  const processorFeeAmount = balanceTransaction && typeof balanceTransaction === 'object'
+  const amount = Number(intent.amount_received || intent.amount || 0) / 100;
+  const paymentMethod = intent.metadata?.payment_method
+    || latestCharge?.payment_method_details?.type
+    || 'stripe';
+  const actualProcessorFeeAmount = balanceTransaction && typeof balanceTransaction === 'object'
     ? Number(balanceTransaction.fee || 0) / 100
     : 0;
+  const processorFeeAmount = actualProcessorFeeAmount > 0
+    ? actualProcessorFeeAmount
+    : paymentModel.calculateEstimatedProcessorFee(amount, paymentMethod);
 
   return {
     paymentStatus: intent.status === 'succeeded' ? 'paid' : intent.status === 'canceled' ? 'failed' : 'pending',
@@ -543,7 +550,7 @@ function extractStripePaymentDetails(intent) {
     balanceTransactionId: balanceTransactionId || null,
     processorFeeAmount,
     stripeStatus: intent.status,
-    amount: Number(intent.amount_received || intent.amount || 0) / 100,
+    amount,
     currency: intent.currency,
     receiptUrl: latestCharge ? latestCharge.receipt_url : null,
     checkoutSessionId: null,

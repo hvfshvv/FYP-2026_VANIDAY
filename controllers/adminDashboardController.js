@@ -235,7 +235,7 @@ async function showRevenueReport(req, res) {
     const report = await adminDashboardModel.getPlatformRevenueReport(range);
 
     res.render('admin/revenue', {
-      title: 'Revenue Report',
+      title: 'Revenue Summary',
       report,
       range,
       error: null,
@@ -243,7 +243,7 @@ async function showRevenueReport(req, res) {
   } catch (err) {
     console.error(err);
     res.render('admin/revenue', {
-      title: 'Revenue Report',
+      title: 'Revenue Summary',
       report: emptyRevenueReport(),
       range,
       error: 'Failed to load revenue report.',
