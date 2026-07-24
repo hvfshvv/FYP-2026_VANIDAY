@@ -44,7 +44,7 @@
   <div class="card border-0 mb-4" style="border-radius:var(--r-xl);box-shadow:var(--shadow-sm);">
     <div class="card-body p-4">
       <h5 style="font-weight:800;color:var(--ink);">Automated settlement</h5>
-      <p style="color:var(--muted);font-size:.9rem;margin-bottom:0;">Payout batches are created and credited by the automated weekly payout run. Merchants are notified when the batch is credited.</p>
+      <p style="color:var(--muted);font-size:.9rem;margin-bottom:0;">Payout batches are created and credited by the automated Monday payout run. Merchants are notified when the batch is credited.</p>
       <% if (payout.stripe_transfer_id || payout.payout_reference) { %>
       <p class="mono mt-3 mb-0" style="color:var(--muted);font-size:.82rem;">Reference: <%= payout.stripe_transfer_id || payout.payout_reference %></p>
       <% } %>

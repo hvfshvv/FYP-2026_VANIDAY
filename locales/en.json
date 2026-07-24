@@ -548,7 +548,7 @@
     "termsIntro": "Effective version: 2026-07. By using Uniday, customers and merchants agree to the booking, payment, cancellation, refund, payout, and account rules shown on the platform.",
     "termsCustomerBody": "Customer terms: Customers must provide accurate booking and contact details, complete payment before the payment hold expires, attend appointments on time, and follow the cancellation/rescheduling rules shown before checkout.",
     "termsMerchantBody": "Merchant terms: Merchants must keep services, prices, availability, staff, and business details accurate. Merchants are responsible for fulfilling confirmed bookings or resolving merchant-caused cancellations according to Uniday policy.",
-    "termsPayoutBody": "Merchant payout terms: Uniday keeps a 10% platform commission from paid bookings. The merchant share is 90% of the paid booking amount minus Stripe processing fees and any dispute fees. Eligible completed paid bookings from past weeks are grouped into one weekly payout batch per merchant.",
+    "termsPayoutBody": "Merchant payout terms: Uniday keeps a 10% platform commission from paid bookings. The merchant share is 90% of the paid booking amount minus Stripe processing fees and any dispute fees. Payouts are generated every Monday. Eligible completed paid bookings with appointment dates before the current Monday are grouped into one weekly payout batch per merchant.",
     "termsPolicyPrefix": "All paid bookings are subject to the",
     "termsSuspensionBody": "Uniday may suspend accounts for fraud, abuse, repeated no-shows, payment abuse, or misuse of platform features.",
     "privacyIntro": "Uniday collects only the account, booking, payment status, notification, payout, and support information needed to operate the platform.",
@@ -569,11 +569,11 @@
     "acceptCheckboxPrefix": "I agree to Uniday's",
     "acceptButton": "Accept and Continue",
     "signupAgreementPrefix": "I agree to Uniday's",
-    "signupAgreementPolicy": "and platform refund/payout rules: customer cancellations more than 24 hours before appointment receive 95%, 6-24 hours receive 50%, less than 6 hours/no-show receive 0%, merchant-caused cancellations receive 100%, and merchant payout is 90% minus processor/dispute fees after Uniday's 10% commission.",
+    "signupAgreementPolicy": "and platform refund/payout rules: customer cancellations more than 24 hours before appointment receive 95%, 6-24 hours receive 50%, less than 6 hours/no-show receive 0%, merchant-caused cancellations receive 100%, and merchant payout is generated every Monday as 90% minus processor/dispute fees after Uniday's 10% commission.",
     "bodyAppointments": "Merchants agree to honour confirmed appointments, maintain accurate service availability, and keep business contact details up to date.",
     "bodyRefundRules": "Merchants accept Uniday admin-set platform cancellation, refund, and rescheduling rules. Customer-caused cancellations receive 95%, 50%, or 0% refund depending on timing. Rescheduling is allowed until 6 hours before the appointment, subject to merchant availability, with no additional charge and the existing payment transferred to the new booking.",
     "bodyProcessingFees": "Merchants absorb Stripe/payment gateway processing fees and any dispute fees connected to their bookings. These fees are deducted from the merchant payout where applicable.",
-    "bodyPayoutRules": "Uniday keeps a 10% platform commission. Merchant payout is calculated as 90% of the paid booking amount minus processor and dispute fees. Eligible completed paid bookings from past weeks are grouped into one weekly payout batch per merchant, and each booking can only be added to one payout batch after meeting all payout requirements.",
+    "bodyPayoutRules": "Uniday keeps a 10% platform commission. Merchant payout is calculated as 90% of the paid booking amount minus processor and dispute fees. Payouts are generated every Monday. Eligible completed paid bookings with appointment dates before the current Monday are grouped into one weekly payout batch per merchant, and each booking can only be added to one payout batch after meeting all payout requirements.",
     "bodyStricterSettings": "Cancellation, refund, rescheduling, payout, and fee rules are set by Uniday admin and apply to all merchants. Merchants cannot edit or override these platform terms."
   },
   "merchantPolicy": {

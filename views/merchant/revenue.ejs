@@ -37,6 +37,12 @@
     const money = value => 'S$' + Number(value || 0).toFixed(2);
     const dateTime = value => value ? new Date(value).toLocaleString('en-SG', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
     const gatewayFees = row => Number(row.processor_fee_amount || 0) + Number(row.dispute_fee_amount || 0);
+    const paymentStatusLabel = status => status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unpaid';
+    const paymentStatusStyle = status => {
+      if (status === 'paid') return 'background:var(--success-bg);color:var(--success);';
+      if (status === 'pending') return 'background:var(--warn-bg);color:var(--warn);';
+      return 'background:var(--accent-light);color:var(--accent);';
+    };
     const monthFees = Number(summary.month_processor_fees || 0) + Number(summary.month_dispute_fees || 0);
   %>
   <a href="/merchant/dashboard?month=<%= selectedPeriod %>" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
@@ -129,8 +135,8 @@
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
       <div>
         <p class="section-label mb-1">Ready For Payout</p>
-        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Completed bookings up to <%= eligibleThroughLabel %></h5>
-        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">This updates daily and includes completed, paid, non-refunded bookings that are not in a payout batch yet.</p>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Completed bookings before Monday, <%= payoutCutoffLabel %></h5>
+        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Payouts are generated every Monday and include completed, paid, non-refunded bookings that are not in a payout batch yet.</p>
       </div>
       <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">Pending payout</span>
     </div>
@@ -277,8 +283,8 @@
             <td style="font-family:var(--font-mono);"><%= t.amount ? 'S$' + gatewayFees(t).toFixed(2) : '—' %></td>
             <td style="font-weight:700;color:var(--success);font-family:var(--font-mono);"><%= t.merchant_earnings ? 'S$' + Number(t.merchant_earnings).toFixed(2) : '—' %></td>
             <td>
-              <span class="badge" style="background:<%= t.payment_status==='paid'?'var(--success-bg)':t.payment_status==='pending'?'var(--warn-bg)':'var(--accent-light)' %>;color:<%= t.payment_status==='paid'?'var(--success)':t.payment_status==='pending'?'var(--warn)':'var(--accent)' %>;">
-                <%= t.payment_status ? t.payment_status.charAt(0).toUpperCase() + t.payment_status.slice(1) : 'Unpaid' %>
+              <span class="badge" style="<%= paymentStatusStyle(t.payment_status) %>">
+                <%= paymentStatusLabel(t.payment_status) %>
               </span>
             </td>
           </tr>

@@ -186,18 +186,39 @@ async function buildSessionUser(user) {
 function finishLogin(req, res, user, next) {
   req.session.user = user;
 
-  if (user.role === 'merchant') {
-    if (user.verification_status === 'pending') return res.redirect('/auth/merchant-pending');
-    if (user.verification_status === 'rejected') return res.redirect('/auth/merchant-rejected');
-    if (!user.terms_accepted_at) return res.redirect('/auth/merchant-terms');
-    return res.redirect('/merchant/dashboard');
-  }
+  const redirectAfterSave = () => {
+    if (user.role === 'merchant') {
+      if (user.verification_status === 'pending') return res.redirect('/auth/merchant-pending');
+      if (user.verification_status === 'rejected') return res.redirect('/auth/merchant-rejected');
+      if (!user.terms_accepted_at) return res.redirect('/auth/merchant-terms');
+      return res.redirect('/merchant/dashboard');
+    }
 
-  if (user.role === 'admin') {
-    return res.redirect('/admin/dashboard');
-  }
+    if (user.role === 'admin') {
+      return res.redirect('/admin/dashboard');
+    }
 
-  res.redirect(next || '/');
+    res.redirect(next || '/');
+  };
+
+  return req.session.save((err) => {
+    if (err) {
+      console.error('[auth] Failed to save login session:', err.message);
+    }
+    redirectAfterSave();
+  });
+}
+
+function finishMerchantTermsAcceptance(req, res) {
+  req.session.user.terms_accepted_at = new Date();
+  req.session.user.terms_version = '2026-07';
+
+  return req.session.save((err) => {
+    if (err) {
+      console.error('[auth] Failed to save merchant terms session:', err.message);
+    }
+    res.redirect('/merchant/dashboard');
+  });
 }
 
 function showLogin(req, res) {
@@ -878,9 +899,7 @@ async function acceptMerchantTerms(req, res) {
     }
 
     await authModel.acceptMerchantTerms(req.session.user.user_id, '2026-07');
-    req.session.user.terms_accepted_at = new Date();
-    req.session.user.terms_version = '2026-07';
-    res.redirect('/merchant/dashboard');
+    finishMerchantTermsAcceptance(req, res);
   } catch (err) {
     console.error(err);
     res.status(500).render('auth/merchantTermsAccept', {

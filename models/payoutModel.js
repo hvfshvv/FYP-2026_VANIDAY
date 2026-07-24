@@ -11,11 +11,11 @@ function roundMoney(value) {
   return Math.round(Number(value || 0) * 100) / 100;
 }
 
-function thursdayOf(date) {
+function mondayOf(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
-  const daysSinceThursday = (d.getDay() + 3) % 7;
-  d.setDate(d.getDate() - daysSinceThursday);
+  const daysSinceMonday = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - daysSinceMonday);
   return d;
 }
 
@@ -26,11 +26,11 @@ function localDateKey(date) {
 
 function fillWeeklySeries(rows, weeks, valueKey = 'value') {
   const byWeek = new Map(rows.map(row => [localDateKey(row.week_start), Number(row[valueKey] || 0)]));
-  const currentThursday = thursdayOf(new Date());
+  const currentMonday = mondayOf(new Date());
   const out = [];
 
   for (let i = weeks - 1; i >= 0; i -= 1) {
-    const date = new Date(currentThursday);
+    const date = new Date(currentMonday);
     date.setDate(date.getDate() - i * 7);
     const key = localDateKey(date);
     out.push({ week_start: key, value: roundMoney(byWeek.get(key) || 0) });
@@ -40,11 +40,11 @@ function fillWeeklySeries(rows, weeks, valueKey = 'value') {
 }
 
 function payoutCutoffSql() {
-  return 'CURDATE()';
+  return currentPayoutCycleStartSql();
 }
 
 function currentPayoutCycleStartSql() {
-  return 'DATE_SUB(CURDATE(), INTERVAL MOD(WEEKDAY(CURDATE()) + 4, 7) DAY)';
+  return 'DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)';
 }
 
 async function ensurePayoutSchema() {

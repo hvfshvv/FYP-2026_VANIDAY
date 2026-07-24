@@ -29,6 +29,7 @@ const bookingNotificationModel = require('./models/bookingNotificationModel');
 const notificationModel = require('./models/notificationModel');
 const waitlistModel = require('./models/waitlistModel');
 const i18nMiddleware = require('./middleware/i18n');
+const MySqlSessionStore = require('./utils/mysqlSessionStore');
 
 const app = express();
 
@@ -42,11 +43,23 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.set('trust proxy', 1);
+
+const isVercel = process.env.VERCEL === '1';
+
 app.use(session({
+  store: new MySqlSessionStore(),
+  name: 'uniday.sid',
   secret: process.env.SESSION_SECRET || 'uniday-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 24 }
+  proxy: true,
+  cookie: {
+    secure: isVercel || process.env.COOKIE_SECURE === 'true',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 24
+  }
 }));
 
 app.use(i18nMiddleware);

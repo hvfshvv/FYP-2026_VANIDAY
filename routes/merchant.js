@@ -319,8 +319,9 @@ router.get('/revenue', async (req, res) => {
     month: 'long',
     year: 'numeric',
   });
-  const eligibleThroughDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  const eligibleThroughLabel = eligibleThroughDate.toLocaleDateString('en-SG', {
+  const currentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  currentMonday.setDate(currentMonday.getDate() - ((currentMonday.getDay() + 6) % 7));
+  const payoutCutoffLabel = currentMonday.toLocaleDateString('en-SG', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -350,7 +351,7 @@ router.get('/revenue', async (req, res) => {
     selectedPeriod,
     currentPeriod,
     periodLabel,
-    eligibleThroughLabel,
+    payoutCutoffLabel,
     payoutOverview,
     stripeAccount,
     success: req.query.success || null,

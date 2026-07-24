@@ -264,7 +264,7 @@
     <div>
       <p class="section-label mb-2">Admin Finance</p>
       <h2 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Merchant Payouts</h2>
-      <p style="color:var(--muted);margin-bottom:0;">Automatically creates one weekly payout batch per merchant from eligible completed paid bookings up to yesterday.</p>
+      <p style="color:var(--muted);margin-bottom:0;">Automatically creates one Monday payout batch per merchant from eligible completed paid bookings with appointment dates before the current Monday.</p>
     </div>
     <form method="GET" action="/admin/payouts" class="d-flex gap-2 align-items-center">
       <select name="status" class="form-select rounded-xl" style="width:170px;">
@@ -299,7 +299,7 @@
         <% } else { %>
         <p class="payout-stat-sub" style="margin-top:0;">No payout-ready revenue in the last 8 cycles.</p>
         <% } %>
-        <p class="payout-stat-sub"><%= number(summary.eligible_booking_count) %> completed paid bookings ready for the next weekly batch</p>
+        <p class="payout-stat-sub"><%= number(summary.eligible_booking_count) %> completed paid bookings ready for the next Monday batch</p>
       </div>
     </div>
 
@@ -366,7 +366,7 @@
         </div>
         <% }) %>
         <% } else { %>
-        <p class="payout-stat-sub" style="margin-top:0;">All payouts are up to date. The next weekly batch will be generated automatically.</p>
+        <p class="payout-stat-sub" style="margin-top:0;">All payouts are up to date. The next batch will be generated automatically on Monday.</p>
         <% } %>
       </div>
     </div>
@@ -461,7 +461,7 @@
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
       <div>
         <h5 class="payout-panel-title"><i class="bi bi-cash-coin"></i>Eligible Merchant Payouts</h5>
-        <p style="color:var(--muted);margin:0;font-size:.9rem;">Only completed bookings up to yesterday with paid, non-refunded, held payments appear here. Gross merchant revenue is masked; settlement is visible for finance reconciliation.</p>
+        <p style="color:var(--muted);margin:0;font-size:.9rem;">Only completed bookings before the current Monday with paid, non-refunded, held payments appear here. Gross merchant revenue is masked; settlement is visible for finance reconciliation.</p>
       </div>
     </div>
     <div class="table-responsive">
@@ -493,7 +493,7 @@
           </tr>
           <% }) %>
           <% if (!eligibleGroups.length) { %>
-          <tr><td colspan="7" class="text-center py-4" style="color:var(--muted);">All payouts are up to date. The next weekly batch will be generated automatically when bookings become eligible.</td></tr>
+          <tr><td colspan="7" class="text-center py-4" style="color:var(--muted);">All payouts are up to date. The next Monday batch will be generated automatically when bookings become eligible.</td></tr>
           <% } %>
         </tbody>
         <% if (eligibleGroups.length) { %>
