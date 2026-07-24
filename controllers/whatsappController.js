@@ -21,6 +21,21 @@ const categories = {
   8: 'Spa'
 };
 
+const SUPPORT_CATEGORY_OPTIONS = [
+  { number: '1', label: 'Booking', value: 'booking' },
+  { number: '2', label: 'Payment', value: 'payment' },
+  { number: '3', label: 'Refund', value: 'refund' },
+  { number: '4', label: 'Voucher / Promotion', value: 'voucher_promotion' },
+  { number: '5', label: 'WhatsApp', value: 'whatsapp' },
+  { number: '6', label: 'Account', value: 'account' },
+  { number: '7', label: 'Merchant', value: 'merchant' },
+  { number: '8', label: 'Technical', value: 'technical' },
+  { number: '9', label: 'Other', value: 'other' }
+];
+
+const SUPPORT_DESCRIPTION_PROMPT =
+  'Please describe the issue. Include your booking ID if relevant, but do not send passwords, OTPs or payment-card details.';
+
 function getMainMenu() {
   return (
     'Hi, welcome to Uniday!\n' +
@@ -32,6 +47,16 @@ function getMainMenu() {
     '5. Help / Support\n\n' +
     'Reply with 1, 2, 3, 4, or 5.\n' +
     'Type menu anytime to restart.'
+  );
+}
+
+function getSupportCategoryMenu() {
+  return (
+    'What kind of support do you need?\n\n' +
+    SUPPORT_CATEGORY_OPTIONS.map(function (option) {
+      return option.number + '. ' + option.label;
+    }).join('\n') +
+    '\n\nReply with 1 to 9. Reply 0 or back to return to the main menu.'
   );
 }
 
@@ -199,21 +224,6 @@ function getSupportHoursStatus() {
   };
 }
 
-function getSupportPrompt(status) {
-  if (status.isDuringSupportHours) {
-    return (
-      'A Uniday support agent is available now.\n\n' +
-      'Please describe your issue and we will add you to the live support queue.'
-    );
-  }
-
-  return (
-    'Our live agents are offline right now.\n' +
-    'Support hours are ' + status.label + '.\n\n' +
-    'Please describe your issue and we will follow up during the next working period.'
-  );
-}
-
 function isMainMenuCommand(message) {
   return ['reset', 'restart', 'menu', 'hi', 'hello'].includes(message);
 }
@@ -222,17 +232,26 @@ function isGlobalSupportCommand(message) {
   return message === 'support' || message === 'help';
 }
 
+function getSupportCategoryFromMessage(message) {
+  const normalized = String(message || '').trim().toLowerCase();
+  const selected = SUPPORT_CATEGORY_OPTIONS.find(function (option) {
+    return option.number === normalized || option.value === normalized;
+  });
+
+  return selected ? selected.value : null;
+}
+
 async function startSupportSession(sender, twiml) {
   const customer = await getVerifiedCustomerForSender(sender);
   const supportStatus = getSupportHoursStatus();
 
   await saveSession(sender, {
-    state: 'support_awaiting_issue',
+    state: 'support_awaiting_category',
     customer: customer,
     supportStatus: supportStatus
   });
 
-  twiml.message(getSupportPrompt(supportStatus));
+  twiml.message(getSupportCategoryMenu());
 }
 
 function formatBookingDate(value) {
@@ -686,6 +705,8 @@ async function goBack(sender, twiml) {
     twiml.message(getDatePrompt(previous.service));
   } else if (previous.state === 'choosing_time_slot') {
     twiml.message(getTimeSlotMenu(previous.bookingDate, previous.slots));
+  } else if (previous.state === 'support_awaiting_category') {
+    twiml.message(getSupportCategoryMenu());
   } else {
     await clearSession(sender, 'completed');
     twiml.message(getMainMenu());
@@ -1149,20 +1170,40 @@ async function receiveMessage(req, res) {
       } else {
         twiml.message('Please reply YES to reschedule this booking, or NO to keep your current booking.');
       }
+    } else if (session && session.state === 'support_awaiting_category') {
+      const supportCategory = getSupportCategoryFromMessage(message);
+
+      if (!supportCategory) {
+        twiml.message(
+          'Please choose a support category from 1 to 9.\n\n' +
+          getSupportCategoryMenu()
+        );
+      } else {
+        await saveSession(sender, {
+          state: 'support_awaiting_issue',
+          customer: session.customer || null,
+          supportStatus: session.supportStatus || getSupportHoursStatus(),
+          supportCategory: supportCategory
+        });
+
+        twiml.message(SUPPORT_DESCRIPTION_PROMPT);
+      }
     } else if (session && session.state === 'support_awaiting_issue') {
       const issue = incomingMessage.trim();
 
       if (!issue) {
-        twiml.message('Please describe your issue so a Uniday support staff can follow up.');
+        twiml.message(SUPPORT_DESCRIPTION_PROMPT);
       } else {
+        const supportStatus = session.supportStatus || getSupportHoursStatus();
         const ticketId = await supportModel.createWhatsAppSupportRequest({
           customerId: session.customer ? session.customer.customer_id : null,
           phone: String(sender || '').replace('whatsapp:', ''),
           message: issue,
-          isDuringSupportHours: session.supportStatus.isDuringSupportHours
+          isDuringSupportHours: supportStatus.isDuringSupportHours,
+          category: supportModel.normalizeSupportCategory(session.supportCategory)
         });
 
-        if (session.supportStatus.isDuringSupportHours) {
+        if (supportStatus.isDuringSupportHours) {
           twiml.message(
             'Thanks. You have been added to the live support queue.\n\n' +
             'Support Request ID: ' + ticketId + '\n' +

@@ -3,6 +3,15 @@
 
 <%
   const rows = Array.isArray(logs) ? logs : [];
+  const pager = pagination || {
+    currentPage: 1,
+    totalPages: 1,
+    totalLogs: 0,
+    startItem: 0,
+    endItem: 0,
+    hasPrevious: false,
+    hasNext: false
+  };
   const mysqlUtcToDate = value => {
     if (!value) return null;
 
@@ -37,6 +46,68 @@
   };
   const label = value => String(value || '-').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const messageLines = value => String(value || '').split('\n').filter(Boolean);
+  const supportTemplates = [
+    { key:'acknowledgement', label:'Acknowledgement' },
+    { key:'booking_issue', label:'Booking Issue' },
+    { key:'payment_issue', label:'Payment Issue' },
+    { key:'refund_issue', label:'Refund Issue' },
+    { key:'voucher_promotion_issue', label:'Voucher / Promotion Issue' },
+    { key:'whatsapp_issue', label:'WhatsApp Issue' },
+    { key:'account_issue', label:'Account Issue' },
+    { key:'merchant_issue', label:'Merchant Issue' },
+    { key:'technical_issue', label:'Technical Issue' },
+    { key:'more_information', label:'Request More Information' },
+    { key:'issue_resolved', label:'Issue Resolved' },
+  ];
+  const templateLabels = supportTemplates.reduce((labels, template) => {
+    labels[template.key] = template.label;
+    return labels;
+  }, {});
+  const categoryTemplateMap = {
+    booking: 'booking_issue',
+    payment: 'payment_issue',
+    refund: 'refund_issue',
+    voucher_promotion: 'voucher_promotion_issue',
+    whatsapp: 'whatsapp_issue',
+    account: 'account_issue',
+    merchant: 'merchant_issue',
+    technical: 'technical_issue',
+    other: 'acknowledgement',
+    waiting_for_agent: 'acknowledgement',
+    after_hours: 'acknowledgement'
+  };
+  const recommendedSupportTemplate = row => {
+    const errorType = String(row && row.error_type || '').toLowerCase();
+    return categoryTemplateMap[errorType] || 'acknowledgement';
+  };
+  const getMessageField = (value, fieldName) => {
+    const prefix = `${fieldName}:`;
+    const line = messageLines(value).find(item => item.toLowerCase().startsWith(prefix.toLowerCase()));
+    return line ? line.slice(prefix.length).trim() : '';
+  };
+  const supportDisplayName = row => {
+    if (row.customer_name) return row.customer_name;
+    if (row.module === 'web_support') {
+      const submittedName = getMessageField(row.error_message, 'Name');
+      return submittedName && submittedName !== '-' ? `${submittedName} (Guest Web User)` : 'Guest Web User';
+    }
+    if (row.module === 'whatsapp_support') return 'Unlinked WhatsApp user';
+    return 'Unlinked user';
+  };
+  const pageHref = page => {
+    const params = new URLSearchParams();
+    if (String(filters.search || '').trim()) params.set('search', String(filters.search).trim());
+    if (filters.module) params.set('module', filters.module);
+    if (filters.status) params.set('status', filters.status);
+    params.set('page', String(page));
+    return `/admin/validation?${params.toString()}`;
+  };
+  const firstPageNumber = Math.max(1, pager.currentPage - 2);
+  const lastPageNumber = Math.min(pager.totalPages, firstPageNumber + 4);
+  const pageNumbers = [];
+  for (let pageNumber = Math.max(1, lastPageNumber - 4); pageNumber <= lastPageNumber; pageNumber += 1) {
+    pageNumbers.push(pageNumber);
+  }
 %>
 
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
@@ -66,10 +137,24 @@
     </div>
     <% } %>
 
+    <% if (query && query.replyKeptOpen) { %>
+    <div class="alert alert-success mb-4">
+      <i class="bi bi-whatsapp"></i>
+      <span>WhatsApp reply sent and request kept open.</span>
+    </div>
+    <% } %>
+
     <% if (query && query.webReplySent) { %>
     <div class="alert alert-success mb-4">
       <i class="bi bi-envelope-check"></i>
       <span>Email reply sent and web support request marked as resolved.</span>
+    </div>
+    <% } %>
+
+    <% if (query && query.webReplyKeptOpen) { %>
+    <div class="alert alert-success mb-4">
+      <i class="bi bi-envelope-check"></i>
+      <span>Email reply sent and web support request kept open.</span>
     </div>
     <% } %>
 
@@ -89,6 +174,12 @@
           Web support request not found.
         <% } else if (query.error === 'webReplyAuth') { %>
           Admin access is required.
+        <% } else if (query.error === 'webReplyAction') { %>
+          Please choose whether to keep the web support request open or resolve it.
+        <% } else if (query.error === 'replyAction') { %>
+          Please choose whether to keep the WhatsApp support request open or resolve it.
+        <% } else if (query.error === 'replyResolved') { %>
+          That WhatsApp support request is already resolved.
         <% } else { %>
           Unable to complete that action.
         <% } %>
@@ -168,6 +259,15 @@
       </div>
     </form>
 
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+      <p style="color:var(--muted);font-size:.875rem;margin:0;">
+        Showing <%= pager.startItem %>&ndash;<%= pager.endItem %> of <%= pager.totalLogs %> logs
+      </p>
+      <p style="color:var(--muted);font-size:.8125rem;margin:0;">
+        Page <%= pager.currentPage %> of <%= pager.totalPages %>
+      </p>
+    </div>
+
     <% if (!rows.length) { %>
     <div class="card border-0 text-center p-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
       <div class="icon-circle-lg mx-auto mb-3">
@@ -201,7 +301,7 @@
                 <p style="color:var(--muted);margin:.35rem 0 0;"><%= label(row.error_type) %></p>
               </td>
               <td style="min-width:190px;">
-                <p style="font-weight:800;color:var(--ink);margin-bottom:.15rem;"><%= row.customer_name || 'Unlinked WhatsApp user' %></p>
+                <p style="font-weight:800;color:var(--ink);margin-bottom:.15rem;"><%= supportDisplayName(row) %></p>
                 <p style="color:var(--muted);margin:0;"><%= row.customer_email || '-' %></p>
                 <p style="color:var(--muted);margin:.15rem 0 0;"><%= row.customer_phone || '-' %></p>
               </td>
@@ -218,7 +318,22 @@
               <td><%= fmtDateTime(row.created_at) %></td>
               <td>
                 <% if (!row.is_resolved && row.module === 'whatsapp_support') { %>
+                <% const recommendedTemplate = recommendedSupportTemplate(row); %>
                 <form method="POST" action="/admin/validation/<%= row.log_id %>/reply" class="d-grid gap-2">
+                  <div>
+                    <p style="color:var(--muted);font-size:.72rem;font-weight:700;margin:0 0 .45rem;">Choose a template to draft a reply. Review and edit it before sending.</p>
+                    <div class="d-grid gap-2">
+                      <button type="button" class="btn btn-outline-primary btn-sm btn-pill" data-support-template-key="<%= recommendedTemplate %>" style="font-size:.72rem;font-weight:800;">
+                        <i class="bi bi-lightning-charge me-1"></i>Suggested: <%= templateLabels[recommendedTemplate] %>
+                      </button>
+                      <select class="form-select form-select-sm rounded-xl" data-support-template-select aria-label="Other WhatsApp support reply templates">
+                        <option value="">Other templates</option>
+                        <% supportTemplates.forEach(template => { %>
+                        <option value="<%= template.key %>"><%= template.label %></option>
+                        <% }) %>
+                      </select>
+                    </div>
+                  </div>
                   <textarea
                     name="reply"
                     class="form-control rounded-xl"
@@ -227,9 +342,12 @@
                     placeholder="Type Uniday support reply..."
                     required
                   ></textarea>
-                  <div class="d-flex gap-2 justify-content-end">
-                    <button class="btn btn-primary btn-sm btn-pill" style="font-weight:800;">
-                      <i class="bi bi-whatsapp me-1"></i>Send Reply
+                  <div class="d-flex flex-wrap gap-2 justify-content-end">
+                    <button class="btn btn-outline-primary btn-sm btn-pill" name="action" value="keep_open" style="font-weight:800;">
+                      <i class="bi bi-send me-1"></i>Send Reply &amp; Keep Open
+                    </button>
+                    <button class="btn btn-primary btn-sm btn-pill" name="action" value="resolve" style="font-weight:800;">
+                      <i class="bi bi-whatsapp me-1"></i>Send Reply &amp; Resolve
                     </button>
                   </div>
                 </form>
@@ -239,7 +357,22 @@
                   </button>
                 </form>
                 <% } else if (!row.is_resolved && row.module === 'web_support') { %>
+                <% const recommendedTemplate = recommendedSupportTemplate(row); %>
                 <form method="POST" action="/admin/validation/<%= row.log_id %>/web-reply" class="d-grid gap-2">
+                  <div>
+                    <p style="color:var(--muted);font-size:.72rem;font-weight:700;margin:0 0 .45rem;">Choose a template to draft a reply. Review and edit it before sending.</p>
+                    <div class="d-grid gap-2">
+                      <button type="button" class="btn btn-outline-primary btn-sm btn-pill" data-support-template-key="<%= recommendedTemplate %>" style="font-size:.72rem;font-weight:800;">
+                        <i class="bi bi-lightning-charge me-1"></i>Suggested: <%= templateLabels[recommendedTemplate] %>
+                      </button>
+                      <select class="form-select form-select-sm rounded-xl" data-support-template-select aria-label="Other web support reply templates">
+                        <option value="">Other templates</option>
+                        <% supportTemplates.forEach(template => { %>
+                        <option value="<%= template.key %>"><%= template.label %></option>
+                        <% }) %>
+                      </select>
+                    </div>
+                  </div>
                   <textarea
                     name="reply"
                     class="form-control rounded-xl"
@@ -248,9 +381,12 @@
                     placeholder="Type email reply..."
                     required
                   ></textarea>
-                  <div class="d-flex gap-2 justify-content-end">
-                    <button class="btn btn-primary btn-sm btn-pill" style="font-weight:800;">
-                      <i class="bi bi-envelope me-1"></i>Send Email Reply &amp; Resolve
+                  <div class="d-flex flex-wrap gap-2 justify-content-end">
+                    <button class="btn btn-outline-primary btn-sm btn-pill" name="action" value="keep_open" style="font-weight:800;">
+                      <i class="bi bi-send me-1"></i>Send Reply &amp; Keep Open
+                    </button>
+                    <button class="btn btn-primary btn-sm btn-pill" name="action" value="resolve" style="font-weight:800;">
+                      <i class="bi bi-envelope me-1"></i>Send Reply &amp; Resolve
                     </button>
                   </div>
                 </form>
@@ -275,8 +411,82 @@
         </table>
       </div>
     </div>
+    <nav class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3" aria-label="Validation log pages">
+      <% if (pager.hasPrevious) { %>
+      <a class="btn btn-outline-secondary btn-sm btn-pill" href="<%= pageHref(pager.currentPage - 1) %>">
+        <i class="bi bi-chevron-left me-1"></i>Previous
+      </a>
+      <% } else { %>
+      <span class="btn btn-outline-secondary btn-sm btn-pill disabled" aria-disabled="true">
+        <i class="bi bi-chevron-left me-1"></i>Previous
+      </span>
+      <% } %>
+
+      <div class="d-flex flex-wrap gap-1 justify-content-center" aria-label="Page numbers">
+        <% pageNumbers.forEach(pageNumber => { %>
+        <% if (pageNumber === pager.currentPage) { %>
+        <span class="btn btn-primary btn-sm btn-pill" aria-current="page"><%= pageNumber %></span>
+        <% } else { %>
+        <a class="btn btn-outline-secondary btn-sm btn-pill" href="<%= pageHref(pageNumber) %>"><%= pageNumber %></a>
+        <% } %>
+        <% }) %>
+      </div>
+
+      <% if (pager.hasNext) { %>
+      <a class="btn btn-outline-secondary btn-sm btn-pill" href="<%= pageHref(pager.currentPage + 1) %>">
+        Next<i class="bi bi-chevron-right ms-1"></i>
+      </a>
+      <% } else { %>
+      <span class="btn btn-outline-secondary btn-sm btn-pill disabled" aria-disabled="true">
+        Next<i class="bi bi-chevron-right ms-1"></i>
+      </span>
+      <% } %>
+    </nav>
     <% } %>
   </div>
 </main>
+
+<script>
+  (() => {
+    const templates = Object.freeze({
+      acknowledgement: 'Hi, thanks for contacting Uniday Support. We have received your request and are checking it now. We will update you as soon as possible.',
+      booking_issue: 'Hi, thanks for letting us know. We are checking your booking details and will help you resolve the issue as soon as possible. Please include your booking ID if you have not shared it yet.',
+      payment_issue: 'Hi, thanks for reaching out. We are reviewing your payment issue. Please do not share card details, passwords, or one-time codes. We will update you once we have checked the payment status.',
+      refund_issue: 'Hi, thanks for contacting Uniday Support. We are checking the refund details for your request. Please include the booking ID if you have not shared it yet, and we will update you after reviewing the record.',
+      voucher_promotion_issue: 'Hi, thanks for letting us know. We are reviewing the voucher or promotion issue and checking the eligibility details. We will update you once we have confirmed what happened.',
+      whatsapp_issue: 'Hi, thanks for contacting us. We are checking the WhatsApp notification issue and will follow up once we have reviewed the message status.',
+      account_issue: 'Hi, thanks for contacting Uniday Support. We are checking your account issue now. Please do not share passwords, OTPs, or private security details.',
+      merchant_issue: 'Hi, thanks for letting us know. We are reviewing the merchant-related issue and will follow up once we have checked the details.',
+      technical_issue: 'Hi, thanks for reporting this. We are reviewing the technical issue and checking the affected steps. Please share what you were trying to do if you have not already included it.',
+      more_information: 'Hi, thanks for contacting Uniday Support. Could you please share more details about what happened, including the booking ID if available and the step where the issue occurred?',
+      issue_resolved: 'Hi, thanks for your patience. This issue has been resolved. Please try again and let us know if you still face any problems.'
+    });
+
+    function fillTemplate(control, key) {
+      const template = templates[key];
+      const form = control.closest('form');
+      const textarea = form ? form.querySelector('textarea[name="reply"]') : null;
+
+      if (!template || !textarea) return;
+
+      textarea.value = template;
+      textarea.focus();
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    document.querySelectorAll('[data-support-template-key]').forEach(button => {
+      button.addEventListener('click', () => {
+        fillTemplate(button, button.dataset.supportTemplateKey);
+      });
+    });
+
+    document.querySelectorAll('[data-support-template-select]').forEach(select => {
+      select.addEventListener('change', () => {
+        fillTemplate(select, select.value);
+        select.value = '';
+      });
+    });
+  })();
+</script>
 
 <%- include('../partials/footer') %>

@@ -439,7 +439,7 @@
     { label:'Photo Removal Requests', value:summary.pending_review_requests || 0, icon:'bi-image', color:'var(--warn)', href:'/admin/reviews', alertWhenPositive:true, description:'Merchant review photos waiting for an admin decision.' },
     { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)', href:'/admin/merchant-validations', alertWhenPositive:true, description:'Merchant applications that still need verification.' },
     { label:'Pending Promotion Approvals', value:summary.pending_promotion_approvals || 0, icon:'bi-megaphone', color:'var(--warn)', href:'/admin/promotions', alertWhenPositive:true, description:'Submitted campaigns waiting for approval or rejection.' },
-    { label:'Unresolved Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)', href:'/admin/validation', alertWhenPositive:true, description:'Open validation or support issues that need follow-up.' },
+    { label:'Unresolved Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)', href:'/admin/validation?status=open', alertWhenPositive:true, description:'Open validation or support issues that need follow-up.' },
   ];
   const totalStats = [
     { label:'Active Customers', value:summary.total_customers || 0, icon:'bi-people', color:'var(--accent)', description:'Registered customer accounts that are currently active.' },
@@ -614,7 +614,7 @@
       {
         href:'/admin/validation',
         icon:'bi-shield-exclamation',
-        label:'Validation & Error Logs',
+        label:'View All Validation & Support Logs',
         sub:'Monitor booking failures, payment failures, WhatsApp/API issues, invalid vouchers, and backend validation errors.'
       },
       {

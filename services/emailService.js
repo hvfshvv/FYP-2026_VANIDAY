@@ -596,13 +596,22 @@ async function sendWaitlistOfferEmail(entry, confirmUrl = null) {
 
 async function sendWebSupportReplyEmail(request) {
   const reference = `SUP-${request.log_id}`;
+  const action = request.action === 'keep_open' ? 'keep_open' : 'resolve';
+  const isResolvedReply = action === 'resolve';
   const name = request.customer_name || 'there';
   const category = request.error_type || 'support';
   const reply = request.reply || '';
+  const subject = isResolvedReply
+    ? `Uniday Support Request Resolved — ${reference}`
+    : `Update on Your Uniday Support Request — ${reference}`;
+  const intro = isResolvedReply
+    ? 'Your Uniday support request has been resolved.'
+    : 'We are currently reviewing your support request. Your request remains open while we investigate.';
+  const heading = isResolvedReply ? 'Support Request Resolved' : 'Support Request Update';
   const text = [
     `Hi ${name},`,
     '',
-    'Uniday has reviewed your support request.',
+    intro,
     `Support reference: ${reference}`,
     `Original issue category: ${category}`,
     '',
@@ -614,13 +623,13 @@ async function sendWebSupportReplyEmail(request) {
 
   return sendMailOrLog({
     to: request.recipient_email,
-    subject: `Uniday Support Reply - ${reference}`,
+    subject,
     text,
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#18181B;">
-        <h2 style="color:#E11D48;margin:0 0 12px;">Uniday Support Reply</h2>
+        <h2 style="color:#E11D48;margin:0 0 12px;">${escapeHtml(heading)}</h2>
         <p>Hi ${escapeHtml(name)},</p>
-        <p>Uniday has reviewed your support request.</p>
+        <p>${escapeHtml(intro)}</p>
         <p><strong>Support reference:</strong> ${escapeHtml(reference)}</p>
         <p><strong>Original issue category:</strong> ${escapeHtml(category)}</p>
         <div style="margin:16px 0;padding:14px 16px;background:#FFF1F2;border:1px solid #FFE4E6;border-radius:12px;">

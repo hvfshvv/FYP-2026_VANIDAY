@@ -9,6 +9,7 @@ const db = require('../config/db');
 
 const TECHNICAL_LOG_MODULES = ['booking', 'payment', 'whatsapp'];
 const MAX_ERROR_MESSAGE_LENGTH = 1000;
+const DEFAULT_LOGS_PER_PAGE = 25;
 
 function normalizeNullableId(value) {
   const number = Number.parseInt(value, 10);
@@ -34,7 +35,7 @@ function sanitizeErrorMessage(value) {
 // ── VALIDATION LOG QUERIES ─────────────────────────────────────────────────
 
 // Returns filtered validation logs — supports module, open/resolved status, and keyword search.
-async function getValidationLogs({ module = 'all', status = 'all', search = '' } = {}) {
+function buildValidationLogFilters({ module = 'all', status = 'all', search = '' } = {}) {
   const filters = [];
   const params = [];
 
@@ -59,6 +60,36 @@ async function getValidationLogs({ module = 'all', status = 'all', search = '' }
 
   const where = filters.length ? 'WHERE ' + filters.join(' AND ') : '';
 
+  return { where, params };
+}
+
+function normalizePositiveInteger(value, fallback) {
+  const raw = String(value || '').trim();
+  if (!/^[1-9]\d*$/.test(raw)) return fallback;
+
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isSafeInteger(parsed) ? parsed : fallback;
+}
+
+// Returns filtered validation logs with pagination.
+async function getValidationLogs({ module = 'all', status = 'all', search = '', page = 1, perPage = DEFAULT_LOGS_PER_PAGE } = {}) {
+  const pageSize = normalizePositiveInteger(perPage, DEFAULT_LOGS_PER_PAGE);
+  const requestedPage = normalizePositiveInteger(page, 1);
+  const { where, params } = buildValidationLogFilters({ module, status, search });
+
+  const [countRows] = await db.query(
+    `SELECT COUNT(*) AS total
+     FROM validation_log vl
+     LEFT JOIN users u ON u.user_id = vl.user_id
+     ${where}`,
+    params
+  );
+
+  const totalLogs = Number(countRows[0] && countRows[0].total) || 0;
+  const totalPages = Math.max(Math.ceil(totalLogs / pageSize), 1);
+  const currentPage = Math.min(requestedPage, totalPages);
+  const offset = (currentPage - 1) * pageSize;
+
   const [rows] = await db.query(
     `SELECT
        vl.log_id,
@@ -76,11 +107,23 @@ async function getValidationLogs({ module = 'all', status = 'all', search = '' }
      LEFT JOIN users u ON u.user_id = vl.user_id
      ${where}
      ORDER BY vl.created_at DESC
-     LIMIT 200`,
-    params
+     LIMIT ? OFFSET ?`,
+    [...params, pageSize, offset]
   );
 
-  return rows;
+  return {
+    logs: rows,
+    pagination: {
+      currentPage,
+      perPage: pageSize,
+      totalLogs,
+      totalPages,
+      startItem: totalLogs ? offset + 1 : 0,
+      endItem: Math.min(offset + rows.length, totalLogs),
+      hasPrevious: currentPage > 1,
+      hasNext: currentPage < totalPages
+    }
+  };
 }
 
 // Returns open/resolved counts and open WhatsApp support ticket count.
@@ -127,11 +170,17 @@ async function getValidationLogById(logId) {
   return rows[0] || null;
 }
 
-// Appends an admin reply to a WhatsApp support log entry and marks it resolved.
-async function appendValidationLogReply(logId, reply, adminName) {
+function shouldResolveFromOptions(options) {
+  return !options || options.resolve !== false;
+}
+
+// Appends an admin reply to a WhatsApp support log entry and optionally marks it resolved.
+async function appendValidationLogReply(logId, reply, adminName, options = {}) {
+  const shouldResolve = shouldResolveFromOptions(options);
   const replyBlock = [
     '',
     'Admin reply by ' + (adminName || 'Uniday Support') + ':',
+    'Status: ' + (shouldResolve ? 'resolved' : 'kept open'),
     String(reply || '').trim(),
     'Reply sent at: ' + new Date().toISOString()
   ].join('\n');
@@ -139,20 +188,24 @@ async function appendValidationLogReply(logId, reply, adminName) {
   const [result] = await db.query(
     `UPDATE validation_log
      SET error_message = CONCAT(error_message, ?),
-         is_resolved = TRUE
-     WHERE log_id = ?`,
-    [replyBlock, logId]
+         is_resolved = CASE WHEN ? THEN TRUE ELSE is_resolved END
+     WHERE log_id = ?
+       AND module = 'whatsapp_support'
+       AND is_resolved = FALSE`,
+    [replyBlock, shouldResolve, logId]
   );
 
   return result.affectedRows;
 }
 
-// Appends a delivered email reply to a web support log entry and marks it resolved.
-async function appendWebSupportEmailReply(logId, reply, adminName) {
+// Appends a delivered email reply to a web support log entry and optionally marks it resolved.
+async function appendWebSupportEmailReply(logId, reply, adminName, options = {}) {
+  const shouldResolve = shouldResolveFromOptions(options);
   const replyBlock = [
     '',
     'Admin reply by ' + (adminName || 'Uniday Support') + ':',
     'Channel: email',
+    'Status: ' + (shouldResolve ? 'resolved' : 'kept open'),
     String(reply || '').trim(),
     'Reply sent at: ' + new Date().toISOString()
   ].join('\n');
@@ -160,11 +213,11 @@ async function appendWebSupportEmailReply(logId, reply, adminName) {
   const [result] = await db.query(
     `UPDATE validation_log
      SET error_message = CONCAT(error_message, ?),
-         is_resolved = TRUE
+         is_resolved = CASE WHEN ? THEN TRUE ELSE is_resolved END
      WHERE log_id = ?
        AND module = 'web_support'
        AND is_resolved = FALSE`,
-    [replyBlock, logId]
+    [replyBlock, shouldResolve, logId]
   );
 
   return result.affectedRows;

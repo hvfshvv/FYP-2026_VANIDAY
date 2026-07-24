@@ -8,6 +8,8 @@ const adminValidationModel = require('../models/adminValidationModel');
 const whatsappNotificationService = require('../services/whatsappNotificationService');
 const emailService = require('../services/emailService');
 
+const VALIDATION_LOGS_PER_PAGE = 25;
+
 // ── PRIVATE HELPERS ────────────────────────────────────────────────────────
 
 // Extracts the customer phone number from a validation log entry (used for WhatsApp replies).
@@ -52,6 +54,19 @@ function isDeliveredEmailResult(result) {
   return Boolean(result && result.sent === true && result.provider !== 'noop' && !result.skipped);
 }
 
+function normalizeReplyAction(value) {
+  const action = String(value || '').trim();
+  return action === 'keep_open' || action === 'resolve' ? action : null;
+}
+
+function normalizePageQuery(value) {
+  const raw = String(value || '').trim();
+  if (!/^[1-9]\d*$/.test(raw)) return 1;
+
+  const page = Number.parseInt(raw, 10);
+  return Number.isSafeInteger(page) ? page : 1;
+}
+
 // ── VALIDATION LOG PAGES ───────────────────────────────────────────────────
 
 // Renders the validation log listing with module, status, and keyword filters applied.
@@ -60,17 +75,20 @@ async function showValidationLogs(req, res) {
     module: req.query.module || 'all',
     status: req.query.status || 'all',
     search: req.query.search || '',
+    page: normalizePageQuery(req.query.page),
+    perPage: VALIDATION_LOGS_PER_PAGE,
   };
 
   try {
-    const [logs, summary] = await Promise.all([
+    const [logPage, summary] = await Promise.all([
       adminValidationModel.getValidationLogs(filters),
       adminValidationModel.getValidationLogSummary(),
     ]);
 
     res.render('admin/validationLogs', {
       title: 'Validation & Support Logs',
-      logs,
+      logs: logPage.logs,
+      pagination: logPage.pagination,
       summary,
       filters,
       query: req.query,
@@ -80,6 +98,16 @@ async function showValidationLogs(req, res) {
     res.render('admin/validationLogs', {
       title: 'Validation & Support Logs',
       logs: [],
+      pagination: {
+        currentPage: 1,
+        perPage: VALIDATION_LOGS_PER_PAGE,
+        totalLogs: 0,
+        totalPages: 1,
+        startItem: 0,
+        endItem: 0,
+        hasPrevious: false,
+        hasNext: false
+      },
       summary: {},
       filters,
       query: req.query,
@@ -102,10 +130,15 @@ async function resolveValidationLog(req, res) {
 // Sends a WhatsApp support reply and appends it to the validation log entry.
 async function replyToWhatsAppSupport(req, res) {
   const reply = String(req.body.reply || '').trim();
+  const action = normalizeReplyAction(req.body.action);
 
   try {
     if (!reply) {
       return res.redirect('/admin/validation?error=reply');
+    }
+
+    if (!action) {
+      return res.redirect('/admin/validation?error=replyAction');
     }
 
     const log = await adminValidationModel.getValidationLogById(req.params.logId);
@@ -114,15 +147,24 @@ async function replyToWhatsAppSupport(req, res) {
       return res.redirect('/admin/validation?error=notfound');
     }
 
+    if (log.is_resolved) {
+      return res.redirect('/admin/validation?error=replyResolved');
+    }
+
     const phone = extractSupportPhone(log);
     await whatsappNotificationService.sendSupportReply(phone, reply);
-    await adminValidationModel.appendValidationLogReply(
+    const affectedRows = await adminValidationModel.appendValidationLogReply(
       req.params.logId,
       reply,
-      req.session.user && req.session.user.full_name
+      req.session.user && req.session.user.full_name,
+      { resolve: action === 'resolve' }
     );
 
-    res.redirect('/admin/validation?replySent=1');
+    if (!affectedRows) {
+      return res.redirect('/admin/validation?error=replyResolved');
+    }
+
+    res.redirect(action === 'resolve' ? '/admin/validation?replySent=1' : '/admin/validation?replyKeptOpen=1');
   } catch (err) {
     console.error(err);
     res.redirect('/admin/validation?error=replySend');
@@ -132,10 +174,15 @@ async function replyToWhatsAppSupport(req, res) {
 // Sends an email reply for an open web support log, then marks it resolved.
 async function replyToWebSupport(req, res) {
   const reply = String(req.body.reply || '').trim();
+  const action = normalizeReplyAction(req.body.action);
 
   try {
     if (!req.session.user || req.session.user.role !== 'admin') {
       return res.redirect('/admin/validation?error=webReplyAuth');
+    }
+
+    if (!action) {
+      return res.redirect('/admin/validation?error=webReplyAction');
     }
 
     if (reply.length < 2 || reply.length > 2000) {
@@ -160,7 +207,8 @@ async function replyToWebSupport(req, res) {
     const emailResult = await emailService.sendWebSupportReplyEmail({
       ...log,
       recipient_email: recipientEmail,
-      reply
+      reply,
+      action
     });
 
     if (!isDeliveredEmailResult(emailResult)) {
@@ -177,14 +225,15 @@ async function replyToWebSupport(req, res) {
     const affectedRows = await adminValidationModel.appendWebSupportEmailReply(
       req.params.logId,
       reply,
-      req.session.user && req.session.user.full_name
+      req.session.user && req.session.user.full_name,
+      { resolve: action === 'resolve' }
     );
 
     if (!affectedRows) {
       return res.redirect('/admin/validation?error=webReplyResolved');
     }
 
-    res.redirect('/admin/validation?webReplySent=1');
+    res.redirect(action === 'resolve' ? '/admin/validation?webReplySent=1' : '/admin/validation?webReplyKeptOpen=1');
   } catch (err) {
     console.error('[admin-validation] Web support reply failed:', err.message);
     res.redirect('/admin/validation?error=webReplySend');
