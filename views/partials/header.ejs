@@ -38,6 +38,7 @@
       <% } %>
       <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
       <li><a href="/merchant/dashboard"><%= t('nav.dashboard') %></a></li>
+      <li><a href="/merchant/insights">Insights</a></li>
       <li>
         <a href="/marketplace/merchant/<%= user.merchant_id %>" target="_blank" rel="noopener noreferrer">
           View Storefront <i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i>
@@ -141,6 +142,7 @@
   <% } %>
   <% if (user && user.role === 'merchant' && user.verification_status === 'approved') { %>
   <a href="/merchant/dashboard"><%= t('nav.dashboard') %></a>
+  <a href="/merchant/insights">Business Insights</a>
   <a href="/marketplace/merchant/<%= user.merchant_id %>" target="_blank" rel="noopener noreferrer">
     View Storefront <i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i>
   </a>

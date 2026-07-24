@@ -140,8 +140,15 @@ async function renderPromotionsPage(req, res, {
 
 async function showPromotions(req, res) {
   try {
+    const suggestedGoal = req.query.goal === 'off-peak'
+      ? 'Fill quieter appointment times'
+      : (req.query.goal === 'returning-customers' ? 'Encourage customers to book again' : '');
     await renderPromotionsPage(req, res, {
       success: req.query.success ? 'Promotion request submitted for admin approval.' : null,
+      form: {
+        service_id: req.query.serviceId || '',
+        suggested_goal: suggestedGoal,
+      },
     });
   } catch (err) {
     console.error(err);

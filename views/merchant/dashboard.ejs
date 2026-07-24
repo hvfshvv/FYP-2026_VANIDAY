@@ -225,36 +225,27 @@
     <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
       <div>
         <p class="section-label">Business Overview</p>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Dashboard</h2>
-        <p style="color:var(--muted);margin-bottom:0;">Welcome back, <strong><%= user.full_name %></strong>. Reviewing <strong><%= periodLabel %></strong>.</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= merchant?.merchant_name || 'Merchant' %> Dashboard</h2>
+        <p style="color:var(--muted);margin-bottom:0;">Today’s operations, alerts, and a high-level overview of <strong><%= periodLabel %></strong>.</p>
       </div>
       <div class="d-flex gap-2 flex-wrap justify-content-end">
-        <form action="/merchant/dashboard" method="GET" class="d-flex gap-2 align-items-center dashboard-panel p-2">
-          <label for="dashboardMonth" style="font-size:.7rem;font-weight:800;color:var(--muted);padding-left:.35rem;">View month</label>
-          <input id="dashboardMonth" type="month" name="month" value="<%= selectedPeriod %>" max="<%= currentPeriod %>"
-                 class="form-control form-control-sm" style="width:150px;border-radius:999px;" onchange="this.form.submit()">
-          <% if (!isCurrentPeriod) { %><a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill">Current</a><% } %>
-        </form>
         <a href="/merchant/manage" class="btn btn-primary btn-pill" style="font-weight:800;padding:.72rem 1.15rem;">
           <i class="bi bi-sliders me-1"></i>Merchant Management
         </a>
       </div>
     </div>
 
-    <!-- The first row answers the merchant's immediate planning questions. -->
+    <div class="d-flex justify-content-between align-items-end gap-2 mb-2">
+      <div><p class="section-label mb-1">Today · <%= todayLabel %></p><h5 style="font-weight:800;color:var(--ink);margin:0;">Daily operations</h5></div>
+      <span style="color:var(--muted);font-size:.75rem;">Live information · not affected by the month selector</span>
+    </div>
     <div class="row g-3 mb-4">
       <% [
-        isCurrentPeriod
-          ? { label:"Today's Bookings", value:bookings.today_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:'Appointments to prepare for', featured:true }
-          : { label:'Bookings in Period', value:bookings.month_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:'All bookings during ' + periodLabel, featured:true },
-        isCurrentPeriod
-          ? { label:'Upcoming Bookings', value:bookings.upcoming_bookings, icon:'bi-calendar-week', color:'#1D4ED8', note:'Future confirmed workload' }
-          : { label:'Confirmed', value:bookings.confirmed, icon:'bi-calendar-week', color:'#1D4ED8', note:'Confirmed or rescheduled bookings' },
-        { label:'Revenue', value:'S$' + Number(revenue.month_revenue || 0).toFixed(2), icon:'bi-cash-stack', color:'var(--success)', note:'Successful payments in ' + periodLabel },
-        { label:'Cancellation Rate', value:hasFinalOutcomes ? cancellationRate + '%' : 'N/A', icon:'bi-x-circle', color:cancellationColor, note:hasFinalOutcomes ? Number(metrics.monthlyCancelledBookings || 0) + ' cancelled of ' + Number(metrics.monthlyFinishedBookings || 0) + ' final outcome(s)' + (!hasReliableCancellationSample ? '; limited data' : '') : 'No final appointment outcomes yet' },
-        { label:ratingLabel, value:hasRating ? rating.toFixed(1) : 'N/A', icon:'bi-star-fill', color:ratingColor, note:ratingNote },
+        { label:"Today's Bookings", value:bookings.today_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:'Appointments to prepare for', featured:true },
+        { label:'Upcoming Bookings', value:bookings.upcoming_bookings, icon:'bi-calendar-week', color:'#1D4ED8', note:'Future confirmed workload' },
+        { label:'Items Needing Attention', value:actions.length, icon:'bi-exclamation-circle', color:actions.length ? 'var(--warn)' : 'var(--success)', note:actions.length ? 'Open alerts requiring action' : 'No action needed right now' },
       ].forEach(item => { %>
-        <div class="col-6 col-lg">
+        <div class="col-12 col-md-4">
           <div class="dashboard-kpi h-100 <%= item.featured ? 'featured' : '' %>" style="color:<%= item.color %>;">
             <span class="kpi-signal" aria-hidden="true"></span>
             <div class="metric-icon mb-3"><i class="bi <%= item.icon %>"></i></div>
@@ -266,7 +257,41 @@
       <% }) %>
     </div>
 
-    <!-- Direct performance and coverage indicators that answer merchant business questions. -->
+    <div class="d-flex justify-content-between align-items-end gap-3 mb-2 flex-wrap">
+      <div><p class="section-label mb-1"><%= periodLabel %></p><h5 style="font-weight:800;color:var(--ink);margin:0;">Monthly indicators</h5></div>
+      <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <a href="<%= isCurrentPeriod ? '/merchant/insights?period=month' : '/merchant/revenue?month=' + selectedPeriod %>" style="font-size:.78rem;font-weight:800;white-space:nowrap;">
+          <%= isCurrentPeriod ? 'View detailed insights' : 'View selected month report' %> <i class="bi bi-arrow-right"></i>
+        </a>
+        <form action="/merchant/dashboard" method="GET" class="d-flex gap-2 align-items-center dashboard-panel p-2">
+          <label for="dashboardMonth" style="font-size:.7rem;font-weight:800;color:var(--muted);padding-left:.35rem;white-space:nowrap;">View month</label>
+          <input id="dashboardMonth" type="month" name="month" value="<%= selectedPeriod %>" max="<%= currentPeriod %>"
+                 class="form-control form-control-sm" style="width:150px;border-radius:999px;" onchange="this.form.submit()">
+          <% if (!isCurrentPeriod) { %><a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill">Current</a><% } %>
+        </form>
+      </div>
+    </div>
+    <div class="row g-3 mb-4">
+      <% [
+        { label:'Bookings', value:bookings.month_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:'All bookings during ' + periodLabel, featured:true },
+        { label:'Revenue', value:'S$' + Number(revenue.month_revenue || 0).toFixed(2), icon:'bi-cash-stack', color:'var(--success)', note:'Successful payments in ' + periodLabel },
+        { label:'Cancellation Rate', value:hasFinalOutcomes ? cancellationRate + '%' : 'N/A', icon:'bi-x-circle', color:cancellationColor, note:hasFinalOutcomes ? Number(metrics.monthlyCancelledBookings || 0) + ' cancelled of ' + Number(metrics.monthlyFinishedBookings || 0) + ' final outcome(s)' + (!hasReliableCancellationSample ? '; limited data' : '') : 'No final appointment outcomes yet' },
+        { label:ratingLabel, value:hasRating ? rating.toFixed(1) : 'N/A', icon:'bi-star-fill', color:ratingColor, note:ratingNote },
+      ].forEach(item => { %>
+        <div class="col-6 col-lg-3">
+          <div class="dashboard-kpi h-100 <%= item.featured ? 'featured' : '' %>" style="color:<%= item.color %>;">
+            <span class="kpi-signal" aria-hidden="true"></span>
+            <div class="metric-icon mb-3"><i class="bi <%= item.icon %>"></i></div>
+            <p style="font-weight:700;color:var(--muted);font-size:.72rem;margin-bottom:.25rem;"><%= item.label %></p>
+            <p class="stat-value mb-1" style="color:<%= item.color %>;font-size:1.65rem;"><%= item.value || 0 %></p>
+            <p style="color:var(--muted);font-size:.66rem;margin:0;"><%= item.note %></p>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+
+    <% if (false) { /* Detailed analysis now lives on /merchant/insights. */ %>
+    <!-- Legacy detailed performance panels retained temporarily for reference but intentionally not rendered. -->
     <div class="row g-4 mb-5">
       <div class="col-lg-8">
         <div class="dashboard-panel h-100">
@@ -398,6 +423,53 @@
         </div>
       </div>
     </div>
+    <% } %>
+
+    <div class="row g-4 mb-5">
+      <div class="col-lg-8">
+        <div class="dashboard-panel h-100">
+          <div class="dashboard-panel-head">
+            <div>
+              <p class="section-label mb-2">Operational readiness</p>
+              <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Business setup status</h5>
+              <p style="color:var(--muted);font-size:.75rem;margin:0;">Live service, staff, and opening-hour coverage.</p>
+            </div>
+            <span class="signal-pill"><i class="bi bi-activity"></i><%= actions.length ? actions.length + ' alert(s)' : 'Ready' %></span>
+          </div>
+          <div class="dashboard-panel-body">
+            <div class="row g-3">
+              <% [
+                {label:'Service Coverage', value:operations.activeServices + ' active', note:operations.inactiveServices + ' disabled', percent:serviceCoverage, icon:'bi-scissors', href:'/merchant/services'},
+                {label:'Staff Availability', value:operations.activeStaff + ' active', note:operations.inactiveStaff + ' inactive', percent:staffCoverage, icon:'bi-people', href:'/merchant/staff'},
+                {label:'Operating Hours', value:operations.activeAvailabilityDays + ' days active', note:operations.missingAvailabilityDays.length ? 'Missing: ' + operations.missingAvailabilityDays.join(', ') : 'All days configured', percent:hoursCoverage, icon:'bi-clock', href:'/merchant/availability'},
+              ].forEach(item => { %>
+                <div class="col-md-4">
+                  <a href="<%= item.href %>" class="rounded-xl p-3 h-100 d-block text-decoration-none" style="background:var(--neutral-bg);">
+                    <i class="bi <%= item.icon %>" style="color:var(--accent);"></i>
+                    <p style="font-size:.7rem;color:var(--muted);margin:.55rem 0 .15rem;"><%= item.label %></p>
+                    <strong style="font-size:.85rem;color:var(--ink);"><%= item.value %></strong>
+                    <span style="float:right;font-size:.68rem;font-weight:800;color:var(--accent);"><%= item.percent %>%</span>
+                    <div class="capacity-meter"><span style="width:<%= item.percent %>%;"></span></div>
+                    <p style="font-size:.62rem;color:var(--muted);margin:.2rem 0 0;"><%= item.note %></p>
+                  </a>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="dashboard-panel h-100" style="background:linear-gradient(145deg,#fff,var(--accent-light));border-color:rgba(225,29,72,.18);">
+          <div class="dashboard-panel-body h-100 d-flex flex-column justify-content-center">
+            <div class="metric-icon mb-3"><i class="bi bi-graph-up-arrow"></i></div>
+            <p class="section-label mb-2">Reporting & decision support</p>
+            <h5 style="font-weight:800;color:var(--ink);">Understand business performance</h5>
+            <p style="color:var(--muted);font-size:.78rem;">Explore trends, service and staff performance, customer behaviour, recommendations, and the AI Business Coach.</p>
+            <a href="/merchant/insights?period=30d" class="btn btn-primary btn-pill mt-auto">Open Business Insights <i class="bi bi-arrow-right ms-1"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div class="row g-4 mb-5">
       <!-- Warning lights appear only when the merchant needs to act. -->
@@ -435,16 +507,16 @@
         <div class="dashboard-panel h-100 overflow-hidden">
           <div class="dashboard-panel-head">
             <div>
-            <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= isCurrentPeriod ? "Today's Schedule" : 'Historical Period' %></h5>
-            <p style="color:var(--muted);font-size:.8rem;"><%= isCurrentPeriod ? 'Upcoming appointments for the rest of today.' : 'Daily schedules are shown only for the current month.' %></p>
+            <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Today's Schedule</h5>
+            <p style="color:var(--muted);font-size:.8rem;">Upcoming appointments for the rest of today, regardless of the selected reporting month.</p>
             </div>
-            <span class="signal-pill"><i class="bi bi-calendar3"></i><%= isCurrentPeriod ? schedule.length + ' upcoming' : periodLabel %></span>
+            <span class="signal-pill"><i class="bi bi-calendar3"></i><%= schedule.length %> upcoming</span>
           </div>
           <% if (!schedule.length) { %>
             <div class="text-center px-4 pb-5 pt-3">
               <i class="bi bi-calendar2-check" style="font-size:2rem;color:var(--accent);"></i>
-              <p style="font-weight:700;color:var(--ink);margin:.7rem 0 .2rem;"><%= isCurrentPeriod ? 'No more appointments today' : periodLabel + ' performance selected' %></p>
-              <p style="color:var(--muted);font-size:.8rem;margin:0;"><%= isCurrentPeriod ? 'Your upcoming schedule is clear.' : 'Use the indicators and booking pipeline to review this past month.' %></p>
+              <p style="font-weight:700;color:var(--ink);margin:.7rem 0 .2rem;">No more appointments today</p>
+              <p style="color:var(--muted);font-size:.8rem;margin:0;">Your upcoming schedule is clear.</p>
             </div>
           <% } else { %>
             <div class="table-responsive">
@@ -468,6 +540,7 @@
       </div>
     </div>
 
+    <% if (false) { /* Booking-outcome and revenue-trend analysis moved to Business Insights. */ %>
     <div class="row g-4 mb-5">
       <div class="col-lg-6">
         <div class="dashboard-panel h-100">
@@ -549,31 +622,9 @@
         </div>
       </div>
     </div>
+    <% } %>
 
-    <div class="row g-3 mb-5">
-      <% [
-        {label:'Successful Payments', value:revenue.month_successful_payments || 0, note:'Paid transactions in ' + periodLabel, icon:'bi-credit-card', color:'var(--success)', href:'/merchant/revenue?month=' + selectedPeriod},
-        {label:'QR Bookings', value:bookings.qr_bookings || 0, note:'QR booking usage in ' + periodLabel, icon:'bi-qr-code', color:'#2563EB', href:'/merchant/qr'},
-        {label:'Reviews Awaiting Reply', value:reviews.awaiting_reply, note:'Customer replies needed', icon:'bi-chat-left-text', color:'var(--warn)', href:'/merchant/reviews'},
-        {label:'Your Earnings', value:'S$' + Number(revenue.month_merchant_earnings || 0).toFixed(2), note:'Your earnings from paid bookings in ' + periodLabel, icon:'bi-wallet2', color:'var(--accent)', href:'/merchant/revenue?month=' + selectedPeriod},
-      ].forEach(item => { %>
-        <div class="col-6 col-md-3">
-          <a href="<%= item.href %>" class="text-decoration-none">
-            <div class="mini-signal-card" style="--signal-color:<%= item.color %>;">
-              <div class="d-flex justify-content-between align-items-start gap-2">
-                <div class="mini-signal-icon"><i class="bi <%= item.icon %>"></i></div>
-                <i class="bi bi-arrow-up-right" style="color:var(--muted);font-size:.7rem;"></i>
-              </div>
-              <p style="color:var(--muted);font-size:.72rem;margin-bottom:.35rem;"><%= item.label %></p>
-              <p style="font-weight:800;color:<%= item.color %>;font-size:1.15rem;margin-bottom:.2rem;word-break:break-word;"><%= item.value %></p>
-              <p style="color:var(--muted);font-size:.68rem;margin:0;"><%= item.note %></p>
-            </div>
-          </a>
-        </div>
-      <% }) %>
-    </div>
-
-    <!-- Quick actions remain available, below the business indicators. -->
+    <!-- Management shortcuts remain available without repeating dashboard indicators. -->
     <div class="d-flex justify-content-between align-items-end gap-2 mb-3">
       <div><h5 style="font-weight:800;color:var(--ink);margin:0;">Quick Actions</h5><p style="color:var(--muted);font-size:.8rem;margin:0;">Manage your business after reviewing the indicators.</p></div>
       <a href="/merchant/manage" class="btn btn-outline-secondary btn-pill btn-sm">All Management Tools</a>

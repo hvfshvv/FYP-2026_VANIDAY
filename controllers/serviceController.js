@@ -8,10 +8,18 @@ async function showServices(req, res) {
     const services = await serviceModel.getServicesByMerchant(merchantId);
     const added = req.query.added === '1';
     const updated = req.query.updated === '1';
-    res.render('merchant/services', { title: 'My Services', services, categories: SERVICE_CATEGORIES, error: null, added, updated });
+    res.render('merchant/services', {
+      title: 'My Services',
+      services,
+      categories: SERVICE_CATEGORIES,
+      error: null,
+      added,
+      updated,
+      focusedServiceId: String(req.query.focus || ''),
+    });
   } catch (err) {
     console.error(err);
-    res.render('merchant/services', { title: 'My Services', services: [], categories: SERVICE_CATEGORIES, error: 'Failed to load services.', added: false, updated: false });
+    res.render('merchant/services', { title: 'My Services', services: [], categories: SERVICE_CATEGORIES, error: 'Failed to load services.', added: false, updated: false, focusedServiceId: '' });
   }
 }
 
@@ -26,7 +34,7 @@ async function addService(req, res) {
     res.redirect('/merchant/services?added=1');
   } catch (err) {
     const services = await serviceModel.getServicesByMerchant(merchantId).catch(() => []);
-    res.render('merchant/services', { title: 'My Services', services, categories: SERVICE_CATEGORIES, error: 'Could not add service. Please fill in all required fields.', added: false, updated: false });
+    res.render('merchant/services', { title: 'My Services', services, categories: SERVICE_CATEGORIES, error: 'Could not add service. Please fill in all required fields.', added: false, updated: false, focusedServiceId: '' });
   }
 }
 
@@ -59,6 +67,7 @@ async function editService(req, res) {
       error: 'Could not update service. Please fill in all required fields.',
       added: false,
       updated: false,
+      focusedServiceId: '',
     });
   }
 }

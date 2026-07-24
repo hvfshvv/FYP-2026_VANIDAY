@@ -104,7 +104,7 @@
       <% } else { %>
       <div class="d-flex flex-column gap-3">
         <% services.forEach(s => { %>
-        <div class="card border-0 p-3" style="box-shadow:var(--shadow-sm);border-radius:var(--r-lg);border-left:4px solid <%= s.is_active ? 'var(--accent)' : 'var(--border)' %> !important;">
+        <div id="service-<%= s.service_id %>" class="card border-0 p-3" style="box-shadow:<%= String(focusedServiceId || '') === String(s.service_id) ? '0 0 0 3px rgba(225,29,72,.18), var(--shadow)' : 'var(--shadow-sm)' %>;border-radius:var(--r-lg);border-left:4px solid <%= s.is_active ? 'var(--accent)' : 'var(--border)' %> !important;">
           <div class="d-flex justify-content-between align-items-start">
             <div class="flex-grow-1 me-3">
               <div class="d-flex align-items-center gap-2 mb-1">

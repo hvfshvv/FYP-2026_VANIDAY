@@ -17,7 +17,16 @@ const pool = mysql.createPool({
   idleTimeout:         60000,
   enableKeepAlive:     true,
   keepAliveInitialDelay: 0,
+  timezone:           '+08:00',
   ...(isAzure && { ssl: { rejectUnauthorized: false } }),
+});
+
+pool.on('connection', connection => {
+  connection.query("SET time_zone = '+08:00'", error => {
+    if (error) {
+      console.error('[db] Failed to set Singapore session timezone:', error.message);
+    }
+  });
 });
 
 module.exports = pool;

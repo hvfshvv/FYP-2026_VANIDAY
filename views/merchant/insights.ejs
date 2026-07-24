@@ -1,0 +1,262 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+<%
+  const money = value => `S$${Number(value || 0).toFixed(2)}`;
+  const number = value => Number(value || 0).toLocaleString('en-SG');
+  const comparisonPeriod = period.key === '7d'
+    ? 'the previous 7 days'
+    : (period.key === '30d' ? 'the previous 30 days' : 'the same dates last month');
+  const changeText = value => {
+    if (value === null || typeof value === 'undefined') return `No activity in ${comparisonPeriod}`;
+    const amount = Number(value || 0);
+    if (Math.abs(amount) < .05) return `Same as ${comparisonPeriod}`;
+    return `${Math.abs(amount).toFixed(1)}% ${amount > 0 ? 'higher' : 'lower'} than ${comparisonPeriod}`;
+  };
+  const changeClass = value => Number(value || 0) > 0 ? 'positive' : (Number(value || 0) < 0 ? 'negative' : '');
+  const topDemand = metrics ? metrics.demandPeriods.slice(0, 6) : [];
+  const maxDemand = topDemand.length ? Math.max(...topDemand.map(item => Number(item.bookings || 0)), 1) : 1;
+  const cancellationHealth = !metrics
+    ? { tone: 'neutral', label: 'No data' }
+    : metrics.cancellationNoShowRate <= 10
+      ? { tone: 'good', label: 'Healthy' }
+      : metrics.cancellationNoShowRate <= 20
+        ? { tone: 'watch', label: 'Monitor' }
+        : { tone: 'risk', label: 'Needs attention' };
+  const overallRating = Number(overallReview?.averageRating || 0);
+  const overallReviewCount = Number(overallReview?.reviewCount || 0);
+  const ratingHealth = !metrics || !overallReviewCount
+    ? { tone: 'neutral', label: 'No reviews yet' }
+    : overallRating >= 4.5
+      ? { tone: 'good', label: overallReviewCount < 3 ? 'Strong early rating' : 'Strong rating' }
+      : overallRating >= 4
+        ? { tone: 'watch', label: 'Good, with room to improve' }
+        : { tone: 'risk', label: 'Needs attention' };
+%>
+
+<style>
+  .insights-page { background:var(--canvas);min-height:80vh;padding:3rem 1rem 4rem; }
+  .insights-shell { max-width:1180px;margin:0 auto; }
+  .insights-head { display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;margin-bottom:1.5rem; }
+  .insights-head h1 { margin:0;font-size:2rem;font-weight:800; }
+  .insights-head p { color:var(--muted);margin:.4rem 0 0; }
+  .insights-period { display:flex;gap:.35rem;padding:.3rem;background:var(--surface);border:1px solid var(--border);border-radius:999px; }
+  .insights-period a { padding:.45rem .8rem;border-radius:999px;color:var(--muted);font-size:.82rem;font-weight:700;white-space:nowrap; }
+  .insights-period a.active { background:var(--accent);color:#fff; }
+  .insights-grid { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;margin-bottom:1rem; }
+  .insight-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:1.25rem; }
+  .metric-label { color:var(--muted);font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em; }
+  .metric-value { display:block;color:var(--ink);font-size:1.65rem;font-weight:800;margin:.25rem 0; }
+  .metric-change { font-size:.76rem;font-weight:700;color:var(--muted); }
+  .metric-change.positive { color:var(--success); }
+  .metric-change.negative { color:var(--danger); }
+  .health-card { position:relative;overflow:hidden; }
+  .health-card::before { content:"";position:absolute;inset:0 0 auto;height:4px;background:var(--health-color,var(--border)); }
+  .health-card.good { --health-color:var(--success);background:linear-gradient(145deg,#fff 68%,var(--success-bg)); }
+  .health-card.watch { --health-color:var(--warn);background:linear-gradient(145deg,#fff 68%,var(--warn-bg)); }
+  .health-card.risk { --health-color:var(--danger);background:linear-gradient(145deg,#fff 68%,var(--danger-bg)); }
+  .health-card.neutral { --health-color:var(--ghost); }
+  .health-status { display:inline-flex;align-items:center;gap:.35rem;margin-top:.25rem;font-size:.72rem;font-weight:800;color:var(--health-color,var(--muted)); }
+  .health-status::before { content:"";width:.48rem;height:.48rem;border-radius:50%;background:currentColor; }
+  .insights-layout { display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr);gap:1rem;margin-top:1rem; }
+  .insight-section-head { display:flex;justify-content:space-between;align-items:start;gap:1rem;margin-bottom:1rem; }
+  .insight-section-head h2 { font-size:1.15rem;font-weight:800;margin:0; }
+  .insight-section-head p { color:var(--muted);font-size:.82rem;margin:.25rem 0 0; }
+  .recommendation { display:grid;grid-template-columns:auto 1fr auto;gap:.8rem;align-items:start;padding:1rem 0;border-top:1px solid var(--border); }
+  .recommendation:first-of-type { border-top:0;padding-top:0; }
+  .priority-dot { width:.65rem;height:.65rem;border-radius:50%;margin-top:.4rem;background:var(--ghost); }
+  .priority-dot.high { background:var(--danger); }
+  .priority-dot.medium { background:var(--warn); }
+  .priority-dot.low { background:var(--success); }
+  .recommendation h3 { font-size:.95rem;font-weight:800;margin:0 0 .25rem; }
+  .recommendation p { color:var(--muted);font-size:.82rem;line-height:1.5;margin:0; }
+  .recommendation p + p { color:var(--ink);margin-top:.3rem; }
+  .recommendation a { font-size:.78rem;font-weight:700;white-space:nowrap; }
+  .demand-row { display:grid;grid-template-columns:92px 1fr 28px;gap:.65rem;align-items:center;margin:.75rem 0; }
+  .demand-row span { color:var(--muted);font-size:.78rem;font-weight:700; }
+  .demand-track { height:.55rem;background:var(--accent-light);border-radius:999px;overflow:hidden; }
+  .demand-fill { height:100%;background:var(--accent);border-radius:inherit; }
+  .insight-table { width:100%;border-collapse:collapse; }
+  .insight-table th { color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:.65rem;border-bottom:1px solid var(--border); }
+  .insight-table td { color:var(--ink);font-size:.82rem;padding:.75rem .65rem;border-bottom:1px solid var(--border); }
+  .insight-table tr:last-child td { border-bottom:0; }
+  .ai-card { background:linear-gradient(145deg,#fff 0%,var(--accent-light) 100%);border-color:rgba(225,29,72,.2); }
+  .ai-actions { margin-top:1rem; }
+  .ai-action { padding:.85rem;background:rgba(255,255,255,.75);border:1px solid var(--border);border-radius:var(--r);margin-top:.65rem; }
+  .ai-action strong { display:block;font-size:.88rem;margin-bottom:.2rem;overflow-wrap:anywhere; }
+  .ai-action p { font-size:.8rem;color:var(--muted);margin:0;overflow-wrap:anywhere; }
+  .sample-warning { padding:.9rem 1rem;background:var(--warn-bg);color:var(--warn);border-radius:var(--r);font-size:.84rem;font-weight:700;margin-bottom:1rem; }
+  @media(max-width:900px){.insights-grid{grid-template-columns:repeat(2,1fr)}.insights-layout{grid-template-columns:1fr}.insights-head{align-items:stretch;flex-direction:column}.insights-period{align-self:flex-start}}
+  @media(max-width:520px){.insights-grid{grid-template-columns:1fr}.insights-period{width:100%;overflow:auto}.insights-period a{flex:1;text-align:center}.recommendation{grid-template-columns:auto 1fr}.recommendation>a{grid-column:2}}
+</style>
+
+<main class="insights-page">
+  <div class="insights-shell">
+    <header class="insights-head">
+      <div>
+        <p class="section-label mb-2">Merchant analytics</p>
+        <h1>Business Insights</h1>
+        <p>Private performance insights for <strong><%= merchant.merchant_name %></strong> · <%= period.startDate %> to <%= period.endDate %></p>
+      </div>
+      <nav class="insights-period" aria-label="Insights period">
+        <a href="/merchant/insights?period=7d" class="<%= period.key === '7d' ? 'active' : '' %>">7 days</a>
+        <a href="/merchant/insights?period=30d" class="<%= period.key === '30d' ? 'active' : '' %>">30 days</a>
+        <a href="/merchant/insights?period=month" class="<%= period.key === 'month' ? 'active' : '' %>">This month</a>
+      </nav>
+    </header>
+
+    <% if (error || !metrics) { %>
+      <div class="account-alert danger"><i class="bi bi-exclamation-circle"></i><%= error || 'Insights are unavailable.' %></div>
+    <% } else { %>
+      <% if (sampleSizeWarning) { %>
+        <div class="sample-warning"><i class="bi bi-info-circle me-2"></i>Limited data: only <%= metrics.totalBookings %> booking<%= metrics.totalBookings === 1 ? '' : 's' %> recorded. Recommendations are early suggestions, not confirmed trends.</div>
+      <% } %>
+
+      <section class="insights-grid" aria-label="Performance overview">
+        <article class="insight-card"><span class="metric-label">Revenue</span><strong class="metric-value"><%= money(metrics.revenue) %></strong><span class="metric-change <%= changeClass(metrics.comparison.revenue) %>"><%= changeText(metrics.comparison.revenue) %></span></article>
+        <article class="insight-card"><span class="metric-label">Bookings</span><strong class="metric-value"><%= number(metrics.totalBookings) %></strong><span class="metric-change <%= changeClass(metrics.comparison.bookings) %>"><%= changeText(metrics.comparison.bookings) %></span></article>
+        <article class="insight-card"><span class="metric-label">Customers</span><strong class="metric-value"><%= number(metrics.uniqueCustomers) %></strong><span class="metric-change <%= changeClass(metrics.comparison.customers) %>"><%= changeText(metrics.comparison.customers) %></span></article>
+        <article class="insight-card"><span class="metric-label">Average booking value</span><strong class="metric-value"><%= money(metrics.averageOrderValue) %></strong><span class="metric-change <%= changeClass(metrics.comparison.averageOrderValue) %>"><%= changeText(metrics.comparison.averageOrderValue) %></span></article>
+      </section>
+
+      <section class="insights-grid" aria-label="Customer and booking health">
+        <article class="insight-card"><span class="metric-label">Completed</span><strong class="metric-value"><%= number(metrics.completed) %></strong><span class="metric-change">Finished appointments</span></article>
+        <article class="insight-card health-card <%= cancellationHealth.tone %>">
+          <span class="metric-label">Cancellation / no-show</span>
+          <strong class="metric-value"><%= metrics.cancellationNoShowRate.toFixed(1) %>%</strong>
+          <span class="metric-change"><%= metrics.cancelled %> cancelled · <%= metrics.noShow %> no-show</span><br>
+          <span class="health-status"><%= cancellationHealth.label %></span>
+        </article>
+        <article class="insight-card"><span class="metric-label">Returning customers</span><strong class="metric-value"><%= metrics.retentionRate.toFixed(1) %>%</strong><span class="metric-change"><%= metrics.returningCustomers %> returning · <%= metrics.newCustomers %> new</span></article>
+        <article class="insight-card health-card <%= ratingHealth.tone %>">
+          <span class="metric-label">Overall customer rating</span>
+          <strong class="metric-value"><%= overallReviewCount ? overallRating.toFixed(1) + '/5' : '—' %></strong>
+          <span class="metric-change"><%= overallReviewCount %> review<%= overallReviewCount === 1 ? '' : 's' %> overall</span><br>
+          <span class="health-status"><%= ratingHealth.label %></span>
+        </article>
+      </section>
+
+      <div class="insights-layout">
+        <section class="insight-card">
+          <div class="insight-section-head"><div><h2>Recommended next actions</h2><p>Generated from verified booking data and transparent business rules.</p></div></div>
+          <% recommendations.forEach(item => { %>
+            <article class="recommendation">
+              <span class="priority-dot <%= item.priority %>" title="<%= item.priority %> priority"></span>
+              <div><h3><%= item.title %></h3><p><%= item.evidence %></p><p><%= item.action %></p></div>
+              <a href="<%= item.href %>"><%= item.actionLabel || 'Open page' %> <i class="bi bi-arrow-right"></i></a>
+            </article>
+          <% }) %>
+        </section>
+
+        <aside class="insight-card ai-card">
+          <div class="insight-section-head"><div><h2><i class="bi bi-stars me-1" style="color:var(--accent)"></i>AI Business Coach</h2><p>Generates complementary weekly priorities without repeating the rule-based actions. Gemini receives anonymised totals only.</p></div></div>
+          <button class="btn btn-primary btn-pill w-100" type="button" id="generateAiPlan"><i class="bi bi-stars me-1"></i>Generate action plan</button>
+          <div class="ai-actions" id="aiPlan" aria-live="polite"></div>
+        </aside>
+      </div>
+
+      <div class="insights-layout">
+        <section class="insight-card">
+          <div class="insight-section-head"><div><h2>Service performance</h2><p>Revenue uses successful paid bookings in this period.</p></div><a href="/merchant/services">Manage services</a></div>
+          <% if (!metrics.servicePerformance.length) { %><p class="text-muted mb-0">No service activity yet.</p><% } else { %>
+          <div style="overflow-x:auto"><table class="insight-table"><thead><tr><th>Service</th><th>Bookings</th><th>Revenue</th><th>Issue rate</th></tr></thead><tbody>
+            <% metrics.servicePerformance.slice(0, 8).forEach(item => { %><tr><td><strong><%= item.name %></strong></td><td><%= item.bookings %></td><td><%= money(item.revenue) %></td><td><%= item.issueRate.toFixed(1) %>%</td></tr><% }) %>
+          </tbody></table></div>
+          <% } %>
+        </section>
+        <section class="insight-card">
+          <div class="insight-section-head"><div><h2>Peak demand</h2><p>Your busiest recorded appointment periods.</p></div></div>
+          <% if (!topDemand.length) { %><p class="text-muted mb-0">No appointment demand yet.</p><% } %>
+          <% topDemand.forEach(item => { %><div class="demand-row"><span><%= item.label %></span><div class="demand-track"><div class="demand-fill" style="width:<%= (item.bookings / maxDemand) * 100 %>%"></div></div><strong><%= item.bookings %></strong></div><% }) %>
+        </section>
+      </div>
+
+      <% if (metrics.staffPerformance.length) { %>
+      <section class="insight-card mt-3">
+        <div class="insight-section-head"><div><h2>Staff contribution</h2><p>Operational output—not an employee quality score.</p></div><a href="/merchant/staff">Manage staff</a></div>
+        <div style="overflow-x:auto"><table class="insight-table"><thead><tr><th>Staff</th><th>Assigned</th><th>Completed</th><th>Paid revenue</th></tr></thead><tbody>
+          <% metrics.staffPerformance.forEach(item => { %><tr><td><strong><%= item.name %></strong></td><td><%= item.bookings %></td><td><%= item.completed %></td><td><%= money(item.revenue) %></td></tr><% }) %>
+        </tbody></table></div>
+      </section>
+      <% } %>
+    <% } %>
+  </div>
+</main>
+
+<script>
+(() => {
+  const button = document.getElementById('generateAiPlan');
+  const output = document.getElementById('aiPlan');
+  if (!button || !output) return;
+  const cacheKey = <%- JSON.stringify(`merchant-insights-plan:${merchant.merchant_id}:${period.key}:${period.endDate}`) %>;
+  const cacheLifetime = 24 * 60 * 60 * 1000;
+  const serverPlan = <%- JSON.stringify(savedPlan || null).replace(/</g, '\\u003c') %>;
+
+  function renderPlan(plan, restored = false) {
+    output.innerHTML = '';
+    if (restored) {
+      const savedNote = document.createElement('p');
+      savedNote.style.cssText = 'color:var(--muted);font-size:.72rem;margin:0 0 .5rem;';
+      savedNote.textContent = 'Showing your most recently generated plan.';
+      output.appendChild(savedNote);
+    }
+    const summary = document.createElement('p');
+    summary.style.cssText = 'color:var(--ink);font-size:.86rem;font-weight:600;margin:0;';
+    summary.textContent = plan.summary;
+    output.appendChild(summary);
+    plan.actions.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'ai-action';
+      const title = document.createElement('strong');
+      title.textContent = item.title;
+      const evidence = document.createElement('p');
+      evidence.textContent = item.evidence;
+      const action = document.createElement('p');
+      action.style.cssText = 'color:var(--ink);margin-top:.25rem;';
+      action.textContent = item.action;
+      card.append(title, evidence, action);
+      output.appendChild(card);
+    });
+    button.innerHTML = '<i class="bi bi-stars me-1"></i>Regenerate action plan';
+  }
+
+  if (serverPlan) {
+    renderPlan(serverPlan, true);
+  } else {
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+      if (cached?.plan && Date.now() - Number(cached.savedAt || 0) < cacheLifetime) {
+        renderPlan(cached.plan, true);
+      } else if (cached) {
+        localStorage.removeItem(cacheKey);
+      }
+    } catch {
+      try { localStorage.removeItem(cacheKey); } catch {}
+    }
+  }
+
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analysing verified metrics…';
+    output.innerHTML = '';
+    try {
+      const response = await fetch('/merchant/insights/ai-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ period: <%- JSON.stringify(period.key) %> }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'AI plan unavailable.');
+      renderPlan(result.plan);
+      localStorage.setItem(cacheKey, JSON.stringify({ plan: result.plan, savedAt: Date.now() }));
+    } catch (error) {
+      output.innerHTML = '<div class="account-alert danger mb-0"><i class="bi bi-exclamation-circle"></i></div>';
+      output.querySelector('div').append(document.createTextNode(error.message));
+    } finally {
+      button.disabled = false;
+      button.innerHTML = '<i class="bi bi-stars me-1"></i>Regenerate action plan';
+    }
+  });
+})();
+</script>
+
+<%- include('../partials/footer') %>

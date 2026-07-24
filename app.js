@@ -1,3 +1,6 @@
+// Keep application-side date calculations aligned with the business location.
+process.env.TZ = process.env.APP_TIMEZONE || 'Asia/Singapore';
+
 const express    = require('express');
 const session    = require('express-session');
 const path       = require('path');

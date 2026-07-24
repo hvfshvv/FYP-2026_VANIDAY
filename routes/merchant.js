@@ -7,6 +7,7 @@ const qrCtrl    = require('../controllers/qrController');
 const promoCtrl = require('../controllers/promotionController');
 const svcCtrl   = require('../controllers/serviceController');
 const merchantProfileCtrl = require('../controllers/merchantProfileController');
+const merchantInsightsCtrl = require('../controllers/merchantInsightsController');
 
 const staffCtrl = require('../controllers/staffController');
 const availabilityCtrl = require('../controllers/availabilityController');
@@ -31,11 +32,31 @@ const stripeService = require('../services/stripeService');
 // Every route in this file requires a logged-in, approved merchant account.
 router.use(requireLogin, requireMerchant);
 
+// Merchant-only analytics. The merchant id always comes from the verified session.
+router.get('/insights', merchantInsightsCtrl.showInsights);
+router.post('/insights/ai-plan', merchantInsightsCtrl.generateActionPlan);
+
 // Dashboard: decision-support indicators, today's schedule, and action warnings.
 router.get('/dashboard', async (req, res) => {
   const merchantId = req.session.user.merchant_id;
   const now = new Date();
-  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const singaporeDateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Singapore',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now).reduce((parts, part) => {
+    if (part.type !== 'literal') parts[part.type] = part.value;
+    return parts;
+  }, {});
+  const currentPeriod = `${singaporeDateParts.year}-${singaporeDateParts.month}`;
+  const todayLabel = new Intl.DateTimeFormat('en-SG', {
+    timeZone: 'Asia/Singapore',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(now);
   const requestedPeriod = /^\d{4}-(0[1-9]|1[0-2])$/.test(String(req.query.month || ''))
     ? String(req.query.month)
     : currentPeriod;
@@ -60,9 +81,10 @@ router.get('/dashboard', async (req, res) => {
     reviewSummary,
     promotions,
     activeWaitlistCount,
+    merchant,
   ] = await Promise.all([
     bookingModel.getMerchantDashboardSummary(merchantId, periodStart).catch(() => ({})),
-    isCurrentPeriod ? bookingModel.getMerchantTodaySchedule(merchantId).catch(() => []) : [],
+    bookingModel.getMerchantTodaySchedule(merchantId).catch(() => []),
     revenueModel.getMerchantRevenueSummary(merchantId, selectedPeriod).catch(() => ({})),
     revenueModel.getMonthlyRevenue(merchantId).catch(() => []),
     revenueModel.getTopRevenueService(merchantId, selectedPeriod).catch(() => null),
@@ -73,6 +95,7 @@ router.get('/dashboard', async (req, res) => {
     reviewModel.getMerchantReviewSummary(merchantId, periodStart).catch(() => ({})),
     promotionModel.getMerchantPromotions(merchantId).catch(() => []),
     waitlistModel.getMerchantActiveWaitlistCount(merchantId).catch(() => 0),
+    merchantModel.getMerchantProfile(merchantId).catch(() => null),
   ]);
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -158,6 +181,8 @@ router.get('/dashboard', async (req, res) => {
     dashboardMetrics,
     pendingActions,
     activeWaitlistCount,
+    merchant,
+    todayLabel,
     selectedPeriod,
     currentPeriod,
     periodLabel,

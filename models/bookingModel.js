@@ -695,13 +695,18 @@ async function getMerchantDashboardSummary(merchantId, periodStart) {
   const [[row]] = await db.query(
     `SELECT
        COUNT(*) AS month_bookings,
-       COUNT(CASE WHEN ts.slot_date = CURDATE()
-                    AND b.status IN ('confirmed', 'rescheduled', 'arrived') THEN 1 END) AS today_bookings,
+       (SELECT COUNT(*)
+        FROM booking today
+        JOIN time_slot today_slot ON today_slot.slot_id = today.slot_id
+        WHERE today.merchant_id = ?
+          AND today_slot.slot_date = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+08:00'))
+          AND today.status IN ('confirmed', 'rescheduled', 'arrived')) AS today_bookings,
        (SELECT COUNT(*)
         FROM booking upcoming
         JOIN time_slot upcoming_slot ON upcoming_slot.slot_id = upcoming.slot_id
         WHERE upcoming.merchant_id = ?
-          AND TIMESTAMP(upcoming_slot.slot_date, upcoming_slot.start_time) > NOW()
+          AND TIMESTAMP(upcoming_slot.slot_date, upcoming_slot.start_time) >
+              CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+08:00')
           AND upcoming.status IN ('confirmed', 'rescheduled')) AS upcoming_bookings,
        COUNT(CASE WHEN b.status = 'confirmed' OR b.status = 'rescheduled' THEN 1 END) AS confirmed,
        COUNT(CASE WHEN b.status = 'arrived' THEN 1 END) AS arrived,
@@ -715,9 +720,10 @@ async function getMerchantDashboardSummary(merchantId, periodStart) {
      FROM booking b
      JOIN time_slot ts ON ts.slot_id = b.slot_id
      WHERE b.merchant_id = ?
+       AND b.status <> 'payment_failed'
        AND ts.slot_date >= ?
        AND ts.slot_date < DATE_ADD(?, INTERVAL 1 MONTH)`,
-    [merchantId, merchantId, periodStart, periodStart]
+    [merchantId, merchantId, merchantId, periodStart, periodStart]
   );
 
   // Most-booked service in the period — shown as a KPI on the dashboard.
@@ -757,8 +763,8 @@ async function getMerchantTodaySchedule(merchantId) {
      LEFT JOIN staff st ON st.staff_id = b.staff_id
      LEFT JOIN users c ON c.user_id = b.customer_id
      WHERE b.merchant_id = ?
-       AND ts.slot_date = CURDATE()
-       AND ts.start_time >= CURTIME()
+       AND ts.slot_date = DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+08:00'))
+       AND ts.start_time >= TIME(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+08:00'))
        AND b.status IN ('confirmed', 'rescheduled', 'arrived')
      ORDER BY ts.start_time ASC`,
     [merchantId]
