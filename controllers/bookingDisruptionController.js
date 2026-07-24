@@ -21,10 +21,14 @@ async function refundInFull(booking) {
     refundPercentage: 100,
   });
   if (walletRefund.refunded || walletRefund.reason !== 'not_wallet_payment') return walletRefund;
-  return refundService.refundBookingPayment(booking.booking_id, {
+  const stripeRefund = await refundService.refundBookingPayment(booking.booking_id, {
     refundPercentage: 100,
     reason: 'requested_by_customer',
   });
+  if (stripeRefund.skipped && booking.status !== 'pending_payment') {
+    throw new Error(`Booking was cancelled, but no Stripe refund was created: ${stripeRefund.reason}`);
+  }
+  return stripeRefund;
 }
 
 async function notifyCustomer(booking, message, title = 'Booking cancelled') {

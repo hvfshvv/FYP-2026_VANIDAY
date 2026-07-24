@@ -113,7 +113,7 @@
 
       <section class="insights-grid" aria-label="Performance overview">
         <article class="insight-card"><span class="metric-label">Revenue</span><strong class="metric-value"><%= money(metrics.revenue) %></strong><span class="metric-change <%= changeClass(metrics.comparison.revenue) %>"><%= changeText(metrics.comparison.revenue) %></span></article>
-        <article class="insight-card"><span class="metric-label">Bookings</span><strong class="metric-value"><%= number(metrics.totalBookings) %></strong><span class="metric-change <%= changeClass(metrics.comparison.bookings) %>"><%= changeText(metrics.comparison.bookings) %></span></article>
+        <article class="insight-card"><span class="metric-label">Bookings</span><strong class="metric-value"><%= number(metrics.totalBookings) %></strong><span class="metric-change <%= changeClass(metrics.comparison.bookings) %>"><%= changeText(metrics.comparison.bookings) %></span><p style="color:var(--muted);font-size:.68rem;margin:.35rem 0 0;">Cancellations excluded</p></article>
         <article class="insight-card"><span class="metric-label">Customers</span><strong class="metric-value"><%= number(metrics.uniqueCustomers) %></strong><span class="metric-change <%= changeClass(metrics.comparison.customers) %>"><%= changeText(metrics.comparison.customers) %></span></article>
         <article class="insight-card"><span class="metric-label">Average booking value</span><strong class="metric-value"><%= money(metrics.averageOrderValue) %></strong><span class="metric-change <%= changeClass(metrics.comparison.averageOrderValue) %>"><%= changeText(metrics.comparison.averageOrderValue) %></span></article>
       </section>

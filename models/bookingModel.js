@@ -694,7 +694,7 @@ async function getMerchantDashboardSummary(merchantId, periodStart) {
 
   const [[row]] = await db.query(
     `SELECT
-       COUNT(*) AS month_bookings,
+       COUNT(CASE WHEN b.status <> 'cancelled' THEN 1 END) AS month_bookings,
        (SELECT COUNT(*)
         FROM booking today
         JOIN time_slot today_slot ON today_slot.slot_id = today.slot_id

@@ -24,6 +24,7 @@ function resolveInsightPeriod(value, now = new Date()) {
     label = 'Last 7 days';
   } else if (key === 'month') {
     start = new Date(end.getFullYear(), end.getMonth(), 1);
+    end.setMonth(end.getMonth() + 1, 0);
     label = 'This month';
   } else {
     start = addDays(end, -29);
@@ -109,12 +110,14 @@ function summarizeRows(rows, periodStart = '') {
       serviceId: row.service_id,
       name: row.service_name,
       bookings: 0,
+      bookingAttempts: 0,
       revenue: 0,
       completed: 0,
       cancelled: 0,
       noShow: 0,
     };
-    serviceItem.bookings += 1;
+    serviceItem.bookingAttempts += 1;
+    serviceItem.bookings += row.status === 'cancelled' ? 0 : 1;
     serviceItem.revenue += paidAmount;
     serviceItem.completed += row.status === 'completed' ? 1 : 0;
     serviceItem.cancelled += row.status === 'cancelled' ? 1 : 0;
@@ -130,27 +133,29 @@ function summarizeRows(rows, periodStart = '') {
         completed: 0,
         revenue: 0,
       };
-      staffItem.bookings += 1;
+      staffItem.bookings += row.status === 'cancelled' ? 0 : 1;
       staffItem.completed += row.status === 'completed' ? 1 : 0;
       staffItem.revenue += paidAmount;
       staff.set(staffKey, staffItem);
     }
 
-    const bookingDate = new Date(`${dateOnly(row.booking_date)}T00:00:00`);
-    const day = bookingDate.toLocaleDateString('en-SG', { weekday: 'short' });
-    const hour = String(row.booking_time || '').slice(0, 2).padStart(2, '0');
-    const demandKey = `${day} ${hour}:00`;
-    demand.set(demandKey, (demand.get(demandKey) || 0) + 1);
+    if (row.status !== 'cancelled') {
+      const bookingDate = new Date(`${dateOnly(row.booking_date)}T00:00:00`);
+      const day = bookingDate.toLocaleDateString('en-SG', { weekday: 'short' });
+      const hour = String(row.booking_time || '').slice(0, 2).padStart(2, '0');
+      const demandKey = `${day} ${hour}:00`;
+      demand.set(demandKey, (demand.get(demandKey) || 0) + 1);
+    }
   });
 
-  const totalBookings = rows.length;
+  const totalBookings = rows.filter(row => row.status !== 'cancelled').length;
   const unsuccessful = cancelled + noShow;
   const finished = completed + unsuccessful;
   const servicePerformance = [...services.values()]
     .map(item => ({
       ...item,
       revenue: round(item.revenue, 2),
-      issueRate: item.bookings ? round(((item.cancelled + item.noShow) / item.bookings) * 100) : 0,
+      issueRate: item.bookingAttempts ? round(((item.cancelled + item.noShow) / item.bookingAttempts) * 100) : 0,
     }))
     .sort((a, b) => b.revenue - a.revenue || b.bookings - a.bookings);
   const staffPerformance = [...staff.values()]
@@ -184,7 +189,7 @@ function buildRecommendations(metrics) {
   const recommendations = [];
   const topService = metrics.servicePerformance[0];
   const highIssueService = [...metrics.servicePerformance]
-    .filter(item => item.bookings >= 3)
+    .filter(item => item.bookingAttempts >= 3)
     .sort((a, b) => b.issueRate - a.issueRate)[0];
   const peak = metrics.demandPeriods[0];
   const quiet = [...metrics.demandPeriods].reverse().find(item => item.bookings > 0);
@@ -203,7 +208,7 @@ function buildRecommendations(metrics) {
     recommendations.push({
       priority: 'high',
       title: `Review ${highIssueService.name}`,
-      evidence: `${highIssueService.issueRate}% cancellation/no-show rate across ${highIssueService.bookings} bookings.`,
+      evidence: `${highIssueService.issueRate}% cancellation/no-show rate across ${highIssueService.bookingAttempts} recorded bookings.`,
       action: 'Check the service duration, price, preparation instructions and staff availability.',
       href: `/merchant/services?focus=${highIssueService.serviceId}#service-${highIssueService.serviceId}`,
       actionLabel: 'Review service',

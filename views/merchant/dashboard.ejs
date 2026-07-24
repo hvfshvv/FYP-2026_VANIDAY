@@ -273,7 +273,7 @@
     </div>
     <div class="row g-3 mb-4">
       <% [
-        { label:'Bookings', value:bookings.month_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:'All bookings during ' + periodLabel, featured:true },
+        { label:'Bookings', value:bookings.month_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:'Scheduled bookings in ' + periodLabel + '; cancellations excluded', featured:true },
         { label:'Revenue', value:'S$' + Number(revenue.month_revenue || 0).toFixed(2), icon:'bi-cash-stack', color:'var(--success)', note:'Successful payments in ' + periodLabel },
         { label:'Cancellation Rate', value:hasFinalOutcomes ? cancellationRate + '%' : 'N/A', icon:'bi-x-circle', color:cancellationColor, note:hasFinalOutcomes ? Number(metrics.monthlyCancelledBookings || 0) + ' cancelled of ' + Number(metrics.monthlyFinishedBookings || 0) + ' final outcome(s)' + (!hasReliableCancellationSample ? '; limited data' : '') : 'No final appointment outcomes yet' },
         { label:ratingLabel, value:hasRating ? rating.toFixed(1) : 'N/A', icon:'bi-star-fill', color:ratingColor, note:ratingNote },

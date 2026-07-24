@@ -11,7 +11,8 @@ function roundMoney(value) {
 }
 
 function isStripeBackedPayment(payment) {
-  return ['stripe', 'paynow'].includes(String(payment.payment_method || '').toLowerCase());
+  // Older embedded-card payments were stored as "card"; newer ones use "stripe".
+  return ['stripe', 'card', 'paynow'].includes(String(payment.payment_method || '').toLowerCase());
 }
 
 function inferPaymentIntentId(payment) {
@@ -168,6 +169,7 @@ async function refundCancelledBookingByPolicy(bookingId) {
 }
 
 module.exports = {
+  isStripeBackedPayment,
   refundBookingPayment,
   refundCancelledBookingByPolicy,
 };

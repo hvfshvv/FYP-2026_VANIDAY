@@ -50,7 +50,7 @@ test('merchant insights calculate current metrics and nearest period comparison'
   ];
 
   const result = buildMerchantInsights(rows, period);
-  assert.equal(result.metrics.totalBookings, 2);
+  assert.equal(result.metrics.totalBookings, 1);
   assert.equal(result.metrics.revenue, 50);
   assert.equal(result.metrics.averageOrderValue, 50);
   assert.equal(result.metrics.cancelled, 1);
@@ -58,7 +58,15 @@ test('merchant insights calculate current metrics and nearest period comparison'
   assert.equal(result.metrics.newCustomers, 1);
   assert.equal(result.metrics.returningCustomers, 1);
   assert.equal(result.previous.totalBookings, 1);
-  assert.equal(result.metrics.comparison.bookings, 100);
+  assert.equal(result.metrics.comparison.bookings, 0);
+});
+
+test('this-month insights cover the full calendar month', () => {
+  const period = resolveInsightPeriod('month', new Date(2026, 6, 24));
+  assert.equal(period.startDate, '2026-07-01');
+  assert.equal(period.endDate, '2026-07-31');
+  assert.equal(period.previousStartDate, '2026-06-01');
+  assert.equal(period.previousEndDate, '2026-06-30');
 });
 
 test('merchant insights page only loads the merchant id from the authenticated session', async () => {
