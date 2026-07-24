@@ -38,6 +38,39 @@
     box-shadow: inset 4px 0 0 var(--accent);
   }
 
+  .booking-entry.is-next {
+    background: linear-gradient(90deg, var(--accent-light), var(--surface) 34%);
+    box-shadow: inset 4px 0 0 var(--accent);
+  }
+
+  .booking-group-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0 0 .65rem;
+  }
+
+  .booking-group-heading h3 {
+    margin: 0;
+    color: var(--ink);
+    font-size: 1.2rem;
+    font-weight: 800;
+  }
+
+  .booking-group-heading p {
+    margin: .2rem 0 0;
+    color: var(--muted);
+    font-size: .875rem;
+  }
+
+  .booking-group-count {
+    flex-shrink: 0;
+    color: var(--muted);
+    font-size: .8rem;
+    font-weight: 700;
+  }
+
   @media (max-width: 767.98px) {
     .booking-entry-actions {
       flex: 1 1 100%;
@@ -226,12 +259,48 @@
     return Number.isNaN(createdAt) ? 0 : createdAt;
   }
 
-  const displayBookings = [...bookingList].sort((a, b) => {
-    const bookingTimeDiff = bookingStartTime(b) - bookingStartTime(a);
-    if (bookingTimeDiff) return bookingTimeDiff;
+  const terminalStatuses = new Set(['completed', 'cancelled', 'no_show', 'payment_failed']);
+  const isUpcomingBooking = booking => (
+    !terminalStatuses.has(effectiveStatus(booking))
+    && bookingStartTime(booking) >= Date.now()
+  );
+  const upcomingBookings = bookingList
+    .filter(isUpcomingBooking)
+    .sort((a, b) => bookingStartTime(a) - bookingStartTime(b) || fallbackCreatedTime(a) - fallbackCreatedTime(b));
+  const pastBookings = bookingList
+    .filter(booking => !isUpcomingBooking(booking))
+    .sort((a, b) => bookingStartTime(b) - bookingStartTime(a) || fallbackCreatedTime(b) - fallbackCreatedTime(a));
+  const bookingGroups = [
+    {
+      key: 'upcoming',
+      title: 'Upcoming appointments',
+      description: 'Your nearest appointment is shown first.',
+      bookings: upcomingBookings,
+    },
+    {
+      key: 'past',
+      title: 'Booking history',
+      description: 'Completed, cancelled and previous appointments, newest first.',
+      bookings: pastBookings,
+    },
+  ].filter(group => group.bookings.length);
 
-    return fallbackCreatedTime(b) - fallbackCreatedTime(a);
-  });
+  function isTodayBooking(booking) {
+    const startsAt = bookingStartDate(booking);
+    if (!startsAt) return false;
+    const today = new Date();
+    return startsAt.getFullYear() === today.getFullYear()
+      && startsAt.getMonth() === today.getMonth()
+      && startsAt.getDate() === today.getDate();
+  }
+
+  function bookingStatusLabel(booking, isPast) {
+    const status = effectiveStatus(booking);
+    if (status === 'completed') return 'Completed';
+    if (status === 'cancelled') return 'Cancelled';
+    if (status === 'no_show') return 'No show';
+    return isPast ? 'Past' : 'Upcoming';
+  }
 %>
 
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
@@ -360,21 +429,35 @@
         <a href="/#marketplace" class="btn btn-outline-secondary btn-pill"><%= t('bookings.exploreMerchants') %></a>
       </div>
     <% } else if (bookingList.length) { %>
-      <p class="section-label mb-2"><%= t('bookings.history') %></p>
-      <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
-        <% displayBookings.forEach((booking, index) => {
+      <% bookingGroups.forEach(group => { %>
+      <section class="mb-4" aria-labelledby="booking-group-<%= group.key %>">
+        <div class="booking-group-heading">
+          <div>
+            <h3 id="booking-group-<%= group.key %>"><%= group.title %></h3>
+            <p><%= group.description %></p>
+          </div>
+          <span class="booking-group-count"><%= group.bookings.length %> booking<%= group.bookings.length === 1 ? '' : 's' %></span>
+        </div>
+        <div class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);overflow:hidden;">
+        <% group.bookings.forEach((booking, index) => {
           const sectionIndex = index;
           const bookingStatus = effectiveStatus(booking);
           const canContinuePayment = bookingStatus === 'pending_payment';
-          const isPast = new Date(booking.booking_date) < new Date(new Date().toDateString());
+          const isPast = group.key === 'past';
+          const isNext = group.key === 'upcoming' && index === 0;
           const canManage = !isPast && !['pending_payment', 'cancelled', 'payment_failed', 'completed', 'no_show'].includes(bookingStatus);
         %>
-          <div id="booking-<%= booking.booking_id %>" class="p-4 booking-entry <%= isPast ? 'is-past' : '' %>" <%= booking.status === 'pending_payment' ? 'data-pending-payment-entry' : '' %> style="<%= sectionIndex ? 'border-top:1px solid var(--border);' : '' %>">
+          <div id="booking-<%= booking.booking_id %>" class="p-4 booking-entry <%= isPast ? 'is-past' : '' %> <%= isNext ? 'is-next' : '' %>" <%= booking.status === 'pending_payment' ? 'data-pending-payment-entry' : '' %> style="<%= sectionIndex ? 'border-top:1px solid var(--border);' : '' %>">
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
               <div class="booking-entry-details flex-grow-1">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                   <h5 style="font-weight:800;color:var(--ink);margin:0;"><%= serviceText(booking, 'name') || booking.service_name %></h5>
-                  <span class="badge rounded-pill booking-time-badge <%= isPast ? 'is-past' : '' %>"><%= t('bookings.upcoming') %></span>
+                  <span class="badge rounded-pill booking-time-badge <%= isPast ? 'is-past' : '' %>"><%= bookingStatusLabel(booking, isPast) %></span>
+                  <% if (isNext) { %>
+                    <span class="badge rounded-pill" style="background:var(--accent);color:#fff;">
+                      <i class="bi bi-pin-angle-fill me-1"></i><%= isTodayBooking(booking) ? 'Today · Next booking' : 'Next booking' %>
+                    </span>
+                  <% } %>
                   <% if (canContinuePayment) { %>
                     <span class="badge rounded-pill pending-payment-timer" data-expires-at="<%= pendingExpiryIso(booking) %>" data-remaining-seconds="<%= pendingRemainingSeconds(booking) %>" style="background:var(--accent-light);color:var(--accent);border:1px solid rgba(225,29,72,.2);">
                       <i class="bi bi-hourglass-split me-1"></i><span data-countdown>--:--</span> <%= t('bookings.left') %>
@@ -487,7 +570,9 @@
               </div>
           </div>
         <% }) %>
-      </div>
+        </div>
+      </section>
+      <% }) %>
     <% } %>
   </div>
 </main>
