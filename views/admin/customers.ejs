@@ -10,18 +10,23 @@
   const number = value => Number(value || 0).toLocaleString('en-SG');
   const percent = value => Number(value || 0).toFixed(1) + '%';
   const rating = value => Number(value || 0).toFixed(1) + '/5';
+  const maskMoney = value => {
+    const amount = Number(value || 0);
+    const whole = Math.floor(Math.abs(amount)).toString();
+    const maskedWhole = whole.length > 1 ? whole[0] + 'x'.repeat(whole.length - 1) : whole;
+    return `${amount < 0 ? '-' : ''}S$${maskedWhole}.xx`;
+  };
+  const maskPhone = value => {
+    const phone = String(value || '');
+    if (!phone) return 'No phone';
+    let seen = 0;
+    return phone.replace(/\d/g, digit => (++seen <= 4 ? digit : 'x'));
+  };
   const dateLabel = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
-  const timeLabel = value => value ? String(value).slice(0, 5) : '';
   const maxOf = (items, key) => Math.max(1, ...items.map(item => Number(item[key] || 0)));
   const barWidth = (value, max) => Math.max(5, Math.round((Number(value || 0) / max) * 100));
-  const loyaltyMembers = Number(overview.loyalty_members || 0);
-  const totalCustomers = Number(overview.total_customers || 0);
-  const loyaltyRate = totalCustomers ? (loyaltyMembers / totalCustomers) * 100 : 0;
   const avgPoints = Number(overview.avg_points_balance || 0);
   const tierProgress = Math.min(100, (avgPoints / 2000) * 100);
-  const qrTotal = (a.qrAccess || []).find(row => row.source === 'qr')?.total || 0;
-  const reminderTotal = (a.reminders || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
-  const loyaltySummary = a.loyaltySummary || {};
   const safeJson = value => JSON.stringify(value || {}).replace(/</g, '\\u003c');
 %>
 
@@ -301,7 +306,7 @@
 
     <div class="admin-tabs mb-4">
       <a href="#overview">Account Overview</a>
-      <a href="#bookings">Bookings</a>
+      <a href="#whatsapp">WhatsApp</a>
       <a href="#loyalty">Loyalty</a>
       <a href="#spending">Spending</a>
       <a href="#recommendations">Recommendations</a>
@@ -327,13 +332,9 @@
       <div class="row g-3">
         <% [
           { label:'Customer accounts', value:number(overview.total_customers), icon:'bi-person-badge', color:'var(--accent)' },
-          { label:'Loyalty members', value:number(overview.loyalty_members), icon:'bi-award', color:'var(--warn)' },
-          { label:'Reward points balance', value:number(overview.reward_points_balance), icon:'bi-coin', color:'var(--success)' },
           { label:'Payment methods used', value:number(overview.saved_payment_methods), icon:'bi-credit-card', color:'#1D4ED8' },
-          { label:'Preferred merchants', value:number(overview.preferred_merchants), icon:'bi-heart', color:'var(--danger)' },
-          { label:'Total amount spent', value:money(overview.total_amount_spent), icon:'bi-cash-stack', color:'var(--success)' },
+          { label:'Total amount spent', value:maskMoney(overview.total_amount_spent), icon:'bi-cash-stack', color:'var(--success)' },
           { label:'Average order value', value:money(overview.average_order_value), icon:'bi-bag-check', color:'var(--ink)' },
-          { label:'Loyalty adoption', value:percent(loyaltyRate), icon:'bi-graph-up', color:'var(--accent)' },
         ].forEach(stat => { %>
           <div class="col-6 col-lg-3">
             <div class="stat-card h-100">
@@ -367,12 +368,12 @@
                       </td>
                       <td>
                         <p style="margin:0;"><%= customer.email || '-' %></p>
-                        <p style="color:var(--muted);margin:0;font-size:.75rem;"><%= customer.phone || 'No phone' %></p>
+                        <p style="color:var(--muted);margin:0;font-size:.75rem;"><%= maskPhone(customer.phone) %></p>
                       </td>
                       <td><%= customer.date_of_birth ? dateLabel(customer.date_of_birth) : '-' %></td>
                       <td><%= number(customer.points_balance) %></td>
                       <td><%= number(customer.bookings) %></td>
-                      <td style="font-family:var(--font-mono);font-weight:700;"><%= money(customer.total_spent) %></td>
+                      <td style="font-family:var(--font-mono);font-weight:700;"><%= maskMoney(customer.total_spent) %></td>
                       <td><%= number(customer.favourites) %></td>
                     </tr>
                   <% }) %>
@@ -401,54 +402,62 @@
       </div>
     </section>
 
-    <section id="bookings" class="section-anchor mb-5">
-      <p class="section-label mb-1">Booking Management</p>
-      <h4 class="customer-title mb-3">Upcoming, Past &amp; Status Tracking</h4>
+    <section id="whatsapp" class="section-anchor mb-5">
+      <p class="section-label mb-1">WhatsApp Booking Data</p>
+      <h4 class="customer-title mb-3">WhatsApp Bookings</h4>
       <div class="row g-3">
-        <div class="col-lg-4">
-          <div class="customer-card">
-            <h6 class="customer-title mb-3">Upcoming Appointments</h6>
-            <% (a.upcomingBookings || []).forEach(booking => { const dt = new Date(booking.slot_date); %>
-              <div class="calendar-card">
-                <div class="calendar-date">
-                  <span><%= dt.toLocaleDateString('en-SG', { month:'short' }) %></span>
-                  <strong><%= dt.getDate() %></strong>
-                </div>
-                <div>
-                  <p style="font-weight:800;color:var(--ink);margin:0;"><%= booking.service_name %></p>
-                  <p style="color:var(--muted);margin:0;"><%= booking.customer_name %> · <%= booking.merchant_name %></p>
-                  <p style="color:var(--accent);font-weight:700;margin:.25rem 0 0;"><%= timeLabel(booking.start_time) %> · <%= booking.status.replace('_', ' ') %></p>
-                </div>
+        <% const whatsappSummary = a.whatsappBookingSummary || {}; %>
+        <% [
+          { label:'WhatsApp bookings', value:number(whatsappSummary.total_bookings), icon:'bi-whatsapp', color:'var(--success)' },
+          { label:'WhatsApp customers', value:number(whatsappSummary.customers), icon:'bi-people', color:'var(--accent)' },
+          { label:'Paid revenue', value:maskMoney(whatsappSummary.paid_revenue), icon:'bi-cash-stack', color:'var(--success)' },
+          { label:'Avg paid booking', value:maskMoney(whatsappSummary.average_paid_booking), icon:'bi-bag-check', color:'var(--ink)' },
+        ].forEach(stat => { %>
+          <div class="col-6 col-lg-3">
+            <div class="customer-card">
+              <div class="icon-circle mb-3" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
+                <i class="bi <%= stat.icon %>"></i>
               </div>
-            <% }) %>
-            <% if (!(a.upcomingBookings || []).length) { %><p style="color:var(--muted);margin:0;">No upcoming bookings.</p><% } %>
-          </div>
-        </div>
-        <div class="col-lg-4">
-          <div class="customer-card">
-            <h6 class="customer-title mb-3">Past Bookings</h6>
-            <div class="metric-list">
-              <% (a.pastBookings || []).forEach(booking => { %>
-                <div class="metric-row">
-                  <p><%= booking.service_name %></p>
-                  <small><%= dateLabel(booking.slot_date) %></small>
-                </div>
-              <% }) %>
-              <% if (!(a.pastBookings || []).length) { %><p style="color:var(--muted);margin:0;">No past bookings.</p><% } %>
+              <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;"><%= stat.label %></p>
+              <p class="stat-value" style="color:<%= stat.color %>;font-size:1.45rem;"><%= stat.value %></p>
             </div>
           </div>
-        </div>
+        <% }) %>
         <div class="col-lg-4">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Status, QR Access &amp; Reminders</h6>
+            <h6 class="customer-title mb-3">WhatsApp Status</h6>
             <div class="metric-list">
-              <% (a.bookingStatus || []).forEach(row => { %>
+              <% (a.whatsappBookingStatus || []).forEach(row => { %>
                 <div class="metric-row"><p><%= String(row.status || 'unknown').replace('_', ' ') %></p><small><%= number(row.total) %></small></div>
               <% }) %>
-              <div class="metric-row"><p>QR booking access</p><small><%= number(qrTotal) %> bookings</small></div>
-              <div class="metric-row"><p>Booking reminders</p><small><%= number(reminderTotal) %> scheduled/sent</small></div>
-              <div class="metric-row"><p>Cancel/reschedule tools</p><small>Available in customer booking history</small></div>
+              <% if (!(a.whatsappBookingStatus || []).length) { %><p style="color:var(--muted);margin:0;">No WhatsApp booking statuses yet.</p><% } %>
             </div>
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <div class="customer-card">
+            <h6 class="customer-title mb-3">Recent WhatsApp Bookings</h6>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+                <thead style="background:var(--accent-light);"><tr><th>Customer</th><th>Merchant</th><th>Service</th><th>Status</th><th>Paid</th><th>Created</th></tr></thead>
+                <tbody>
+                  <% (a.whatsappRecentBookings || []).forEach(booking => { %>
+                    <tr>
+                      <td>
+                        <p style="font-weight:700;margin:0;"><%= booking.customer_name || '-' %></p>
+                        <p style="color:var(--muted);margin:0;font-size:.75rem;"><%= maskPhone(booking.phone) %></p>
+                      </td>
+                      <td><%= booking.merchant_name || '-' %></td>
+                      <td><%= booking.service_name || '-' %></td>
+                      <td><%= String(booking.status || 'unknown').replace('_', ' ') %></td>
+                      <td style="font-family:var(--font-mono);font-weight:700;"><%= booking.payment_status === 'paid' ? maskMoney(booking.amount) : '-' %></td>
+                      <td><%= dateLabel(booking.created_at) %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <% if (!(a.whatsappRecentBookings || []).length) { %><p style="color:var(--muted);margin:0;">No WhatsApp bookings found for this period.</p><% } %>
           </div>
         </div>
       </div>
@@ -463,16 +472,6 @@
             <h6 class="customer-title mb-3">Reward Balance Visual</h6>
             <div class="visual-strip">
               <div class="visual-tile">
-                <p style="color:var(--muted);margin:0 0 .35rem;">Points balance</p>
-                <p class="stat-value" style="font-size:1.45rem;color:var(--accent);"><%= number(loyalty.points_balance) %></p>
-                <div class="mini-bar"><span style="width:<%= barWidth(loyalty.points_balance, Math.max(1, Number(loyalty.points_earned || 1))) %>%;"></span></div>
-              </div>
-              <div class="visual-tile">
-                <p style="color:var(--muted);margin:0 0 .35rem;">Stored wallet balance</p>
-                <p class="stat-value" style="font-size:1.45rem;color:var(--success);"><%= money(loyalty.money_balance) %></p>
-                <div class="mini-bar"><span style="width:<%= barWidth(loyalty.money_balance, Math.max(1, Number(loyalty.money_balance || 1))) %>%;background:var(--success);"></span></div>
-              </div>
-              <div class="visual-tile">
                 <p style="color:var(--muted);margin:0 0 .35rem;">Tier progress</p>
                 <p class="stat-value" style="font-size:1.45rem;"><%= percent(tierProgress) %></p>
                 <div class="mini-bar"><span style="width:<%= barWidth(tierProgress, 100) %>%;"></span></div>
@@ -480,26 +479,7 @@
             </div>
           </div>
         </div>
-        <div class="col-lg-3">
-          <div class="customer-card">
-            <p style="color:var(--muted);margin-bottom:.35rem;">Points earned</p>
-            <p class="stat-value" style="font-size:1.8rem;color:var(--success);"><%= number(loyalty.points_earned) %></p>
-            <p style="color:var(--muted);margin-bottom:.35rem;">Points spent</p>
-            <p class="stat-value" style="font-size:1.8rem;color:var(--accent);"><%= number(loyalty.points_redeemed) %></p>
-          </div>
-        </div>
-        <div class="col-lg-4">
-          <div class="customer-card">
-            <h6 class="customer-title mb-3">Reward History</h6>
-            <div class="metric-list">
-              <% (a.loyaltyTransactions || []).forEach(row => { %>
-                <div class="metric-row"><p><%= String(row.transaction_type || '').replace('_', ' ') %></p><small><%= number(row.points) %> pts</small></div>
-              <% }) %>
-              <% if (!(a.loyaltyTransactions || []).length) { %><p style="color:var(--muted);margin:0;">No loyalty transactions yet.</p><% } %>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-5">
+        <div class="col-12">
           <div class="customer-card">
             <h6 class="customer-title mb-3">Available Vouchers &amp; Promotions</h6>
             <div class="metric-list">
@@ -521,29 +501,6 @@
       <div class="row g-3">
         <div class="col-lg-6">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Monthly Spending Trend</h6>
-            <% const spendMax = maxOf(a.spendingTrend || [], 'total'); %>
-            <div class="chart-column-wrap mb-3">
-              <% (a.spendingTrend || []).forEach(row => { %>
-                <div class="chart-column" title="<%= row.month_label %>: <%= money(row.total) %>">
-                  <span style="height:<%= barWidth(row.total, spendMax) %>%;"></span>
-                  <small><%= row.month_label %></small>
-                </div>
-              <% }) %>
-            </div>
-            <div class="metric-list">
-              <% (a.spendingTrend || []).forEach(row => { %>
-                <div>
-                  <div class="metric-row mb-1"><p><%= row.month_label %></p><small><%= money(row.total) %></small></div>
-                  <div class="mini-bar"><span style="width:<%= barWidth(row.total, spendMax) %>%;"></span></div>
-                </div>
-              <% }) %>
-              <% if (!(a.spendingTrend || []).length) { %><p style="color:var(--muted);margin:0;">No spending trend yet.</p><% } %>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-6">
-          <div class="customer-card">
             <h6 class="customer-title mb-3">Spending Categories</h6>
             <% const categoryTotal = (a.spendingCategories || []).reduce((sum, row) => sum + Number(row.total || 0), 0) || 1; %>
             <div class="donut-grid mb-3">
@@ -555,34 +512,14 @@
                     <span><%= share.toFixed(0) %>%</span>
                   </div>
                   <p style="color:var(--ink);font-weight:800;margin:0;"><%= row.category %></p>
-                  <small style="color:var(--muted);font-family:var(--font-mono);"><%= money(row.total) %></small>
+                  <small style="color:var(--muted);font-family:var(--font-mono);"><%= maskMoney(row.total) %></small>
                 </div>
               <% }) %>
               <% if (!(a.spendingCategories || []).length) { %><p style="color:var(--muted);margin:0;">No category spend yet.</p><% } %>
             </div>
           </div>
         </div>
-        <div class="col-lg-4">
-          <div class="customer-card">
-            <h6 class="customer-title mb-3">Most Visited Merchants</h6>
-            <div class="metric-list">
-              <% (a.mostVisitedMerchants || []).forEach(row => { %>
-                <div class="metric-row"><p><%= row.merchant_name %></p><small><%= number(row.visits) %> visits</small></div>
-              <% }) %>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-4">
-          <div class="customer-card">
-            <h6 class="customer-title mb-3">Favourite Services</h6>
-            <div class="metric-list">
-              <% (a.favouriteServices || []).forEach(row => { %>
-                <div class="metric-row"><p><%= row.service_name %></p><small><%= number(row.bookings) %></small></div>
-              <% }) %>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-4">
+        <div class="col-lg-6">
           <div class="customer-card">
             <h6 class="customer-title mb-3">Booking Frequency</h6>
             <% const frequencyMax = maxOf(a.bookingFrequency || [], 'bookings'); %>
@@ -625,13 +562,11 @@
         </div>
         <div class="col-lg-4">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Behaviour-Based Recommendations</h6>
+            <h6 class="customer-title mb-3">Promos</h6>
             <div class="metric-list">
               <% (a.behaviourPromotions || []).slice(0, 4).forEach(row => { %>
-                <div class="metric-row"><p><%= row.campaign_name || row.voucher_code %></p><small>Behaviour promo</small></div>
+                <div class="metric-row"><p><%= row.campaign_name || row.voucher_code %></p></div>
               <% }) %>
-              <div class="metric-row"><p>Frequently booked combinations</p><small>Service bundle model pending</small></div>
-              <div class="metric-row"><p>Promotion matching</p><small>Based on top categories</small></div>
             </div>
           </div>
         </div>
@@ -686,9 +621,6 @@
           { label:'Active accounts', value:number(security.active_accounts), icon:'bi-shield-check' },
           { label:'Suspended accounts', value:number(security.suspended_accounts), icon:'bi-shield-exclamation' },
           { label:'Notification preferences', value:'Email / WhatsApp records', icon:'bi-bell' },
-          { label:'Linked accounts', value:'Not configured', icon:'bi-link-45deg' },
-          { label:'Privacy settings', value:'Managed by account policy', icon:'bi-lock' },
-          { label:'Password settings', value:'Available in auth module', icon:'bi-key' },
         ].forEach(item => { %>
           <div class="col-md-6 col-xl-4">
             <div class="customer-card">
@@ -742,219 +674,45 @@
     const dateLabel = value => value
       ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
       : '-';
-    const text = value => String(value || '').replace(/_/g, ' ');
-    const isFiniteNumber = value => Number.isFinite(Number(value || 0));
-    const safeNumber = value => (isFiniteNumber(value) ? Number(value) : 0);
-    const safePercent = (value, total) => total ? percent((safeNumber(value) / safeNumber(total)) * 100) : '0.0%';
-    const safeMoney = value => money(safeNumber(value));
-    const safeLabel = value => value ? String(value) : 'No data available';
-    const listTop = (items, mapper, fallback) => {
-      const values = (items || []).slice(0, 3).map(mapper).filter(Boolean);
-      return values.length ? values.join(', ') : fallback;
-    };
-    const valuesFor = (items, key) => (items || [])
-      .map(item => safeNumber(item[key]))
-      .filter(value => Number.isFinite(value));
-    const statsFor = values => {
-      const nums = values.filter(value => Number.isFinite(value)).sort((a, b) => a - b);
-      if (!nums.length) return null;
-      const sum = nums.reduce((total, value) => total + value, 0);
-      const mean = sum / nums.length;
-      const median = nums.length % 2
-        ? nums[(nums.length - 1) / 2]
-        : (nums[(nums.length / 2) - 1] + nums[nums.length / 2]) / 2;
-      const variance = nums.reduce((total, value) => total + Math.pow(value - mean, 2), 0) / nums.length;
-      return {
-        count: nums.length,
-        mean,
-        median,
-        min: nums[0],
-        max: nums[nums.length - 1],
-        stdDev: Math.sqrt(variance),
-      };
-    };
-    const frequencyText = (items, labelKey, valueKey, fallback) => {
-      const total = (items || []).reduce((sum, row) => sum + safeNumber(row[valueKey]), 0);
-      if (!total) return fallback;
-      return (items || []).slice(0, 4).map(row => {
-        const value = safeNumber(row[valueKey]);
-        const share = (value / total) * 100;
-        return `${text(row[labelKey] || 'Unknown')} ${number(value)} (${percent(share)})`;
-      }).join(', ');
-    };
-    const buildMetricLine = (label, value) => `${label}: ${value}`;
-    const buildStatusLine = (row, bookingTotal) => {
-      if (!row) return 'No booking status data available for the selected period.';
-      return `${text(row.status || 'unknown')} ${number(row.total || 0)} (${safePercent(row.total, bookingTotal)})`;
-    };
+    async function fetchAiSummary(endpoint, metaText) {
+      const defaultButtonHtml = summaryButton.innerHTML;
+      summaryButton.disabled = true;
+      summaryButton.textContent = 'Generating...';
+      summaryMeta.textContent = metaText;
+      summaryOutput.textContent = 'Generating Gemini AI summary from database data...';
+      summaryPanel.classList.add('is-visible');
+      summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    function buildCustomerSummary() {
-      const overview = analytics.overview || {};
-      const loyalty = analytics.loyaltySummary || {};
-      const security = analytics.security || {};
-      const totalCustomers = safeNumber(overview.total_customers);
-      const loyaltyMembers = safeNumber(overview.loyalty_members);
-      const loyaltyRate = totalCustomers ? (loyaltyMembers / totalCustomers) * 100 : 0;
-      const totalBookings = (analytics.bookingStatus || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
-      const totalSpend = safeNumber(overview.total_amount_spent);
-      const avgOrderValue = safeNumber(overview.average_order_value);
-      const accountSpendStats = statsFor(valuesFor(analytics.accountProfiles, 'total_spent'));
-      const monthlySpendStats = statsFor(valuesFor(analytics.spendingTrend, 'total'));
-      const bookingFrequencyStats = statsFor(valuesFor(analytics.bookingFrequency, 'bookings'));
-      const categoryTotal = (analytics.spendingCategories || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
-      const paymentTotal = (analytics.paymentMethods || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
-      const tierTotal = safeNumber(loyalty.bronze_members) + safeNumber(loyalty.silver_members) + safeNumber(loyalty.gold_members);
-      const topCustomer = (analytics.accountProfiles || []).reduce((best, row) => {
-        if (!best || safeNumber(row.total_spent) > safeNumber(best.total_spent)) return row;
-        return best;
-      }, null);
-      const topCategory = (analytics.spendingCategories || []).reduce((best, row) => {
-        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
-        return best;
-      }, null);
-      const topMerchant = (analytics.mostVisitedMerchants || []).reduce((best, row) => {
-        if (!best || safeNumber(row.visits) > safeNumber(best.visits)) return row;
-        return best;
-      }, null);
-      const topService = (analytics.favouriteServices || []).reduce((best, row) => {
-        if (!best || safeNumber(row.bookings) > safeNumber(best.bookings)) return row;
-        return best;
-      }, null);
-      const topPayment = (analytics.paymentMethods || []).reduce((best, row) => {
-        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
-        return best;
-      }, null);
-      const topEmployee = (analytics.staffPerformance || []).reduce((best, row) => {
-        if (!best || safeNumber(row.bookings) > safeNumber(best.bookings)) return row;
-        return best;
-      }, null);
-      const topBookingDay = (analytics.bookingFrequency || []).reduce((best, row) => {
-        if (!best || safeNumber(row.bookings) > safeNumber(best.bookings)) return row;
-        return best;
-      }, null);
-      const topStatus = (analytics.bookingStatus || []).reduce((best, row) => {
-        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
-        return best;
-      }, null);
-      const completed = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'completed');
-      const cancelled = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'cancelled');
-      const paymentFailed = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase().includes('payment_failed'));
-      const firstMonth = (analytics.spendingTrend || [])[0];
-      const lastMonth = (analytics.spendingTrend || []).slice(-1)[0];
-      const reviewCount = safeNumber((analytics.reviewSummary || {}).review_count);
-      const avgRating = Number((analytics.reviewSummary || {}).avg_rating || 0).toFixed(1);
-      const activeAccounts = safeNumber(security.active_accounts);
-      const suspendedAccounts = safeNumber(security.suspended_accounts);
-      const topCustomerText = topCustomer
-        ? `${safeLabel(topCustomer.full_name)} (${number(topCustomer.bookings || 0)} booking${safeNumber(topCustomer.bookings) === 1 ? '' : 's'}, ${safeMoney(topCustomer.total_spent)})`
-        : 'No customer leader is available for the selected period.';
-      const topCategoryText = topCategory
-        ? `${safeLabel(topCategory.category)} (${safeMoney(topCategory.total)}, ${safePercent(topCategory.total, categoryTotal)} of category spending)`
-        : 'No category spend data is available for the selected period.';
-      const topMerchantText = topMerchant
-        ? `${safeLabel(topMerchant.merchant_name)} (${number(topMerchant.visits || 0)} visit${safeNumber(topMerchant.visits) === 1 ? '' : 's'}, ${safeMoney(topMerchant.spent || 0)})`
-        : 'No merchant visit leader is available for the selected period.';
-      const topServiceText = topService
-        ? `${safeLabel(topService.service_name)} (${number(topService.bookings || 0)} booking${safeNumber(topService.bookings) === 1 ? '' : 's'}, ${safeMoney(topService.spent || 0)})`
-        : 'No favourite-service leader is available for the selected period.';
-      const paymentInsight = topPayment
-        ? `${safeLabel(topPayment.payment_method)} accounts for ${safePercent(topPayment.total, paymentTotal)} of recorded payments.`
-        : 'No payment-method data is available for the selected period.';
-      const loyaltyInsight = tierTotal
-        ? `Loyalty tiers are ${safePercent(loyalty.bronze_members, tierTotal)} Bronze, ${safePercent(loyalty.silver_members, tierTotal)} Silver, and ${safePercent(loyalty.gold_members, tierTotal)} Gold.`
-        : 'No loyalty tier data is available for the selected period.';
-      const spendDistributionText = accountSpendStats
-        ? `Customer spend distribution shows a mean of ${safeMoney(accountSpendStats.mean)}, a median of ${safeMoney(accountSpendStats.median)}, and a standard deviation of ${safeMoney(accountSpendStats.stdDev)}.`
-        : 'No customer spend distribution is available for the selected period.';
-      const monthlyTrendText = firstMonth && lastMonth
-        ? `Monthly spend moved from ${safeMoney(firstMonth.total)} in ${safeLabel(firstMonth.month_label)} to ${safeMoney(lastMonth.total)} in ${safeLabel(lastMonth.month_label)}.`
-        : 'No monthly spend trend is available for the selected period.';
-      const bookingFrequencyText = bookingFrequencyStats
-        ? `Booking frequency reports a mean of ${number(bookingFrequencyStats.mean.toFixed(1))} bookings per active day, a median of ${number(bookingFrequencyStats.median.toFixed(1))}, and a standard deviation of ${number(bookingFrequencyStats.stdDev.toFixed(1))}.`
-        : 'No booking frequency distribution is available for the selected period.';
-      const statusText = topStatus
-        ? `${text(topStatus.status)} is the most common status at ${buildStatusLine(topStatus, totalBookings)}`
-        : 'No booking status data is available for the selected period.';
-      const reviewText = reviewCount > 0
-        ? `Customers submitted ${number(reviewCount)} review${reviewCount === 1 ? '' : 's'} with an average rating of ${avgRating}/5.`
-        : 'No review data is available for the selected period.';
-      const securityText = activeAccounts + suspendedAccounts > 0
-        ? `Customer accounts are ${number(activeAccounts)} active and ${number(suspendedAccounts)} suspended.`
-        : 'No account-status data is available for the selected period.';
-      const employeeFocusText = topEmployee
-        ? `${safeLabel(topEmployee.staff_name)} handled the most employee-linked bookings (${number(topEmployee.bookings)}), so use their workload as the clearest staffing signal for this filter.`
-        : 'No employee-linked booking data is available for this filter, so use the customer, service, timing, and booking-status signals below for daily actions.';
-      const employeeDailyActions = [
-        topService
-          ? `Prepare for ${safeLabel(topService.service_name)} requests first: review tools, products, add-ons, and aftercare notes before appointments because this is the strongest service demand signal.`
-          : 'Check the appointment list before each shift because the selected data does not show a clear leading service yet.',
-        topCategory
-          ? `When customers ask for recommendations, lead with ${safeLabel(topCategory.category)} options, then suggest suitable follow-up services instead of giving generic recommendations.`
-          : 'Ask one extra preference question during consultation so recommendations can be personalized while category demand is still unclear.',
-        topBookingDay
-          ? `On ${safeLabel(topBookingDay.day_label)}, expect heavier demand and keep handovers short, supplies ready, and customer follow-ups scheduled before the rush.`
-          : 'Spread prep work evenly across the week because the filtered data does not show a clear busiest day.',
-        cancelled || paymentFailed
-          ? `Reduce lost bookings by confirming appointment details, payment readiness, and cancellation terms early, especially when customers seem unsure.`
-          : 'Protect the current booking flow by continuing clear confirmations, punctual service starts, and simple payment guidance.',
-        reviewCount > 0
-          ? `Customer experience is visible in reviews (${avgRating}/5 average), so each employee should close the appointment with aftercare advice and a polite review reminder.`
-          : 'Start collecting feedback after completed appointments so employees can see what customers value and what needs fixing.',
-        loyaltyMembers
-          ? `Mention loyalty points and vouchers during checkout because ${number(loyaltyMembers)} customers in this view are loyalty members or loyalty-linked.`
-          : 'Introduce the loyalty programme during checkout so repeat customers have a reason to book again.',
-      ].join('\n- ');
-
-      return `Summary
-
-Period: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.
-${buildMetricLine('Bookings', totalBookings ? number(totalBookings) : 'No data available')}; ${buildMetricLine('Spend', safeMoney(totalSpend))}; ${buildMetricLine('Customers', totalCustomers ? number(totalCustomers) : 'No data available')}; ${buildMetricLine('Loyalty members', loyaltyMembers ? number(loyaltyMembers) : 'No data available')}; ${buildMetricLine('Avg order value', safeMoney(avgOrderValue))}; ${buildMetricLine('Top customer', topCustomerText)}
-
-Stats
-
-${spendDistributionText}
-${monthlyTrendText}
-${bookingFrequencyText}
-
-Insights
-
-- ${topCategoryText}
-- ${topMerchantText}
-- ${topServiceText}
-- ${paymentInsight}
-- ${loyaltyInsight}
-- ${statusText}
-- ${reviewText}
-- ${securityText}
-
-Takeaway
-
-${totalBookings ? `${number(totalBookings)} bookings` : 'No bookings'} and ${totalSpend ? `${safeMoney(totalSpend)} spend` : 'no spend'} for the selected period. The main customer, category, merchant, service, payment, loyalty, and status insights come from the same filtered records.
-
-What This Means For Employees
-
-Employee-focused view based on the current filtered dashboard data.
-
-${employeeFocusText}
-
-Daily actions:
-- ${employeeDailyActions}`;
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            startDate: range.startDate,
+            endDate: range.endDate,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.message || 'AI summary request failed.');
+        }
+        summaryMeta.textContent = `Generated by Gemini AI from database data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
+        summaryOutput.textContent = payload.summary?.text || 'No Gemini summary was generated for the selected period.';
+      } catch (error) {
+        console.error('Failed to generate Gemini summary', error);
+        summaryMeta.textContent = `Gemini summary unavailable for ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
+        summaryOutput.textContent = `AI summary could not be generated right now. ${error.message || 'Please check the Gemini API key, network connection, or server logs, then try again.'}`;
+      } finally {
+        summaryButton.disabled = false;
+        summaryButton.innerHTML = defaultButtonHtml;
+      }
     }
 
     summaryButton.addEventListener('click', function () {
-      try {
-        const content = buildCustomerSummary();
-        summaryMeta.textContent = `Generated from the currently filtered dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
-        summaryOutput.textContent = content || 'No summary was generated for the selected period.';
-        summaryPanel.classList.add('is-visible');
-        summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } catch (error) {
-        console.error('Failed to build customer summary', error);
-        summaryMeta.textContent = `Generated from the currently filtered dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
-        summaryOutput.textContent = 'The summary could not be generated for the selected period. Please try a different date range or refresh the page.';
-        summaryPanel.classList.add('is-visible');
-        summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      fetchAiSummary(
+        '/admin/customers/ai-summary',
+        `Preparing Gemini AI summary from database data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`
+      );
     });
 
     copySummaryButton.addEventListener('click', async function () {

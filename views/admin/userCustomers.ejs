@@ -3,12 +3,23 @@
 
 <%
   // Small formatting helpers used inside the customer table.
-  const money = value => 'S$' + Number(value || 0).toFixed(2);
   const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+  const maskMoney = value => {
+    const amount = Number(value || 0);
+    const whole = Math.floor(Math.abs(amount)).toString();
+    const maskedWhole = whole.length > 1 ? whole[0] + 'x'.repeat(whole.length - 1) : whole;
+    return `${amount < 0 ? '-' : ''}S$${maskedWhole}.xx`;
+  };
   const maskEmail = email => {
     const parts = String(email || '').split('@');
     if (parts.length < 2) return email || '-';
     return `${parts[0].slice(0, 2)}***@${parts[1]}`;
+  };
+  const maskPhone = value => {
+    const phone = String(value || '');
+    if (!phone) return '-';
+    let seen = 0;
+    return phone.replace(/\d/g, digit => (++seen <= 4 ? digit : 'x'));
   };
 %>
 
@@ -64,7 +75,7 @@
             <td class="mono">#<%= customer.user_id %></td>
             <td>
               <strong><%= customer.full_name %></strong>
-              <div class="small text-muted"><%= customer.phone || '-' %></div>
+              <div class="small text-muted"><%= maskPhone(customer.phone) %></div>
             </td>
             <td><%= maskEmail(customer.email) %></td>
             <td>
@@ -78,7 +89,7 @@
               </span>
             </td>
             <td><%= customer.bookings || 0 %></td>
-            <td class="mono"><%= money(customer.total_spent) %></td>
+            <td class="mono"><%= maskMoney(customer.total_spent) %></td>
             <td class="mono"><%= customer.points_balance || 0 %></td>
             <td><%= formatDate(customer.last_booking_at) %></td>
             <td>

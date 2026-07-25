@@ -41,28 +41,46 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
     // Overview KPIs: bookings, revenue, conversion rate, satisfaction score.
     db.query(
       `SELECT
-         COUNT(DISTINCT b.booking_id) AS total_bookings,
-         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS revenue_generated,
-         COUNT(DISTINCT b.customer_id) AS number_of_customers,
+         COALESCE(bookings.total_bookings, 0) AS total_bookings,
+         COALESCE(pay.revenue_generated, 0) AS revenue_generated,
+         COALESCE(bookings.number_of_customers, 0) AS number_of_customers,
          COALESCE(
-           SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END) /
-           NULLIF(COUNT(DISTINCT CASE WHEN p.payment_status = 'paid' THEN b.booking_id END), 0),
+           pay.revenue_generated / NULLIF(pay.paid_bookings, 0),
            0
          ) AS average_order_value,
          COALESCE(
-           100 * SUM(CASE WHEN b.status IN ('confirmed', 'arrived', 'completed') THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0),
+           100 * bookings.converted_bookings / NULLIF(bookings.total_bookings, 0),
            0
          ) AS booking_conversion_rate,
          COALESCE(
-           100 * SUM(CASE WHEN b.status IN ('cancelled', 'no_show') THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0),
+           100 * bookings.risk_bookings / NULLIF(bookings.total_bookings, 0),
            0
          ) AS cancellation_no_show_rate,
-         COALESCE(AVG(r.rating), 0) AS customer_satisfaction_rating
-       FROM booking b
-       LEFT JOIN payment p ON p.booking_id = b.booking_id
-       LEFT JOIN reviews r ON r.booking_id = b.booking_id AND r.review_target = 'merchant'
-       WHERE ${bookingDateFilter}`,
-      rangeParams
+         COALESCE(reviews.customer_satisfaction_rating, 0) AS customer_satisfaction_rating
+       FROM (
+         SELECT
+           COUNT(DISTINCT b.booking_id) AS total_bookings,
+           COUNT(DISTINCT b.customer_id) AS number_of_customers,
+           SUM(CASE WHEN b.status IN ('confirmed', 'arrived', 'completed') THEN 1 ELSE 0 END) AS converted_bookings,
+           SUM(CASE WHEN b.status IN ('cancelled', 'no_show') THEN 1 ELSE 0 END) AS risk_bookings
+         FROM booking b
+         WHERE ${bookingDateFilter}
+       ) bookings
+       LEFT JOIN (
+         SELECT
+           COUNT(DISTINCT b.booking_id) AS paid_bookings,
+           COALESCE(SUM(p.amount), 0) AS revenue_generated
+         FROM booking b
+         JOIN payment p ON p.booking_id = b.booking_id
+         WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+       ) pay ON TRUE
+       LEFT JOIN (
+         SELECT COALESCE(AVG(r.rating), 0) AS customer_satisfaction_rating
+         FROM booking b
+         JOIN reviews r ON r.booking_id = b.booking_id AND r.review_target = 'merchant'
+         WHERE ${bookingDateFilter}
+       ) reviews ON TRUE`,
+      [...rangeParams, ...rangeParams, ...rangeParams]
     ),
     db.query(
       `SELECT DATE(COALESCE(p.paid_at, b.created_at)) AS period_label, COALESCE(SUM(p.amount), 0) AS total
@@ -74,11 +92,12 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
       rangeParams
     ).then(([rows]) => rows),
     db.query(
-      `SELECT s.service_name, m.merchant_name, COUNT(*) AS bookings, COALESCE(SUM(b.total_amount), 0) AS revenue
-       FROM booking b
+      `SELECT s.service_name, m.merchant_name, COUNT(DISTINCT b.booking_id) AS bookings, COALESCE(SUM(p.amount), 0) AS revenue
+       FROM payment p
+       JOIN booking b ON b.booking_id = p.booking_id
        JOIN service s ON s.service_id = b.service_id
        JOIN merchant m ON m.merchant_id = b.merchant_id
-       WHERE ${bookingDateFilter}
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
        GROUP BY s.service_id, s.service_name, m.merchant_name
        ORDER BY bookings DESC, revenue DESC
        LIMIT 8`,
@@ -110,7 +129,7 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
       `SELECT p.payment_method, COUNT(*) AS total, COALESCE(SUM(p.amount), 0) AS revenue
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
-       WHERE ${paymentDateFilter}
+       WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
        GROUP BY p.payment_method
        ORDER BY revenue DESC`,
       rangeParams
@@ -266,8 +285,8 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
       `SELECT
          COALESCE(SUM(CASE WHEN payment_status IN ('refunded', 'partially_refunded') THEN refund_amount ELSE 0 END), 0) AS refunded_amount,
          SUM(CASE WHEN payment_status IN ('refunded', 'partially_refunded') THEN 1 ELSE 0 END) AS refund_count,
-         COALESCE(SUM(amount) * 0.09, 0) AS estimated_tax,
-         COALESCE(SUM(amount), 0) AS gross_revenue
+         COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN amount ELSE 0 END) * 0.09, 0) AS estimated_tax,
+         COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN amount ELSE 0 END), 0) AS gross_revenue
        FROM payment p
        JOIN booking b ON b.booking_id = p.booking_id
        WHERE ${paymentDateFilter}`,
@@ -276,22 +295,45 @@ async function getMerchantAnalytics({ startDate, endDate } = {}) {
     // Merchant leaderboard with featured listing status and ratings.
     db.query(
       `SELECT m.merchant_id, m.merchant_name, COALESCE(NULLIF(m.category, ''), 'Uncategorised') AS category,
-              COUNT(DISTINCT b.booking_id) AS bookings,
-              COUNT(DISTINCT b.customer_id) AS customers,
-              COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS revenue,
-              COALESCE(AVG(r.rating), 0) AS rating,
-              MAX(fl.listing_id) AS featured_listing_id,
-              MAX(CASE WHEN fl.listing_id IS NOT NULL THEN 1 ELSE 0 END) AS has_featured_listing,
-              MAX(CASE WHEN fl.listing_id IS NOT NULL AND fl.is_visible = TRUE THEN 1 ELSE 0 END) AS is_featured
+              COALESCE(bookings.bookings, 0) AS bookings,
+              COALESCE(bookings.customers, 0) AS customers,
+              COALESCE(pay.revenue, 0) AS revenue,
+              COALESCE(reviews.rating, 0) AS rating,
+              featured.featured_listing_id,
+              COALESCE(featured.has_featured_listing, 0) AS has_featured_listing,
+              COALESCE(featured.is_featured, 0) AS is_featured
        FROM merchant m
-       LEFT JOIN booking b ON b.merchant_id = m.merchant_id AND ${bookingDateFilter}
-       LEFT JOIN payment p ON p.booking_id = b.booking_id
-       LEFT JOIN reviews r ON r.booking_id = b.booking_id AND r.review_target = 'merchant'
-       LEFT JOIN featured_listing fl ON fl.merchant_id = m.merchant_id
-       GROUP BY m.merchant_id, m.merchant_name, m.category
+       LEFT JOIN (
+         SELECT merchant_id, COUNT(DISTINCT booking_id) AS bookings, COUNT(DISTINCT customer_id) AS customers
+         FROM booking b
+         WHERE ${bookingDateFilter}
+         GROUP BY merchant_id
+       ) bookings ON bookings.merchant_id = m.merchant_id
+       LEFT JOIN (
+         SELECT b.merchant_id, COALESCE(SUM(p.amount), 0) AS revenue
+         FROM payment p
+         JOIN booking b ON b.booking_id = p.booking_id
+         WHERE p.payment_status = 'paid' AND ${paymentDateFilter}
+         GROUP BY b.merchant_id
+       ) pay ON pay.merchant_id = m.merchant_id
+       LEFT JOIN (
+         SELECT b.merchant_id, COALESCE(AVG(r.rating), 0) AS rating
+         FROM booking b
+         JOIN reviews r ON r.booking_id = b.booking_id AND r.review_target = 'merchant'
+         WHERE ${bookingDateFilter}
+         GROUP BY b.merchant_id
+       ) reviews ON reviews.merchant_id = m.merchant_id
+       LEFT JOIN (
+         SELECT merchant_id,
+                MAX(listing_id) AS featured_listing_id,
+                MAX(CASE WHEN listing_id IS NOT NULL THEN 1 ELSE 0 END) AS has_featured_listing,
+                MAX(CASE WHEN is_visible = TRUE THEN 1 ELSE 0 END) AS is_featured
+         FROM featured_listing
+         GROUP BY merchant_id
+       ) featured ON featured.merchant_id = m.merchant_id
        ORDER BY revenue DESC, bookings DESC
        LIMIT 12`,
-      rangeParams
+      [...rangeParams, ...rangeParams, ...rangeParams]
     ).then(([rows]) => rows),
   ]);
 
@@ -351,26 +393,49 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
     securityRows,
     reminderRows,
     qrRows,
+    whatsappBookingSummaryRows,
+    whatsappBookingStatus,
+    whatsappRecentBookings,
     staffPerformance,
     paymentMethods,
   ] = await Promise.all([
     // Overview KPIs: customer counts, loyalty balances, spending totals.
     db.query(
       `SELECT
-         COUNT(DISTINCT u.user_id) AS total_customers,
-         COUNT(DISTINCT lw.wallet_id) AS loyalty_members,
-         COALESCE(SUM(lw.points_balance), 0) AS reward_points_balance,
-         COALESCE(AVG(lw.points_balance), 0) AS avg_points_balance,
-         COUNT(DISTINCT f.favourite_id) AS preferred_merchants,
-         COUNT(DISTINCT CASE WHEN p.payment_status = 'paid' THEN p.payment_method END) AS saved_payment_methods,
-         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS total_amount_spent,
-         COALESCE(AVG(CASE WHEN p.payment_status = 'paid' THEN p.amount END), 0) AS average_order_value
-       FROM users u
-       LEFT JOIN wallet lw ON lw.customer_id = u.user_id
-       LEFT JOIN favourite f ON f.customer_id = u.user_id
-       LEFT JOIN booking b ON b.customer_id = u.user_id AND ${bookingDateFilter}
-       LEFT JOIN payment p ON p.booking_id = b.booking_id
-       WHERE u.role = 'customer'`,
+         COALESCE(customers.total_customers, 0) AS total_customers,
+         COALESCE(loyalty.loyalty_members, 0) AS loyalty_members,
+         COALESCE(loyalty.reward_points_balance, 0) AS reward_points_balance,
+         COALESCE(loyalty.avg_points_balance, 0) AS avg_points_balance,
+         COALESCE(fav.preferred_merchants, 0) AS preferred_merchants,
+         COALESCE(pay.saved_payment_methods, 0) AS saved_payment_methods,
+         COALESCE(pay.total_amount_spent, 0) AS total_amount_spent,
+         COALESCE(pay.total_amount_spent / NULLIF(pay.paid_bookings, 0), 0) AS average_order_value
+       FROM (SELECT COUNT(DISTINCT user_id) AS total_customers FROM users WHERE role = 'customer') customers
+       LEFT JOIN (
+         SELECT
+           COUNT(DISTINCT lw.wallet_id) AS loyalty_members,
+           COALESCE(SUM(lw.points_balance), 0) AS reward_points_balance,
+           COALESCE(AVG(lw.points_balance), 0) AS avg_points_balance
+         FROM users u
+         LEFT JOIN wallet lw ON lw.customer_id = u.user_id
+         WHERE u.role = 'customer'
+       ) loyalty ON TRUE
+       LEFT JOIN (
+         SELECT COUNT(DISTINCT f.favourite_id) AS preferred_merchants
+         FROM favourite f
+         JOIN users u ON u.user_id = f.customer_id
+         WHERE u.role = 'customer'
+       ) fav ON TRUE
+       LEFT JOIN (
+         SELECT
+           COUNT(DISTINCT p.payment_method) AS saved_payment_methods,
+           COUNT(DISTINCT b.booking_id) AS paid_bookings,
+           COALESCE(SUM(p.amount), 0) AS total_amount_spent
+         FROM booking b
+         JOIN payment p ON p.booking_id = b.booking_id
+         JOIN users u ON u.user_id = b.customer_id
+         WHERE u.role = 'customer' AND p.payment_status = 'paid' AND ${paymentDateFilter}
+       ) pay ON TRUE`,
       rangeParams
     ).then(([rows]) => rows[0] || {}),
     // Top 10 customer profiles by spending for the period.
@@ -387,19 +452,19 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
          COALESCE(lw.lifetime_points_earned, 0) AS lifetime_points_earned,
          COALESCE(lw.lifetime_points_redeemed, 0) AS lifetime_points_redeemed,
          COUNT(DISTINCT b.booking_id) AS bookings,
-         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS total_spent,
+         COALESCE(SUM(p.amount), 0) AS total_spent,
          COUNT(DISTINCT f.favourite_id) AS favourites
        FROM users u
        LEFT JOIN wallet lw ON lw.customer_id = u.user_id
        LEFT JOIN booking b ON b.customer_id = u.user_id AND ${bookingDateFilter}
-       LEFT JOIN payment p ON p.booking_id = b.booking_id
+       LEFT JOIN payment p ON p.booking_id = b.booking_id AND p.payment_status = 'paid' AND ${paymentDateFilter}
        LEFT JOIN favourite f ON f.customer_id = u.user_id
        WHERE u.role = 'customer'
        GROUP BY u.user_id, u.full_name, u.email, u.phone, u.status, u.created_at,
                 lw.points_balance, lw.lifetime_points_earned, lw.lifetime_points_redeemed
        ORDER BY total_spent DESC, bookings DESC
        LIMIT 10`,
-      rangeParams
+      [...rangeParams, ...rangeParams]
     ).then(([rows]) => rows),
     db.query(
       `SELECT b.booking_id, b.status, ts.slot_date, ts.start_time, u.full_name AS customer_name,
@@ -610,6 +675,44 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
     ).then(([rows]) => rows),
     db.query(
       `SELECT
+         COUNT(DISTINCT b.booking_id) AS total_bookings,
+         COUNT(DISTINCT b.customer_id) AS customers,
+         COALESCE(SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END), 0) AS paid_revenue,
+         COALESCE(
+           SUM(CASE WHEN p.payment_status = 'paid' THEN p.amount ELSE 0 END) /
+           NULLIF(COUNT(DISTINCT CASE WHEN p.payment_status = 'paid' THEN b.booking_id END), 0),
+           0
+         ) AS average_paid_booking
+       FROM booking b
+       JOIN users u ON u.user_id = b.customer_id
+       LEFT JOIN payment p ON p.booking_id = b.booking_id
+       WHERE u.role = 'customer' AND b.source = 'whatsapp' AND ${bookingDateFilter}`,
+      rangeParams
+    ).then(([rows]) => rows[0] || {}),
+    db.query(
+      `SELECT b.status, COUNT(*) AS total
+       FROM booking b
+       JOIN users u ON u.user_id = b.customer_id
+       WHERE u.role = 'customer' AND b.source = 'whatsapp' AND ${bookingDateFilter}
+       GROUP BY b.status
+       ORDER BY total DESC`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT b.booking_id, b.status, b.created_at, u.full_name AS customer_name, u.phone,
+              m.merchant_name, s.service_name, p.payment_status, p.amount
+       FROM booking b
+       JOIN users u ON u.user_id = b.customer_id
+       JOIN merchant m ON m.merchant_id = b.merchant_id
+       JOIN service s ON s.service_id = b.service_id
+       LEFT JOIN payment p ON p.booking_id = b.booking_id
+       WHERE u.role = 'customer' AND b.source = 'whatsapp' AND ${bookingDateFilter}
+       ORDER BY b.created_at DESC
+       LIMIT 8`,
+      rangeParams
+    ).then(([rows]) => rows),
+    db.query(
+      `SELECT
          COALESCE(st.staff_id, 0) AS staff_id,
          COALESCE(st.full_name, 'Unassigned') AS staff_name,
          COALESCE(st.role, 'No role recorded') AS staff_role,
@@ -667,6 +770,9 @@ async function getCustomerAnalytics({ startDate, endDate } = {}) {
     security: securityRows,
     reminders: reminderRows,
     qrAccess: qrRows,
+    whatsappBookingSummary: whatsappBookingSummaryRows,
+    whatsappBookingStatus,
+    whatsappRecentBookings,
     staffPerformance,
     paymentMethods,
   };

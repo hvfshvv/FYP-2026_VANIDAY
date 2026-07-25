@@ -8,6 +8,7 @@
 const adminDashboardModel = require('../models/adminDashboardModel');
 const adminAnalyticsModel = require('../models/adminAnalyticsModel');
 const adminUserModel = require('../models/adminUserModel');
+const { generateDashboardSummary } = require('../services/geminiAdminDashboardSummaryService');
 
 // ── DATE HELPERS ───────────────────────────────────────────────────────────
 
@@ -22,6 +23,23 @@ function toDateInput(value) {
   const month = String(value.getMonth() + 1).padStart(2, '0');
   const day = String(value.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function parseAnalyticsRange(body = {}) {
+  const today = new Date();
+  const defaultStart = new Date(today);
+  defaultStart.setDate(defaultStart.getDate() - 29);
+
+  const range = {
+    startDate: isDate(body.startDate) ? body.startDate : toDateInput(defaultStart),
+    endDate: isDate(body.endDate) ? body.endDate : toDateInput(today),
+  };
+
+  if (new Date(range.endDate) < new Date(range.startDate)) {
+    range.endDate = range.startDate;
+  }
+
+  return range;
 }
 
 const DASHBOARD_PERIODS = {
@@ -153,6 +171,9 @@ function emptyCustomerAnalytics() {
     security: {},
     reminders: [],
     qrAccess: [],
+    whatsappBookingSummary: {},
+    whatsappBookingStatus: [],
+    whatsappRecentBookings: [],
     staffPerformance: [],
     paymentMethods: [],
   };
@@ -295,6 +316,48 @@ async function showCustomers(req, res) {
   }
 }
 
+async function generateMerchantAiSummary(req, res) {
+  const range = parseAnalyticsRange(req.body || {});
+
+  try {
+    const analytics = await adminAnalyticsModel.getMerchantAnalytics(range);
+    const summary = await generateDashboardSummary({
+      dashboardType: 'merchant',
+      analytics,
+      range,
+    });
+
+    return res.status(200).json({ success: true, summary });
+  } catch (err) {
+    console.error('[adminDashboard] Merchant AI summary failed:', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'Unable to generate the merchant dashboard summary right now.',
+    });
+  }
+}
+
+async function generateCustomerAiSummary(req, res) {
+  const range = parseAnalyticsRange(req.body || {});
+
+  try {
+    const analytics = await adminAnalyticsModel.getCustomerAnalytics(range);
+    const summary = await generateDashboardSummary({
+      dashboardType: 'customer',
+      analytics,
+      range,
+    });
+
+    return res.status(200).json({ success: true, summary });
+  } catch (err) {
+    console.error('[adminDashboard] Customer AI summary failed:', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'Unable to generate the customer dashboard summary right now.',
+    });
+  }
+}
+
 // Renders the platform revenue report for a user-selected date range.
 async function showRevenueReport(req, res) {
   const today = new Date();
@@ -370,6 +433,8 @@ module.exports = {
   showComingSoon,
   showMerchants,
   showCustomers,
+  generateMerchantAiSummary,
+  generateCustomerAiSummary,
   showRevenueReport,
   showPlatformFeedback,
   isDate,

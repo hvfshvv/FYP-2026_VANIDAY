@@ -32,6 +32,8 @@ router.get('/payouts',           payoutCtrl.showPayouts);
 router.get('/payouts/:payoutId', payoutCtrl.showPayoutDetail);
 router.get('/merchants',         dashboardCtrl.showMerchants);
 router.get('/customers',         dashboardCtrl.showCustomers);
+router.post('/merchants/ai-summary', dashboardCtrl.generateMerchantAiSummary);
+router.post('/customers/ai-summary', dashboardCtrl.generateCustomerAiSummary);
 router.get('/platform-feedback', dashboardCtrl.showPlatformFeedback);
 router.get('/reviews', reviewCtrl.showAdminReviews);
 router.get('/reviews/all', reviewCtrl.showAllAdminReviews);

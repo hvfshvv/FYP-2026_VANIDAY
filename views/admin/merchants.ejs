@@ -8,6 +8,12 @@
   const number = value => Number(value || 0).toLocaleString('en-SG');
   const percent = value => Number(value || 0).toFixed(1) + '%';
   const rating = value => Number(value || 0).toFixed(1) + '/5';
+  const maskMoney = value => {
+    const amount = Number(value || 0);
+    const whole = Math.floor(Math.abs(amount)).toString();
+    const maskedWhole = whole.length > 1 ? whole[0] + 'x'.repeat(whole.length - 1) : whole;
+    return `${amount < 0 ? '-' : ''}S$${maskedWhole}.xx`;
+  };
   const dateLabel = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }) : '-';
   const maxOf = (items, key) => Math.max(1, ...items.map(item => Number(item[key] || 0)));
   const barWidth = (value, max) => Math.max(6, Math.round((Number(value || 0) / max) * 100));
@@ -354,7 +360,7 @@
       <div class="row g-3">
         <% [
           { label:'Total bookings', value:number(overview.total_bookings), icon:'bi-calendar-check', color:'#1D4ED8' },
-          { label:'Revenue generated', value:money(overview.revenue_generated), icon:'bi-cash-stack', color:'var(--success)' },
+          { label:'Revenue generated', value:maskMoney(overview.revenue_generated), icon:'bi-cash-stack', color:'var(--success)' },
           { label:'Customers', value:number(overview.number_of_customers), icon:'bi-people', color:'var(--accent)' },
           { label:'Average order value', value:money(overview.average_order_value), icon:'bi-bag-check', color:'var(--ink)' },
           { label:'Booking conversion', value:percent(overview.booking_conversion_rate), icon:'bi-graph-up-arrow', color:'var(--success)' },
@@ -387,58 +393,19 @@
         </div>
       </div>
       <div class="row g-3">
-        <div class="col-lg-7">
-          <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Daily Revenue Trend</h6>
-            <%
-              const revenueRows = (a.revenueTrend || []).filter(row => Number(row.total || 0) > 0);
-              const revenueTotal = revenueRows.reduce((sum, row) => sum + Number(row.total || 0), 0);
-              let revenueCursor = 0;
-              const revenueGradient = revenueRows.map((row, index) => {
-                const start = revenueCursor;
-                revenueCursor += (Number(row.total || 0) / revenueTotal) * 100;
-                const color = chartColors[index % chartColors.length];
-                return `${color} ${start.toFixed(2)}% ${revenueCursor.toFixed(2)}%`;
-              }).join(', ');
-            %>
-            <% if (revenueRows.length) { %>
-              <div class="round-chart-wrap">
-                <div class="round-chart" style="background:conic-gradient(<%- revenueGradient %>);">
-                  <div class="round-chart-center">
-                    <div>
-                      <strong><%= money(revenueTotal) %></strong>
-                      <small>Total</small>
-                    </div>
-                  </div>
-                </div>
-                <div class="round-chart-legend">
-                  <% revenueRows.forEach((row, index) => { %>
-                    <span>
-                      <i style="background:<%= chartColors[index % chartColors.length] %>;"></i>
-                      <%= dateLabel(row.period_label) %>
-                      <b><%= money(row.total) %></b>
-                    </span>
-                  <% }) %>
-                </div>
-              </div>
-            <% } else { %>
-              <p style="color:var(--muted);margin:0;">No paid revenue in this range.</p>
-            <% } %>
-          </div>
-        </div>
-        <div class="col-lg-5">
+        <div class="col-12">
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Revenue by Category</h6>
             <% const categoryMax = maxOf(a.revenueByCategory || [], 'revenue'); %>
             <div class="d-flex flex-wrap gap-2 mb-3">
-              <% (a.revenueByCategory || []).slice(0, 4).forEach(row => { %>
+              <% (a.revenueByCategory || []).slice(0, 4).forEach(row => { const money = maskMoney; %>
                 <span class="status-pill"><%= row.category %> · <%= money(row.revenue) %></span>
               <% }) %>
             </div>
             <div class="metric-list">
               <% (a.revenueByCategory || []).forEach(row => { %>
                 <div>
-                  <div class="metric-row mb-1"><p><%= row.category %></p><small><%= money(row.revenue) %></small></div>
+                  <div class="metric-row mb-1"><p><%= row.category %></p><small><%= maskMoney(row.revenue) %></small></div>
                   <div class="mini-bar"><span style="width:<%= barWidth(row.revenue, categoryMax) %>%;"></span></div>
                 </div>
               <% }) %>
@@ -468,7 +435,7 @@
             <div class="metric-list">
               <% (a.paymentBreakdown || []).forEach(row => { %>
                 <div>
-                  <div class="metric-row mb-1"><p><%= row.payment_method || 'Unknown' %></p><small><%= money(row.revenue) %></small></div>
+                  <div class="metric-row mb-1"><p><%= row.payment_method || 'Unknown' %></p><small><%= maskMoney(row.revenue) %></small></div>
                   <div class="mini-bar"><span style="width:<%= barWidth(row.revenue, paymentMax) %>%;"></span></div>
                 </div>
               <% }) %>
@@ -497,7 +464,7 @@
               <% (a.peakSalesPeriods || []).forEach(row => { %>
                 <div class="metric-row">
                   <p><%= String(row.hour_label).padStart(2, '0') %>:00</p>
-                  <small><%= money(row.revenue) %></small>
+                  <small><%= maskMoney(row.revenue) %></small>
                 </div>
               <% }) %>
               <% if (!(a.peakSalesPeriods || []).length) { %><p style="color:var(--muted);margin:0;">No peak sales data yet.</p><% } %>
@@ -531,21 +498,7 @@
             </div>
           </div>
         </div>
-        <div class="col-lg-4">
-          <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Confirmed vs Cancelled</h6>
-            <% const statusMax = maxOf(a.bookingStatus || [], 'total'); %>
-            <div class="metric-list">
-              <% (a.bookingStatus || []).forEach(row => { %>
-                <div>
-                  <div class="metric-row mb-1"><p><%= String(row.status || 'unknown').replace('_', ' ') %></p><small><%= number(row.total) %></small></div>
-                  <div class="mini-bar"><span style="width:<%= barWidth(row.total, statusMax) %>%;"></span></div>
-                </div>
-              <% }) %>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-4">
+        <div class="col-lg-6">
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Peak Booking Hours &amp; Days</h6>
             <% const peakBookingMax = maxOf(a.peakBookingTimes || [], 'bookings'); %>
@@ -560,7 +513,7 @@
             </div>
           </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-lg-6">
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Booking Lead Time</h6>
             <p class="stat-value" style="font-size:2rem;color:var(--accent);"><%= avgLeadDays.toFixed(1) %> days</p>
@@ -591,7 +544,7 @@
                 <thead style="background:var(--accent-light);"><tr><th>Customer</th><th>Bookings</th><th>Reviews</th><th>CLV</th></tr></thead>
                 <tbody>
                   <% (a.topCustomers || []).forEach(customer => { %>
-                    <tr><td><%= customer.full_name %></td><td><%= number(customer.bookings) %></td><td><%= number(customer.reviews) %></td><td><%= money(customer.lifetime_value) %></td></tr>
+                    <tr><td><%= customer.full_name %></td><td><%= number(customer.bookings) %></td><td><%= number(customer.reviews) %></td><td><%= maskMoney(customer.lifetime_value) %></td></tr>
                   <% }) %>
                 </tbody>
               </table>
@@ -606,7 +559,7 @@
       <p class="section-label mb-1">Marketing Performance</p>
       <h4 class="analytics-title mb-3">Campaigns, WhatsApp Booking, Walk-in QR &amp; Marketplace</h4>
       <div class="row g-3">
-        <div class="col-lg-4">
+        <div class="col-lg-6">
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Campaign Performance</h6>
             <div class="metric-list">
@@ -616,7 +569,7 @@
             </div>
           </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-lg-6">
           <div class="analytics-card">
             <h6 class="analytics-title mb-3">Booking Source</h6>
             <% const channelMax = maxOf(a.bookingChannelAnalytics || [], 'total'); %>
@@ -636,17 +589,6 @@
             </div>
           </div>
         </div>
-        <div class="col-lg-4">
-          <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Marketplace Listing Performance</h6>
-            <div class="metric-list">
-              <% (a.listingPerformance || []).forEach(row => { %>
-                <div class="metric-row"><p><%= row.merchant_name %></p><small><%= number(row.visible_listings) %> visible</small></div>
-              <% }) %>
-              <% if (!(a.listingPerformance || []).length) { %><p style="color:var(--muted);margin:0;">No featured listings yet.</p><% } %>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -656,7 +598,7 @@
       <div class="mini-kpi-strip">
         <div class="mini-kpi">
           <p style="color:var(--muted);margin:0 0 .35rem;">Paid revenue</p>
-          <p class="stat-value" style="font-size:1.45rem;color:var(--success);"><%= money(overview.revenue_generated) %></p>
+          <p class="stat-value" style="font-size:1.45rem;color:var(--success);"><%= maskMoney(overview.revenue_generated) %></p>
         </div>
         <div class="mini-kpi">
           <p style="color:var(--muted);margin:0 0 .35rem;">Conversion health</p>
@@ -682,9 +624,9 @@
       <div class="row g-3">
         <% [
           { label:'Profit margin', value:percent(profitMargin), icon:'bi-percent' },
-          { label:'Refund amount', value:money(a.financial?.refunded_amount), icon:'bi-arrow-counterclockwise' },
+          { label:'Refund amount', value:maskMoney(a.financial?.refunded_amount), icon:'bi-arrow-counterclockwise' },
           { label:'Refund count', value:number(a.financial?.refund_count), icon:'bi-receipt-cutoff' },
-          { label:'Estimated tax', value:money(a.financial?.estimated_tax), icon:'bi-file-earmark-text' },
+          { label:'Estimated tax', value:maskMoney(a.financial?.estimated_tax), icon:'bi-file-earmark-text' },
         ].forEach(item => { %>
           <div class="col-6 col-lg-3">
             <div class="analytics-card">
@@ -724,7 +666,7 @@
                   <td><%= merchant.category %></td>
                   <td><%= number(merchant.bookings) %></td>
                   <td><%= number(merchant.customers) %></td>
-                  <td style="font-family:var(--font-mono);font-weight:700;"><%= money(merchant.revenue) %></td>
+                  <td style="font-family:var(--font-mono);font-weight:700;"><%= maskMoney(merchant.revenue) %></td>
                   <td><%= rating(merchant.rating) %></td>
                   <td>
                     <% if (Number(merchant.is_featured || 0)) { %>
@@ -794,199 +736,45 @@
     const dateLabel = value => value
       ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
       : '-';
-    const text = value => String(value || '').replace(/_/g, ' ');
-    const isFiniteNumber = value => Number.isFinite(Number(value || 0));
-    const safeNumber = value => (isFiniteNumber(value) ? Number(value) : 0);
-    const safePercent = (value, total) => total ? percent((safeNumber(value) / safeNumber(total)) * 100) : '0.0%';
-    const safeMoney = value => money(safeNumber(value));
-    const safeLabel = value => value ? String(value) : 'No data available';
-    const listTop = (items, mapper, fallback) => {
-      const values = (items || []).slice(0, 3).map(mapper).filter(Boolean);
-      return values.length ? values.join(', ') : fallback;
-    };
-    const valuesFor = (items, key) => (items || [])
-      .map(item => safeNumber(item[key]))
-      .filter(value => Number.isFinite(value));
-    const statsFor = values => {
-      const nums = values.filter(value => Number.isFinite(value)).sort((a, b) => a - b);
-      if (!nums.length) return null;
-      const sum = nums.reduce((total, value) => total + value, 0);
-      const mean = sum / nums.length;
-      const median = nums.length % 2
-        ? nums[(nums.length - 1) / 2]
-        : (nums[(nums.length / 2) - 1] + nums[nums.length / 2]) / 2;
-      const variance = nums.reduce((total, value) => total + Math.pow(value - mean, 2), 0) / nums.length;
-      return {
-        count: nums.length,
-        mean,
-        median,
-        min: nums[0],
-        max: nums[nums.length - 1],
-        stdDev: Math.sqrt(variance),
-      };
-    };
-    const frequencyText = (items, labelKey, valueKey, fallback) => {
-      const total = (items || []).reduce((sum, row) => sum + safeNumber(row[valueKey]), 0);
-      if (!total) return fallback;
-      return (items || []).slice(0, 4).map(row => {
-        const value = safeNumber(row[valueKey]);
-        const share = (value / total) * 100;
-        return `${text(row[labelKey] || 'Unknown')} ${number(value)} (${percent(share)})`;
-      }).join(', ');
-    };
-    const buildMetricLine = (label, value) => `${label}: ${value}`;
-    const buildStatusLine = (row, bookingTotal) => {
-      if (!row) return 'No status data available for the selected period.';
-      return `${text(row.status || 'unknown')} ${number(row.total || 0)} (${safePercent(row.total, bookingTotal)})`;
-    };
-    const buildLeadTimeText = leadTime => {
-      const avgHours = safeNumber(leadTime?.avg_lead_hours || 0);
-      const validCount = safeNumber(leadTime?.valid_lead_count || 0);
-      const invalidCount = safeNumber(leadTime?.invalid_lead_count || 0);
-      if (!validCount) return 'No valid booking lead-time data available for the selected period.';
-      const leadDays = avgHours / 24;
-      const invalidText = invalidCount > 0 ? ` ${invalidCount} invalid record${invalidCount === 1 ? '' : 's'} were excluded.` : '';
-      return `${leadDays.toFixed(1)} days on average${invalidText}`;
-    };
+    async function fetchAiSummary(endpoint, metaText) {
+      const defaultButtonHtml = summaryButton.innerHTML;
+      summaryButton.disabled = true;
+      summaryButton.textContent = 'Generating...';
+      summaryMeta.textContent = metaText;
+      summaryOutput.textContent = 'Generating Gemini AI summary from database data...';
+      summaryPanel.classList.add('is-visible');
+      summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    function buildMerchantSummary() {
-      const overview = analytics.overview || {};
-      const financial = analytics.financial || {};
-      const segments = analytics.customerSegments || {};
-      const leadTime = analytics.leadTime || {};
-      const grossRevenue = safeNumber(financial.gross_revenue);
-      const refundedAmount = safeNumber(financial.refunded_amount);
-      const profitMargin = grossRevenue ? ((grossRevenue - refundedAmount) / grossRevenue) * 100 : 0;
-      const totalCustomers = safeNumber(segments.total_customers);
-      const returningCustomers = safeNumber(segments.returning_customers);
-      const newCustomers = safeNumber(segments.new_customers);
-      const retentionRate = totalCustomers ? (returningCustomers / totalCustomers) * 100 : 0;
-      const revenueStats = statsFor(valuesFor(analytics.revenueTrend, 'total'));
-      const bookingTotal = (analytics.bookingStatus || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
-      const categoryTotal = (analytics.revenueByCategory || []).reduce((sum, row) => sum + safeNumber(row.revenue), 0);
-      const channelTotal = (analytics.bookingChannelAnalytics || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
-      const paymentTotal = (analytics.paymentBreakdown || []).reduce((sum, row) => sum + safeNumber(row.total), 0);
-      const topMerchant = (analytics.topMerchants || [])[0];
-      const topCategory = (analytics.revenueByCategory || [])[0];
-      const topService = (analytics.topServices || [])[0];
-      const topStatus = (analytics.bookingStatus || []).reduce((best, row) => {
-        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
-        return best;
-      }, null);
-      const topPayment = (analytics.paymentBreakdown || []).reduce((best, row) => {
-        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
-        return best;
-      }, null);
-      const topChannel = (analytics.bookingChannelAnalytics || []).reduce((best, row) => {
-        if (!best || safeNumber(row.total) > safeNumber(best.total)) return row;
-        return best;
-      }, null);
-      const topCampaign = (analytics.promotionPerformance || []).reduce((best, row) => {
-        if (!best || safeNumber(row.redemptions) > safeNumber(best.redemptions)) return row;
-        return best;
-      }, null);
-      const completed = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'completed');
-      const cancelled = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'cancelled');
-      const noShow = (analytics.bookingStatus || []).find(row => String(row.status || '').toLowerCase() === 'no_show');
-      const firstRevenueDay = (analytics.revenueTrend || [])[0];
-      const lastRevenueDay = (analytics.revenueTrend || []).slice(-1)[0];
-      const peakSales = listTop(
-        analytics.peakSalesPeriods,
-        row => `${String(row.hour_label || '00').padStart(2, '0')}:00 (${money(row.revenue || 0)})`,
-        'No peak revenue hour data available for the selected period.'
-      );
-      const peakBookings = listTop(
-        analytics.peakBookingTimes,
-        row => `${safeLabel(row.day_label)} ${String(row.hour_label || '00').padStart(2, '0')}:00 (${number(row.bookings || 0)} booking${safeNumber(row.bookings) === 1 ? '' : 's'})`,
-        'No peak booking day and time data available for the selected period.'
-      );
-      const categoryShare = topCategory ? safePercent(topCategory.revenue, categoryTotal) : '0.0%';
-      const serviceShare = topService ? safePercent(topService.revenue, grossRevenue) : '0.0%';
-      const channelShare = topChannel ? safePercent(topChannel.total, channelTotal) : '0.0%';
-      const paymentShare = topPayment ? safePercent(topPayment.total, paymentTotal) : '0.0%';
-      const statusShareText = topStatus ? `${number(topStatus.total || 0)} (${safePercent(topStatus.total, bookingTotal)})` : 'No status data available.';
-      const topMerchantText = topMerchant
-        ? `${safeLabel(topMerchant.merchant_name)} (${money(topMerchant.revenue || 0)}, ${number(topMerchant.bookings || 0)} booking${safeNumber(topMerchant.bookings) === 1 ? '' : 's'})`
-        : 'No merchant data available for the selected period.';
-      const topCategoryText = topCategory
-        ? `${safeLabel(topCategory.category)} (${money(topCategory.revenue || 0)}, ${categoryShare} of category revenue)`
-        : 'No category revenue data available for the selected period.';
-      const topServiceText = topService
-        ? `${safeLabel(topService.service_name)} (${number(topService.bookings || 0)} booking${safeNumber(topService.bookings) === 1 ? '' : 's'}, ${money(topService.revenue || 0)}, ${serviceShare} of paid revenue)`
-        : 'No service revenue data available for the selected period.';
-      const bookingFrequencyText = `${buildMetricLine('Total bookings', number(safeNumber(overview.total_bookings)))}; ${buildMetricLine('Paid revenue', safeMoney(overview.revenue_generated))}; ${buildMetricLine('Unique customers', number(safeNumber(overview.number_of_customers)))}; ${buildMetricLine('Average order value', safeMoney(overview.average_order_value))}; ${buildMetricLine('Top merchant', topMerchantText)}`;
-      const statsText = revenueStats
-        ? `${buildMetricLine('Daily mean revenue', safeMoney(revenueStats.mean))}; ${buildMetricLine('Daily median revenue', safeMoney(revenueStats.median))}; ${buildMetricLine('Daily revenue standard deviation', safeMoney(revenueStats.stdDev))}; ${buildMetricLine('First daily revenue', safeMoney(firstRevenueDay?.total))}; ${buildMetricLine('Latest daily revenue', safeMoney(lastRevenueDay?.total))}`
-        : 'No daily revenue trend data is available for the selected period.';
-      const performanceText = `${buildMetricLine('Booking conversion rate', percent(overview.booking_conversion_rate))}; ${buildMetricLine('Cancellation/no-show rate', percent(overview.cancellation_no_show_rate))}; ${buildMetricLine('Customer satisfaction', `${Number(overview.customer_satisfaction_rating || 0).toFixed(1)}/5`)}`;
-      const retentionText = `${buildMetricLine('Customer retention rate', percent(retentionRate))}; ${buildMetricLine('New customers', number(segments.new_customers || 0))}; ${buildMetricLine('Returning customers', number(segments.returning_customers || 0))}; ${buildMetricLine('Average booking lead time', buildLeadTimeText(leadTime))}`;
-      const marginText = `${buildMetricLine('Profit margin', percent(profitMargin))}; ${buildMetricLine('Refunded amount', safeMoney(financial.refunded_amount))}; ${buildMetricLine('Refund count', number(financial.refund_count || 0))}`;
-      const categoryText = `${buildMetricLine('Category revenue leader', topCategoryText)}; ${buildMetricLine('Booking status leader', buildStatusLine(topStatus, bookingTotal))}`;
-      const channelText = `${buildMetricLine('Top booking channel', topChannel ? `${safeLabel(topChannel.channel_label)} (${safePercent(topChannel.total, channelTotal)})` : 'No channel data available for the selected period.')}; ${buildMetricLine('Top payment method', topPayment ? `${safeLabel(topPayment.payment_method)} (${safePercent(topPayment.total, paymentTotal)})` : 'No payment data available for the selected period.')}; ${buildMetricLine('Top promotion', topCampaign && safeNumber(topCampaign.redemptions) > 0 ? `${safeLabel(topCampaign.campaign_name || topCampaign.voucher_code)} (${number(topCampaign.redemptions || 0)} redemption${safeNumber(topCampaign.redemptions) === 1 ? '' : 's'})` : 'No promotion redemption data available for the selected period.')}`;
-      const operationsText = `${buildMetricLine('Peak revenue hours', peakSales)}; ${buildMetricLine('Peak booking days and times', peakBookings)}`;
-      const peakBookingPeriods = (analytics.peakBookingTimes || [])
-        .slice(0, 4)
-        .map(row => `${safeLabel(row.day_label)} ${String(row.hour_label || '00').padStart(2, '0')}:00`)
-        .join(', ');
-      const topCategoryName = safeLabel(topCategory?.category || 'the main revenue category');
-      const topServiceName = safeLabel(topService?.service_name || 'the top service');
-      const topChannelName = safeLabel(topChannel?.channel_label || 'the main booking channel');
-
-      const employeeDataAnalysis = `What This Means For Employees
-
-Employee-focused view based on the current filtered dashboard data.
-
-Daily actions:
-- Prepare extra staff and appointment capacity for ${peakBookingPeriods || peakSales || 'the busiest periods'}.
-- Prioritise ${topServiceName} and ${topCategoryName} so employees can explain, recommend, and upsell the strongest offers.
-- Reduce the current ${percent(overview.cancellation_no_show_rate)} cancellation and no-show rate with reminders, confirmations, and easy rescheduling.
-- Keep the current ${Number(overview.customer_satisfaction_rating || 0).toFixed(1)}/5 service experience strong by following up quickly and staying consistent.
-- Encourage referrals and first-time customer offers because ${number(returningCustomers)} returning customers outnumber ${number(newCustomers)} new customers.
-- Review the ${number(financial.refund_count || 0)} refund${safeNumber(financial.refund_count) === 1 ? '' : 's'} totalling ${safeMoney(financial.refunded_amount)} and record the reasons for repeat issues.
-- Keep website booking details accurate because ${safePercent(topChannel?.total, channelTotal)} of bookings come from ${topChannelName}.
-- ${safeNumber(leadTime.invalid_lead_count) > 0 ? `Data quality warning: ${number(leadTime.invalid_lead_count || 0)} invalid booking records were excluded and should be corrected before the team uses this report.` : 'No data quality issues were detected in the current filtered dataset.'}`;
-
-      return `Summary
-
-Period: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.
-${bookingFrequencyText}
-
-Stats
-
-${statsText}
-
-Insights
-
-- ${topCategoryText}
-- ${topServiceText}
-- ${categoryText}
-- ${performanceText}
-- ${retentionText}
-- ${marginText}
-- ${channelText}
-- ${operationsText}
-
-Takeaway
-
-${safeLabel(overview.total_bookings ? `${number(overview.total_bookings)} bookings` : 'No bookings')} and ${safeLabel(overview.revenue_generated ? `${safeMoney(overview.revenue_generated)} revenue` : 'no revenue')} for the selected period. The top merchant, category, service, channel, payment method, and promotion are all based on the same filtered records.
-
-${employeeDataAnalysis}`;
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            startDate: range.startDate,
+            endDate: range.endDate,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.message || 'AI summary request failed.');
+        }
+        summaryMeta.textContent = `Generated by Gemini AI from database data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
+        summaryOutput.textContent = payload.summary?.text || 'No Gemini summary was generated for the selected period.';
+      } catch (error) {
+        console.error('Failed to generate Gemini summary', error);
+        summaryMeta.textContent = `Gemini summary unavailable for ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
+        summaryOutput.textContent = `AI summary could not be generated right now. ${error.message || 'Please check the Gemini API key, network connection, or server logs, then try again.'}`;
+      } finally {
+        summaryButton.disabled = false;
+        summaryButton.innerHTML = defaultButtonHtml;
+      }
     }
 
     summaryButton.addEventListener('click', function () {
-      try {
-        const content = buildMerchantSummary();
-        summaryMeta.textContent = `Generated from the currently filtered merchant dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
-        summaryOutput.textContent = content || 'No summary was generated for the selected period.';
-        summaryPanel.classList.add('is-visible');
-        summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } catch (error) {
-        console.error('Failed to build merchant summary', error);
-        summaryMeta.textContent = `Generated from the currently filtered merchant dashboard data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
-        summaryOutput.textContent = 'The summary could not be generated for the selected period. Please try a different date range or refresh the page.';
-        summaryPanel.classList.add('is-visible');
-        summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      fetchAiSummary(
+        '/admin/merchants/ai-summary',
+        `Preparing Gemini AI summary from database data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`
+      );
     });
 
     copySummaryButton.addEventListener('click', async function () {
