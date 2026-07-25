@@ -7,7 +7,7 @@
     ? 'the previous 7 days'
     : (period.key === '30d' ? 'the previous 30 days' : 'the same dates last month');
   const changeText = value => {
-    if (value === null || typeof value === 'undefined') return `No activity in ${comparisonPeriod}`;
+    if (value === null || typeof value === 'undefined') return `New activity; ${comparisonPeriod} had none`;
     const amount = Number(value || 0);
     if (Math.abs(amount) < .05) return `Same as ${comparisonPeriod}`;
     return `${Math.abs(amount).toFixed(1)}% ${amount > 0 ? 'higher' : 'lower'} than ${comparisonPeriod}`;
@@ -95,6 +95,7 @@
       <div>
         <p class="section-label mb-2">Merchant analytics</p>
         <h1>Business Insights</h1>
+        <p style="font-size:.75rem;">Each large number is the selected period's value. The comparison line shows its percentage change against <%= comparisonPeriod %>.</p>
         <p>Private performance insights for <strong><%= merchant.merchant_name %></strong> · <%= period.startDate %> to <%= period.endDate %></p>
       </div>
       <nav class="insights-period" aria-label="Insights period">

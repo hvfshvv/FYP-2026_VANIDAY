@@ -61,12 +61,12 @@ test('merchant insights calculate current metrics and nearest period comparison'
   assert.equal(result.metrics.comparison.bookings, 0);
 });
 
-test('this-month insights cover the full calendar month', () => {
+test('this-month insights compare elapsed month-to-date dates', () => {
   const period = resolveInsightPeriod('month', new Date(2026, 6, 24));
   assert.equal(period.startDate, '2026-07-01');
-  assert.equal(period.endDate, '2026-07-31');
+  assert.equal(period.endDate, '2026-07-24');
   assert.equal(period.previousStartDate, '2026-06-01');
-  assert.equal(period.previousEndDate, '2026-06-30');
+  assert.equal(period.previousEndDate, '2026-06-24');
 });
 
 test('merchant insights page only loads the merchant id from the authenticated session', async () => {

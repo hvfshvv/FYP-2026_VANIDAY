@@ -8,6 +8,7 @@ const supportModel = require('../models/supportModel');
 const adminValidationModel = require('../models/adminValidationModel');
 const bookingDisruptionModel = require('../models/bookingDisruptionModel');
 const bookingDisruptionController = require('./bookingDisruptionController');
+const notificationModel = require('../models/notificationModel');
 
 const userSessions = {};
 const WHATSAPP_BOOKING_PAGE_SIZE = 5;
@@ -1255,6 +1256,9 @@ async function receiveMessage(req, res) {
 
           const booking = await bookingModel.getBookingById(session.booking.booking_id);
           linkedBookingId = booking.booking_id;
+          await notificationModel.notifyBookingRescheduled(booking, session.booking).catch(error => {
+            console.error('[whatsapp] replacement reschedule notification failed:', error.message);
+          });
 
           twiml.message(
             'Your booking has been rescheduled.\n\n' +

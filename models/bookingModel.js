@@ -665,6 +665,9 @@ async function rescheduleCustomerBooking(bookingId, customerId, bookingDate, boo
 
 // Returns all bookings for a merchant ordered by most recent first.
 async function getMerchantBookings(merchantId) {
+  // Pending checkout holds and failed attempts are customer/payment concerns,
+  // not merchant bookings. Expire stale holds first so their slots are released.
+  await expirePendingPaymentBookings();
   const [rows] = await db.query(
     `SELECT b.*,
             ts.slot_date  AS booking_date,
@@ -673,6 +676,8 @@ async function getMerchantBookings(merchantId) {
             s.service_name,
             m.email AS merchant_email,
             m.address AS merchant_address,
+            COALESCE(current_staff.full_name, 'Unassigned') AS staff_name,
+            proposed_staff.full_name AS proposed_staff_name,
             COALESCE(c.full_name, b.guest_name) AS customer_name,
             COALESCE(c.email, b.guest_email) AS customer_email,
             COALESCE(c.phone, b.guest_phone) AS customer_phone
@@ -681,7 +686,10 @@ async function getMerchantBookings(merchantId) {
      JOIN service   s  ON b.service_id  = s.service_id
      JOIN merchant  m  ON b.merchant_id = m.merchant_id
      LEFT JOIN users c ON b.customer_id = c.user_id
+     LEFT JOIN staff current_staff ON current_staff.staff_id = b.staff_id
+     LEFT JOIN staff proposed_staff ON proposed_staff.staff_id = b.proposed_staff_id
      WHERE b.merchant_id = ?
+       AND b.status NOT IN ('pending_payment', 'payment_failed')
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [merchantId]
   );

@@ -161,6 +161,36 @@ const NOTIFICATION_ACTION_SELECT = `
   END AS action_method
 `;
 
+const MERCHANT_HIDDEN_NOTIFICATION_TYPES = new Set([
+  'payment_attempt_failed',
+  'payment_window_expired',
+  'payment_failed',
+  'review_available',
+  'review_reward',
+  'waitlist_offer',
+  'waitlist_joined',
+  'waitlist_offer_expired',
+  'waitlist_expired',
+  'waitlist_cancelled',
+  'waitlist_removed',
+  'assistant_question',
+  'assistant_answer',
+]);
+
+function prepareNotificationsForRole(rows, role) {
+  if (role !== 'merchant') return rows;
+
+  return rows
+    .filter(row => !MERCHANT_HIDDEN_NOTIFICATION_TYPES.has(row.notification_type))
+    .map(row => ({
+      ...row,
+      action_url: row.booking_id ? `/merchant/bookings#booking-${row.booking_id}` : row.action_url,
+      action_label: row.booking_id ? 'View booking' : row.action_label,
+      action_icon: row.booking_id ? 'bi-calendar-check' : row.action_icon,
+      action_method: row.booking_id ? 'GET' : row.action_method,
+    }));
+}
+
 async function ensureNotificationSchema() {
   if (schemaReady) return;
 
@@ -364,13 +394,16 @@ async function normalizeStalePaymentNotifications(userId = null) {
   );
 }
 
-async function getNotificationsForUser(userId, limit = 50) {
+async function getNotificationsForUser(userId, limit = 50, { role = 'customer' } = {}) {
   await ensureNotificationSchema();
-  await normalizeStalePaymentNotifications(userId);
+  if (role !== 'merchant') {
+    await normalizeStalePaymentNotifications(userId);
+  }
 
   const safeLimit = Number.isFinite(Number(limit))
     ? Math.min(Math.max(Number(limit), 1), 100)
     : 50;
+  const queryLimit = role === 'merchant' ? 100 : safeLimit;
 
   const [rows] = await db.query(
     `SELECT n.*, b.status AS booking_status,
@@ -391,20 +424,23 @@ async function getNotificationsForUser(userId, limit = 50) {
        AND ${ACTIVE_WAITLIST_NOTIFICATION_FILTER}
      ORDER BY n.created_at DESC
      LIMIT ?`,
-    [userId, safeLimit]
+    [userId, queryLimit]
   );
 
-  return rows;
+  return prepareNotificationsForRole(rows, role).slice(0, safeLimit);
 }
 
-async function getUnreadForUser(userId, limit = 5) {
+async function getUnreadForUser(userId, limit = 5, { role = 'customer' } = {}) {
   if (!userId) return [];
   await ensureNotificationSchema();
-  await normalizeStalePaymentNotifications(userId);
+  if (role !== 'merchant') {
+    await normalizeStalePaymentNotifications(userId);
+  }
 
   const safeLimit = Number.isFinite(Number(limit))
     ? Math.min(Math.max(Number(limit), 1), 20)
     : 5;
+  const queryLimit = role === 'merchant' ? 100 : safeLimit;
 
   const [rows] = await db.query(
     `SELECT n.*, b.status AS booking_status,
@@ -422,16 +458,37 @@ async function getUnreadForUser(userId, limit = 5) {
        AND ${ACTIVE_WAITLIST_NOTIFICATION_FILTER}
      ORDER BY n.created_at DESC
      LIMIT ?`,
-    [userId, safeLimit]
+    [userId, queryLimit]
   );
 
-  return rows;
+  return prepareNotificationsForRole(rows, role).slice(0, safeLimit);
 }
 
-async function countUnreadForUser(userId) {
+async function countUnreadForUser(userId, { role = 'customer' } = {}) {
   if (!userId) return 0;
   await ensureNotificationSchema();
-  await normalizeStalePaymentNotifications(userId);
+  if (role !== 'merchant') {
+    await normalizeStalePaymentNotifications(userId);
+  }
+
+  if (role === 'merchant') {
+    const [rows] = await db.query(
+      `SELECT n.notification_type
+       FROM notifications n
+       LEFT JOIN booking b ON b.booking_id = n.booking_id
+       LEFT JOIN payment p ON p.booking_id = n.booking_id
+       LEFT JOIN waitlist w ON w.waitlist_id = n.waitlist_id
+       WHERE n.user_id = ?
+         AND n.is_read = FALSE
+         AND ${ACTIVE_UNREAD_FILTER}
+         AND ${PRODUCT_NOTIFICATION_FILTER}
+         AND ${ACTIVE_PAYMENT_HOLD_FILTER}
+         AND ${REVIEW_PROMPT_FILTER}
+         AND ${ACTIVE_WAITLIST_NOTIFICATION_FILTER}`,
+      [userId]
+    );
+    return prepareNotificationsForRole(rows, role).length;
+  }
 
   const [[row]] = await db.query(
     `SELECT COUNT(*) AS total

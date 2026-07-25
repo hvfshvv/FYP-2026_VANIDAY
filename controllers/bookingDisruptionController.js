@@ -242,7 +242,7 @@ async function notifyReplacementAccepted(request) {
       userId: request.merchant_user_id,
       bookingId: request.booking_id,
       title: 'Staff replacement accepted',
-      message: `${request.customer_name || 'The customer'} accepted ${request.proposed_staff_name} for the ${request.service_name} appointment on ${when}.`,
+      message: `${request.customer_name || 'The customer'} accepted the replacement staff, ${request.proposed_staff_name}, for booking #${request.booking_id} (${request.service_name}) on ${when}.`,
       notificationType: 'staff_replacement_accepted',
       actionUrl: '/merchant/bookings#booking-' + request.booking_id,
       actionLabel: 'View booking',
@@ -345,6 +345,19 @@ async function cancelReplacementForCustomer(requestId, selectedCustomerId, { sen
   await sendCustomerCancellationEmail(booking, cancellationReason, amount);
   if (sendWhatsApp) {
     await sendMerchantCancellationWhatsApp(booking, cancellationReason, amount);
+  }
+  if (request.merchant_user_id) {
+    await notificationModel.createNotification({
+      userId: request.merchant_user_id,
+      bookingId: booking.booking_id,
+      title: 'Replacement declined and refunded',
+      message: `${request.customer_name || 'The customer'} declined the replacement for ${booking.service_name}. The booking was cancelled and a 100% refund${amount ? ` of S$${amount.toFixed(2)}` : ''} was processed.`,
+      notificationType: 'staff_replacement_cancelled',
+      actionUrl: '/merchant/bookings#booking-' + booking.booking_id,
+      actionLabel: 'View booking',
+    }).catch(err => {
+      console.error('[replacement cancellation] merchant notification failed:', err.message || err);
+    });
   }
   return { request, booking, refund, amount };
 }

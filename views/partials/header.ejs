@@ -66,6 +66,8 @@
       <a href="/favourite" class="nav-icon-action" aria-label="<%= t('nav.myFavourites') %>" title="<%= t('nav.myFavourites') %>">
         <i class="bi bi-heart"></i>
       </a>
+      <% } %>
+      <% if (user.role === 'customer' || user.role === 'merchant') { %>
       <a href="/notifications" class="nav-icon-action nav-notification-action" aria-label="<%= t('nav.notifications') %>" title="<%= t('nav.notifications') %>">
         <i class="bi bi-bell"></i>
         <% if (Number(locals.unreadNotificationCount || 0) > 0) { %>
@@ -147,6 +149,12 @@
     View Storefront <i class="bi bi-box-arrow-up-right ms-1" aria-hidden="true"></i>
   </a>
   <a href="/merchant/reviews"><%= t('nav.reviews') %></a>
+  <a href="/notifications">
+    <%= t('nav.notifications') %>
+    <% if (Number(locals.unreadNotificationCount || 0) > 0) { %>
+    <span class="nav-pending-badge"><%= unreadNotificationCount %></span>
+    <% } %>
+  </a>
   <% } %>
   <% if (user && user.role === 'admin') { %>
   <a href="/admin/dashboard"><%= t('nav.dashboard') %></a>

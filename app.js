@@ -78,7 +78,7 @@ app.use(async (req, res, next) => {
 
   try {
     await waitlistModel.expireOffersAndPromote();
-    const unreadCount = await notificationModel.countUnreadForUser(user.user_id);
+    const unreadCount = await notificationModel.countUnreadForUser(user.user_id, { role: user.role });
 
     if (user.role === 'customer') {
       const pendingPaymentCount = await bookingNotificationModel.countActivePendingPaymentBookings(user.customer_id || user.user_id);

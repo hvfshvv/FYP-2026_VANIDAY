@@ -2,8 +2,16 @@
 <%- include('../partials/header') %>
 
 <style>
-  .merchant-booking-actions { min-width: 190px; }
+  .merchant-bookings-shell { max-width: 1400px; }
+  .merchant-bookings-table { min-width: 1240px; }
+  .merchant-booking-actions { min-width: 210px; }
   .merchant-booking-actions-inner { display:flex;flex-direction:column;align-items:flex-start;gap:.45rem; }
+  .booking-filter-bar { display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-bottom:1rem; }
+  .booking-filter-button { border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--muted);padding:.45rem .8rem;font-size:.78rem;font-weight:700;transition:.15s ease; }
+  .booking-filter-button:hover { border-color:var(--accent);color:var(--accent); }
+  .booking-filter-button.is-active { border-color:var(--accent);background:var(--accent);color:#fff;box-shadow:0 5px 14px rgba(225,29,72,.18); }
+  .booking-filter-count { display:inline-flex;align-items:center;justify-content:center;min-width:1.35rem;height:1.35rem;margin-left:.35rem;padding:0 .3rem;border-radius:999px;background:rgba(100,116,139,.12);font-size:.68rem; }
+  .booking-filter-button.is-active .booking-filter-count { background:rgba(255,255,255,.2); }
   .booking-manage-overlay { position:fixed;inset:0;z-index:1080;display:none;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.42); }
   .booking-manage-overlay.is-open { display:flex; }
   .booking-manage-dialog { width:min(100%,560px);max-height:calc(100vh - 2rem);overflow-y:auto;padding:1.5rem;border:1px solid var(--border);border-radius:var(--r-xl);background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.24); }
@@ -11,6 +19,20 @@
   .booking-manage-close { width:36px;height:36px;border:0;border-radius:999px;background:var(--canvas);color:var(--muted);display:inline-flex;align-items:center;justify-content:center; }
   .booking-manage-section + .booking-manage-section { border-top:1px solid var(--border);margin-top:.8rem;padding-top:.8rem; }
   .booking-manage-label { color:var(--ink);font-size:.9rem;font-weight:800;margin-bottom:.45rem; }
+  .merchant-booking-row { scroll-margin-top:110px; }
+  .merchant-booking-row:target > td { animation:booking-target-pulse 2.4s ease-out; }
+  @keyframes booking-target-pulse {
+    0%, 18% { background:#FFE4EC;box-shadow:inset 4px 0 0 var(--accent),inset 0 0 0 1px rgba(225,29,72,.28); }
+    42% { background:#FFF7F9;box-shadow:inset 4px 0 0 var(--accent),inset 0 0 0 1px rgba(225,29,72,.12); }
+    70% { background:#FFEAF0;box-shadow:inset 2px 0 0 rgba(225,29,72,.45); }
+    100% { background:transparent;box-shadow:none; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .merchant-booking-row:target > td { animation:none;background:#FFF0F4; }
+  }
+  @media (max-width: 767px) {
+    .merchant-bookings-shell { padding-left: .25rem; padding-right: .25rem; }
+  }
 </style>
 
 <%
@@ -78,7 +100,7 @@
 %>
 
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
-  <div class="container" style="max-width:1100px;">
+  <div class="container merchant-bookings-shell">
     <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
       <i class="bi bi-arrow-left me-1"></i>Dashboard
     </a>
@@ -86,7 +108,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
       <div>
         <p class="section-label mb-2">Bookings</p>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">All Merchant Bookings</h2>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--accent);margin-bottom:.25rem;">All Merchant Bookings</h2>
         <p style="color:var(--muted);margin:0;">View and manage every booking made for your merchant account.</p>
       </div>
       <a href="/merchant/qr" class="btn btn-primary btn-pill">
@@ -107,6 +129,28 @@
         </span>
       <% }) %>
     </div>
+
+    <% if (bookingList.length) {
+      const completedCount = bookingList.filter(item => item.status === 'completed').length;
+      const cancelledCount = bookingList.filter(item => item.status === 'cancelled').length;
+      const notCompletedCount = bookingList.length - completedCount - cancelledCount;
+    %>
+      <div class="booking-filter-bar" role="group" aria-label="Filter bookings by completion status">
+        <span class="me-1" style="font-size:.8rem;font-weight:800;color:var(--ink);">Show:</span>
+        <button type="button" class="booking-filter-button is-active" data-booking-filter="all" aria-pressed="true">
+          All <span class="booking-filter-count"><%= bookingList.length %></span>
+        </button>
+        <button type="button" class="booking-filter-button" data-booking-filter="completed" aria-pressed="false">
+          Completed <span class="booking-filter-count"><%= completedCount %></span>
+        </button>
+        <button type="button" class="booking-filter-button" data-booking-filter="not-completed" aria-pressed="false">
+          Not completed <span class="booking-filter-count"><%= notCompletedCount %></span>
+        </button>
+        <button type="button" class="booking-filter-button" data-booking-filter="cancelled" aria-pressed="false">
+          Cancelled <span class="booking-filter-count"><%= cancelledCount %></span>
+        </button>
+      </div>
+    <% } %>
 
     <% if (typeof error !== 'undefined' && error) { %>
       <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
@@ -162,12 +206,13 @@
     <% } else { %>
       <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
         <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+          <table class="table table-hover align-middle mb-0 merchant-bookings-table" style="font-size:.8125rem;">
             <thead style="background:var(--accent-light);">
               <tr>
                 <th>ID</th>
                 <th>Customer</th>
                 <th>Service</th>
+                <th>Staff</th>
                 <th>Date &amp; Time</th>
                 <th>Source</th>
                 <th>Total</th>
@@ -177,11 +222,20 @@
             </thead>
             <tbody>
               <% bookingList.forEach(booking => {
-                const status = statusStyles[booking.status] || {
+                const baseStatus = statusStyles[booking.status] || {
                   label: booking.status || 'Booked',
                   bg: 'var(--accent-light)',
                   color: 'var(--accent)',
                 };
+                const isFinalBookingStatus = ['cancelled', 'payment_failed', 'completed', 'no_show'].includes(booking.status);
+                let status = baseStatus;
+                if (!isFinalBookingStatus && booking.staff_change_status === 'pending') {
+                  status = { label: 'Awaiting replacement response', bg: 'var(--warn-bg)', color: 'var(--warn)' };
+                } else if (!isFinalBookingStatus && booking.staff_change_status === 'accepted') {
+                  status = statusStyles.confirmed;
+                } else if (!isFinalBookingStatus && booking.staff_change_status === 'reschedule_requested') {
+                  status = { label: 'Rescheduled', bg: '#EFF6FF', color: '#2563EB' };
+                }
                 const arrivalAvailable = canMarkArrived(booking);
                 const appointmentHasStarted = hasAppointmentStarted(booking);
                 const appointmentHasEnded = hasAppointmentEnded(booking);
@@ -189,13 +243,14 @@
                 const source = bookingSource(booking.source);
                 const availableReplacements = (typeof replacementStaff !== 'undefined' && replacementStaff[booking.booking_id]) || [];
               %>
-                <tr>
+                <tr id="booking-<%= booking.booking_id %>" class="merchant-booking-row" data-booking-status="<%= booking.status %>">
                   <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= booking.booking_id %></td>
                   <td>
                     <p style="font-weight:700;margin-bottom:0;color:var(--ink);"><%= booking.customer_name %></p>
                     <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= booking.customer_phone || 'No phone' %></p>
                   </td>
                   <td><%= booking.service_name %></td>
+                  <td><%= booking.staff_name || 'Unassigned' %></td>
                   <td>
                     <%= formatDate(booking.booking_date) %>
                     <br>
@@ -213,6 +268,11 @@
                     <span class="badge rounded-pill" style="background:<%= status.bg %>;color:<%= status.color %>;">
                       <%= status.label %>
                     </span>
+                    <% if (!isFinalBookingStatus && booking.staff_change_status === 'pending') { %>
+                      <div style="color:var(--muted);font-size:.7rem;margin-top:.2rem;">
+                        Proposed: <%= booking.proposed_staff_name || 'Replacement staff' %>
+                      </div>
+                    <% } %>
                   </td>
                   <td class="merchant-booking-actions">
                     <div class="merchant-booking-actions-inner">
@@ -251,7 +311,18 @@
                             </div>
                             <button type="button" class="booking-manage-close js-close-booking-modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
                           </div>
-                          <% if (availableReplacements.length) { %>
+                          <% if (booking.staff_change_status === 'pending') { %>
+                          <div class="booking-manage-section">
+                            <p class="booking-manage-label"><i class="bi bi-hourglass-split me-1"></i>Replacement proposal pending</p>
+                            <div style="background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:.8rem;font-size:.82rem;">
+                              <strong><%= booking.proposed_staff_name || 'Replacement staff' %></strong> was proposed.
+                              The customer has not replied yet.
+                              <% if (booking.staff_change_requested_at) { %>
+                                <div class="mt-1" style="opacity:.8;">Sent <%= new Date(booking.staff_change_requested_at).toLocaleString('en-SG', { dateStyle:'medium', timeStyle:'short' }) %></div>
+                              <% } %>
+                            </div>
+                          </div>
+                          <% } else if (availableReplacements.length) { %>
                           <div class="booking-manage-section">
                             <p class="booking-manage-label"><i class="bi bi-person-exclamation me-1"></i>Staff unavailable</p>
                             <p class="small text-muted">Propose an available replacement. The customer can accept, reschedule, or cancel for a full refund.</p>
@@ -306,12 +377,48 @@
             </tbody>
           </table>
         </div>
+        <div id="booking-filter-empty" class="text-center p-5" hidden>
+          <i class="bi bi-funnel" style="font-size:1.5rem;color:var(--muted);"></i>
+          <p class="mt-2 mb-0" style="font-weight:700;color:var(--ink);">No bookings match this filter.</p>
+        </div>
       </div>
     <% } %>
   </div>
 </main>
 
 <script>
+  (() => {
+    const buttons = [...document.querySelectorAll('[data-booking-filter]')];
+    const rows = [...document.querySelectorAll('.merchant-booking-row[data-booking-status]')];
+    const emptyState = document.getElementById('booking-filter-empty');
+    if (!buttons.length || !rows.length) return;
+
+    const matchesFilter = (status, filter) => {
+      if (filter === 'all') return true;
+      if (filter === 'completed') return status === 'completed';
+      if (filter === 'cancelled') return status === 'cancelled';
+      return status !== 'completed' && status !== 'cancelled';
+    };
+
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        const filter = button.dataset.bookingFilter;
+        let visibleCount = 0;
+        buttons.forEach(item => {
+          const active = item === button;
+          item.classList.toggle('is-active', active);
+          item.setAttribute('aria-pressed', String(active));
+        });
+        rows.forEach(row => {
+          const visible = matchesFilter(row.dataset.bookingStatus, filter);
+          row.hidden = !visible;
+          if (visible) visibleCount += 1;
+        });
+        if (emptyState) emptyState.hidden = visibleCount !== 0;
+      });
+    });
+  })();
+
   (() => {
     const closeModal = modal => {
       if (!modal) return;

@@ -92,6 +92,9 @@ async function createStaffReplacementRequest({ bookingId, merchantId, proposedSt
   if (!booking || !['confirmed', 'rescheduled'].includes(booking.status)) {
     throw new Error('Only upcoming confirmed bookings can receive a replacement proposal.');
   }
+  if (booking.staff_change_status === 'pending') {
+    throw new Error('A replacement proposal is already awaiting this customer’s response.');
+  }
   const replacements = await getReplacementStaff(bookingId, merchantId);
   const proposedStaff = replacements.find(row => Number(row.staff_id) === Number(proposedStaffId));
   if (!proposedStaff) throw new Error('The selected replacement staff member is not available.');

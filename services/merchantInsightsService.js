@@ -24,7 +24,6 @@ function resolveInsightPeriod(value, now = new Date()) {
     label = 'Last 7 days';
   } else if (key === 'month') {
     start = new Date(end.getFullYear(), end.getMonth(), 1);
-    end.setMonth(end.getMonth() + 1, 0);
     label = 'This month';
   } else {
     start = addDays(end, -29);

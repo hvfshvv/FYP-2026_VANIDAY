@@ -6,7 +6,11 @@ async function listNotifications(req, res) {
   try {
     await bookingNotificationModel.expirePendingPaymentBookings();
     await waitlistModel.expireOffersAndPromote();
-    const notifications = await notificationModel.getNotificationsForUser(req.session.user.user_id);
+    const notifications = await notificationModel.getNotificationsForUser(
+      req.session.user.user_id,
+      50,
+      { role: req.session.user.role }
+    );
     const unreadIds = notifications
       .filter(notification => !notification.is_read)
       .map(notification => notification.id);
