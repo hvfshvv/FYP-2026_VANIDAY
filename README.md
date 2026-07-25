@@ -58,3 +58,30 @@ Create a Gemini API key from Google AI Studio and add it to your local `.env` if
 ```env
 GEMINI_API_KEY=your_api_key_here
 ```
+
+## WhatsApp Merchant Disruption Notifications
+
+Merchant cancellations, emergency closures, and staff replacement proposals use
+the Twilio WhatsApp sender. Configure the standard Twilio credentials and sender:
+
+```env
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_WHATSAPP_NUMBER=whatsapp:+your_sender_number
+```
+
+For proactive messages outside WhatsApp's customer-service window, configure
+approved Twilio Content Template SIDs:
+
+```env
+TWILIO_WHATSAPP_CANCELLATION_CONTENT_SID=HX_your_cancellation_template
+TWILIO_WHATSAPP_STAFF_REPLACEMENT_CONTENT_SID=HX_your_staff_replacement_template
+TWILIO_WHATSAPP_STAFF_REPLACEMENT_ACCEPTED_CONTENT_SID=HX_your_acceptance_template
+```
+
+The cancellation template receives booking ID, merchant, service, date, time,
+reason, and refund amount as variables 1-7. The replacement template receives
+booking ID, merchant, service, date, time, proposed staff, reason, and the
+numbered reply instructions as variables 1-8.
+The accepted-replacement template receives booking ID, merchant, service, date,
+time, and confirmed replacement staff as variables 1-6.

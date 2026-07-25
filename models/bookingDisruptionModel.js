@@ -116,12 +116,17 @@ async function getPendingRequestForCustomer(requestId, customerId, connection = 
   const [[row]] = await connection.query(
     `SELECT b.booking_id AS change_request_id, b.booking_id, b.customer_id, b.merchant_id,
             b.slot_id, b.staff_id, b.service_id, b.proposed_staff_id,
+            b.source, u.user_id AS customer_user_id,
+            COALESCE(u.full_name, b.guest_name) AS customer_name,
+            COALESCE(u.phone, b.guest_phone) AS customer_phone,
+            m.user_id AS merchant_user_id,
             b.staff_change_reason AS reason, b.staff_change_status AS status,
             ts.slot_date AS booking_date, ts.start_time AS booking_time,
             s.service_name, m.merchant_name, st.full_name AS proposed_staff_name
      FROM booking b JOIN time_slot ts ON ts.slot_id=b.slot_id
      JOIN service s ON s.service_id=b.service_id JOIN merchant m ON m.merchant_id=b.merchant_id
      JOIN staff st ON st.staff_id=b.proposed_staff_id
+     LEFT JOIN users u ON u.user_id=b.customer_id
      WHERE b.booking_id=? AND b.customer_id=? AND b.staff_change_status='pending' LIMIT 1`,
     [requestId, customerId]
   );

@@ -14,6 +14,30 @@ const notificationModel = require('./notificationModel');
 // ── SCHEMA MIGRATION GUARD ─────────────────────────────────────────────────
 
 let bookingPromoSchemaReady = false;
+let outboundNotificationSchemaReady = false;
+
+// Older databases restrict notification_type to a small ENUM. WhatsApp
+// disruption events use additional types, so keep this audit field extensible.
+async function ensureOutboundNotificationSchema() {
+  if (outboundNotificationSchemaReady) return;
+
+  const [[column]] = await db.query(
+    `SELECT DATA_TYPE AS dataType
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'notification'
+       AND COLUMN_NAME = 'notification_type'`
+  );
+
+  if (column && String(column.dataType).toLowerCase() === 'enum') {
+    await db.query(
+      `ALTER TABLE notification
+       MODIFY notification_type VARCHAR(64) NOT NULL`
+    );
+  }
+
+  outboundNotificationSchemaReady = true;
+}
 
 // Adds promo/voucher columns and updates the status ENUM if they don't exist yet.
 async function ensureBookingPromoSchema() {
@@ -109,6 +133,7 @@ async function hasSentWhatsAppNotification(bookingId, notificationType) {
 
 // Persists an outbound email attempt to the notification log for audit/dedup.
 async function recordEmailNotification(booking, notificationType, message, status) {
+  await ensureOutboundNotificationSchema();
   await db.query(
     `INSERT INTO notification
        (booking_id, user_id, merchant_id, notification_type, channel, message, status, scheduled_at, sent_at)
@@ -127,6 +152,7 @@ async function recordEmailNotification(booking, notificationType, message, statu
 
 // Persists an outbound WhatsApp attempt to the notification log for audit/dedup.
 async function recordWhatsAppNotification(booking, notificationType, message, status) {
+  await ensureOutboundNotificationSchema();
   await db.query(
     `INSERT INTO notification
        (booking_id, user_id, merchant_id, notification_type, channel, message, status, scheduled_at, sent_at)
@@ -332,6 +358,7 @@ async function countActivePendingPaymentBookings(customerId, ttlMinutes = 5) {
 
 module.exports = {
   ensureBookingPromoSchema,
+  ensureOutboundNotificationSchema,
   hasSentEmailNotification,
   hasSentWhatsAppNotification,
   recordEmailNotification,

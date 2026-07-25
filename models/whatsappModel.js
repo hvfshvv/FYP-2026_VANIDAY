@@ -6,9 +6,18 @@ const MESSAGE_TYPES = ['enquiry', 'booking', 'confirmation', 'reminder', 'cancel
 let columnCache = {};
 
 function cleanPhone(phone) {
-  return String(phone || '')
+  const raw = String(phone || '')
     .replace('whatsapp:', '')
     .trim();
+  const digits = raw.replace(/\D/g, '');
+
+  if (digits.length === 8) {
+    return '+65' + digits;
+  }
+  if (raw.startsWith('+') && digits) {
+    return '+' + digits;
+  }
+  return raw;
 }
 
 function phoneDigits(phone) {
@@ -206,14 +215,20 @@ async function findActiveSessionByPhone(phone) {
   if (!(await tableExists('whatsapp_session'))) return null;
 
   const clean = cleanPhone(phone);
+  const digits = phoneDigits(phone);
+  const localDigits = digits.slice(-8);
   const [rows] = await db.query(
     `SELECT *
      FROM whatsapp_session
-     WHERE phone = ?
+     WHERE (
+         phone = ?
+         OR REPLACE(REPLACE(REPLACE(phone, '+', ''), ' ', ''), '-', '') = ?
+         OR REPLACE(REPLACE(REPLACE(phone, '+', ''), ' ', ''), '-', '') = ?
+       )
        AND status = 'active'
      ORDER BY updated_at DESC, session_id DESC
      LIMIT 1`,
-    [clean]
+    [clean, digits, localDigits]
   );
 
   return normalizeSession(rows[0] || null);
@@ -261,14 +276,21 @@ async function createSession({
 async function deactivateDuplicateActiveSessions(phone, keepSessionId) {
   if (!(await tableExists('whatsapp_session')) || !keepSessionId) return;
 
+  const clean = cleanPhone(phone);
+  const digits = phoneDigits(phone);
+  const localDigits = digits.slice(-8);
   await db.query(
     `UPDATE whatsapp_session
      SET status = 'abandoned',
          updated_at = CURRENT_TIMESTAMP
-     WHERE phone = ?
+     WHERE (
+         phone = ?
+         OR REPLACE(REPLACE(REPLACE(phone, '+', ''), ' ', ''), '-', '') = ?
+         OR REPLACE(REPLACE(REPLACE(phone, '+', ''), ' ', ''), '-', '') = ?
+       )
        AND status = 'active'
        AND session_id <> ?`,
-    [cleanPhone(phone), keepSessionId]
+    [clean, digits, localDigits, keepSessionId]
   );
 }
 

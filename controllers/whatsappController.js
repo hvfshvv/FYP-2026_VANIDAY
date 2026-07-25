@@ -6,6 +6,8 @@ const staffModel = require('../models/staffModel');
 const whatsappModel = require('../models/whatsappModel');
 const supportModel = require('../models/supportModel');
 const adminValidationModel = require('../models/adminValidationModel');
+const bookingDisruptionModel = require('../models/bookingDisruptionModel');
+const bookingDisruptionController = require('./bookingDisruptionController');
 
 const userSessions = {};
 const WHATSAPP_BOOKING_PAGE_SIZE = 5;
@@ -834,12 +836,35 @@ async function receiveMessage(req, res) {
     const sender = req.body.From || 'unknown';
     const loaded = await loadSession(sender);
     sessionRecord = loaded.record;
-    const session = loaded.session;
+    let session = loaded.session;
     const bookingRef = parseBookingRef(incomingMessage);
     latestMessageType = getMessageType(session, message);
 
     console.log('Incoming WhatsApp message:', incomingMessage);
     await logIncomingMessage(sessionRecord, incomingMessage, latestMessageType);
+
+    // A replacement reply must take priority over the main menu. The database
+    // lookup also recovers from missing/stale WhatsApp session rows.
+    if (['1', '2', '3'].includes(message) &&
+        (!session || session.state !== 'replacement_awaiting_choice')) {
+      const replacementCustomer = await getVerifiedCustomerForSender(sender);
+      const replacementCustomerId = replacementCustomer &&
+        (replacementCustomer.customer_id || replacementCustomer.user_id);
+      if (replacementCustomerId) {
+        const pendingReplacements = await bookingDisruptionModel
+          .getPendingRequestsForCustomer(replacementCustomerId);
+        const latestReplacement = pendingReplacements[0];
+        if (latestReplacement) {
+          session = {
+            state: 'replacement_awaiting_choice',
+            customer: replacementCustomer,
+            replacementRequestId: latestReplacement.change_request_id,
+            bookingId: latestReplacement.booking_id
+          };
+          await saveSession(sender, session);
+        }
+      }
+    }
 
     if (isMainMenuCommand(message)) {
       await clearSession(sender, 'completed');
@@ -874,6 +899,81 @@ async function receiveMessage(req, res) {
         });
 
         twiml.message(getLinkedDatePrompt(customer, context.merchant, context.service));
+      }
+    } else if (session && session.state === 'replacement_awaiting_choice') {
+      const customer = session.customer || await getVerifiedCustomerForSender(sender);
+      const selectedCustomerId = customer && (customer.customer_id || customer.user_id);
+      const request = selectedCustomerId
+        ? await bookingDisruptionModel.getPendingRequestForCustomer(
+          session.replacementRequestId || session.bookingId,
+          selectedCustomerId
+        )
+        : null;
+
+      if (!request) {
+        twiml.message(
+          'This staff replacement proposal is no longer available.\n\n' +
+          'Reply MENU to return to the main menu.'
+        );
+        await clearSession(sender, 'completed');
+      } else if (message === '1') {
+        const accepted = await bookingDisruptionController.acceptReplacementForCustomer(
+          request.change_request_id,
+          selectedCustomerId,
+          { sendWhatsApp: false }
+        );
+        linkedBookingId = accepted.booking_id;
+        twiml.message(
+          'Replacement staff confirmed.\n\n' +
+          'Booking ID: ' + accepted.booking_id + '\n' +
+          'Merchant: ' + accepted.merchant_name + '\n' +
+          'Service: ' + accepted.service_name + '\n' +
+          'Date: ' + formatBookingDate(accepted.booking_date) + '\n' +
+          'Time: ' + formatBookingTime(accepted.booking_time) + '\n' +
+          'Staff: ' + accepted.proposed_staff_name + '\n\n' +
+          'Your appointment date and time remain unchanged.'
+        );
+        await clearSession(sender, 'completed');
+      } else if (message === '2') {
+        const booking = await bookingModel.getBookingById(request.booking_id);
+        if (!booking || !canStartReschedule(booking)) {
+          twiml.message('This booking can no longer be rescheduled.');
+          await clearSession(sender, 'completed');
+        } else {
+          linkedBookingId = booking.booking_id;
+          await saveSession(sender, {
+            state: 'reschedule_awaiting_date',
+            customer,
+            booking,
+            changeRequestId: request.change_request_id
+          });
+          twiml.message(getReschedulePrompt(booking));
+        }
+      } else if (message === '3') {
+        const cancelled = await bookingDisruptionController.cancelReplacementForCustomer(
+          request.change_request_id,
+          selectedCustomerId,
+          { sendWhatsApp: false }
+        );
+        linkedBookingId = cancelled.booking.booking_id;
+        twiml.message(
+          'Your booking has been cancelled.\n\n' +
+          'Booking ID: ' + cancelled.booking.booking_id + '\n' +
+          'Merchant: ' + cancelled.booking.merchant_name + '\n' +
+          'Service: ' + cancelled.booking.service_name + '\n' +
+          'A 100% refund' +
+          (cancelled.amount ? ' of S$' + cancelled.amount.toFixed(2) : '') +
+          ' has been initiated.'
+        );
+        await clearSession(sender, 'completed');
+      } else {
+        twiml.message(
+          'Please choose an option:\n\n' +
+          '1. Accept replacement staff\n' +
+          '2. Reschedule\n' +
+          '3. Cancel with 100% refund\n\n' +
+          'Reply with 1, 2, or 3.'
+        );
       }
     } else if (message === '0' || message === 'back') {
       if (session && session.state === 'booking_view_submenu') {
@@ -1105,7 +1205,8 @@ async function receiveMessage(req, res) {
             customer: session.customer,
             booking: booking,
             bookingDate: bookingDate,
-            slots: slots
+            slots: slots,
+            changeRequestId: session.changeRequestId || null
           });
 
           twiml.message(getTimeSlotMenu(bookingDate, slots));
@@ -1123,12 +1224,13 @@ async function receiveMessage(req, res) {
           'Please choose a different time, or reply 0/back to choose another date.'
         );
       } else {
-        await saveSession(sender, {
-          state: 'reschedule_confirm',
-          customer: session.customer,
-          booking: session.booking,
-          bookingDate: session.bookingDate,
-          selectedSlot: selectedSlot
+          await saveSession(sender, {
+            state: 'reschedule_confirm',
+            customer: session.customer,
+            booking: session.booking,
+            bookingDate: session.bookingDate,
+            selectedSlot: selectedSlot,
+            changeRequestId: session.changeRequestId || null
         });
 
         twiml.message(getRescheduleConfirmation(session.booking, session.bookingDate, selectedSlot));
@@ -1140,8 +1242,16 @@ async function receiveMessage(req, res) {
             session.booking.booking_id,
             session.customer.customer_id,
             session.bookingDate,
-            session.selectedSlot.start_time
+            session.selectedSlot.start_time,
+            { allowPolicyOverride: Boolean(session.changeRequestId) }
           );
+          if (session.changeRequestId) {
+            await bookingDisruptionModel.markRequest(
+              session.changeRequestId,
+              session.customer.customer_id,
+              'reschedule_requested'
+            );
+          }
 
           const booking = await bookingModel.getBookingById(session.booking.booking_id);
           linkedBookingId = booking.booking_id;

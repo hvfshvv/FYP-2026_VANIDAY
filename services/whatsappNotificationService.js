@@ -90,13 +90,58 @@ function buildBookingReminderMessage(booking) {
 }
 
 function buildBookingCancellationMessage(booking) {
+  const reason = String(booking.cancellation_reason || '').trim();
+  const refundAmount = Number(booking.refund_amount || booking.refundAmount || 0);
+  const fullRefund = booking.full_refund === true || Number(booking.refund_percentage) === 100;
+
   return (
     'Your Uniday booking has been cancelled.\n\n' +
     'Booking ID: ' + booking.booking_id + '\n' +
     'Merchant: ' + booking.merchant_name + '\n' +
     'Service: ' + booking.service_name + '\n' +
     'Date: ' + formatDate(booking.booking_date) + '\n' +
-    'Time: ' + formatTime(booking.booking_time)
+    'Time: ' + formatTime(booking.booking_time) +
+    (reason ? '\nReason: ' + reason : '') +
+    (fullRefund
+      ? '\n\nA 100% refund' + (refundAmount > 0 ? ' of S$' + refundAmount.toFixed(2) : '') + ' has been initiated.'
+      : (refundAmount > 0 ? '\n\nA refund of S$' + refundAmount.toFixed(2) + ' has been initiated.' : '')) +
+    '\nWe sincerely apologise for the inconvenience.'
+  );
+}
+
+function buildStaffReplacementProposalMessage(booking) {
+  const proposedStaffName = booking.proposed_staff?.full_name ||
+    booking.proposed_staff_name ||
+    'the proposed replacement staff member';
+  const reason = String(booking.staff_change_reason || booking.reason || '').trim();
+
+  return (
+    'Action required: staff replacement proposed.\n\n' +
+    'Booking ID: ' + booking.booking_id + '\n' +
+    'Merchant: ' + booking.merchant_name + '\n' +
+    'Service: ' + booking.service_name + '\n' +
+    'Date: ' + formatDate(booking.booking_date) + '\n' +
+    'Time: ' + formatTime(booking.booking_time) + '\n' +
+    'Proposed staff: ' + proposedStaffName +
+    (reason ? '\nReason: ' + reason : '') +
+    '\n\nPlease choose an option:\n' +
+    '1. Accept replacement staff\n' +
+    '2. Reschedule\n' +
+    '3. Cancel with 100% refund\n\n' +
+    'Reply with 1, 2, or 3.'
+  );
+}
+
+function buildStaffReplacementAcceptedMessage(booking) {
+  return (
+    'Replacement staff confirmed.\n\n' +
+    'Booking ID: ' + booking.booking_id + '\n' +
+    'Merchant: ' + booking.merchant_name + '\n' +
+    'Service: ' + booking.service_name + '\n' +
+    'Date: ' + formatDate(booking.booking_date) + '\n' +
+    'Time: ' + formatTime(booking.booking_time) + '\n' +
+    'Staff: ' + (booking.proposed_staff_name || booking.staff_name || 'Replacement staff') +
+    '\n\nYour appointment date and time remain unchanged.'
   );
 }
 
@@ -189,18 +234,114 @@ async function sendBookingCancellation(booking) {
   const client = getClient();
   const from = process.env.TWILIO_WHATSAPP_NUMBER;
   const to = toWhatsAppAddress(booking.customer_phone);
+  const contentSid = process.env.TWILIO_WHATSAPP_CANCELLATION_CONTENT_SID;
 
   if (!client || !from || !to) {
     return { skipped: true, reason: 'missing_twilio_config_or_phone' };
   }
 
   try {
-    const message = await client.messages.create({
+    const payload = {
       from,
       to,
       body: buildBookingCancellationMessage(booking)
-    });
+    };
+    if (contentSid) {
+      delete payload.body;
+      payload.contentSid = contentSid;
+      payload.contentVariables = JSON.stringify({
+        '1': String(booking.booking_id),
+        '2': booking.merchant_name,
+        '3': booking.service_name,
+        '4': formatDate(booking.booking_date),
+        '5': formatTime(booking.booking_time),
+        '6': String(booking.cancellation_reason || 'Merchant cancellation'),
+        '7': Number(booking.refund_amount || booking.refundAmount || 0).toFixed(2)
+      });
+    }
+    const message = await client.messages.create(payload);
 
+    return { skipped: false, sid: message.sid };
+  } catch (err) {
+    return { skipped: false, error: err.message || 'whatsapp_send_failed' };
+  }
+}
+
+async function sendStaffReplacementProposal(booking) {
+  if (!booking || booking.source !== 'whatsapp') {
+    return { skipped: true, reason: 'not_whatsapp_booking' };
+  }
+
+  const client = getClient();
+  const from = process.env.TWILIO_WHATSAPP_NUMBER;
+  const to = toWhatsAppAddress(booking.customer_phone);
+  const contentSid = process.env.TWILIO_WHATSAPP_STAFF_REPLACEMENT_CONTENT_SID;
+
+  if (!client || !from || !to) {
+    return { skipped: true, reason: 'missing_twilio_config_or_phone' };
+  }
+
+  try {
+    const payload = {
+      from,
+      to,
+      body: buildStaffReplacementProposalMessage(booking)
+    };
+    if (contentSid) {
+      delete payload.body;
+      payload.contentSid = contentSid;
+      payload.contentVariables = JSON.stringify({
+        '1': String(booking.booking_id),
+        '2': booking.merchant_name,
+        '3': booking.service_name,
+        '4': formatDate(booking.booking_date),
+        '5': formatTime(booking.booking_time),
+        '6': booking.proposed_staff?.full_name || booking.proposed_staff_name || 'Replacement staff',
+        '7': String(booking.staff_change_reason || booking.reason || 'Assigned staff is unavailable'),
+        '8': 'Reply 1 to accept, 2 to reschedule, or 3 to cancel with a 100% refund.'
+      });
+    }
+    const message = await client.messages.create(payload);
+
+    return { skipped: false, sid: message.sid };
+  } catch (err) {
+    return { skipped: false, error: err.message || 'whatsapp_send_failed' };
+  }
+}
+
+async function sendStaffReplacementAccepted(booking) {
+  if (!booking || booking.source !== 'whatsapp') {
+    return { skipped: true, reason: 'not_whatsapp_booking' };
+  }
+
+  const client = getClient();
+  const from = process.env.TWILIO_WHATSAPP_NUMBER;
+  const to = toWhatsAppAddress(booking.customer_phone);
+  const contentSid = process.env.TWILIO_WHATSAPP_STAFF_REPLACEMENT_ACCEPTED_CONTENT_SID;
+
+  if (!client || !from || !to) {
+    return { skipped: true, reason: 'missing_twilio_config_or_phone' };
+  }
+
+  try {
+    const payload = {
+      from,
+      to,
+      body: buildStaffReplacementAcceptedMessage(booking)
+    };
+    if (contentSid) {
+      delete payload.body;
+      payload.contentSid = contentSid;
+      payload.contentVariables = JSON.stringify({
+        '1': String(booking.booking_id),
+        '2': booking.merchant_name,
+        '3': booking.service_name,
+        '4': formatDate(booking.booking_date),
+        '5': formatTime(booking.booking_time),
+        '6': booking.proposed_staff_name || booking.staff_name || 'Replacement staff'
+      });
+    }
+    const message = await client.messages.create(payload);
     return { skipped: false, sid: message.sid };
   } catch (err) {
     return { skipped: false, error: err.message || 'whatsapp_send_failed' };
@@ -282,10 +423,14 @@ module.exports = {
   sendBookingConfirmation,
   sendBookingReminder,
   sendBookingCancellation,
+  sendStaffReplacementProposal,
+  sendStaffReplacementAccepted,
   sendBookingRescheduled,
   buildBookingConfirmationMessage,
   buildBookingReminderMessage,
   buildBookingCancellationMessage,
+  buildStaffReplacementProposalMessage,
+  buildStaffReplacementAcceptedMessage,
   buildBookingRescheduledMessage,
   buildWaitlistOfferMessage,
   sendWaitlistOffer,
