@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  buildBookingReminderMessage,
   buildBookingCancellationMessage,
   buildStaffReplacementProposalMessage,
   buildStaffReplacementAcceptedMessage,
@@ -26,6 +27,21 @@ test('merchant cancellation WhatsApp includes reason and full-refund details', (
   assert.match(message, /Reason: The merchant is closed unexpectedly\./);
   assert.match(message, /100% refund of S\$88\.00 has been initiated/);
   assert.match(message, /Booking ID: 42/);
+});
+
+test('booking reminder WhatsApp includes booking details', () => {
+  const message = buildBookingReminderMessage({
+    ...booking,
+    staff_name: 'Joanne Lim',
+  });
+
+  assert.match(message, /Your Uniday booking is coming up!/);
+  assert.match(message, /Booking ID: 42/);
+  assert.match(message, /Merchant: Glow Studio/);
+  assert.match(message, /Service: Facial/);
+  assert.match(message, /Date: 2026-08-10/);
+  assert.match(message, /Time: 14:30/);
+  assert.match(message, /Staff: Joanne Lim/);
 });
 
 test('staff replacement WhatsApp explains all customer options', () => {

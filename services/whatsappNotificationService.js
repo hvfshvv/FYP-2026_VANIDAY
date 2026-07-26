@@ -79,13 +79,14 @@ function buildBookingConfirmationMessage(booking) {
 
 function buildBookingReminderMessage(booking) {
   return (
-    'Reminder: you have an upcoming Uniday booking.\n\n' +
+    'Your Uniday booking is coming up!\n\n' +
     'Booking ID: ' + booking.booking_id + '\n' +
     'Merchant: ' + booking.merchant_name + '\n' +
     'Service: ' + booking.service_name + '\n' +
     'Date: ' + formatDate(booking.booking_date) + '\n' +
     'Time: ' + formatTime(booking.booking_time) + '\n' +
-    'Staff: ' + (booking.staff_name || 'Any Available Staff')
+    'Staff: ' + (booking.staff_name || 'Any Available Staff') +
+    '\n\nPlease arrive on time for your appointment.'
   );
 }
 
@@ -210,15 +211,26 @@ async function sendBookingReminder(booking) {
   }
 
   try {
-    const message = await client.messages.create({
+    const payload = {
       from,
       to,
-      contentSid,
-      contentVariables: JSON.stringify({
-        '1': formatDate(booking.booking_date),
-        '2': formatTime(booking.booking_time)
-      })
-    });
+      body: buildBookingReminderMessage(booking)
+    };
+
+    if (contentSid) {
+      delete payload.body;
+      payload.contentSid = contentSid;
+      payload.contentVariables = JSON.stringify({
+        '1': String(booking.booking_id),
+        '2': booking.merchant_name,
+        '3': booking.service_name,
+        '4': formatDate(booking.booking_date),
+        '5': formatTime(booking.booking_time),
+        '6': booking.staff_name || 'Any Available Staff'
+      });
+    }
+
+    const message = await client.messages.create(payload);
 
     return { skipped: false, sid: message.sid };
   } catch (err) {
