@@ -214,7 +214,7 @@ async function getBookingById(bookingId) {
               TIMESTAMPDIFF(
                 SECOND,
                 NOW(),
-                COALESCE(p_hold.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE))
+                DATE_ADD(b.created_at, INTERVAL 5 MINUTE)
               )
             ) AS pending_remaining_seconds
      FROM booking b
@@ -806,10 +806,9 @@ async function getCustomerBookings(customerId) {
             p.payment_status,
             p.payment_ref,
             p.transaction_ref,
-            p.payment_hold_expires_at,
             CASE
               WHEN b.status = 'pending_payment'
-               AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+               AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
               THEN 1 ELSE 0
             END AS pending_is_active,
             GREATEST(
@@ -817,7 +816,7 @@ async function getCustomerBookings(customerId) {
               TIMESTAMPDIFF(
                 SECOND,
                 NOW(),
-                COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE))
+                DATE_ADD(b.created_at, INTERVAL 5 MINUTE)
               )
             ) AS pending_remaining_seconds,
             mr.review_id AS merchant_review_id,
@@ -831,7 +830,6 @@ async function getCustomerBookings(customerId) {
      LEFT JOIN reviews mr ON mr.booking_id = b.booking_id AND mr.review_target = 'merchant'
      LEFT JOIN reviews pf ON pf.booking_id = b.booking_id AND pf.review_target = 'platform'
      WHERE b.customer_id = ?
-       AND b.status <> 'payment_failed'
      ORDER BY ts.slot_date DESC, ts.start_time DESC`,
     [customerId]
   );

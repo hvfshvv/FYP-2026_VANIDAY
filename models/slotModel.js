@@ -81,7 +81,7 @@ async function getAvailableStaffForSlot({
               b.status IN ('confirmed', 'rescheduled', 'arrived')
               OR (
                 b.status = 'pending_payment'
-                AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+                AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
               )
             )
            AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
@@ -141,7 +141,7 @@ async function getAvailableStaffForSlot({
           b.status IN ('confirmed', 'rescheduled', 'arrived')
           OR (
             b.status = 'pending_payment'
-            AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+            AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
           )
         )
        AND ts.start_time < ADDTIME(?, SEC_TO_TIME(? * 60))
@@ -221,7 +221,7 @@ async function assertNoCustomerBookingConflict(connection, {
         b.status IN ('confirmed', 'rescheduled', 'arrived')
         OR (
           b.status = 'pending_payment'
-          AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+          AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
         )
       )
       AND ts.slot_date = ?

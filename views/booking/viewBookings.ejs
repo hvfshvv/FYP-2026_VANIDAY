@@ -163,7 +163,7 @@
 
 <%
   const bookingList = Array.isArray(bookings)
-    ? bookings.filter(booking => effectiveStatus(booking) !== 'payment_failed')
+    ? bookings
     : [];
   const waitlistList = Array.isArray(waitlists) ? waitlists : [];
   const changeRequestList = (typeof changeRequests !== 'undefined' && Array.isArray(changeRequests)) ? changeRequests : [];
@@ -174,6 +174,16 @@
     expired:   { label: t('bookings.offerExpired'), bg: 'var(--danger-bg)', color: 'var(--danger)' },
     cancelled: { label: t('bookings.cancelled'), bg: 'var(--canvas)', color: 'var(--muted)' },
     removed:   { label: t('bookings.removed'), bg: 'var(--canvas)', color: 'var(--muted)' },
+  };
+  const bookingStatusStyles = {
+    pending_payment: { bg: 'var(--accent-light)', color: 'var(--accent)', border: 'rgba(225,29,72,.22)' },
+    payment_failed: { bg: 'var(--danger-bg)', color: 'var(--danger)', border: 'rgba(220,38,38,.25)' },
+    confirmed: { bg: 'var(--success-bg)', color: 'var(--success)', border: 'rgba(16,185,129,.24)' },
+    rescheduled: { bg: 'var(--warn-bg)', color: 'var(--warn)', border: 'rgba(245,158,11,.26)' },
+    arrived: { bg: '#E0F2FE', color: '#0369A1', border: 'rgba(3,105,161,.22)' },
+    completed: { bg: '#EDE9FE', color: '#6D28D9', border: 'rgba(109,40,217,.22)' },
+    cancelled: { bg: '#F1F5F9', color: '#475569', border: 'rgba(71,85,105,.22)' },
+    no_show: { bg: '#FEF2F2', color: '#991B1B', border: 'rgba(153,27,27,.22)' },
   };
 
   function formatDate(value) {
@@ -189,11 +199,6 @@
   }
 
   function pendingExpiryIso(booking) {
-    if (booking.payment_hold_expires_at) {
-      const holdExpiresAt = new Date(booking.payment_hold_expires_at);
-      if (!Number.isNaN(holdExpiresAt.getTime())) return holdExpiresAt.toISOString();
-    }
-
     const createdAt = new Date(booking.created_at);
     if (Number.isNaN(createdAt.getTime())) return '';
     return new Date(createdAt.getTime() + 5 * 60 * 1000).toISOString();
@@ -296,10 +301,21 @@
 
   function bookingStatusLabel(booking, isPast) {
     const status = effectiveStatus(booking);
+    if (status === 'pending_payment') return 'Pending payment';
+    if (status === 'payment_failed') return 'Payment failed';
+    if (isPast && ['confirmed', 'rescheduled', 'arrived'].includes(status)) return 'Completed';
+    if (status === 'confirmed') return 'Confirmed';
+    if (status === 'rescheduled') return 'Rescheduled';
+    if (status === 'arrived') return 'Arrived';
     if (status === 'completed') return 'Completed';
     if (status === 'cancelled') return 'Cancelled';
     if (status === 'no_show') return 'No show';
     return isPast ? 'Past' : 'Upcoming';
+  }
+
+  function bookingStatusStyle(status) {
+    const style = bookingStatusStyles[status] || { bg: 'var(--canvas)', color: 'var(--muted)', border: 'var(--border)' };
+    return `background:${style.bg};color:${style.color};border:1px solid ${style.border};`;
   }
 %>
 
@@ -444,6 +460,9 @@
           const bookingStatus = effectiveStatus(booking);
           const canContinuePayment = bookingStatus === 'pending_payment';
           const isPast = group.key === 'past';
+          const displayStatus = isPast && ['confirmed', 'rescheduled', 'arrived'].includes(bookingStatus)
+            ? 'completed'
+            : bookingStatus;
           const isNext = group.key === 'upcoming' && index === 0;
           const canManage = !isPast && !['pending_payment', 'cancelled', 'payment_failed', 'completed', 'no_show'].includes(bookingStatus);
         %>
@@ -452,7 +471,7 @@
               <div class="booking-entry-details flex-grow-1">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                   <h5 style="font-weight:800;color:var(--ink);margin:0;"><%= serviceText(booking, 'name') || booking.service_name %></h5>
-                  <span class="badge rounded-pill booking-time-badge <%= isPast ? 'is-past' : '' %>"><%= bookingStatusLabel(booking, isPast) %></span>
+                  <span class="badge rounded-pill booking-time-badge" style="<%= bookingStatusStyle(displayStatus) %>"><%= bookingStatusLabel(booking, isPast) %></span>
                   <% if (isNext) { %>
                     <span class="badge rounded-pill" style="background:var(--accent);color:#fff;">
                       <i class="bi bi-pin-angle-fill me-1"></i><%= isTodayBooking(booking) ? 'Today · Next booking' : 'Next booking' %>
@@ -539,7 +558,7 @@
                   </div>
                 <% } else { %>
                   <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
-                    <% if (booking.status === 'completed') { %>
+                    <% if (displayStatus === 'completed') { %>
                       <% if (!booking.merchant_review_id) { %>
                       <a href="/book/<%= booking.booking_id %>/review" class="btn btn-primary btn-sm btn-pill">
                         <i class="bi bi-star me-1"></i><%= t('bookings.leaveReview') %>

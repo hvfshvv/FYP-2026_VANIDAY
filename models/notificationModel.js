@@ -24,7 +24,7 @@ const ACTIVE_PAYMENT_HOLD_FILTER = `
     AND (
       b.booking_id IS NULL
       OR b.status <> 'pending_payment'
-      OR COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) < NOW()
+      OR DATE_ADD(b.created_at, INTERVAL 5 MINUTE) < NOW()
     )
   )
 `;
@@ -65,11 +65,11 @@ const NOTIFICATION_ACTION_SELECT = `
   CASE
     WHEN n.notification_type = 'booking_created'
       AND b.status = 'pending_payment'
-      AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+      AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
       THEN CONCAT('/payment/checkout/', n.booking_id)
     WHEN n.notification_type = 'payment_attempt_failed'
       AND b.status = 'pending_payment'
-      AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+      AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
       THEN CONCAT('/payment/checkout/', n.booking_id)
     WHEN n.notification_type = 'review_available' AND n.booking_id IS NOT NULL
       THEN CONCAT('/book/', n.booking_id, '/review')
@@ -78,7 +78,7 @@ const NOTIFICATION_ACTION_SELECT = `
     WHEN n.notification_type = 'waitlist_offer'
       AND n.booking_id IS NOT NULL
       AND b.status = 'pending_payment'
-      AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 30 MINUTE)) >= NOW()
+      AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
       THEN CONCAT('/payment/checkout/', n.booking_id)
     WHEN n.notification_type = 'waitlist_offer'
       AND w.status = 'offered'
@@ -96,11 +96,11 @@ const NOTIFICATION_ACTION_SELECT = `
   CASE
     WHEN n.notification_type = 'booking_created'
       AND b.status = 'pending_payment'
-      AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+      AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
       THEN 'Continue payment'
     WHEN n.notification_type = 'payment_attempt_failed'
       AND b.status = 'pending_payment'
-      AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+      AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
       THEN 'Try payment again'
     WHEN n.notification_type = 'review_available' AND n.booking_id IS NOT NULL
       THEN 'Rate experience'
@@ -109,7 +109,7 @@ const NOTIFICATION_ACTION_SELECT = `
     WHEN n.notification_type = 'waitlist_offer'
       AND n.booking_id IS NOT NULL
       AND b.status = 'pending_payment'
-      AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 30 MINUTE)) >= NOW()
+      AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
       THEN 'Make payment'
     WHEN n.notification_type = 'waitlist_offer'
       AND w.status = 'offered'
@@ -127,7 +127,7 @@ const NOTIFICATION_ACTION_SELECT = `
   CASE
     WHEN n.notification_type IN ('booking_created', 'payment_attempt_failed')
       AND b.status = 'pending_payment'
-      AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+      AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
       THEN 'bi-credit-card'
     WHEN n.notification_type = 'review_available' AND n.booking_id IS NOT NULL
       THEN 'bi-star'
@@ -136,7 +136,7 @@ const NOTIFICATION_ACTION_SELECT = `
     WHEN n.notification_type = 'waitlist_offer'
       AND n.booking_id IS NOT NULL
       AND b.status = 'pending_payment'
-      AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 30 MINUTE)) >= NOW()
+      AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
       THEN 'bi-credit-card'
     WHEN n.notification_type = 'waitlist_offer'
       AND w.status = 'offered'
@@ -409,7 +409,7 @@ async function getNotificationsForUser(userId, limit = 50, { role = 'customer' }
     `SELECT n.*, b.status AS booking_status,
             CASE
               WHEN b.status = 'pending_payment'
-               AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
+               AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
               THEN 1 ELSE 0
             END AS pending_payment_active,
             ${NOTIFICATION_ACTION_SELECT}
