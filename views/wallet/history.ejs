@@ -4,22 +4,22 @@
 <main class="container py-5" style="max-width:900px;">
   <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
     <div>
-      <p class="text-uppercase small mb-1" style="color:var(--accent);font-weight:800;letter-spacing:.08em;">Payment wallet</p>
-      <h2 class="mb-1" style="font-weight:800;">Wallet activity</h2>
-      <p class="mb-0" style="color:var(--muted);">All top-ups, booking payments and refunds.</p>
+      <p class="text-uppercase small mb-1" style="color:var(--accent);font-weight:800;letter-spacing:.08em;"><%= t('wallet.eyebrow') %></p>
+      <h2 class="mb-1" style="font-weight:800;"><%= t('wallet.activityTitle') %></h2>
+      <p class="mb-0" style="color:var(--muted);"><%= t('wallet.activitySub') %></p>
     </div>
-    <a href="<%= walletReturnUrl %>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back to wallet</a>
+    <a href="<%= walletReturnUrl %>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i><%= t('wallet.backToWallet') %></a>
   </div>
 
   <section class="card border-0" style="border-radius:24px;box-shadow:var(--shadow);">
     <div class="card-body p-4">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <span style="color:var(--muted);">Available balance</span>
+        <span style="color:var(--muted);"><%= t('wallet.availableBalance') %></span>
         <strong style="font:700 1.4rem var(--font-mono);">S$<%= Number(wallet.balance).toFixed(2) %></strong>
       </div>
 
       <% if (!transactions.length) { %>
-        <p class="py-5 text-center mb-0" style="color:var(--muted);">No wallet activity yet.</p>
+        <p class="py-5 text-center mb-0" style="color:var(--muted);"><%= t('wallet.noActivity') %></p>
       <% } %>
 
       <% transactions.forEach(tx => {
@@ -30,29 +30,29 @@
         const amountPrefix = completed ? (outgoing ? '-' : '+') : '';
         const amountColor = pending || failed ? 'var(--muted)' : outgoing ? 'var(--danger)' : 'var(--success)';
         const statusLabel = pending
-          ? 'Awaiting payment confirmation - not added to balance'
+          ? t('wallet.statusPending')
           : failed
-            ? 'Expired or failed - no balance change'
-            : 'Completed';
+            ? t('wallet.statusFailed')
+            : t('bookings.completed');
       %>
         <div class="d-flex justify-content-between align-items-center py-3 border-bottom gap-3">
           <div>
-            <div style="font-weight:700;"><%= tx.description || tx.transaction_type %></div>
+            <div style="font-weight:700;"><%= tx.description || t('wallet.txType.' + tx.transaction_type, {}, tx.transaction_type) %></div>
             <div class="small" style="color:var(--muted);"><%= new Date(tx.created_at).toLocaleString('en-SG') %> · <%= statusLabel %></div>
           </div>
           <div class="text-end flex-shrink-0">
             <span style="font-family:var(--font-mono);font-weight:700;color:<%= amountColor %>;<%= failed ? 'text-decoration:line-through;' : '' %>"><%= amountPrefix %>S$<%= Number(tx.amount).toFixed(2) %></span>
-            <% if (pending) { %><span class="badge rounded-pill text-bg-secondary d-block mt-1">Pending</span><% } %>
-            <% if (failed) { %><span class="badge rounded-pill text-bg-light d-block mt-1">Not credited</span><% } %>
+            <% if (pending) { %><span class="badge rounded-pill text-bg-secondary d-block mt-1"><%= t('admin.payouts.status.pending') %></span><% } %>
+            <% if (failed) { %><span class="badge rounded-pill text-bg-light d-block mt-1"><%= t('wallet.notCredited') %></span><% } %>
           </div>
         </div>
       <% }) %>
 
       <% if (totalPages > 1) { %>
-        <nav class="d-flex justify-content-between align-items-center mt-4" aria-label="Wallet activity pages">
-          <a class="btn btn-outline-secondary <%= page <= 1 ? 'disabled' : '' %>" href="/wallet/history?page=<%= page - 1 %><%= paymentQuery %>">Previous</a>
-          <span class="small" style="color:var(--muted);">Page <%= page %> of <%= totalPages %></span>
-          <a class="btn btn-outline-secondary <%= page >= totalPages ? 'disabled' : '' %>" href="/wallet/history?page=<%= page + 1 %><%= paymentQuery %>">Next</a>
+        <nav class="d-flex justify-content-between align-items-center mt-4" aria-label="<%= t('wallet.pagesAria') %>">
+          <a class="btn btn-outline-secondary <%= page <= 1 ? 'disabled' : '' %>" href="/wallet/history?page=<%= page - 1 %><%= paymentQuery %>"><%= t('admin.logs.previous') %></a>
+          <span class="small" style="color:var(--muted);"><%= t('admin.logs.pageOf', { current: page, total: totalPages }) %></span>
+          <a class="btn btn-outline-secondary <%= page >= totalPages ? 'disabled' : '' %>" href="/wallet/history?page=<%= page + 1 %><%= paymentQuery %>"><%= t('admin.logs.next') %></a>
         </nav>
       <% } %>
     </div>

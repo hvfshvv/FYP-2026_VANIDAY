@@ -6,8 +6,8 @@
   const logoShowText = typeof showText !== 'undefined' ? showText : true;
 %>
 
-<a href="<%= logoHref %>" class="<%= logoClass %> uniday-logo uniday-logo-<%= logoVariant %> uniday-logo-<%= logoSize %>" aria-label="Uniday home">
-  <img src="/images/uniday-logo.png" alt="Uniday Logo" class="uniday-logo-mark" />
+<a href="<%= logoHref %>" class="<%= logoClass %> uniday-logo uniday-logo-<%= logoVariant %> uniday-logo-<%= logoSize %>" aria-label="<%= t('misc.logoHome') %>">
+  <img src="/images/uniday-logo.png" alt="<%= t('misc.logoAlt') %>" class="uniday-logo-mark" />
   <% if (logoShowText) { %>
   <span class="uniday-logo-text">uniday</span>
   <% } %>

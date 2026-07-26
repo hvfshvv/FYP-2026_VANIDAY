@@ -4,9 +4,9 @@
   const promoDayNames = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
   const promoDayLabel = value => {
     const values = String(value || '').split(',').filter(Boolean);
-    if (!values.length || values.length === 7) return 'Every day';
-    if (values.join(',') === 'sat,sun') return 'Weekends only';
-    if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
+    if (!values.length || values.length === 7) return t('home.everyDay');
+    if (values.join(',') === 'sat,sun') return t('home.weekendsOnly');
+    if (values.join(',') === 'mon,tue,wed,thu,fri') return t('home.weekdaysOnly');
     return values.map(day => promoDayNames[day] || day).join(', ');
   };
   const ratingText = item => {
@@ -32,7 +32,7 @@
       .filter(Boolean)
       .sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day));
 
-    if (!slots.length) return ['Hours not set'];
+    if (!slots.length) return [t('mp.hoursNotSet')];
 
     const groups = [];
     slots.forEach(slot => {
@@ -61,7 +61,7 @@
 
     <div class="d-flex justify-content-between align-items-end flex-wrap gap-3">
       <div>
-        <p class="section-label">Explore</p>
+        <p class="section-label"><%= t('mp.explore') %></p>
 
         <h1 style="
           font-size:2rem;
@@ -70,7 +70,7 @@
           color:var(--ink);
           margin-bottom:.25rem;
         ">
-          <%= selectedCategory ? selectedCategory + ' merchants' : 'Marketplace' %>
+          <%= selectedCategory ? t('mp.categoryMerchants', { category: t('categories.' + selectedCategory, {}, selectedCategory) }) : t('nav.marketplace') %>
         </h1>
 
         <p style="
@@ -79,8 +79,8 @@
           font-size:.9375rem;
         ">
           <%= selectedCategory
-            ? 'Showing ' + selectedCategory.toLowerCase() + ' merchants and deals in Singapore.'
-            : 'Discover top beauty & wellness merchants and exclusive deals in Singapore.' %>
+            ? t('mp.showingCategory', { category: t('categories.' + selectedCategory, {}, selectedCategory) })
+            : t('mp.discoverSub') %>
         </p>
       </div>
 
@@ -114,14 +114,14 @@
 
   <form action="/" method="GET" role="search" class="mb-5">
     <% if (selectedCategory) { %><input type="hidden" name="category" value="<%= selectedCategory %>"><% } %>
-    <label for="marketplace-search" class="visually-hidden">Search merchants or services</label>
+    <label for="marketplace-search" class="visually-hidden"><%= t('mp.searchLabel') %></label>
     <div class="input-group" style="max-width:760px;margin:0 auto;box-shadow:var(--shadow-sm);border-radius:999px;overflow:hidden;">
       <span class="input-group-text bg-white border-end-0 ps-4" style="border-color:var(--border);"><i class="bi bi-search" style="color:var(--muted);"></i></span>
-      <input id="marketplace-search" name="q" type="search" class="form-control border-start-0 py-3" value="<%= searchQuery %>" placeholder="Search by merchant or service, e.g. Dewy Glow or facial" maxlength="100" style="box-shadow:none;border-color:var(--border);">
-      <button class="btn btn-primary px-4" type="submit">Search</button>
+      <input id="marketplace-search" name="q" type="search" class="form-control border-start-0 py-3" value="<%= searchQuery %>" placeholder="<%= t('mp.searchPlaceholder') %>" maxlength="100" style="box-shadow:none;border-color:var(--border);">
+      <button class="btn btn-primary px-4" type="submit"><%= t('admin.common.search') %></button>
     </div>
     <% if (searchQuery) { %>
-      <p class="text-center small mt-2 mb-0" style="color:var(--muted);">Showing marketplace results for “<%= searchQuery %>”</p>
+      <p class="text-center small mt-2 mb-0" style="color:var(--muted);"><%= t('mp.showingResults', { query: searchQuery }) %></p>
     <% } %>
   </form>
 
@@ -132,14 +132,14 @@
 
     <div class="section-header">
       <div>
-        <p class="section-label">Handpicked</p>
+        <p class="section-label"><%= t('mp.handpicked') %></p>
 
         <h2 class="section-title">
-          Featured merchants
+          <%= t('admin.featured.title') %>
         </h2>
 
         <p class="section-sub">
-          Top-rated salons and studios on Uniday.
+          <%= t('mp.featuredSub') %>
         </p>
       </div>
     </div>
@@ -237,7 +237,7 @@
             </div>
 
             <!-- OPERATING HOURS -->
-            <div class="info-row align-items-start" title="<%= listing.operating_hours || 'Hours not set' %>">
+            <div class="info-row align-items-start" title="<%= listing.operating_hours || t('mp.hoursNotSet') %>">
               <i class="bi bi-clock"></i>
               <span>
                 <% operatingHoursLines(listing).forEach(line => { %>
@@ -251,7 +251,7 @@
               <i class="bi bi-geo-alt"></i>
 
               <span>
-                <%= listing.address || 'Singapore' %>
+                <%= listing.address || t('common.singapore') %>
               </span>
             </div>
 
@@ -275,16 +275,16 @@
     <div class="section-header">
       <div>
 
-        <p class="section-label">Browse</p>
+        <p class="section-label"><%= t('mp.browse') %></p>
 
         <h2 class="section-title">
-        <%= searchQuery ? 'Search results' : (selectedCategory ? selectedCategory + ' merchants' : 'All merchants') %>
+        <%= searchQuery ? t('mp.searchResults') : (selectedCategory ? t('mp.categoryMerchants', { category: t('categories.' + selectedCategory, {}, selectedCategory) }) : t('mp.allMerchants')) %>
         </h2>
 
         <p class="section-sub">
           <%= selectedCategory
-            ? 'View services, prices and availability for ' + selectedCategory.toLowerCase() + ' merchants.'
-            : 'View services, prices and availability across different merchants.' %>
+            ? t('mp.browseSubCategory', { category: t('categories.' + selectedCategory, {}, selectedCategory) })
+            : t('mp.browseSub') %>
         </p>
 
       </div>
@@ -304,11 +304,11 @@
         color:var(--ink);
         margin-bottom:.25rem;
       ">
-        <%= searchQuery ? 'No merchants or services found' : (selectedCategory ? 'No ' + selectedCategory.toLowerCase() + ' merchants available' : 'No merchants available') %>
+        <%= searchQuery ? t('mp.noResults') : (selectedCategory ? t('mp.noCategoryMerchants', { category: t('categories.' + selectedCategory, {}, selectedCategory) }) : t('mp.noMerchants')) %>
       </h5>
 
       <p style="color:var(--muted);">
-        <%= searchQuery ? 'Try a different merchant name, service, or category.' : 'Please check back again soon.' %>
+        <%= searchQuery ? t('mp.tryDifferent') : t('mp.checkBackSoon') %>
       </p>
 
     </div>
@@ -381,7 +381,7 @@
 
             <!-- DESCRIPTION -->
             <p class="card-meta">
-              <%= merchant.description || 'Beauty and wellness merchant' %>
+              <%= merchant.description || t('fav.defaultMerchantDesc') %>
             </p>
 
             <% if (searchQuery && merchant.service_names) { %>
@@ -392,7 +392,7 @@
             <div class="discount-pill">
               <i class="bi bi-grid"></i>
 
-              <%= merchant.service_categories || merchant.category || 'General' %>
+              <%= merchant.service_categories || (merchant.category ? t('categories.' + merchant.category, {}, merchant.category) : t('admin.table.generalCategory')) %>
             </div>
             <div class="info-row">
               <i class="bi bi-star-fill" style="color:#f59e0b;"></i>
@@ -400,7 +400,7 @@
             </div>
 
             <!-- OPERATING HOURS -->
-            <div class="info-row align-items-start" title="<%= merchant.operating_hours || 'Hours not set' %>">
+            <div class="info-row align-items-start" title="<%= merchant.operating_hours || t('mp.hoursNotSet') %>">
               <i class="bi bi-clock"></i>
               <span>
                 <% operatingHoursLines(merchant).forEach(line => { %>
@@ -415,7 +415,7 @@
               <i class="bi bi-geo-alt"></i>
 
               <span>
-                <%= merchant.address || 'Singapore' %>
+                <%= merchant.address || t('common.singapore') %>
               </span>
 
             </div>
@@ -580,7 +580,7 @@ document.addEventListener('submit', async (event) => {
 
     const result = await response.json();
     if (!response.ok || !result.success) {
-      throw new Error(result.error || 'Could not update favourite.');
+      throw new Error(result.error || window.t('mp.favouriteError'));
     }
 
     const favourited = Boolean(result.favourited);
@@ -595,7 +595,7 @@ document.addEventListener('submit', async (event) => {
     }
   } catch (err) {
     console.error(err);
-    alert(err.message || 'Could not update favourite.');
+    alert(err.message || window.t('mp.favouriteError'));
   } finally {
     if (button) button.disabled = false;
   }

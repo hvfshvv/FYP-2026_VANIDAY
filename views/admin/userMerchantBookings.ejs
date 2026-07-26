@@ -12,12 +12,12 @@
 <main class="container py-5">
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
-      <p class="section-label">Merchant Bookings</p>
+      <p class="section-label"><%= t('admin.merchantBookings.eyebrow') %></p>
       <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= merchant.merchant_name %></h2>
-      <p style="color:var(--muted);margin:0;"><%= merchant.owner_name %> · <%= merchant.verification_status %> · <%= merchant.is_active ? 'active' : 'disabled' %></p>
+      <p style="color:var(--muted);margin:0;"><%= merchant.owner_name %> · <%= t('admin.verification.' + merchant.verification_status, {}, merchant.verification_status) %> · <%= merchant.is_active ? t('admin.accountStatus.active') : t('admin.accountStatus.disabled') %></p>
     </div>
     <a href="/admin/user-management/merchants" class="btn btn-outline-secondary btn-pill">
-      <i class="bi bi-arrow-left me-1"></i>Merchant Accounts
+      <i class="bi bi-arrow-left me-1"></i><%= t('admin.userManagement.merchantAccounts') %>
     </a>
   </div>
 
@@ -27,32 +27,32 @@
       <table class="table table-hover align-middle mb-0">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Customer</th>
-            <th>Service</th>
-            <th>Date &amp; Time</th>
-            <th>Source</th>
-            <th>Booking Status</th>
-            <th>Payment</th>
-            <th>Total</th>
+            <th><%= t('admin.dashboard.logs.colId') %></th>
+            <th><%= t('admin.table.customer') %></th>
+            <th><%= t('common.service') %></th>
+            <th><%= t('admin.table.dateTime') %></th>
+            <th><%= t('admin.table.source') %></th>
+            <th><%= t('admin.table.bookingStatus') %></th>
+            <th><%= t('admin.table.payment') %></th>
+            <th><%= t('common.total') %></th>
           </tr>
         </thead>
         <tbody>
           <% if (!bookings.length) { %>
-            <tr><td colspan="8" class="text-center py-5 text-muted">No bookings found for this merchant.</td></tr>
+            <tr><td colspan="8" class="text-center py-5 text-muted"><%= t('admin.merchantBookings.empty') %></td></tr>
           <% } %>
           <% bookings.forEach(booking => { %>
           <tr>
             <td class="mono">#<%= booking.booking_id %></td>
             <td>
-              <strong><%= booking.customer_name || 'Guest customer' %></strong>
+              <strong><%= booking.customer_name || t('admin.table.guestCustomer') %></strong>
               <div class="small text-muted"><%= booking.customer_email || booking.customer_phone || '-' %></div>
             </td>
             <td><%= booking.service_name %></td>
             <td><%= formatDate(booking.booking_date) %> <span class="text-muted"><%= formatTime(booking.booking_time) %></span></td>
-            <td><span class="badge bg-secondary"><%= booking.source || '-' %></span></td>
-            <td><span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);"><%= booking.status %></span></td>
-            <td><%= booking.payment_status || 'unpaid' %></td>
+            <td><span class="badge bg-secondary"><%= booking.source ? t('admin.source.' + booking.source, {}, booking.source) : '-' %></span></td>
+            <td><span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);"><%= t('admin.bookingStatus.' + booking.status, {}, booking.status) %></span></td>
+            <td><%= t('admin.paymentStatus.' + (booking.payment_status || 'unpaid'), {}, booking.payment_status || 'unpaid') %></td>
             <td class="mono"><%= money(booking.paid_amount || booking.total_amount) %></td>
           </tr>
           <% }) %>

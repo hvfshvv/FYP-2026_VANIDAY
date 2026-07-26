@@ -2,20 +2,20 @@
 <%- include('../partials/header') %>
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;"><div class="container" style="max-width:820px;">
   <a href="/book/reviews" class="btn btn-outline-secondary btn-sm btn-pill mb-3"><i class="bi bi-arrow-left"></i> My Reviews</a>
-  <h2 style="font-weight:800;">Edit Review</h2><p style="color:var(--muted);">You may update the review for seven days. An existing photo can only be replaced here; use a removal request if it must be removed.</p>
+  <h2 style="font-weight:800;"><%= t('custReview.editTitle') %></h2><p style="color:var(--muted);"><%= t('custReview.editHint') %></p>
   <% if (error) { %><div class="rounded-xl p-3 mb-3" style="background:var(--danger-bg);color:var(--danger);"><%= error %></div><% } %>
   <form method="POST" action="/book/reviews/<%= review.review_id %>/edit" enctype="multipart/form-data">
     <div class="card border-0 mb-3"><div class="card-body p-4"><h5><%= review.merchant_name %> · <%= review.service_name %></h5>
-      <label class="form-label mt-3">Merchant rating</label><select class="form-select rounded-xl" name="merchant_rating" required><% [5,4,3,2,1].forEach(r => { %><option value="<%= r %>" <%= Number(review.rating) === r ? 'selected' : '' %>><%= r %> stars</option><% }) %></select>
-      <label class="form-label mt-3">Merchant review</label><textarea class="form-control rounded-xl" name="merchant_review_text" rows="4" maxlength="900" required><%= review.review_text %></textarea>
-      <% if (review.review_image_path) { %><img src="<%= review.review_image_path %>" alt="Current photo" style="width:180px;height:140px;object-fit:cover;border-radius:12px;margin-top:1rem;"><% } %>
-      <label class="form-label mt-3"><%= review.has_photo ? 'Replace photo (optional)' : 'Add photo (optional, earns 1 additional point)' %></label><input type="file" class="form-control rounded-xl" name="review_image" accept="image/jpeg,image/png,image/webp"><small style="color:var(--muted);">Leaving this empty keeps the current photo. Maximum 5MB.</small>
+      <label class="form-label mt-3"><%= t('custReview.merchantRating') %></label><select class="form-select rounded-xl" name="merchant_rating" required><% [5,4,3,2,1].forEach(r => { %><option value="<%= r %>" <%= Number(review.rating) === r ? 'selected' : '' %>><%= t('admin.feedback.starsCount', { count: r }) %></option><% }) %></select>
+      <label class="form-label mt-3"><%= t('custReview.merchantReview') %></label><textarea class="form-control rounded-xl" name="merchant_review_text" rows="4" maxlength="900" required><%= review.review_text %></textarea>
+      <% if (review.review_image_path) { %><img src="<%= review.review_image_path %>" alt="<%= t('custReview.currentPhoto') %>" style="width:180px;height:140px;object-fit:cover;border-radius:12px;margin-top:1rem;"><% } %>
+      <label class="form-label mt-3"><%= review.has_photo ? t('custReview.replacePhoto') : t('custReview.addPhoto') %></label><input type="file" class="form-control rounded-xl" name="review_image" accept="image/jpeg,image/png,image/webp"><small style="color:var(--muted);"><%= t('custReview.photoHint') %></small>
     </div></div>
-    <div class="card border-0 mb-3"><div class="card-body p-4"><h5>Uniday feedback</h5>
-      <label class="form-label mt-3">Platform rating</label><select class="form-select rounded-xl" name="platform_rating" required><% [5,4,3,2,1].forEach(r => { %><option value="<%= r %>" <%= Number(review.platform_rating) === r ? 'selected' : '' %>><%= r %> stars</option><% }) %></select>
-      <label class="form-label mt-3">Feedback type</label><select class="form-select rounded-xl" name="platform_feedback_type"><% [['booking_experience','Booking experience'],['payment','Payment'],['qr_checkin','QR check-in'],['whatsapp','WhatsApp'],['general','General']].forEach(o => { %><option value="<%= o[0] %>" <%= review.feedback_type === o[0] ? 'selected' : '' %>><%= o[1] %></option><% }) %></select>
-      <label class="form-label mt-3">Feedback</label><textarea class="form-control rounded-xl" name="platform_feedback_text" rows="3" maxlength="1000" required><%= review.platform_review_text %></textarea>
-    </div></div><button class="btn btn-primary btn-pill"><i class="bi bi-check2 me-1"></i>Save changes</button>
+    <div class="card border-0 mb-3"><div class="card-body p-4"><h5><%= t('custReview.unidayFeedback') %></h5>
+      <label class="form-label mt-3"><%= t('custReview.platformRating') %></label><select class="form-select rounded-xl" name="platform_rating" required><% [5,4,3,2,1].forEach(r => { %><option value="<%= r %>" <%= Number(review.platform_rating) === r ? 'selected' : '' %>><%= t('admin.feedback.starsCount', { count: r }) %></option><% }) %></select>
+      <label class="form-label mt-3"><%= t('custReview.feedbackType') %></label><select class="form-select rounded-xl" name="platform_feedback_type"><% [['booking_experience',t('admin.feedback.type.booking_experience')],['payment',t('admin.feedback.type.payment')],['qr_checkin',t('admin.feedback.type.qr_checkin')],['whatsapp',t('admin.feedback.type.whatsapp')],['general',t('admin.feedback.type.general')]].forEach(o => { %><option value="<%= o[0] %>" <%= review.feedback_type === o[0] ? 'selected' : '' %>><%= o[1] %></option><% }) %></select>
+      <label class="form-label mt-3"><%= t('admin.feedback.colFeedback') %></label><textarea class="form-control rounded-xl" name="platform_feedback_text" rows="3" maxlength="1000" required><%= review.platform_review_text %></textarea>
+    </div></div><button class="btn btn-primary btn-pill"><i class="bi bi-check2 me-1"></i><%= t('merchant.services.saveChanges') %></button>
   </form>
 </div></main>
 <%- include('../partials/footer') %>

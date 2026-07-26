@@ -293,23 +293,23 @@
   <div class="container" style="max-width:1400px;">
     <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
       <div>
-        <p class="section-label mb-2">Admin View</p>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Dashboard</h2>
-        <p style="color:var(--muted);margin-bottom:0;">Performance, booking, customer, marketing, operational, and financial analytics.</p>
+        <p class="section-label mb-2"><%= t('admin.customers.eyebrow') %></p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.merchants.title') %></h2>
+        <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.merchants.subtitle') %></p>
       </div>
       <div class="d-flex flex-wrap gap-2 align-items-center">
         <form method="GET" action="/admin/merchants" class="d-flex flex-wrap gap-2 align-items-center">
           <input type="date" name="startDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.startDate %>" />
           <input type="date" name="endDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.endDate %>" />
           <button type="submit" class="btn btn-primary btn-pill">
-            <i class="bi bi-funnel me-1"></i>Filter
+            <i class="bi bi-funnel me-1"></i><%= t('admin.common.filter') %>
           </button>
         </form>
         <button type="button" class="btn btn-outline-secondary btn-pill" id="themeToggle">
-          <i class="bi bi-moon-stars me-1"></i>Theme
+          <i class="bi bi-moon-stars me-1"></i><%= t('admin.customers.theme') %>
         </button>
         <button type="button" class="btn btn-outline-secondary btn-pill" id="summaryButton">
-          <i class="bi bi-file-earmark-text me-1"></i>Summarize Data
+          <i class="bi bi-file-earmark-text me-1"></i><%= t('admin.customers.summarize') %>
         </button>
       </div>
     </div>
@@ -323,33 +323,33 @@
     <% if (query && query.featured) { %>
       <div class="alert alert-success mb-4">
         <i class="bi bi-check-circle"></i>
-        <span>Merchant added to featured merchants.</span>
+        <span><%= t('admin.merchants.featuredAdded') %></span>
       </div>
     <% } %>
     <% if (query && query.error === 'feature') { %>
       <div class="alert alert-warning mb-4">
         <i class="bi bi-exclamation-triangle"></i>
-        <span>Could not add merchant to featured merchants.</span>
+        <span><%= t('admin.merchants.featuredFailed') %></span>
       </div>
     <% } %>
 
     <div class="dashboard-tabs mb-4">
-      <a href="#overview">Overview</a>
-      <a href="#sales">Sales</a>
-      <a href="#bookings">Bookings</a>
-      <a href="#customers">Customers</a>
-      <a href="#marketing">Marketing</a>
-      <a href="#finance">Finance</a>
+      <a href="#overview"><%= t('admin.dashboard.overview') %></a>
+      <a href="#sales"><%= t('admin.merchants.tab.sales') %></a>
+      <a href="#bookings"><%= t('admin.table.bookings') %></a>
+      <a href="#customers"><%= t('admin.merchants.tab.customers') %></a>
+      <a href="#marketing"><%= t('admin.merchants.tab.marketing') %></a>
+      <a href="#finance"><%= t('admin.merchants.tab.finance') %></a>
     </div>
 
     <section class="summary-panel mb-4" id="summaryPanel" aria-live="polite">
       <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-2">
         <div>
-          <p class="section-label mb-1">Merchant Data Summary</p>
-          <h4 class="analytics-title">Data Analysis</h4>
+          <p class="section-label mb-1"><%= t('admin.merchants.summaryEyebrow') %></p>
+          <h4 class="analytics-title"><%= t('admin.customers.summaryTitle') %></h4>
         </div>
         <button type="button" class="btn btn-outline-secondary btn-sm btn-pill" id="copySummaryButton">
-          <i class="bi bi-clipboard me-1"></i>Copy
+          <i class="bi bi-clipboard me-1"></i><%= t('admin.customers.copy') %>
         </button>
       </div>
       <p class="summary-panel__meta" id="summaryMeta"></p>
@@ -359,14 +359,14 @@
     <section id="overview" class="section-anchor mb-5">
       <div class="row g-3">
         <% [
-          { label:'Total bookings', value:number(overview.total_bookings), icon:'bi-calendar-check', color:'#1D4ED8' },
-          { label:'Revenue generated', value:maskMoney(overview.revenue_generated), icon:'bi-cash-stack', color:'var(--success)' },
-          { label:'Customers', value:number(overview.number_of_customers), icon:'bi-people', color:'var(--accent)' },
-          { label:'Average order value', value:money(overview.average_order_value), icon:'bi-bag-check', color:'var(--ink)' },
-          { label:'Booking conversion', value:percent(overview.booking_conversion_rate), icon:'bi-graph-up-arrow', color:'var(--success)' },
-          { label:'Cancel/no-show rate', value:percent(overview.cancellation_no_show_rate), icon:'bi-calendar-x', color:'var(--danger)' },
-          { label:'Satisfaction rating', value:rating(overview.customer_satisfaction_rating), icon:'bi-star', color:'var(--warn)' },
-          { label:'Retention rate', value:percent(retentionRate), icon:'bi-arrow-repeat', color:'var(--accent)' },
+          { label:t('admin.merchants.stat.totalBookings'), value:number(overview.total_bookings), icon:'bi-calendar-check', color:'#1D4ED8' },
+          { label:t('admin.merchants.stat.revenueGenerated'), value:maskMoney(overview.revenue_generated), icon:'bi-cash-stack', color:'var(--success)' },
+          { label:t('admin.merchants.tab.customers'), value:number(overview.number_of_customers), icon:'bi-people', color:'var(--accent)' },
+          { label:t('admin.customers.stat.avgOrder'), value:money(overview.average_order_value), icon:'bi-bag-check', color:'var(--ink)' },
+          { label:t('admin.merchants.stat.conversion'), value:percent(overview.booking_conversion_rate), icon:'bi-graph-up-arrow', color:'var(--success)' },
+          { label:t('admin.merchants.stat.cancelRate'), value:percent(overview.cancellation_no_show_rate), icon:'bi-calendar-x', color:'var(--danger)' },
+          { label:t('admin.merchants.stat.satisfaction'), value:rating(overview.customer_satisfaction_rating), icon:'bi-star', color:'var(--warn)' },
+          { label:t('admin.merchants.stat.retention'), value:percent(retentionRate), icon:'bi-arrow-repeat', color:'var(--accent)' },
         ].forEach(stat => { %>
           <div class="col-6 col-lg-3">
             <div class="stat-card h-100">
@@ -388,14 +388,14 @@
     <section id="sales" class="section-anchor mb-5">
       <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
         <div>
-          <p class="section-label mb-1">Sales &amp; Revenue</p>
-          <h4 class="analytics-title">Revenue Analytics</h4>
+          <p class="section-label mb-1"><%= t('admin.merchants.salesEyebrow') %></p>
+          <h4 class="analytics-title"><%= t('admin.merchants.salesTitle') %></h4>
         </div>
       </div>
       <div class="row g-3">
         <div class="col-12">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Revenue by Category</h6>
+            <h6 class="analytics-title mb-3"><%= t('admin.revenue.byCategory') %></h6>
             <% const categoryMax = maxOf(a.revenueByCategory || [], 'revenue'); %>
             <div class="d-flex flex-wrap gap-2 mb-3">
               <% (a.revenueByCategory || []).slice(0, 4).forEach(row => { const money = maskMoney; %>
@@ -409,13 +409,13 @@
                   <div class="mini-bar"><span style="width:<%= barWidth(row.revenue, categoryMax) %>%;"></span></div>
                 </div>
               <% }) %>
-              <% if (!(a.revenueByCategory || []).length) { %><p style="color:var(--muted);margin:0;">No category revenue yet.</p><% } %>
+              <% if (!(a.revenueByCategory || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.merchants.noCategoryRevenue') %></p><% } %>
             </div>
           </div>
         </div>
         <div class="col-lg-4">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Top-Selling Services</h6>
+            <h6 class="analytics-title mb-3"><%= t('admin.merchants.topServices') %></h6>
             <% const serviceMax = maxOf(a.topServices || [], 'bookings'); %>
             <div class="metric-list">
               <% (a.topServices || []).forEach(row => { %>
@@ -424,42 +424,42 @@
                   <div class="mini-bar"><span style="width:<%= barWidth(row.bookings, serviceMax) %>%;"></span></div>
                 </div>
               <% }) %>
-              <% if (!(a.topServices || []).length) { %><p style="color:var(--muted);margin:0;">No service sales yet.</p><% } %>
+              <% if (!(a.topServices || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.merchants.noServiceSales') %></p><% } %>
             </div>
           </div>
         </div>
         <div class="col-lg-4">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Payment Methods</h6>
+            <h6 class="analytics-title mb-3"><%= t('admin.merchants.paymentMethods') %></h6>
             <% const paymentMax = maxOf(a.paymentBreakdown || [], 'revenue'); %>
             <div class="metric-list">
               <% (a.paymentBreakdown || []).forEach(row => { %>
                 <div>
-                  <div class="metric-row mb-1"><p><%= row.payment_method || 'Unknown' %></p><small><%= maskMoney(row.revenue) %></small></div>
+                  <div class="metric-row mb-1"><p><%= row.payment_method || t('admin.customers.unknown') %></p><small><%= maskMoney(row.revenue) %></small></div>
                   <div class="mini-bar"><span style="width:<%= barWidth(row.revenue, paymentMax) %>%;"></span></div>
                 </div>
               <% }) %>
-              <% if (!(a.paymentBreakdown || []).length) { %><p style="color:var(--muted);margin:0;">No payment method data yet.</p><% } %>
+              <% if (!(a.paymentBreakdown || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.merchants.noPaymentData') %></p><% } %>
             </div>
           </div>
         </div>
         <div class="col-lg-4">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Promotion Performance</h6>
+            <h6 class="analytics-title mb-3"><%= t('admin.merchants.promoPerformance') %></h6>
             <div class="metric-list">
               <% (a.promotionPerformance || []).forEach(row => { %>
                 <div class="metric-row">
-                  <p><%= row.campaign_name || row.voucher_code || 'Voucher' %></p>
-                  <small><%= number(row.redemptions) %> redemptions</small>
+                  <p><%= row.campaign_name || row.voucher_code || t('admin.merchants.voucher') %></p>
+                  <small><%= t('admin.merchants.redemptions', { count: number(row.redemptions) }) %></small>
                 </div>
               <% }) %>
-              <% if (!(a.promotionPerformance || []).length) { %><p style="color:var(--muted);margin:0;">No promo redemptions yet.</p><% } %>
+              <% if (!(a.promotionPerformance || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.merchants.noRedemptions') %></p><% } %>
             </div>
           </div>
         </div>
         <div class="col-lg-4">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Peak Sales Periods</h6>
+            <h6 class="analytics-title mb-3"><%= t('admin.merchants.peakSales') %></h6>
             <div class="metric-list">
               <% (a.peakSalesPeriods || []).forEach(row => { %>
                 <div class="metric-row">
@@ -467,7 +467,7 @@
                   <small><%= maskMoney(row.revenue) %></small>
                 </div>
               <% }) %>
-              <% if (!(a.peakSalesPeriods || []).length) { %><p style="color:var(--muted);margin:0;">No peak sales data yet.</p><% } %>
+              <% if (!(a.peakSalesPeriods || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.merchants.noPeakSales') %></p><% } %>
             </div>
           </div>
         </div>
@@ -475,12 +475,12 @@
     </section>
 
     <section id="bookings" class="section-anchor mb-5">
-      <p class="section-label mb-1">Booking Analytics</p>
-      <h4 class="analytics-title mb-3">Demand &amp; Utilization</h4>
+      <p class="section-label mb-1"><%= t('admin.merchants.bookingEyebrow') %></p>
+      <h4 class="analytics-title mb-3"><%= t('admin.merchants.bookingTitle') %></h4>
       <div class="row g-3">
         <div class="col-12">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Booking Status Mix</h6>
+            <h6 class="analytics-title mb-3"><%= t('admin.merchants.statusMix') %></h6>
             <% const statusTotal = (a.bookingStatus || []).reduce((sum, row) => sum + Number(row.total || 0), 0) || 1; %>
             <div class="donut-grid">
               <% (a.bookingStatus || []).forEach(row => {
@@ -490,17 +490,17 @@
                   <div class="donut-ring" style="--ring:<%= share.toFixed(1) %>%;">
                     <span><%= share.toFixed(0) %>%</span>
                   </div>
-                  <p style="color:var(--ink);font-weight:800;margin:0;"><%= String(row.status || 'unknown').replace('_', ' ') %></p>
-                  <small style="color:var(--muted);font-family:var(--font-mono);"><%= number(row.total) %> bookings</small>
+                  <p style="color:var(--ink);font-weight:800;margin:0;"><%= t('admin.bookingStatus.' + row.status, {}, String(row.status || 'unknown').replace('_', ' ')) %></p>
+                  <small style="color:var(--muted);font-family:var(--font-mono);"><%= t('admin.payouts.bookingsCount', { count: number(row.total) }) %></small>
                 </div>
               <% }) %>
-              <% if (!(a.bookingStatus || []).length) { %><p style="color:var(--muted);margin:0;">No booking status data yet.</p><% } %>
+              <% if (!(a.bookingStatus || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.merchants.noStatusData') %></p><% } %>
             </div>
           </div>
         </div>
         <div class="col-lg-6">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Peak Booking Hours &amp; Days</h6>
+            <h6 class="analytics-title mb-3"><%= t('admin.merchants.peakBooking') %></h6>
             <% const peakBookingMax = maxOf(a.peakBookingTimes || [], 'bookings'); %>
             <div class="metric-list">
               <% (a.peakBookingTimes || []).forEach(row => { %>
@@ -509,39 +509,39 @@
                   <div class="mini-bar"><span style="width:<%= barWidth(row.bookings, peakBookingMax) %>%;"></span></div>
                 </div>
               <% }) %>
-              <% if (!(a.peakBookingTimes || []).length) { %><p style="color:var(--muted);margin:0;">No booking heatmap data yet.</p><% } %>
+              <% if (!(a.peakBookingTimes || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.merchants.noHeatmap') %></p><% } %>
             </div>
           </div>
         </div>
         <div class="col-lg-6">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Booking Lead Time</h6>
-            <p class="stat-value" style="font-size:2rem;color:var(--accent);"><%= avgLeadDays.toFixed(1) %> days</p>
-            <p style="color:var(--muted);margin:0;">Average time between booking creation and appointment slot.</p>
+            <h6 class="analytics-title mb-3"><%= t('admin.merchants.leadTime') %></h6>
+            <p class="stat-value" style="font-size:2rem;color:var(--accent);"><%= t('admin.merchants.days', { count: avgLeadDays.toFixed(1) }) %></p>
+            <p style="color:var(--muted);margin:0;"><%= t('admin.merchants.leadTimeSub') %></p>
           </div>
         </div>
       </div>
     </section>
 
     <section id="customers" class="section-anchor mb-5">
-      <p class="section-label mb-1">Customer Insights</p>
-      <h4 class="analytics-title mb-3">Retention &amp; Loyalty</h4>
+      <p class="section-label mb-1"><%= t('admin.merchants.custEyebrow') %></p>
+      <h4 class="analytics-title mb-3"><%= t('admin.merchants.custTitle') %></h4>
       <div class="row g-3">
         <div class="col-lg-3">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">New vs Returning</h6>
-            <p style="color:var(--muted);margin-bottom:.35rem;">New customers</p>
+            <h6 class="analytics-title mb-3"><%= t('admin.merchants.newVsReturning') %></h6>
+            <p style="color:var(--muted);margin-bottom:.35rem;"><%= t('admin.merchants.newCustomers') %></p>
             <p class="stat-value mb-3"><%= number(a.customerSegments?.new_customers) %></p>
-            <p style="color:var(--muted);margin-bottom:.35rem;">Returning customers</p>
+            <p style="color:var(--muted);margin-bottom:.35rem;"><%= t('admin.merchants.returningCustomers') %></p>
             <p class="stat-value" style="color:var(--accent);"><%= number(a.customerSegments?.returning_customers) %></p>
           </div>
         </div>
         <div class="col-lg-9">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Most Loyal Customers</h6>
+            <h6 class="analytics-title mb-3"><%= t('admin.merchants.loyalCustomers') %></h6>
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
-                <thead style="background:var(--accent-light);"><tr><th>Customer</th><th>Bookings</th><th>Reviews</th><th>CLV</th></tr></thead>
+                <thead style="background:var(--accent-light);"><tr><th><%= t('admin.table.customer') %></th><th><%= t('admin.table.bookings') %></th><th><%= t('admin.customers.tab.reviews') %></th><th><%= t('admin.merchants.clv') %></th></tr></thead>
                 <tbody>
                   <% (a.topCustomers || []).forEach(customer => { %>
                     <tr><td><%= customer.full_name %></td><td><%= number(customer.bookings) %></td><td><%= number(customer.reviews) %></td><td><%= maskMoney(customer.lifetime_value) %></td></tr>
@@ -549,29 +549,29 @@
                 </tbody>
               </table>
             </div>
-            <% if (!(a.topCustomers || []).length) { %><p style="color:var(--muted);margin:0;">No repeat customer data yet.</p><% } %>
+            <% if (!(a.topCustomers || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.merchants.noRepeatCustomers') %></p><% } %>
           </div>
         </div>
       </div>
     </section>
 
     <section id="marketing" class="section-anchor mb-5">
-      <p class="section-label mb-1">Marketing Performance</p>
-      <h4 class="analytics-title mb-3">Campaigns, WhatsApp Booking, Walk-in QR &amp; Marketplace</h4>
+      <p class="section-label mb-1"><%= t('admin.merchants.marketingEyebrow') %></p>
+      <h4 class="analytics-title mb-3"><%= t('admin.merchants.marketingTitle') %></h4>
       <div class="row g-3">
         <div class="col-lg-6">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Campaign Performance</h6>
+            <h6 class="analytics-title mb-3"><%= t('admin.merchants.campaignPerformance') %></h6>
             <div class="metric-list">
               <% (a.campaignPerformance || []).forEach(row => { %>
-                <div class="metric-row"><p><%= row.campaign_name || row.voucher_code %></p><small><%= row.is_active ? 'Active' : 'Inactive' %></small></div>
+                <div class="metric-row"><p><%= row.campaign_name || row.voucher_code %></p><small><%= row.is_active ? t('admin.promotions.lifecycle.active') : t('admin.merchants.inactive') %></small></div>
               <% }) %>
             </div>
           </div>
         </div>
         <div class="col-lg-6">
           <div class="analytics-card">
-            <h6 class="analytics-title mb-3">Booking Source</h6>
+            <h6 class="analytics-title mb-3"><%= t('admin.table.source') %></h6>
             <% const channelMax = maxOf(a.bookingChannelAnalytics || [], 'total'); %>
             <div class="metric-list">
               <%
@@ -582,7 +582,7 @@
               %>
               <% bookingSources.forEach(row => { %>
                 <div>
-                  <div class="metric-row mb-1"><p><%= row.channel_label || 'Booking channel' %></p><small><%= number(row.total) %> bookings</small></div>
+                  <div class="metric-row mb-1"><p><%= row.channel_label || t('admin.merchants.bookingChannel') %></p><small><%= t('admin.payouts.bookingsCount', { count: number(row.total) }) %></small></div>
                   <div class="mini-bar"><span style="width:<%= barWidth(row.total, channelMax) %>%;"></span></div>
                 </div>
               <% }) %>
@@ -593,25 +593,25 @@
     </section>
 
     <section class="section-anchor mb-5">
-      <p class="section-label mb-1">Visual Summary</p>
-      <h4 class="analytics-title mb-3">At-a-Glance Performance</h4>
+      <p class="section-label mb-1"><%= t('admin.merchants.visualEyebrow') %></p>
+      <h4 class="analytics-title mb-3"><%= t('admin.merchants.visualTitle') %></h4>
       <div class="mini-kpi-strip">
         <div class="mini-kpi">
-          <p style="color:var(--muted);margin:0 0 .35rem;">Paid revenue</p>
+          <p style="color:var(--muted);margin:0 0 .35rem;"><%= t('admin.customers.wa.paidRevenue') %></p>
           <p class="stat-value" style="font-size:1.45rem;color:var(--success);"><%= maskMoney(overview.revenue_generated) %></p>
         </div>
         <div class="mini-kpi">
-          <p style="color:var(--muted);margin:0 0 .35rem;">Conversion health</p>
+          <p style="color:var(--muted);margin:0 0 .35rem;"><%= t('admin.merchants.conversionHealth') %></p>
           <div class="mini-bar mb-2"><span style="width:<%= barWidth(overview.booking_conversion_rate, 100) %>%;"></span></div>
           <p style="color:var(--ink);font-weight:800;margin:0;"><%= percent(overview.booking_conversion_rate) %></p>
         </div>
         <div class="mini-kpi">
-          <p style="color:var(--muted);margin:0 0 .35rem;">Risk rate</p>
+          <p style="color:var(--muted);margin:0 0 .35rem;"><%= t('admin.merchants.riskRate') %></p>
           <div class="mini-bar mb-2"><span style="width:<%= barWidth(overview.cancellation_no_show_rate, 100) %>%;background:var(--danger);"></span></div>
           <p style="color:var(--ink);font-weight:800;margin:0;"><%= percent(overview.cancellation_no_show_rate) %></p>
         </div>
         <div class="mini-kpi">
-          <p style="color:var(--muted);margin:0 0 .35rem;">Customer retention</p>
+          <p style="color:var(--muted);margin:0 0 .35rem;"><%= t('admin.merchants.customerRetention') %></p>
           <div class="mini-bar mb-2"><span style="width:<%= barWidth(retentionRate, 100) %>%;background:var(--success);"></span></div>
           <p style="color:var(--ink);font-weight:800;margin:0;"><%= percent(retentionRate) %></p>
         </div>
@@ -619,14 +619,14 @@
     </section>
 
     <section id="finance" class="section-anchor mb-5">
-      <p class="section-label mb-1">Financial Reports</p>
-      <h4 class="analytics-title mb-3">Margins, Refunds &amp; Reports</h4>
+      <p class="section-label mb-1"><%= t('admin.merchants.financeEyebrow') %></p>
+      <h4 class="analytics-title mb-3"><%= t('admin.merchants.financeTitle') %></h4>
       <div class="row g-3">
         <% [
-          { label:'Profit margin', value:percent(profitMargin), icon:'bi-percent' },
-          { label:'Refund amount', value:maskMoney(a.financial?.refunded_amount), icon:'bi-arrow-counterclockwise' },
-          { label:'Refund count', value:number(a.financial?.refund_count), icon:'bi-receipt-cutoff' },
-          { label:'Estimated tax', value:maskMoney(a.financial?.estimated_tax), icon:'bi-file-earmark-text' },
+          { label:t('admin.merchants.profitMargin'), value:percent(profitMargin), icon:'bi-percent' },
+          { label:t('admin.merchants.refundAmount'), value:maskMoney(a.financial?.refunded_amount), icon:'bi-arrow-counterclockwise' },
+          { label:t('admin.merchants.refundCount'), value:number(a.financial?.refund_count), icon:'bi-receipt-cutoff' },
+          { label:t('admin.merchants.estimatedTax'), value:maskMoney(a.financial?.estimated_tax), icon:'bi-file-earmark-text' },
         ].forEach(item => { %>
           <div class="col-6 col-lg-3">
             <div class="analytics-card">
@@ -642,21 +642,21 @@
     </section>
 
     <section class="mb-3 section-anchor" id="leaderboard">
-      <p class="section-label mb-1">Merchant Leaderboard</p>
-      <h4 class="analytics-title mb-3">Top Merchants</h4>
+      <p class="section-label mb-1"><%= t('admin.merchants.leaderboardEyebrow') %></p>
+      <h4 class="analytics-title mb-3"><%= t('admin.revenue.topMerchants') %></h4>
       <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
             <thead style="background:var(--accent-light);">
               <tr>
-                <th>Merchant</th>
-                <th>Category</th>
-                <th>Bookings</th>
-                <th>Customers</th>
-                <th>Revenue</th>
-                <th>Rating</th>
-                <th>Featured</th>
-                <th>Actions</th>
+                <th><%= t('common.merchant') %></th>
+                <th><%= t('admin.table.category') %></th>
+                <th><%= t('admin.table.bookings') %></th>
+                <th><%= t('admin.merchants.tab.customers') %></th>
+                <th><%= t('admin.table.revenue') %></th>
+                <th><%= t('admin.table.rating') %></th>
+                <th><%= t('admin.merchants.featured') %></th>
+                <th><%= t('admin.table.actions') %></th>
               </tr>
             </thead>
             <tbody>
@@ -670,13 +670,13 @@
                   <td><%= rating(merchant.rating) %></td>
                   <td>
                     <% if (Number(merchant.is_featured || 0)) { %>
-                      <a href="/admin/featured" class="badge text-decoration-none" style="background:var(--success-bg);color:var(--success);">Featured</a>
+                      <a href="/admin/featured" class="badge text-decoration-none" style="background:var(--success-bg);color:var(--success);"><%= t('admin.merchants.featured') %></a>
                     <% } else if (Number(merchant.has_featured_listing || 0)) { %>
-                      <span class="badge" style="background:var(--neutral-bg);color:var(--muted);">Hidden</span>
+                      <span class="badge" style="background:var(--neutral-bg);color:var(--muted);"><%= t('admin.reviews.visibility.hidden') %></span>
                     <% } else { %>
                       <form action="/admin/merchants/<%= merchant.merchant_id %>/feature" method="POST" class="m-0">
                         <button type="submit" class="btn btn-primary btn-sm btn-pill">
-                          <i class="bi bi-star me-1"></i>Add Featured
+                          <i class="bi bi-star me-1"></i><%= t('admin.merchants.addFeatured') %>
                         </button>
                       </form>
                     <% } %>
@@ -687,12 +687,12 @@
                         <form action="/admin/merchants/featured/<%= merchant.featured_listing_id %>/toggle" method="POST" class="m-0">
                           <button type="submit" class="leaderboard-action-btn">
                             <i class="bi bi-<%= Number(merchant.is_featured || 0) ? 'eye-slash' : 'eye' %>"></i>
-                            <%= Number(merchant.is_featured || 0) ? 'Hide' : 'Show' %>
+                            <%= Number(merchant.is_featured || 0) ? t('admin.common.hide') : t('admin.common.show') %>
                           </button>
                         </form>
-                        <form action="/admin/merchants/featured/<%= merchant.featured_listing_id %>/remove" method="POST" class="m-0" onsubmit="return confirm('Remove this merchant from featured listings?');">
+                        <form action="/admin/merchants/featured/<%= merchant.featured_listing_id %>/remove" method="POST" class="m-0" onsubmit="return confirm('<%= t('admin.featured.removeConfirm') %>');">
                           <button type="submit" class="leaderboard-action-btn danger">
-                            <i class="bi bi-trash"></i>Remove
+                            <i class="bi bi-trash"></i><%= t('admin.common.remove') %>
                           </button>
                         </form>
                       </div>
@@ -739,9 +739,9 @@
     async function fetchAiSummary(endpoint, metaText) {
       const defaultButtonHtml = summaryButton.innerHTML;
       summaryButton.disabled = true;
-      summaryButton.textContent = 'Generating...';
+      summaryButton.textContent = window.t('admin.customers.ai.generating');
       summaryMeta.textContent = metaText;
-      summaryOutput.textContent = 'Generating Gemini AI summary from database data...';
+      summaryOutput.textContent = window.t('admin.customers.ai.generatingBody');
       summaryPanel.classList.add('is-visible');
       summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -756,14 +756,14 @@
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) {
-          throw new Error(payload.message || 'AI summary request failed.');
+          throw new Error(payload.message || window.t('admin.customers.ai.requestFailed'));
         }
         summaryMeta.textContent = `Generated by Gemini AI from database data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
-        summaryOutput.textContent = payload.summary?.text || 'No Gemini summary was generated for the selected period.';
+        summaryOutput.textContent = payload.summary?.text || window.t('admin.customers.ai.noSummary');
       } catch (error) {
         console.error('Failed to generate Gemini summary', error);
         summaryMeta.textContent = `Gemini summary unavailable for ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
-        summaryOutput.textContent = `AI summary could not be generated right now. ${error.message || 'Please check the Gemini API key, network connection, or server logs, then try again.'}`;
+        summaryOutput.textContent = window.t('admin.customers.ai.errorBody') + ' ' + (error.message || window.t('admin.customers.ai.errorHint'));
       } finally {
         summaryButton.disabled = false;
         summaryButton.innerHTML = defaultButtonHtml;
@@ -781,9 +781,9 @@
       const value = summaryOutput.textContent || '';
       if (!value) return;
       await navigator.clipboard.writeText(value);
-      copySummaryButton.innerHTML = '<i class="bi bi-check2 me-1"></i>Copied';
+      copySummaryButton.innerHTML = '<i class="bi bi-check2 me-1"></i>' + window.t('admin.customers.copied');
       setTimeout(() => {
-        copySummaryButton.innerHTML = '<i class="bi bi-clipboard me-1"></i>Copy';
+        copySummaryButton.innerHTML = '<i class="bi bi-clipboard me-1"></i>' + window.t('admin.customers.copy');
       }, 1600);
     });
   })();

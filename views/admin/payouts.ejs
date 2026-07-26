@@ -257,23 +257,23 @@
 
 <main class="container py-5">
   <a href="/admin/revenue" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-    <i class="bi bi-arrow-left me-1"></i>Revenue
+    <i class="bi bi-arrow-left me-1"></i><%= t('admin.table.revenue') %>
   </a>
 
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
-      <p class="section-label mb-2">Admin Finance</p>
-      <h2 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Merchant Payouts</h2>
-      <p style="color:var(--muted);margin-bottom:0;">Automatically creates one Monday payout batch per merchant from eligible completed paid bookings with appointment dates before the current Monday.</p>
+      <p class="section-label mb-2"><%= t('admin.revenue.eyebrow') %></p>
+      <h2 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.payouts.pageTitle') %></h2>
+      <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.payouts.pageSubtitle') %></p>
     </div>
     <form method="GET" action="/admin/payouts" class="d-flex gap-2 align-items-center">
       <select name="status" class="form-select rounded-xl" style="width:170px;">
-        <option value="">All statuses</option>
+        <option value=""><%= t('admin.userOps.allStatuses') %></option>
         <% ['pending','processing','paid','failed','cancelled'].forEach(status => { %>
-        <option value="<%= status %>" <%= selectedStatus === status ? 'selected' : '' %>><%= status.charAt(0).toUpperCase() + status.slice(1) %></option>
+        <option value="<%= status %>" <%= selectedStatus === status ? 'selected' : '' %>><%= t('admin.payouts.status.' + status, {}, status.charAt(0).toUpperCase() + status.slice(1)) %></option>
         <% }) %>
       </select>
-      <button class="btn btn-primary btn-pill"><i class="bi bi-funnel me-1"></i>Filter</button>
+      <button class="btn btn-primary btn-pill"><i class="bi bi-funnel me-1"></i><%= t('admin.common.filter') %></button>
     </form>
   </div>
 
@@ -284,33 +284,33 @@
     <div class="col-6 col-lg-3">
       <div class="payout-stat-card h-100">
         <div class="payout-stat-head">
-          <p class="payout-stat-label">Eligible for Payout</p>
+          <p class="payout-stat-label"><%= t('admin.payouts.eligibleForPayout') %></p>
           <span class="payout-stat-icon"><i class="bi bi-cash-stack"></i></span>
         </div>
         <p class="payout-stat-value"><%= settlementBand(summary.eligible_amount) %></p>
         <% if (trendHasData) { %>
         <span class="payout-stat-badge <%= trendDeltaPct >= 0 ? 'up' : 'down' %>">
-          <i class="bi bi-arrow-<%= trendDeltaPct >= 0 ? 'up' : 'down' %>-short"></i><%= Math.abs(trendDeltaPct) %>% vs prior cycles
+          <i class="bi bi-arrow-<%= trendDeltaPct >= 0 ? 'up' : 'down' %>-short"></i><%= t('admin.payouts.vsPriorCycles', { pct: Math.abs(trendDeltaPct) }) %>
         </span>
         <div class="payout-sparkline-wrap" data-color="#E11D48" data-sparkline='<%- JSON.stringify(trendPoints).replace(/</g, "\\u003c") %>'>
           <svg class="payout-sparkline" viewBox="0 0 280 56" preserveAspectRatio="none"></svg>
           <div class="payout-sparkline-tip" hidden></div>
         </div>
         <% } else { %>
-        <p class="payout-stat-sub" style="margin-top:0;">No payout-ready revenue in the last 8 cycles.</p>
+        <p class="payout-stat-sub" style="margin-top:0;"><%= t('admin.payouts.noTrendData') %></p>
         <% } %>
-        <p class="payout-stat-sub"><%= number(summary.eligible_booking_count) %> completed paid bookings ready for the next Monday batch</p>
+        <p class="payout-stat-sub"><%= t('admin.payouts.readyForBatch', { count: number(summary.eligible_booking_count) }) %></p>
       </div>
     </div>
 
     <div class="col-6 col-lg-3">
       <div class="payout-stat-card h-100">
         <div class="payout-stat-head">
-          <p class="payout-stat-label">Pending Review</p>
+          <p class="payout-stat-label"><%= t('admin.validations.pendingReview') %></p>
           <span class="payout-stat-icon"><i class="bi bi-hourglass-split"></i></span>
         </div>
         <p class="payout-stat-value"><%= settlementBand(summary.outstanding_amount) %></p>
-        <span class="payout-stat-badge"><%= number(summary.pending_count) %> batches waiting to be credited</span>
+        <span class="payout-stat-badge"><%= t('admin.payouts.batchesWaiting', { count: number(summary.pending_count) }) %></span>
         <% if (outstandingBreakdown.length) { %>
         <% outstandingBreakdown.slice(0, 4).forEach(row => { %>
         <div class="payout-mini-bar-row">
@@ -320,7 +320,7 @@
         </div>
         <% }) %>
         <% } else { %>
-        <p class="payout-stat-sub" style="margin-top:0;">No outstanding batches right now.</p>
+        <p class="payout-stat-sub" style="margin-top:0;"><%= t('admin.payouts.noOutstanding') %></p>
         <% } %>
       </div>
     </div>
@@ -328,23 +328,23 @@
     <div class="col-6 col-lg-3">
       <div class="payout-stat-card h-100">
         <div class="payout-stat-head">
-          <p class="payout-stat-label">Paid This Week</p>
+          <p class="payout-stat-label"><%= t('admin.payouts.paidThisWeek') %></p>
           <span class="payout-stat-icon"><i class="bi bi-check-circle"></i></span>
         </div>
         <p class="payout-stat-value"><%= settlementBand(paidThisWeek) %></p>
-        <span class="payout-stat-badge"><%= number(summary.paid_this_week_count) %> batches credited this cycle</span>
+        <span class="payout-stat-badge"><%= t('admin.payouts.batchesCredited', { count: number(summary.paid_this_week_count) }) %></span>
         <% if (paidTotal + outstandingTotal > 0) { %>
         <div class="payout-ratio-bar">
           <span style="width:<%= paidRatioPct %>%;background:var(--success);"></span>
           <span style="width:<%= 100 - paidRatioPct %>%;background:var(--warn);"></span>
         </div>
-        <p class="payout-stat-sub" style="margin-top:.6rem;"><%= paidRatioPct %>% of settled volume paid out</p>
+        <p class="payout-stat-sub" style="margin-top:.6rem;"><%= t('admin.payouts.settledPaidOut', { pct: paidRatioPct }) %></p>
         <div class="payout-ratio-legend">
-          <span><span class="dot" style="background:var(--success);"></span>Paid</span>
-          <span><span class="dot" style="background:var(--warn);"></span>Outstanding</span>
+          <span><span class="dot" style="background:var(--success);"></span><%= t('admin.payouts.status.paid') %></span>
+          <span><span class="dot" style="background:var(--warn);"></span><%= t('admin.payouts.outstanding') %></span>
         </div>
         <% } else { %>
-        <p class="payout-stat-sub" style="margin-top:0;">No settlement volume yet.</p>
+        <p class="payout-stat-sub" style="margin-top:0;"><%= t('admin.payouts.noSettlementVolume') %></p>
         <% } %>
       </div>
     </div>
@@ -352,12 +352,12 @@
     <div class="col-6 col-lg-3">
       <div class="payout-stat-card h-100">
         <div class="payout-stat-head">
-          <p class="payout-stat-label">Merchants Waiting</p>
+          <p class="payout-stat-label"><%= t('admin.payouts.merchantsWaiting') %></p>
           <span class="payout-stat-icon"><i class="bi bi-shop"></i></span>
         </div>
         <p class="payout-stat-value"><%= number(summary.eligible_count) %></p>
         <% if (totalBucketCount > 0) { %>
-        <span class="payout-stat-badge">ready for payout creation</span>
+        <span class="payout-stat-badge"><%= t('admin.payouts.readyForCreation') %></span>
         <% merchantSizeBuckets.forEach(bucket => { %>
         <div class="payout-mini-bar-row">
           <span class="payout-mini-bar-label"><%= bucket.label %></span>
@@ -366,7 +366,7 @@
         </div>
         <% }) %>
         <% } else { %>
-        <p class="payout-stat-sub" style="margin-top:0;">All payouts are up to date. The next batch will be generated automatically on Monday.</p>
+        <p class="payout-stat-sub" style="margin-top:0;"><%= t('admin.payouts.allUpToDate') %></p>
         <% } %>
       </div>
     </div>
@@ -460,21 +460,21 @@
   <section class="payout-panel mb-4">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
       <div>
-        <h5 class="payout-panel-title"><i class="bi bi-cash-coin"></i>Eligible Merchant Payouts</h5>
-        <p style="color:var(--muted);margin:0;font-size:.9rem;">Only completed bookings before the current Monday with paid, non-refunded, held payments appear here. Gross merchant revenue is masked; settlement is visible for finance reconciliation.</p>
+        <h5 class="payout-panel-title"><i class="bi bi-cash-coin"></i><%= t('admin.payouts.eligibleTitle') %></h5>
+        <p style="color:var(--muted);margin:0;font-size:.9rem;"><%= t('admin.payouts.eligibleNote') %></p>
       </div>
     </div>
     <div class="table-responsive">
       <table class="table table-hover align-middle payout-table mb-0">
         <thead>
           <tr>
-            <th>Merchant</th>
-            <th class="text-end">Bookings</th>
-            <th class="text-end">Gross<i class="bi bi-eye-slash payout-mask-hint" title="Rounded to the nearest S$100 band to keep individual merchant revenue private"></i></th>
-            <th class="text-end">Uniday</th>
-            <th class="text-end">Gateway Fees</th>
-            <th class="text-end">Settlement</th>
-            <th>Period</th>
+            <th><%= t('common.merchant') %></th>
+            <th class="text-end"><%= t('admin.table.bookings') %></th>
+            <th class="text-end"><%= t('admin.payouts.gross') %><i class="bi bi-eye-slash payout-mask-hint" title="<%= t('admin.payouts.maskHint') %>"></i></th>
+            <th class="text-end"><%= t('admin.payouts.unidayShort') %></th>
+            <th class="text-end"><%= t('admin.payouts.gatewayFees') %></th>
+            <th class="text-end"><%= t('admin.payouts.settlement') %></th>
+            <th><%= t('admin.payouts.period') %></th>
           </tr>
         </thead>
         <tbody>
@@ -493,13 +493,13 @@
           </tr>
           <% }) %>
           <% if (!eligibleGroups.length) { %>
-          <tr><td colspan="7" class="text-center py-4" style="color:var(--muted);">All payouts are up to date. The next Monday batch will be generated automatically when bookings become eligible.</td></tr>
+          <tr><td colspan="7" class="text-center py-4" style="color:var(--muted);"><%= t('admin.payouts.eligibleEmpty') %></td></tr>
           <% } %>
         </tbody>
         <% if (eligibleGroups.length) { %>
         <tfoot>
           <tr>
-            <td>Total</td>
+            <td><%= t('common.total') %></td>
             <td class="mono text-end"><%= number(eligTotals.bookings) %></td>
             <td class="mono text-end"><%= settlementBand(eligTotals.gross) %></td>
             <td class="mono text-end" style="color:var(--accent);"><%= money(eligTotals.uniday) %></td>
@@ -514,20 +514,20 @@
   </section>
 
   <section class="payout-panel">
-    <h5 class="payout-panel-title"><i class="bi bi-clock-history"></i>Payout History</h5>
+    <h5 class="payout-panel-title"><i class="bi bi-clock-history"></i><%= t('admin.payouts.historyTitle') %></h5>
     <div class="table-responsive">
       <table class="table table-hover align-middle payout-table mb-0">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Merchant</th>
-            <th>Status</th>
-            <th class="text-end">Gross<i class="bi bi-eye-slash payout-mask-hint" title="Rounded to the nearest S$100 band to keep individual merchant revenue private"></i></th>
-            <th class="text-end">Uniday</th>
-            <th class="text-end">Gateway Fees</th>
-            <th class="text-end">Settlement</th>
-            <th>Created</th>
-            <th>Paid</th>
+            <th><%= t('admin.dashboard.logs.colId') %></th>
+            <th><%= t('common.merchant') %></th>
+            <th><%= t('admin.table.status') %></th>
+            <th class="text-end"><%= t('admin.payouts.gross') %><i class="bi bi-eye-slash payout-mask-hint" title="<%= t('admin.payouts.maskHint') %>"></i></th>
+            <th class="text-end"><%= t('admin.payouts.unidayShort') %></th>
+            <th class="text-end"><%= t('admin.payouts.gatewayFees') %></th>
+            <th class="text-end"><%= t('admin.payouts.settlement') %></th>
+            <th><%= t('admin.logs.colCreated') %></th>
+            <th><%= t('admin.payouts.status.paid') %></th>
             <th></th>
           </tr>
         </thead>
@@ -535,27 +535,28 @@
           <% payouts.forEach(payout => { %>
           <tr>
             <td class="mono">#<%= payout.payout_id %></td>
-            <td><strong><%= payout.merchant_name %></strong><div style="color:var(--muted);font-size:.8rem;"><%= payout.booking_count %> bookings</div></td>
-            <td><span class="payout-status <%= statusClass(payout.status) %>"><%= payout.status %></span></td>
+            <td><strong><%= payout.merchant_name %></strong><div style="color:var(--muted);font-size:.8rem;"><%= t('admin.payouts.bookingsCount', { count: payout.booking_count }) %></div></td>
+            <td><span class="payout-status <%= statusClass(payout.status) %>"><%= t('admin.payouts.status.' + payout.status, {}, payout.status) %></span></td>
             <td class="mono text-end"><%= settlementBand(payout.gross_amount) %></td>
             <td class="mono text-end"><%= money(payout.platform_commission) %></td>
             <td class="mono text-end"><%= money(Number(payout.processor_fee_amount || 0) + Number(payout.dispute_fee_amount || 0)) %></td>
             <td class="mono text-end" style="font-weight:800;color:var(--success);"><%= money(payout.payout_amount) %></td>
             <td style="color:var(--muted);font-size:.82rem;"><%= dateTime(payout.created_at) %></td>
             <td style="color:var(--muted);font-size:.82rem;"><%= dateTime(payout.paid_at) %></td>
-            <td class="text-end"><a href="/admin/payouts/<%= payout.payout_id %>" class="btn btn-outline-secondary btn-sm btn-pill">View</a></td>
+            <td class="text-end"><a href="/admin/payouts/<%= payout.payout_id %>" class="btn btn-outline-secondary btn-sm btn-pill"><%= t('admin.payouts.view') %></a></td>
           </tr>
           <% }) %>
           <% if (!payouts.length) { %>
-          <tr><td colspan="10" class="text-center py-4" style="color:var(--muted);">No payout batches found. Merchants only appear here after they have completed paid bookings that passed payout checks.</td></tr>
+          <tr><td colspan="10" class="text-center py-4" style="color:var(--muted);"><%= t('admin.payouts.historyEmpty') %></td></tr>
           <% } %>
         </tbody>
         <% if (payouts.length) { %>
         <tfoot>
           <tr>
             <td></td>
-            <td>Total</td>
+            <td><%= t('common.total') %></td>
             <td></td>
+
             <td class="mono text-end"><%= settlementBand(historyTotals.gross) %></td>
             <td class="mono text-end"><%= money(historyTotals.uniday) %></td>
             <td class="mono text-end"><%= money(historyTotals.fees) %></td>

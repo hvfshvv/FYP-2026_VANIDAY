@@ -15,16 +15,16 @@
   const dateTime = value => value ? new Date(value).toLocaleString('en-SG', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
   const displaySource = value => {
     const source = String(value || 'marketplace').toLowerCase();
-    if (source === 'web' || source === 'marketplace') return 'Marketplace';
-    if (source === 'qr') return 'QR';
-    if (source === 'whatsapp') return 'WhatsApp';
+    if (source === 'web' || source === 'marketplace') return t('admin.revenue.source.marketplace');
+    if (source === 'qr') return t('admin.source.qr');
+    if (source === 'whatsapp') return t('admin.source.whatsapp');
     return source.charAt(0).toUpperCase() + source.slice(1);
   };
   const paymentMethod = value => {
     const method = String(value || 'stripe').toLowerCase();
-    if (method === 'paynow') return 'PayNow';
-    if (method === 'wallet') return 'Wallet';
-    if (method === 'card' || method === 'stripe' || method === 'checkout') return 'Stripe Card';
+    if (method === 'paynow') return t('admin.revenue.method.paynow');
+    if (method === 'wallet') return t('admin.revenue.method.wallet');
+    if (method === 'card' || method === 'stripe' || method === 'checkout') return t('admin.revenue.method.stripeCard');
     return method.charAt(0).toUpperCase() + method.slice(1);
   };
   const statusClass = status => {
@@ -224,7 +224,7 @@
 <div class="container py-5 finance-page">
   <div>
     <a href="/admin/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-      <i class="bi bi-arrow-left me-1"></i>Dashboard
+      <i class="bi bi-arrow-left me-1"></i><%= t('nav.dashboard') %>
     </a>
 
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
@@ -233,20 +233,20 @@
           <i class="bi bi-graph-up-arrow"></i>
         </div>
         <div>
-          <p class="section-label mb-1">Admin Finance</p>
-          <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.15rem;">Revenue Summary</h2>
-          <p style="color:var(--muted);margin-bottom:0;">Summary, trend, breakdowns, and payment records from actual platform payment data.</p>
+          <p class="section-label mb-1"><%= t('admin.revenue.eyebrow') %></p>
+          <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.15rem;"><%= t('admin.revenue.title') %></h2>
+          <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.revenue.subtitle') %></p>
         </div>
       </div>
 
       <form method="GET" action="/admin/revenue" class="d-flex flex-wrap gap-2 align-items-center">
         <a href="/admin/payouts" class="btn btn-outline-secondary btn-pill">
-          <i class="bi bi-bank me-1"></i>Payouts
+          <i class="bi bi-bank me-1"></i><%= t('admin.payouts.title') %>
         </a>
         <input type="date" name="startDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.startDate %>" />
         <input type="date" name="endDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.endDate %>" />
         <button type="submit" class="btn btn-primary btn-pill">
-          <i class="bi bi-funnel me-1"></i>Filter
+          <i class="bi bi-funnel me-1"></i><%= t('admin.common.filter') %>
         </button>
       </form>
     </div>
@@ -263,30 +263,30 @@
     <div class="row g-3">
       <div class="col-6 col-lg-3">
         <div class="finance-card">
-          <p class="finance-card-label">Gross Revenue</p>
+          <p class="finance-card-label"><%= t('admin.payouts.gross') %> <%= t('admin.table.revenue') %></p>
           <p class="finance-card-value" style="color:var(--accent);"><%= moneyWhole(overview.gross_revenue) %></p>
-          <p class="finance-card-sub">Successful customer payments</p>
+          <p class="finance-card-sub"><%= t('admin.revenue.grossSub') %></p>
         </div>
       </div>
       <div class="col-6 col-lg-3">
         <div class="finance-card">
-          <p class="finance-card-label">Platform Revenue</p>
+          <p class="finance-card-label"><%= t('admin.revenue.platformRevenue') %></p>
           <p class="finance-card-value" style="color:var(--success);"><%= money(overview.platform_commission) %></p>
-          <p class="finance-card-sub">10% Uniday commission</p>
+          <p class="finance-card-sub"><%= t('admin.revenue.commissionSub') %></p>
         </div>
       </div>
       <div class="col-6 col-lg-3">
         <div class="finance-card">
-          <p class="finance-card-label">Completed Orders</p>
+          <p class="finance-card-label"><%= t('admin.revenue.completedOrders') %></p>
           <p class="finance-card-value"><%= number(overview.paid_bookings) %></p>
-          <p class="finance-card-sub">Paid bookings in this range</p>
+          <p class="finance-card-sub"><%= t('admin.revenue.completedOrdersSub') %></p>
         </div>
       </div>
       <div class="col-6 col-lg-3">
         <div class="finance-card">
-          <p class="finance-card-label">Refund Rate</p>
+          <p class="finance-card-label"><%= t('admin.revenue.refundRate') %></p>
           <p class="finance-card-value" style="color:<%= Number(overview.refund_rate || 0) > 0 ? 'var(--danger)' : 'var(--success)' %>;"><%= pct(overview.refund_rate) %></p>
-          <p class="finance-card-sub"><%= number(overview.refund_count) %> refund records - <%= money(overview.refund_amount) %></p>
+          <p class="finance-card-sub"><%= t('admin.revenue.refundSub', { count: number(overview.refund_count), amount: money(overview.refund_amount) }) %></p>
         </div>
       </div>
     </div>
@@ -295,15 +295,15 @@
   <section class="finance-panel">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
       <div>
-        <p class="section-label mb-1">Revenue Trend</p>
-        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Revenue for selected period</h5>
-        <p style="color:var(--muted);margin-bottom:0;">Daily gross paid revenue based on payment completion date.</p>
+        <p class="section-label mb-1"><%= t('admin.revenue.trendEyebrow') %></p>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.revenue.trendTitle') %></h5>
+        <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.revenue.trendSub') %></p>
       </div>
       <div class="d-flex flex-wrap gap-2">
-        <a class="filter-chip" href="/admin/revenue?startDate=<%= range.endDate %>&endDate=<%= range.endDate %>">Today</a>
-        <a class="filter-chip" href="/admin/revenue?startDate=<%= new Date(new Date(range.endDate).setDate(new Date(range.endDate).getDate() - 6)).toISOString().slice(0,10) %>&endDate=<%= range.endDate %>">7 Days</a>
-        <a class="filter-chip" href="/admin/revenue?startDate=<%= new Date(new Date(range.endDate).setDate(new Date(range.endDate).getDate() - 29)).toISOString().slice(0,10) %>&endDate=<%= range.endDate %>">30 Days</a>
-        <a class="filter-chip" href="/admin/revenue?startDate=<%= range.endDate.slice(0,8) %>01&endDate=<%= range.endDate %>">This Month</a>
+        <a class="filter-chip" href="/admin/revenue?startDate=<%= range.endDate %>&endDate=<%= range.endDate %>"><%= t('admin.revenue.today') %></a>
+        <a class="filter-chip" href="/admin/revenue?startDate=<%= new Date(new Date(range.endDate).setDate(new Date(range.endDate).getDate() - 6)).toISOString().slice(0,10) %>&endDate=<%= range.endDate %>"><%= t('admin.revenue.days7') %></a>
+        <a class="filter-chip" href="/admin/revenue?startDate=<%= new Date(new Date(range.endDate).setDate(new Date(range.endDate).getDate() - 29)).toISOString().slice(0,10) %>&endDate=<%= range.endDate %>"><%= t('admin.revenue.days30') %></a>
+        <a class="filter-chip" href="/admin/revenue?startDate=<%= range.endDate.slice(0,8) %>01&endDate=<%= range.endDate %>"><%= t('admin.period.this_month') %></a>
       </div>
     </div>
     <div class="chart-wrap" data-trend='<%- JSON.stringify(trend).replace(/</g, "\\u003c") %>'>
@@ -317,22 +317,22 @@
       <div class="finance-panel h-100">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
           <div>
-            <p class="section-label mb-1">Revenue Split</p>
-            <h5 style="font-weight:800;color:var(--ink);margin-bottom:0;">Gross revenue allocation</h5>
+            <p class="section-label mb-1"><%= t('admin.revenue.splitEyebrow') %></p>
+            <h5 style="font-weight:800;color:var(--ink);margin-bottom:0;"><%= t('admin.revenue.splitTitle') %></h5>
           </div>
-          <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">10% platform / 90% merchant</span>
+          <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;"><%= t('admin.revenue.splitBadge') %></span>
         </div>
         <div class="row g-3 mb-3">
           <div class="col-4">
-            <p style="color:var(--muted);font-size:.78rem;margin-bottom:.3rem;">Gross</p>
+            <p style="color:var(--muted);font-size:.78rem;margin-bottom:.3rem;"><%= t('admin.payouts.gross') %></p>
             <strong class="mono"><%= money(overview.gross_revenue) %></strong>
           </div>
           <div class="col-4">
-            <p style="color:var(--muted);font-size:.78rem;margin-bottom:.3rem;">Merchant receives</p>
+            <p style="color:var(--muted);font-size:.78rem;margin-bottom:.3rem;"><%= t('admin.revenue.merchantReceives') %></p>
             <strong class="mono" style="color:var(--success);"><%= money(overview.merchant_settlement_total) %></strong>
           </div>
           <div class="col-4">
-            <p style="color:var(--muted);font-size:.78rem;margin-bottom:.3rem;">Platform earns</p>
+            <p style="color:var(--muted);font-size:.78rem;margin-bottom:.3rem;"><%= t('admin.revenue.platformEarns') %></p>
             <strong class="mono" style="color:var(--accent);"><%= money(overview.platform_commission) %></strong>
           </div>
         </div>
@@ -341,20 +341,20 @@
           <span style="width:10%;"></span>
         </div>
         <div class="d-flex justify-content-between" style="font-size:.78rem;color:var(--muted);">
-          <span>Merchant 90% before gateway fees</span>
-          <span>Platform 10%</span>
+          <span><%= t('admin.revenue.merchantShareNote') %></span>
+          <span><%= t('admin.revenue.platformShareNote') %></span>
         </div>
         <div class="split-box mt-3">
-          <p style="font-weight:800;margin-bottom:.35rem;">Gateway fees</p>
-          <p style="color:var(--muted);margin-bottom:0;">Stripe processing and dispute fees are tracked separately: <strong class="mono"><%= money(overview.gateway_fees) %></strong>.</p>
+          <p style="font-weight:800;margin-bottom:.35rem;"><%= t('admin.payouts.gatewayFees') %></p>
+          <p style="color:var(--muted);margin-bottom:0;"><%- t('admin.revenue.gatewayFeesNote', { amount: money(overview.gateway_fees) }) %></p>
         </div>
       </div>
     </div>
 
     <div class="col-lg-6">
       <div class="finance-panel h-100">
-        <p class="section-label mb-1">Revenue Sources</p>
-        <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Channel share</h5>
+        <p class="section-label mb-1"><%= t('admin.revenue.sourcesEyebrow') %></p>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;"><%= t('admin.revenue.sourcesTitle') %></h5>
         <div class="donut-wrap">
           <div class="donut" aria-hidden="true"></div>
           <div>
@@ -367,7 +367,7 @@
                 <strong class="mono"><%= money(row.gross_revenue) %></strong>
               </div>
             <% }) %>
-            <% if (!(r.bookingSource || []).length) { %><p style="color:var(--muted);margin:0;">No paid sources in this range.</p><% } %>
+            <% if (!(r.bookingSource || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.revenue.noSources') %></p><% } %>
           </div>
         </div>
       </div>
@@ -377,15 +377,15 @@
   <section class="row g-4">
     <div class="col-lg-6">
       <div class="finance-panel h-100">
-        <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Top Merchants</h5>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;"><%= t('admin.revenue.topMerchants') %></h5>
         <div class="table-responsive">
           <table class="table align-middle finance-table mb-0">
             <thead>
               <tr>
-                <th>Rank</th>
-                <th>Merchant</th>
-                <th class="currency">Revenue Band</th>
-                <th class="currency">Bookings</th>
+                <th><%= t('admin.revenue.rank') %></th>
+                <th><%= t('common.merchant') %></th>
+                <th class="currency"><%= t('admin.revenue.revenueBand') %></th>
+                <th class="currency"><%= t('admin.table.bookings') %></th>
               </tr>
             </thead>
             <tbody>
@@ -397,7 +397,7 @@
                   <td class="currency"><%= number(row.paid_bookings) %></td>
                 </tr>
               <% }) %>
-              <% if (!(r.topMerchants || []).length) { %><tr><td colspan="4" style="color:var(--muted);">No paid merchant revenue in this range.</td></tr><% } %>
+              <% if (!(r.topMerchants || []).length) { %><tr><td colspan="4" style="color:var(--muted);"><%= t('admin.revenue.noMerchantRevenue') %></td></tr><% } %>
             </tbody>
           </table>
         </div>
@@ -406,15 +406,15 @@
 
     <div class="col-lg-6">
       <div class="finance-panel h-100">
-        <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Revenue by Category</h5>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;"><%= t('admin.revenue.byCategory') %></h5>
         <div class="table-responsive">
           <table class="table align-middle finance-table mb-0">
             <thead>
               <tr>
-                <th>Category</th>
-                <th class="currency">Revenue</th>
-                <th class="currency">Bookings</th>
-                <th class="currency">Avg Ticket</th>
+                <th><%= t('admin.table.category') %></th>
+                <th class="currency"><%= t('admin.table.revenue') %></th>
+                <th class="currency"><%= t('admin.table.bookings') %></th>
+                <th class="currency"><%= t('admin.revenue.avgTicket') %></th>
               </tr>
             </thead>
             <tbody>
@@ -426,7 +426,7 @@
                   <td class="currency"><%= money(Number(row.gross_revenue || 0) / Math.max(1, Number(row.paid_bookings || 0))) %></td>
                 </tr>
               <% }) %>
-              <% if (!(r.categoryBreakdown || []).length) { %><tr><td colspan="4" style="color:var(--muted);">No category revenue in this range.</td></tr><% } %>
+              <% if (!(r.categoryBreakdown || []).length) { %><tr><td colspan="4" style="color:var(--muted);"><%= t('admin.revenue.noCategoryRevenue') %></td></tr><% } %>
             </tbody>
           </table>
         </div>
@@ -436,24 +436,24 @@
 
   <section class="finance-panel">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-      <h5 style="font-weight:800;color:var(--ink);margin-bottom:0;">Recent Payments</h5>
-      <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">Latest 12</span>
+      <h5 style="font-weight:800;color:var(--ink);margin-bottom:0;"><%= t('admin.revenue.recentPayments') %></h5>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;"><%= t('admin.revenue.latestCount', { count: 12 }) %></span>
     </div>
     <div class="table-responsive">
       <table class="table table-hover align-middle finance-table mb-0" style="font-size:.8125rem;">
         <thead>
           <tr>
-            <th>Payment</th>
-            <th>Booking</th>
-            <th>Customer</th>
-            <th>Merchant</th>
-            <th>Service</th>
-            <th>Method</th>
-            <th class="currency">Gross</th>
-            <th class="currency">Gateway</th>
-            <th class="currency">Refund</th>
-            <th>Status</th>
-            <th>Paid At</th>
+            <th><%= t('admin.table.payment') %></th>
+            <th><%= t('admin.table.booking') %></th>
+            <th><%= t('admin.table.customer') %></th>
+            <th><%= t('common.merchant') %></th>
+            <th><%= t('common.service') %></th>
+            <th><%= t('admin.revenue.method.label') %></th>
+            <th class="currency"><%= t('admin.payouts.gross') %></th>
+            <th class="currency"><%= t('admin.revenue.gateway') %></th>
+            <th class="currency"><%= t('admin.revenue.refund') %></th>
+            <th><%= t('admin.table.status') %></th>
+            <th><%= t('admin.revenue.paidAt') %></th>
           </tr>
         </thead>
         <tbody>
@@ -468,12 +468,12 @@
               <td class="currency"><%= money(row.amount) %></td>
               <td class="currency"><%= money(row.gateway_fee) %></td>
               <td class="currency"><%= Number(row.refund_amount || 0) > 0 ? money(row.refund_amount) : '-' %></td>
-              <td><span class="status-pill <%= statusClass(row.payment_status) %>"><%= row.payment_status %></span></td>
+              <td><span class="status-pill <%= statusClass(row.payment_status) %>"><%= t('admin.paymentStatus.' + row.payment_status, {}, row.payment_status) %></span></td>
               <td><%= dateTime(row.paid_at) %></td>
             </tr>
           <% }) %>
           <% if (!(r.recentTransactions || []).length) { %>
-            <tr><td colspan="11" style="color:var(--muted);">No payment records in this range.</td></tr>
+            <tr><td colspan="11" style="color:var(--muted);"><%= t('admin.revenue.noPayments') %></td></tr>
           <% } %>
         </tbody>
       </table>
@@ -496,7 +496,7 @@
   var color = '#E11D48';
 
   if (!points.length) {
-    svg.innerHTML = '<text x="450" y="112" text-anchor="middle" fill="var(--muted)" font-size="16">No paid revenue in this period.</text>';
+    svg.innerHTML = '<text x="450" y="112" text-anchor="middle" fill="var(--muted)" font-size="16">' + window.t('admin.revenue.noChartData') + '</text>';
     return;
   }
 

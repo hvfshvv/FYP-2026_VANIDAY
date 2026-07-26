@@ -27,25 +27,25 @@
 <main class="container py-5">
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
-      <p class="section-label">User Operations</p>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Customer Accounts</h2>
-      <p style="color:var(--muted);margin:0;">Audit customers, booking activity, spending, and account status.</p>
+      <p class="section-label"><%= t('admin.userOps.eyebrow') %></p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.userManagement.customerAccounts') %></h2>
+      <p style="color:var(--muted);margin:0;"><%= t('admin.userOps.customerSubtitle') %></p>
     </div>
     <a href="/admin/user-management" class="btn btn-outline-secondary btn-pill">
-      <i class="bi bi-arrow-left me-1"></i>User Management
+      <i class="bi bi-arrow-left me-1"></i><%= t('admin.userManagement.title') %>
     </a>
   </div>
 
-  <% if (query.updated) { %><div class="alert alert-success"><i class="bi bi-check-circle"></i><span>Customer account updated.</span></div><% } %>
+  <% if (query.updated) { %><div class="alert alert-success"><i class="bi bi-check-circle"></i><span><%= t('admin.userOps.customerUpdated') %></span></div><% } %>
   <% if (query.error || (typeof error !== 'undefined' && error)) { %>
     <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i><span><%= query.error || error %></span></div>
   <% } %>
 
   <!-- Search reloads the same page with ?search=... -->
   <form method="GET" action="/admin/user-management/customers" class="d-flex flex-wrap gap-2 mb-4">
-    <input type="search" name="search" value="<%= search %>" class="form-control" placeholder="Search customers by name, email, or phone" style="max-width:360px;">
-    <button class="btn btn-primary btn-pill" type="submit"><i class="bi bi-search me-1"></i>Search</button>
-    <% if (search) { %><a href="/admin/user-management/customers" class="btn btn-outline-secondary btn-pill">Clear</a><% } %>
+    <input type="search" name="search" value="<%= search %>" class="form-control" placeholder="<%= t('admin.userOps.searchCustomers') %>" style="max-width:360px;">
+    <button class="btn btn-primary btn-pill" type="submit"><i class="bi bi-search me-1"></i><%= t('admin.common.search') %></button>
+    <% if (search) { %><a href="/admin/user-management/customers" class="btn btn-outline-secondary btn-pill"><%= t('admin.common.clear') %></a><% } %>
   </form>
 
   <!-- Customer table includes account status, spend, loyalty points and actions. -->
@@ -54,21 +54,21 @@
       <table class="table table-hover align-middle mb-0">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Customer</th>
-            <th>Email</th>
-            <th>Status</th>
-            <th>Tier</th>
-            <th>Bookings</th>
-            <th>Total Spent</th>
-            <th>Points</th>
-            <th>Last Booking</th>
-            <th>Actions</th>
+            <th><%= t('admin.dashboard.logs.colId') %></th>
+            <th><%= t('admin.table.customer') %></th>
+            <th><%= t('admin.table.email') %></th>
+            <th><%= t('admin.table.status') %></th>
+            <th><%= t('admin.table.tier') %></th>
+            <th><%= t('admin.table.bookings') %></th>
+            <th><%= t('admin.table.totalSpent') %></th>
+            <th><%= t('admin.table.points') %></th>
+            <th><%= t('admin.table.lastBooking') %></th>
+            <th><%= t('admin.table.actions') %></th>
           </tr>
         </thead>
         <tbody>
           <% if (!customers.length) { %>
-            <tr><td colspan="10" class="text-center py-5 text-muted">No customer accounts found.</td></tr>
+            <tr><td colspan="10" class="text-center py-5 text-muted"><%= t('admin.userOps.noCustomers') %></td></tr>
           <% } %>
           <% customers.forEach(customer => { %>
           <tr>
@@ -80,12 +80,12 @@
             <td><%= maskEmail(customer.email) %></td>
             <td>
               <span class="badge rounded-pill" style="<%= customer.status === 'active' ? 'background:var(--success-bg);color:var(--success);' : 'background:var(--warn-bg);color:var(--warn);' %>">
-                <%= customer.status %>
+                <%= t('admin.accountStatus.' + customer.status, {}, customer.status) %>
               </span>
             </td>
             <td>
               <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);">
-                <i class="bi bi-award me-1"></i><%= customer.tier %>
+                <i class="bi bi-award me-1"></i><%= t('admin.tier.' + String(customer.tier || '').toLowerCase(), {}, customer.tier) %>
               </span>
             </td>
             <td><%= customer.bookings || 0 %></td>
@@ -95,25 +95,25 @@
             <td>
               <div class="d-flex flex-wrap gap-2">
                 <a href="/admin/user-management/customers/<%= customer.user_id %>/bookings" class="btn btn-outline-secondary btn-sm btn-pill">
-                  <i class="bi bi-calendar-check me-1"></i>View Bookings
+                  <i class="bi bi-calendar-check me-1"></i><%= t('admin.userOps.viewBookings') %>
                 </a>
                 <!-- Toggle between active and suspended user status. -->
                 <form method="POST" action="/admin/user-management/customers/<%= customer.user_id %>/status" class="d-flex flex-wrap gap-2">
                   <input type="hidden" name="status" value="<%= customer.status === 'active' ? 'suspended' : 'active' %>">
                   <% if (customer.status === 'active') { %>
                     <select name="disable_reason" class="form-select form-select-sm" style="width:220px;" required>
-                      <option value="">Select disable reason</option>
+                      <option value=""><%= t('admin.userOps.selectDisableReason') %></option>
                       <% (disableReasons || []).forEach(reason => { %>
-                        <option value="<%= reason %>"><%= reason %></option>
+                        <option value="<%= reason %>"><%= t('admin.disableReason.' + reason, {}, reason) %></option>
                       <% }) %>
                     </select>
                   <% } %>
                   <button
                     class="btn <%= customer.status === 'active' ? 'btn-outline-danger' : 'btn-outline-success' %> btn-sm btn-pill"
                     type="submit"
-                    onclick="<%= customer.status === 'active' ? 'return confirm(\'Disable this customer account using the selected policy reason?\')' : 'return confirm(\'Enable this customer account?\')' %>"
+                    onclick="return confirm('<%= customer.status === 'active' ? t('admin.userOps.disableCustomerConfirm') : t('admin.userOps.enableCustomerConfirm') %>')"
                   >
-                    <%= customer.status === 'active' ? 'Disable' : 'Enable' %>
+                    <%= customer.status === 'active' ? t('admin.common.disable') : t('admin.common.enable') %>
                   </button>
                 </form>
               </div>

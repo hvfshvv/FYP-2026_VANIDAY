@@ -3,20 +3,20 @@
 
 <div class="container py-5">
   <a href="/admin/dashboard#admin-modules" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-    <i class="bi bi-arrow-left me-1"></i>Admin Dashboard
+    <i class="bi bi-arrow-left me-1"></i><%= t('admin.dashboard.title') %>
   </a>
 
   <div class="card border-0 text-center py-5 px-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <div class="icon-circle-lg mx-auto mb-3" style="width:72px;height:72px;background:var(--accent-light);">
       <i class="bi bi-tools" style="font-size:2rem;color:var(--accent);"></i>
     </div>
-    <p class="section-label">Admin Module</p>
+    <p class="section-label"><%= t('admin.comingSoon.eyebrow') %></p>
     <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.5rem;"><%= pageTitle %></h2>
     <p style="color:var(--muted);font-size:1rem;margin:0 auto 1.5rem;max-width:48ch;">
-      Coming Soon. This management page is reserved for the next admin dashboard phase.
+      <%= t('admin.comingSoon.body') %>
     </p>
     <a href="/admin/dashboard" class="btn btn-primary btn-pill">
-      <i class="bi bi-grid me-1"></i>Back to Dashboard
+      <i class="bi bi-grid me-1"></i><%= t('admin.common.backToDashboard') %>
     </a>
   </div>
 </div>

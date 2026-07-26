@@ -12,12 +12,12 @@
 <div class="container py-5">
   <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
     <div>
-      <p class="section-label">Loyalty Wallet</p>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Loyalty Vouchers Management</h2>
-      <p style="color:var(--muted);margin-bottom:0;">Create the reward vouchers customers can redeem with points.</p>
+      <p class="section-label"><%= t('admin.loyalty.eyebrow') %></p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.campaignsHome.loyaltyTitle') %></h2>
+      <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.loyalty.subtitle') %></p>
     </div>
     <a href="/admin/campaigns" class="btn btn-outline-secondary btn-pill btn-sm">
-      <i class="bi bi-arrow-left me-1"></i>Voucher Home
+      <i class="bi bi-arrow-left me-1"></i><%= t('admin.loyalty.voucherHome') %>
     </a>
   </div>
 
@@ -29,38 +29,38 @@
 
   <% if (query && query.created) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i>Loyalty voucher created.
+    <i class="bi bi-check-circle me-2"></i><%= t('admin.loyalty.createdMsg') %>
   </div>
   <% } %>
 
   <% if (query && query.updated) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i>Loyalty voucher status updated.
+    <i class="bi bi-check-circle me-2"></i><%= t('admin.loyalty.statusUpdatedMsg') %>
   </div>
   <% } %>
 
   <% if (query && query.saved) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i>Loyalty voucher saved.
+    <i class="bi bi-check-circle me-2"></i><%= t('admin.loyalty.savedMsg') %>
   </div>
   <% } %>
 
   <div class="row g-3 mb-4">
     <div class="col-6 col-lg-4">
       <div class="stat-card">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Total Rewards</p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= t('admin.loyalty.totalRewards') %></p>
         <p class="stat-value"><%= summary.total_count || rewards.length || 0 %></p>
       </div>
     </div>
     <div class="col-6 col-lg-4">
       <div class="stat-card">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Active</p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= t('admin.promotions.lifecycle.active') %></p>
         <p class="stat-value" style="color:var(--success);"><%= summary.active_count || 0 %></p>
       </div>
     </div>
     <div class="col-12 col-lg-4">
       <div class="stat-card">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Paused</p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= t('admin.promotions.lifecycle.paused') %></p>
         <p class="stat-value" style="color:var(--muted);"><%= summary.paused_count || 0 %></p>
       </div>
     </div>
@@ -68,65 +68,65 @@
 
   <div class="card border-0 mb-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-      <p class="section-label mb-0"><%= editing ? 'Edit Loyalty Voucher' : 'Create Loyalty Voucher' %></p>
+      <p class="section-label mb-0"><%= editing ? t('admin.loyalty.editVoucher') : t('admin.loyalty.createVoucher') %></p>
       <% if (editing) { %>
         <a href="/admin/campaigns/loyalty" class="btn btn-outline-secondary btn-sm btn-pill">
-          <i class="bi bi-x-lg me-1"></i>Cancel Edit
+          <i class="bi bi-x-lg me-1"></i><%= t('admin.loyalty.cancelEdit') %>
         </a>
       <% } %>
     </div>
     <form action="<%= editing ? `/admin/campaigns/loyalty/${editingReward.id}/edit` : '/admin/campaigns/loyalty/create' %>" method="POST">
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label" style="font-weight:600;font-size:.875rem;">Reward Title</label>
-          <input type="text" name="title" class="form-control rounded-xl" value="<%= form.title || '' %>" placeholder="e.g. S$5 Beauty Voucher" required />
+          <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.rewardTitle') %></label>
+          <input type="text" name="title" class="form-control rounded-xl" value="<%= form.title || '' %>" placeholder="<%= t('admin.loyalty.rewardTitlePlaceholder') %>" required />
         </div>
         <div class="col-md-3">
-          <label class="form-label" style="font-weight:600;font-size:.875rem;">Points Cost</label>
+          <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.pointsCost') %></label>
           <input type="number" name="points_cost" class="form-control rounded-xl" value="<%= form.points_cost || '' %>" min="1" step="1" placeholder="50" required />
         </div>
         <div class="col-md-3">
-          <label class="form-label" style="font-weight:600;font-size:.875rem;">Minimum Tier</label>
+          <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.minTier') %></label>
           <select name="min_tier" class="form-select rounded-xl">
             <% ['Bronze','Silver','Gold','Platinum'].forEach(tier => { %>
-              <option value="<%= tier %>" <%= (form.min_tier || 'Bronze') === tier ? 'selected' : '' %>><%= tier %></option>
+              <option value="<%= tier %>" <%= (form.min_tier || 'Bronze') === tier ? 'selected' : '' %>><%= t('admin.tier.' + tier.toLowerCase(), {}, tier) %></option>
             <% }) %>
           </select>
         </div>
         <div class="col-md-12">
-          <label class="form-label" style="font-weight:600;font-size:.875rem;">Description</label>
-          <input type="text" name="description" class="form-control rounded-xl" value="<%= form.description || '' %>" placeholder="Use this on your next paid booking." />
+          <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.description') %></label>
+          <input type="text" name="description" class="form-control rounded-xl" value="<%= form.description || '' %>" placeholder="<%= t('admin.loyalty.descriptionPlaceholder') %>" />
         </div>
         <div class="col-md-4">
-          <label class="form-label" style="font-weight:600;font-size:.875rem;">Discount Type</label>
+          <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.discountType') %></label>
           <select name="discount_type" class="form-select rounded-xl">
-            <option value="fixed_amount" <%= form.discount_type === 'fixed_amount' ? 'selected' : '' %>>Fixed amount</option>
-            <option value="percent" <%= form.discount_type === 'percent' ? 'selected' : '' %>>Percent</option>
+            <option value="fixed_amount" <%= form.discount_type === 'fixed_amount' ? 'selected' : '' %>><%= t('admin.loyalty.fixedAmount') %></option>
+            <option value="percent" <%= form.discount_type === 'percent' ? 'selected' : '' %>><%= t('admin.loyalty.percent') %></option>
           </select>
         </div>
         <div class="col-md-4">
-          <label class="form-label" style="font-weight:600;font-size:.875rem;">Discount Value</label>
+          <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.discountValue') %></label>
           <input type="number" name="discount_value" class="form-control rounded-xl" value="<%= form.discount_value || '' %>" min="0.01" step="0.01" placeholder="5" required />
         </div>
         <div class="col-md-4">
-          <label class="form-label" style="font-weight:600;font-size:.875rem;">Value Label</label>
-          <input type="text" name="value_label" class="form-control rounded-xl" value="<%= form.value_label || '' %>" placeholder="S$5 off" />
+          <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.valueLabel') %></label>
+          <input type="text" name="value_label" class="form-control rounded-xl" value="<%= form.value_label || '' %>" placeholder="<%= t('admin.loyalty.valueLabelPlaceholder') %>" />
         </div>
         <div class="col-md-4">
-          <label class="form-label" style="font-weight:600;font-size:.875rem;">Min Spend</label>
-          <input type="number" name="min_spend" class="form-control rounded-xl" value="<%= form.min_spend || '' %>" min="0" step="0.01" placeholder="Optional" />
+          <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.minSpend') %></label>
+          <input type="number" name="min_spend" class="form-control rounded-xl" value="<%= form.min_spend || '' %>" min="0" step="0.01" placeholder="<%= t('admin.loyalty.optional') %>" />
         </div>
         <div class="col-md-4">
-          <label class="form-label" style="font-weight:600;font-size:.875rem;">Validity Months</label>
+          <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.validityMonths') %></label>
           <input type="number" name="validity_months" class="form-control rounded-xl" value="<%= form.validity_months || '3' %>" min="1" step="1" />
         </div>
         <div class="col-md-4">
-          <label class="form-label" style="font-weight:600;font-size:.875rem;">Display Order</label>
+          <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.displayOrder') %></label>
           <input type="number" name="display_order" class="form-control rounded-xl" value="<%= form.display_order || '0' %>" step="1" />
         </div>
       </div>
       <button type="submit" class="btn btn-primary btn-pill mt-3">
-        <i class="bi <%= editing ? 'bi-save' : 'bi-stars' %> me-1"></i><%= editing ? 'Save Loyalty Voucher' : 'Create Loyalty Voucher' %>
+        <i class="bi <%= editing ? 'bi-save' : 'bi-stars' %> me-1"></i><%= editing ? t('admin.loyalty.saveVoucher') : t('admin.loyalty.createVoucher') %>
       </button>
     </form>
   </div>
@@ -134,10 +134,10 @@
   <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
       <div>
-        <p class="section-label mb-1">Reward Catalogue</p>
-        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">All Loyalty Vouchers</h5>
+        <p class="section-label mb-1"><%= t('admin.loyalty.catalogueEyebrow') %></p>
+        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;"><%= t('admin.loyalty.catalogueTitle') %></h5>
       </div>
-      <span class="badge" style="background:var(--accent-light);color:var(--accent);"><%= rewards.length %> total</span>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);"><%= t('admin.common.countTotal', { count: rewards.length }) %></span>
     </div>
 
     <% if (!rewards.length) { %>
@@ -145,20 +145,20 @@
         <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
           <i class="bi bi-stars" style="font-size:2rem;color:var(--accent);"></i>
         </div>
-        <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No loyalty vouchers yet</h6>
-        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Created loyalty rewards will appear in the customer wallet.</p>
+        <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.loyalty.emptyTitle') %></h6>
+        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;"><%= t('admin.loyalty.emptyBody') %></p>
       </div>
     <% } else { %>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
           <thead style="background:var(--accent-light);">
             <tr>
-              <th>Reward</th>
-              <th>Unlock</th>
-              <th>Discount</th>
-              <th>Validity</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th><%= t('admin.loyalty.colReward') %></th>
+              <th><%= t('admin.loyalty.colUnlock') %></th>
+              <th><%= t('admin.loyalty.colDiscount') %></th>
+              <th><%= t('admin.loyalty.colValidity') %></th>
+              <th><%= t('admin.table.status') %></th>
+              <th><%= t('admin.table.actions') %></th>
             </tr>
           </thead>
           <tbody>
@@ -169,34 +169,34 @@
                   <p style="color:var(--muted);margin-bottom:0;"><%= reward.description || '-' %></p>
                 </td>
                 <td>
-                  <p style="font-weight:700;margin-bottom:.15rem;"><%= reward.pointsCost %> pts</p>
-                  <p style="color:var(--muted);margin-bottom:0;"><%= reward.minTier %> tier</p>
+                  <p style="font-weight:700;margin-bottom:.15rem;"><%= t('admin.loyalty.pts', { count: reward.pointsCost }) %></p>
+                  <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.loyalty.tierLabel', { tier: t('admin.tier.' + String(reward.minTier || '').toLowerCase(), {}, reward.minTier) }) %></p>
                 </td>
                 <td>
                   <p style="font-weight:700;margin-bottom:.15rem;"><%= reward.valueLabel || rewardDiscount(reward) %></p>
-                  <p style="color:var(--muted);margin-bottom:0;">Min <%= reward.minSpend ? money(reward.minSpend) : 'None' %></p>
+                  <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.loyalty.minLabel', { value: reward.minSpend ? money(reward.minSpend) : t('admin.loyalty.none') }) %></p>
                 </td>
-                <td><%= reward.validityMonths %> months</td>
+                <td><%= t('admin.loyalty.months', { count: reward.validityMonths }) %></td>
                 <td>
                   <% if (reward.isActive) { %>
-                    <span class="badge" style="background:var(--success-bg);color:var(--success);">Active</span>
+                    <span class="badge" style="background:var(--success-bg);color:var(--success);"><%= t('admin.promotions.lifecycle.active') %></span>
                   <% } else { %>
-                    <span class="badge" style="background:var(--neutral-bg);color:var(--muted);">Paused</span>
+                    <span class="badge" style="background:var(--neutral-bg);color:var(--muted);"><%= t('admin.promotions.lifecycle.paused') %></span>
                   <% } %>
                 </td>
                 <td>
                   <div class="d-flex flex-wrap gap-2">
                   <a href="/admin/campaigns/loyalty/<%= reward.id %>/edit" class="btn btn-sm btn-pill btn-outline-secondary">
-                    <i class="bi bi-pencil me-1"></i>Edit
+                    <i class="bi bi-pencil me-1"></i><%= t('admin.common.edit') %>
                   </a>
                   <form action="/admin/campaigns/loyalty/<%= reward.id %>/toggle" method="POST" class="m-0">
                     <% if (reward.isActive) { %>
                       <button type="submit" class="btn btn-sm btn-pill btn-outline-secondary">
-                        <i class="bi bi-pause-circle me-1"></i>Pause
+                        <i class="bi bi-pause-circle me-1"></i><%= t('admin.common.pause') %>
                       </button>
                     <% } else { %>
                       <button type="submit" class="btn btn-sm btn-pill btn-outline-success">
-                        <i class="bi bi-play-circle me-1"></i>Activate
+                        <i class="bi bi-play-circle me-1"></i><%= t('admin.common.activate') %>
                       </button>
                     <% } %>
                   </form>

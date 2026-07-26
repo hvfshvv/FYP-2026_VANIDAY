@@ -11,10 +11,10 @@
   <div class="container" style="max-width:1120px;">
     <div class="row g-4 align-items-start">
       <div class="col-lg-5">
-        <p class="section-label mb-2">Customer Support</p>
-        <h1 style="font-weight:800;color:var(--ink);letter-spacing:-.03em;margin-bottom:.75rem;">Help &amp; Customer Support</h1>
+        <p class="section-label mb-2"><%= t('support.eyebrow') %></p>
+        <h1 style="font-weight:800;color:var(--ink);letter-spacing:-.03em;margin-bottom:.75rem;"><%= t('support.title') %></h1>
         <p style="color:var(--muted);font-size:1rem;line-height:1.7;margin-bottom:1.5rem;">
-          Find quick answers or send a support request to the Uniday team. Guests can submit with their contact details, and logged-in customers can update the pre-filled fields before sending.
+          <%= t('support.subtitle') %>
         </p>
 
         <% if (successMessage) { %>
@@ -22,7 +22,7 @@
           <i class="bi bi-check-circle me-1"></i>
           <span><%= successMessage %></span>
           <% if (reference) { %>
-          <div style="font-weight:800;margin-top:.4rem;">Reference: <%= reference %></div>
+          <div style="font-weight:800;margin-top:.4rem;"><%= t('support.reference', { ref: reference }) %></div>
           <% } %>
         </div>
         <% } %>
@@ -36,13 +36,13 @@
 
         <% if (whatsappSupportUrl) { %>
         <a class="btn btn-outline-success btn-pill mb-4" href="<%= whatsappSupportUrl %>" target="_blank" rel="noopener noreferrer">
-          <i class="bi bi-whatsapp me-1"></i>Chat with us on WhatsApp
+          <i class="bi bi-whatsapp me-1"></i><%= t('support.whatsappCta') %>
         </a>
         <% } %>
 
         <section class="card border-0" style="box-shadow:var(--shadow-sm);border-radius:var(--r-lg);">
           <div class="card-body p-4">
-            <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);margin-bottom:1rem;">Frequently Asked Questions</h2>
+            <h2 style="font-size:1.1rem;font-weight:800;color:var(--ink);margin-bottom:1rem;"><%= t('support.faqTitle') %></h2>
             <div class="accordion" id="supportFaqs">
               <% faqs.forEach((faq, index) => { %>
               <div class="accordion-item">
@@ -67,9 +67,9 @@
         <form method="POST" action="/support" class="card border-0" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
           <div class="card-body p-4 p-lg-5">
             <div class="mb-4">
-              <p class="section-label mb-2">Website Support Form</p>
-              <h2 style="font-size:1.35rem;font-weight:800;color:var(--ink);margin-bottom:.35rem;">Tell us what happened</h2>
-              <p style="color:var(--muted);margin:0;">We will use these details only to review and follow up on your support request.</p>
+              <p class="section-label mb-2"><%= t('support.formEyebrow') %></p>
+              <h2 style="font-size:1.35rem;font-weight:800;color:var(--ink);margin-bottom:.35rem;"><%= t('support.formTitle') %></h2>
+              <p style="color:var(--muted);margin:0;"><%= t('support.formSub') %></p>
             </div>
 
             <div style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
@@ -80,43 +80,43 @@
 
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="form-label" for="supportName" style="font-weight:800;">Name</label>
+                <label class="form-label" for="supportName" style="font-weight:800;"><%= t('merchant.staff.colName') %></label>
                 <input id="supportName" class="form-control rounded-xl<%= fieldClass('name') %>" type="text" name="name" value="<%= values.name || '' %>" maxlength="100" required>
                 <% if (fieldErrors.name) { %><div class="invalid-feedback"><%= fieldErrors.name %></div><% } %>
               </div>
 
               <div class="col-md-6">
-                <label class="form-label" for="supportEmail" style="font-weight:800;">Email</label>
+                <label class="form-label" for="supportEmail" style="font-weight:800;"><%= t('admin.table.email') %></label>
                 <input id="supportEmail" class="form-control rounded-xl<%= fieldClass('email') %>" type="email" name="email" value="<%= values.email || '' %>" maxlength="254" required>
                 <% if (fieldErrors.email) { %><div class="invalid-feedback"><%= fieldErrors.email %></div><% } %>
               </div>
 
               <div class="col-md-6">
-                <label class="form-label" for="supportPhone" style="font-weight:800;">Phone <span style="color:var(--muted);font-weight:600;">optional</span></label>
+                <label class="form-label" for="supportPhone" style="font-weight:800;"><%= t('support.phone') %> <span style="color:var(--muted);font-weight:600;"><%= t('booking.optional') %></span></label>
                 <input id="supportPhone" class="form-control rounded-xl<%= fieldClass('phone') %>" type="tel" name="phone" value="<%= values.phone || '' %>" maxlength="30">
                 <% if (fieldErrors.phone) { %><div class="invalid-feedback"><%= fieldErrors.phone %></div><% } %>
               </div>
 
               <div class="col-md-6">
-                <label class="form-label" for="supportCategory" style="font-weight:800;">Issue category</label>
+                <label class="form-label" for="supportCategory" style="font-weight:800;"><%= t('support.issueCategory') %></label>
                 <select id="supportCategory" class="form-select rounded-xl<%= fieldClass('category') %>" name="category" required>
-                  <option value="">Choose a category</option>
+                  <option value=""><%= t('support.chooseCategory') %></option>
                   <% categories.forEach(category => { %>
-                  <option value="<%= category.value %>" <%= values.category === category.value ? 'selected' : '' %>><%= category.label %></option>
+                  <option value="<%= category.value %>" <%= values.category === category.value ? 'selected' : '' %>><%= t('support.category.' + category.value, {}, category.label) %></option>
                   <% }) %>
                 </select>
                 <% if (fieldErrors.category) { %><div class="invalid-feedback"><%= fieldErrors.category %></div><% } %>
               </div>
 
               <div class="col-12">
-                <label class="form-label" for="supportMessage" style="font-weight:800;">Problem description</label>
+                <label class="form-label" for="supportMessage" style="font-weight:800;"><%= t('support.problemDescription') %></label>
                 <textarea id="supportMessage" class="form-control rounded-xl<%= fieldClass('message') %>" name="message" rows="7" maxlength="2000" required><%= values.message || '' %></textarea>
                 <% if (fieldErrors.message) { %><div class="invalid-feedback"><%= fieldErrors.message %></div><% } %>
               </div>
             </div>
 
             <button class="btn btn-primary btn-pill mt-4" type="submit" style="font-weight:800;">
-              <i class="bi bi-send me-1"></i>Submit Support Request
+              <i class="bi bi-send me-1"></i><%= t('support.submit') %>
             </button>
           </div>
         </form>

@@ -6,16 +6,16 @@
     <div class="text-center" style="margin-bottom:3rem;">
       <%- include('../partials/unidayLogo', { className: 'justify-content-center', size: 'sm' }) %>
       <h1 style="margin:1rem 0 .5rem;text-align:center;font-size:2rem;font-weight:800;line-height:1.2;color:var(--ink);">
-      Sign up
+      <%= t('auth.signUp') %>
       </h1>
-      <p style="color:var(--muted);margin:0;font-size:.95rem;">Choose how you want to use Uniday.</p>
+      <p style="color:var(--muted);margin:0;font-size:.95rem;"><%= t('auth.chooseRole') %></p>
     </div>
 
     <div style="display:grid;gap:1.25rem;">
       <a href="/auth/register" class="text-decoration-none" style="display:flex;align-items:center;justify-content:space-between;gap:1.5rem;min-height:122px;padding:1.5rem 2.125rem;border:1px solid var(--border);border-radius:var(--r-xl);color:var(--ink);background:var(--surface);box-shadow:var(--shadow);">
         <span>
-          <span style="display:block;font-size:1.5rem;font-weight:700;line-height:1.25;color:var(--ink);">For customers</span>
-          <span style="display:block;margin-top:.25rem;font-size:1.125rem;line-height:1.35;color:var(--muted);">Book salons and spas near you</span>
+          <span style="display:block;font-size:1.5rem;font-weight:700;line-height:1.25;color:var(--ink);"><%= t('auth.forCustomers') %></span>
+          <span style="display:block;margin-top:.25rem;font-size:1.125rem;line-height:1.35;color:var(--muted);"><%= t('auth.forCustomersSub') %></span>
         </span>
         <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:999px;background:var(--accent-light);color:var(--accent);">
           <i class="bi bi-arrow-right" style="font-size:1.35rem;"></i>
@@ -24,8 +24,8 @@
 
       <a href="/auth/registerMer" class="text-decoration-none" style="display:flex;align-items:center;justify-content:space-between;gap:1.5rem;min-height:122px;padding:1.5rem 2.125rem;border:1px solid var(--border);border-radius:var(--r-xl);color:var(--ink);background:var(--surface);box-shadow:var(--shadow);">
         <span>
-          <span style="display:block;font-size:1.5rem;font-weight:700;line-height:1.25;color:var(--ink);">For professionals</span>
-          <span style="display:block;margin-top:.25rem;font-size:1.125rem;line-height:1.35;color:var(--muted);">Manage and grow your business</span>
+          <span style="display:block;font-size:1.5rem;font-weight:700;line-height:1.25;color:var(--ink);"><%= t('auth.forProfessionals') %></span>
+          <span style="display:block;margin-top:.25rem;font-size:1.125rem;line-height:1.35;color:var(--muted);"><%= t('auth.forProfessionalsSub') %></span>
         </span>
         <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:999px;background:var(--accent-light);color:var(--accent);">
           <i class="bi bi-arrow-right" style="font-size:1.35rem;"></i>
