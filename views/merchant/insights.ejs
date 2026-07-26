@@ -3,34 +3,44 @@
 <%
   const money = value => `S$${Number(value || 0).toFixed(2)}`;
   const number = value => Number(value || 0).toLocaleString('en-SG');
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char]));
   const comparisonPeriod = period.key === '7d'
-    ? 'the previous 7 days'
-    : (period.key === '30d' ? 'the previous 30 days' : 'the same dates last month');
+    ? t('merchant.insights.comparePrev7')
+    : (period.key === '30d' ? t('merchant.insights.comparePrev30') : t('merchant.insights.compareLastMonth'));
   const changeText = value => {
-    if (value === null || typeof value === 'undefined') return `New activity; ${comparisonPeriod} had none`;
+    if (value === null || typeof value === 'undefined') return t('merchant.insights.changeNew', { period: comparisonPeriod });
     const amount = Number(value || 0);
-    if (Math.abs(amount) < .05) return `Same as ${comparisonPeriod}`;
-    return `${Math.abs(amount).toFixed(1)}% ${amount > 0 ? 'higher' : 'lower'} than ${comparisonPeriod}`;
+    if (Math.abs(amount) < .05) return t('merchant.insights.changeSame', { period: comparisonPeriod });
+    return t(amount > 0 ? 'merchant.insights.changeHigher' : 'merchant.insights.changeLower', {
+      pct: Math.abs(amount).toFixed(1),
+      period: comparisonPeriod,
+    });
   };
   const changeClass = value => Number(value || 0) > 0 ? 'positive' : (Number(value || 0) < 0 ? 'negative' : '');
   const topDemand = metrics ? metrics.demandPeriods.slice(0, 6) : [];
   const maxDemand = topDemand.length ? Math.max(...topDemand.map(item => Number(item.bookings || 0)), 1) : 1;
   const cancellationHealth = !metrics
-    ? { tone: 'neutral', label: 'No data' }
+    ? { tone: 'neutral', label: t('merchant.insights.health.noData') }
     : metrics.cancellationNoShowRate <= 10
-      ? { tone: 'good', label: 'Healthy' }
+      ? { tone: 'good', label: t('merchant.insights.health.healthy') }
       : metrics.cancellationNoShowRate <= 20
-        ? { tone: 'watch', label: 'Monitor' }
-        : { tone: 'risk', label: 'Needs attention' };
+        ? { tone: 'watch', label: t('merchant.insights.health.monitor') }
+        : { tone: 'risk', label: t('merchant.insights.health.needsAttention') };
   const overallRating = Number(overallReview?.averageRating || 0);
   const overallReviewCount = Number(overallReview?.reviewCount || 0);
   const ratingHealth = !metrics || !overallReviewCount
-    ? { tone: 'neutral', label: 'No reviews yet' }
+    ? { tone: 'neutral', label: t('merchant.insights.health.noReviews') }
     : overallRating >= 4.5
-      ? { tone: 'good', label: overallReviewCount < 3 ? 'Strong early rating' : 'Strong rating' }
+      ? { tone: 'good', label: overallReviewCount < 3 ? t('merchant.insights.health.strongEarly') : t('merchant.insights.health.strong') }
       : overallRating >= 4
-        ? { tone: 'watch', label: 'Good, with room to improve' }
-        : { tone: 'risk', label: 'Needs attention' };
+        ? { tone: 'watch', label: t('merchant.insights.health.roomToImprove') }
+        : { tone: 'risk', label: t('merchant.insights.health.needsAttention') };
 %>
 
 <style>
@@ -93,88 +103,88 @@
   <div class="insights-shell">
     <header class="insights-head">
       <div>
-        <p class="section-label mb-2">Merchant analytics</p>
-        <h1>Business Insights</h1>
-        <p style="font-size:.75rem;">Each large number is the selected period's value. The comparison line shows its percentage change against <%= comparisonPeriod %>.</p>
-        <p>Private performance insights for <strong><%= merchant.merchant_name %></strong> · <%= period.startDate %> to <%= period.endDate %></p>
+        <p class="section-label mb-2"><%= t('merchant.insights.eyebrow') %></p>
+        <h1><%= t('merchant.insights.title') %></h1>
+        <p style="font-size:.75rem;"><%= t('merchant.insights.explainer', { period: comparisonPeriod }) %></p>
+        <p><%- t('merchant.insights.forMerchant', { name: escapeHtml(merchant.merchant_name), from: period.startDate, to: period.endDate }) %></p>
       </div>
-      <nav class="insights-period" aria-label="Insights period">
-        <a href="/merchant/insights?period=7d" class="<%= period.key === '7d' ? 'active' : '' %>">7 days</a>
-        <a href="/merchant/insights?period=30d" class="<%= period.key === '30d' ? 'active' : '' %>">30 days</a>
-        <a href="/merchant/insights?period=month" class="<%= period.key === 'month' ? 'active' : '' %>">This month</a>
+      <nav class="insights-period" aria-label="<%= t('merchant.insights.periodAria') %>">
+        <a href="/merchant/insights?period=7d" class="<%= period.key === '7d' ? 'active' : '' %>"><%= t('merchant.insights.days7') %></a>
+        <a href="/merchant/insights?period=30d" class="<%= period.key === '30d' ? 'active' : '' %>"><%= t('merchant.insights.days30') %></a>
+        <a href="/merchant/insights?period=month" class="<%= period.key === 'month' ? 'active' : '' %>"><%= t('admin.period.this_month') %></a>
       </nav>
     </header>
 
     <% if (error || !metrics) { %>
-      <div class="account-alert danger"><i class="bi bi-exclamation-circle"></i><%= error || 'Insights are unavailable.' %></div>
+      <div class="account-alert danger"><i class="bi bi-exclamation-circle"></i><%= error || t('merchant.insights.unavailable') %></div>
     <% } else { %>
       <% if (sampleSizeWarning) { %>
-        <div class="sample-warning"><i class="bi bi-info-circle me-2"></i>Limited data: only <%= metrics.totalBookings %> booking<%= metrics.totalBookings === 1 ? '' : 's' %> recorded. Recommendations are early suggestions, not confirmed trends.</div>
+        <div class="sample-warning"><i class="bi bi-info-circle me-2"></i><%= t('merchant.insights.sampleWarning', { count: metrics.totalBookings }) %></div>
       <% } %>
 
-      <section class="insights-grid" aria-label="Performance overview">
-        <article class="insight-card"><span class="metric-label">Revenue</span><strong class="metric-value"><%= money(metrics.revenue) %></strong><span class="metric-change <%= changeClass(metrics.comparison.revenue) %>"><%= changeText(metrics.comparison.revenue) %></span></article>
-        <article class="insight-card"><span class="metric-label">Bookings</span><strong class="metric-value"><%= number(metrics.totalBookings) %></strong><span class="metric-change <%= changeClass(metrics.comparison.bookings) %>"><%= changeText(metrics.comparison.bookings) %></span><p style="color:var(--muted);font-size:.68rem;margin:.35rem 0 0;">Cancellations excluded</p></article>
-        <article class="insight-card"><span class="metric-label">Customers</span><strong class="metric-value"><%= number(metrics.uniqueCustomers) %></strong><span class="metric-change <%= changeClass(metrics.comparison.customers) %>"><%= changeText(metrics.comparison.customers) %></span></article>
-        <article class="insight-card"><span class="metric-label">Average booking value</span><strong class="metric-value"><%= money(metrics.averageOrderValue) %></strong><span class="metric-change <%= changeClass(metrics.comparison.averageOrderValue) %>"><%= changeText(metrics.comparison.averageOrderValue) %></span></article>
+      <section class="insights-grid" aria-label="<%= t('merchant.insights.overviewAria') %>">
+        <article class="insight-card"><span class="metric-label"><%= t('admin.table.revenue') %></span><strong class="metric-value"><%= money(metrics.revenue) %></strong><span class="metric-change <%= changeClass(metrics.comparison.revenue) %>"><%= changeText(metrics.comparison.revenue) %></span></article>
+        <article class="insight-card"><span class="metric-label"><%= t('admin.table.bookings') %></span><strong class="metric-value"><%= number(metrics.totalBookings) %></strong><span class="metric-change <%= changeClass(metrics.comparison.bookings) %>"><%= changeText(metrics.comparison.bookings) %></span><p style="color:var(--muted);font-size:.68rem;margin:.35rem 0 0;"><%= t('merchant.insights.cancellationsExcluded') %></p></article>
+        <article class="insight-card"><span class="metric-label"><%= t('admin.merchants.tab.customers') %></span><strong class="metric-value"><%= number(metrics.uniqueCustomers) %></strong><span class="metric-change <%= changeClass(metrics.comparison.customers) %>"><%= changeText(metrics.comparison.customers) %></span></article>
+        <article class="insight-card"><span class="metric-label"><%= t('merchant.insights.avgBookingValue') %></span><strong class="metric-value"><%= money(metrics.averageOrderValue) %></strong><span class="metric-change <%= changeClass(metrics.comparison.averageOrderValue) %>"><%= changeText(metrics.comparison.averageOrderValue) %></span></article>
       </section>
 
-      <section class="insights-grid" aria-label="Customer and booking health">
-        <article class="insight-card"><span class="metric-label">Completed</span><strong class="metric-value"><%= number(metrics.completed) %></strong><span class="metric-change">Finished appointments</span></article>
+      <section class="insights-grid" aria-label="<%= t('merchant.insights.healthAria') %>">
+        <article class="insight-card"><span class="metric-label"><%= t('bookings.completed') %></span><strong class="metric-value"><%= number(metrics.completed) %></strong><span class="metric-change"><%= t('merchant.insights.finishedAppointments') %></span></article>
         <article class="insight-card health-card <%= cancellationHealth.tone %>">
-          <span class="metric-label">Cancellation / no-show</span>
+          <span class="metric-label"><%= t('merchant.insights.cancelNoShow') %></span>
           <strong class="metric-value"><%= metrics.cancellationNoShowRate.toFixed(1) %>%</strong>
-          <span class="metric-change"><%= metrics.cancelled %> cancelled · <%= metrics.noShow %> no-show</span><br>
+          <span class="metric-change"><%= t('merchant.insights.cancelledCount', { count: metrics.cancelled }) %> · <%= t('merchant.insights.noShowCount', { count: metrics.noShow }) %></span><br>
           <span class="health-status"><%= cancellationHealth.label %></span>
         </article>
-        <article class="insight-card"><span class="metric-label">Returning customers</span><strong class="metric-value"><%= metrics.retentionRate.toFixed(1) %>%</strong><span class="metric-change"><%= metrics.returningCustomers %> returning · <%= metrics.newCustomers %> new</span></article>
+        <article class="insight-card"><span class="metric-label"><%= t('admin.merchants.returningCustomers') %></span><strong class="metric-value"><%= metrics.retentionRate.toFixed(1) %>%</strong><span class="metric-change"><%= t('merchant.insights.returningCount', { count: metrics.returningCustomers }) %> · <%= t('merchant.insights.newCount', { count: metrics.newCustomers }) %></span></article>
         <article class="insight-card health-card <%= ratingHealth.tone %>">
-          <span class="metric-label">Overall customer rating</span>
+          <span class="metric-label"><%= t('merchant.insights.overallRating') %></span>
           <strong class="metric-value"><%= overallReviewCount ? overallRating.toFixed(1) + '/5' : '—' %></strong>
-          <span class="metric-change"><%= overallReviewCount %> review<%= overallReviewCount === 1 ? '' : 's' %> overall</span><br>
+          <span class="metric-change"><%= t('merchant.insights.reviewsOverall', { count: overallReviewCount }) %></span><br>
           <span class="health-status"><%= ratingHealth.label %></span>
         </article>
       </section>
 
       <div class="insights-layout">
         <section class="insight-card">
-          <div class="insight-section-head"><div><h2>Recommended next actions</h2><p>Generated from verified booking data and transparent business rules.</p></div></div>
+          <div class="insight-section-head"><div><h2><%= t('merchant.insights.recTitle') %></h2><p><%= t('merchant.insights.recSubtitle') %></p></div></div>
           <% recommendations.forEach(item => { %>
             <article class="recommendation">
-              <span class="priority-dot <%= item.priority %>" title="<%= item.priority %> priority"></span>
+              <span class="priority-dot <%= item.priority %>" title="<%= t('merchant.insights.priorityLabel', { priority: item.priority }) %>"></span>
               <div><h3><%= item.title %></h3><p><%= item.evidence %></p><p><%= item.action %></p></div>
-              <a href="<%= item.href %>"><%= item.actionLabel || 'Open page' %> <i class="bi bi-arrow-right"></i></a>
+              <a href="<%= item.href %>"><%= item.actionLabel || t('merchant.insights.openPage') %> <i class="bi bi-arrow-right"></i></a>
             </article>
           <% }) %>
         </section>
 
         <aside class="insight-card ai-card">
-          <div class="insight-section-head"><div><h2><i class="bi bi-stars me-1" style="color:var(--accent)"></i>AI Business Coach</h2><p>Generates complementary weekly priorities without repeating the rule-based actions. Gemini receives anonymised totals only.</p></div></div>
-          <button class="btn btn-primary btn-pill w-100" type="button" id="generateAiPlan"><i class="bi bi-stars me-1"></i>Generate action plan</button>
+          <div class="insight-section-head"><div><h2><i class="bi bi-stars me-1" style="color:var(--accent)"></i><%= t('merchant.insights.aiTitle') %></h2><p><%= t('merchant.insights.aiSubtitle') %></p></div></div>
+          <button class="btn btn-primary btn-pill w-100" type="button" id="generateAiPlan"><i class="bi bi-stars me-1"></i><%= t('merchant.insights.aiGenerate') %></button>
           <div class="ai-actions" id="aiPlan" aria-live="polite"></div>
         </aside>
       </div>
 
       <div class="insights-layout">
         <section class="insight-card">
-          <div class="insight-section-head"><div><h2>Service performance</h2><p>Revenue uses successful paid bookings in this period.</p></div><a href="/merchant/services">Manage services</a></div>
-          <% if (!metrics.servicePerformance.length) { %><p class="text-muted mb-0">No service activity yet.</p><% } else { %>
-          <div style="overflow-x:auto"><table class="insight-table"><thead><tr><th>Service</th><th>Bookings</th><th>Revenue</th><th>Issue rate</th></tr></thead><tbody>
+          <div class="insight-section-head"><div><h2><%= t('merchant.insights.servicePerf') %></h2><p><%= t('merchant.insights.servicePerfSub') %></p></div><a href="/merchant/services"><%= t('merchant.insights.manageServices') %></a></div>
+          <% if (!metrics.servicePerformance.length) { %><p class="text-muted mb-0"><%= t('merchant.insights.noServiceActivity') %></p><% } else { %>
+          <div style="overflow-x:auto"><table class="insight-table"><thead><tr><th><%= t('common.service') %></th><th><%= t('admin.table.bookings') %></th><th><%= t('admin.table.revenue') %></th><th><%= t('merchant.insights.issueRate') %></th></tr></thead><tbody>
             <% metrics.servicePerformance.slice(0, 8).forEach(item => { %><tr><td><strong><%= item.name %></strong></td><td><%= item.bookings %></td><td><%= money(item.revenue) %></td><td><%= item.issueRate.toFixed(1) %>%</td></tr><% }) %>
           </tbody></table></div>
           <% } %>
         </section>
         <section class="insight-card">
-          <div class="insight-section-head"><div><h2>Peak demand</h2><p>Your busiest recorded appointment periods.</p></div></div>
-          <% if (!topDemand.length) { %><p class="text-muted mb-0">No appointment demand yet.</p><% } %>
+          <div class="insight-section-head"><div><h2><%= t('merchant.insights.peakDemand') %></h2><p><%= t('merchant.insights.peakDemandSub') %></p></div></div>
+          <% if (!topDemand.length) { %><p class="text-muted mb-0"><%= t('merchant.insights.noDemand') %></p><% } %>
           <% topDemand.forEach(item => { %><div class="demand-row"><span><%= item.label %></span><div class="demand-track"><div class="demand-fill" style="width:<%= (item.bookings / maxDemand) * 100 %>%"></div></div><strong><%= item.bookings %></strong></div><% }) %>
         </section>
       </div>
 
       <% if (metrics.staffPerformance.length) { %>
       <section class="insight-card mt-3">
-        <div class="insight-section-head"><div><h2>Staff contribution</h2><p>Operational output—not an employee quality score.</p></div><a href="/merchant/staff">Manage staff</a></div>
-        <div style="overflow-x:auto"><table class="insight-table"><thead><tr><th>Staff</th><th>Assigned</th><th>Completed</th><th>Paid revenue</th></tr></thead><tbody>
+        <div class="insight-section-head"><div><h2><%= t('merchant.insights.staffContribution') %></h2><p><%= t('merchant.insights.staffContributionSub') %></p></div><a href="/merchant/staff"><%= t('merchant.insights.manageStaff') %></a></div>
+        <div style="overflow-x:auto"><table class="insight-table"><thead><tr><th><%= t('common.staff') %></th><th><%= t('merchant.insights.assigned') %></th><th><%= t('bookings.completed') %></th><th><%= t('merchant.insights.paidRevenue') %></th></tr></thead><tbody>
           <% metrics.staffPerformance.forEach(item => { %><tr><td><strong><%= item.name %></strong></td><td><%= item.bookings %></td><td><%= item.completed %></td><td><%= money(item.revenue) %></td></tr><% }) %>
         </tbody></table></div>
       </section>
@@ -197,7 +207,7 @@
     if (restored) {
       const savedNote = document.createElement('p');
       savedNote.style.cssText = 'color:var(--muted);font-size:.72rem;margin:0 0 .5rem;';
-      savedNote.textContent = 'Showing your most recently generated plan.';
+      savedNote.textContent = window.t('merchant.insights.ai.savedNote');
       output.appendChild(savedNote);
     }
     const summary = document.createElement('p');
@@ -217,7 +227,7 @@
       card.append(title, evidence, action);
       output.appendChild(card);
     });
-    button.innerHTML = '<i class="bi bi-stars me-1"></i>Regenerate action plan';
+    button.innerHTML = '<i class="bi bi-stars me-1"></i>' + window.t('merchant.insights.ai.regenerate');
   }
 
   if (serverPlan) {
@@ -237,7 +247,7 @@
 
   button.addEventListener('click', async () => {
     button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analysing verified metrics…';
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' + window.t('merchant.insights.ai.analysing');
     output.innerHTML = '';
     try {
       const response = await fetch('/merchant/insights/ai-plan', {
@@ -246,7 +256,7 @@
         body: JSON.stringify({ period: <%- JSON.stringify(period.key) %> }),
       });
       const result = await response.json();
-      if (!response.ok || !result.success) throw new Error(result.message || 'AI plan unavailable.');
+      if (!response.ok || !result.success) throw new Error(result.message || window.t('merchant.insights.ai.unavailable'));
       renderPlan(result.plan);
       localStorage.setItem(cacheKey, JSON.stringify({ plan: result.plan, savedAt: Date.now() }));
     } catch (error) {
@@ -254,7 +264,7 @@
       output.querySelector('div').append(document.createTextNode(error.message));
     } finally {
       button.disabled = false;
-      button.innerHTML = '<i class="bi bi-stars me-1"></i>Regenerate action plan';
+      button.innerHTML = '<i class="bi bi-stars me-1"></i>' + window.t('merchant.insights.ai.regenerate');
     }
   });
 })();

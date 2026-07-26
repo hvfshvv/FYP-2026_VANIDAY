@@ -428,29 +428,34 @@
   const formatDate = value => value
     ? new Date(`${value}T00:00:00+08:00`).toLocaleDateString('en-SG', { day:'numeric', month:'short', year:'numeric', timeZone:'Asia/Singapore' })
     : '';
-  const totalsAsOfLabel = `Active and available platform records as of ${formatDate(period.asOfDate)}`;
+  const periodLabel = key => t(`admin.period.${key}`, {}, (period.options || {})[key]);
+  const totalsAsOfLabel = t('admin.dashboard.totalsAsOf', { date: formatDate(period.asOfDate) });
   const performancePeriodLabel = period.isAllTime
-    ? 'All Time'
-    : `${period.label}: ${formatDate(period.startDate)} to ${formatDate(period.endDate)}`;
+    ? periodLabel('all_time')
+    : t('admin.dashboard.performanceRange', {
+        period: periodLabel(period.key),
+        from: formatDate(period.startDate),
+        to: formatDate(period.endDate),
+      });
   const revenueReportHref = period.isAllTime || !period.startDate || !period.endDate
     ? null
     : `/admin/revenue?from=${encodeURIComponent(period.startDate)}&to=${encodeURIComponent(period.endDate)}`;
   const queueStats = [
-    { label:'Photo Removal Requests', value:summary.pending_review_requests || 0, icon:'bi-image', color:'var(--warn)', href:'/admin/reviews', alertWhenPositive:true, description:'Merchant review photos waiting for an admin decision.' },
-    { label:'Pending Merchant Validations', value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)', href:'/admin/merchant-validations', alertWhenPositive:true, description:'Merchant applications that still need verification.' },
-    { label:'Pending Promotion Approvals', value:summary.pending_promotion_approvals || 0, icon:'bi-megaphone', color:'var(--warn)', href:'/admin/promotions', alertWhenPositive:true, description:'Submitted campaigns waiting for approval or rejection.' },
-    { label:'Unresolved Logs', value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)', href:'/admin/validation?status=open', alertWhenPositive:true, description:'Open validation or support issues that need follow-up.' },
+    { label:t('admin.dashboard.queue.photoRemoval'), value:summary.pending_review_requests || 0, icon:'bi-image', color:'var(--warn)', href:'/admin/reviews', alertWhenPositive:true, description:t('admin.dashboard.queue.photoRemovalDesc') },
+    { label:t('admin.dashboard.queue.merchantValidations'), value:summary.pending_merchant_validations || 0, icon:'bi-shield-exclamation', color:'var(--warn)', href:'/admin/merchant-validations', alertWhenPositive:true, description:t('admin.dashboard.queue.merchantValidationsDesc') },
+    { label:t('admin.dashboard.queue.promotionApprovals'), value:summary.pending_promotion_approvals || 0, icon:'bi-megaphone', color:'var(--warn)', href:'/admin/promotions', alertWhenPositive:true, description:t('admin.dashboard.queue.promotionApprovalsDesc') },
+    { label:t('admin.dashboard.queue.unresolvedLogs'), value:summary.total_validation_errors || 0, icon:'bi-bug', color:'var(--danger)', href:'/admin/validation?status=open', alertWhenPositive:true, description:t('admin.dashboard.queue.unresolvedLogsDesc') },
   ];
   const totalStats = [
-    { label:'Active Customers', value:summary.total_customers || 0, icon:'bi-people', color:'var(--accent)', description:'Registered customer accounts that are currently active.' },
-    { label:'Active Merchants', value:summary.total_merchants || 0, icon:'bi-shop', color:'#0F172A', description:'Approved merchant accounts that are active and visible.' },
-    { label:'Available Services', value:summary.total_services || 0, icon:'bi-scissors', color:'#2563EB', description:'Active services offered by active approved merchants.' },
-    { label:'Available Promotions', value:summary.total_promotions || 0, icon:'bi-tag', color:'var(--accent)', description:'Approved live promotions currently available to customers.' },
+    { label:t('admin.dashboard.totals.customers'), value:summary.total_customers || 0, icon:'bi-people', color:'var(--accent)', description:t('admin.dashboard.totals.customersDesc') },
+    { label:t('admin.dashboard.totals.merchants'), value:summary.total_merchants || 0, icon:'bi-shop', color:'#0F172A', description:t('admin.dashboard.totals.merchantsDesc') },
+    { label:t('admin.dashboard.totals.services'), value:summary.total_services || 0, icon:'bi-scissors', color:'#2563EB', description:t('admin.dashboard.totals.servicesDesc') },
+    { label:t('admin.dashboard.totals.promotions'), value:summary.total_promotions || 0, icon:'bi-tag', color:'var(--accent)', description:t('admin.dashboard.totals.promotionsDesc') },
   ];
   const performanceStats = [
-    { label:'Bookings Created', value:summary.total_bookings || 0, icon:'bi-calendar-check', color:'#1D4ED8', description:'Booking records created during the selected period.' },
-    { label:'Gross Revenue', value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)', href:revenueReportHref, money:true, description:'Paid payment amount before refunds are shown separately.' },
-    { label:'Successful Payments', value:summary.total_payments || 0, icon:'bi-receipt', color:'var(--accent)', description:'Paid payments linked to bookings that are not cancelled.' },
+    { label:t('admin.dashboard.performance.bookings'), value:summary.total_bookings || 0, icon:'bi-calendar-check', color:'#1D4ED8', description:t('admin.dashboard.performance.bookingsDesc') },
+    { label:t('admin.dashboard.performance.revenue'), value:money(summary.total_revenue), icon:'bi-credit-card', color:'var(--success)', href:revenueReportHref, money:true, description:t('admin.dashboard.performance.revenueDesc') },
+    { label:t('admin.dashboard.performance.payments'), value:summary.total_payments || 0, icon:'bi-receipt', color:'var(--accent)', description:t('admin.dashboard.performance.paymentsDesc') },
   ];
 %>
 
@@ -458,12 +463,12 @@
 <div class="admin-dashboard-shell">
   <div class="admin-hero">
     <div>
-      <p class="section-label">Platform Control</p>
-      <h2>Admin Dashboard</h2>
-      <p>Welcome back, <strong><%= user.full_name %></strong></p>
+      <p class="section-label"><%= t('admin.dashboard.eyebrow') %></p>
+      <h2><%= t('admin.dashboard.title') %></h2>
+      <p><%= t('admin.dashboard.welcomeBack') %> <strong><%= user.full_name %></strong></p>
     </div>
     <a href="/admin/revenue" class="btn btn-outline-secondary btn-pill" style="font-weight:800;">
-      <i class="bi bi-graph-up me-1"></i>Revenue Report
+      <i class="bi bi-graph-up me-1"></i><%= t('admin.dashboard.revenueReport') %>
     </a>
   </div>
 
@@ -477,9 +482,9 @@
   <section class="admin-section">
     <div class="admin-section-heading">
       <div>
-        <p class="section-label mb-1">Action Required</p>
-        <h5>Needs Attention</h5>
-        <p style="color:var(--muted);font-size:.875rem;margin:.25rem 0 0;">Operational queues that may need admin review.</p>
+        <p class="section-label mb-1"><%= t('admin.dashboard.actionRequired') %></p>
+        <h5><%= t('admin.dashboard.needsAttention') %></h5>
+        <p style="color:var(--muted);font-size:.875rem;margin:.25rem 0 0;"><%= t('admin.dashboard.needsAttentionDesc') %></p>
       </div>
     </div>
     <div class="admin-priority-grid">
@@ -508,8 +513,8 @@
   <section class="admin-section">
     <div class="admin-section-heading">
       <div>
-        <p class="section-label mb-1">Overview</p>
-        <h5>Platform Totals</h5>
+        <p class="section-label mb-1"><%= t('admin.dashboard.overview') %></p>
+        <h5><%= t('admin.dashboard.platformTotals') %></h5>
         <p style="color:var(--muted);font-size:.875rem;margin:.25rem 0 0;"><%= totalsAsOfLabel %></p>
       </div>
     </div>
@@ -536,13 +541,13 @@
   <section class="admin-section">
     <div class="admin-section-heading">
       <div>
-        <p class="section-label mb-1">Performance</p>
-        <h5>Platform Performance</h5>
+        <p class="section-label mb-1"><%= t('admin.dashboard.performance.eyebrow') %></p>
+        <h5><%= t('admin.dashboard.performance.title') %></h5>
         <p style="color:var(--muted);font-size:.875rem;margin:.25rem 0 0;"><%= performancePeriodLabel %></p>
       </div>
-      <form method="GET" action="/admin/dashboard" class="admin-period-selector" aria-label="Platform performance period">
-        <% Object.entries(period.options).forEach(([value, label]) => { %>
-          <button type="submit" name="period" value="<%= value %>" class="filter-chip<%= period.key === value ? ' is-active' : '' %>"><%= label %></button>
+      <form method="GET" action="/admin/dashboard" class="admin-period-selector" aria-label="<%= t('admin.dashboard.performance.periodAria') %>">
+        <% Object.keys(period.options).forEach(value => { %>
+          <button type="submit" name="period" value="<%= value %>" class="filter-chip<%= period.key === value ? ' is-active' : '' %>"><%= periodLabel(value) %></button>
         <% }) %>
       </form>
     </div>
@@ -569,13 +574,13 @@
   <section class="admin-section">
   <div class="admin-module-header">
     <div>
-      <p class="section-label mb-1">Management Tools</p>
-      <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Platform Tools</h5>
-      <p style="color:var(--muted);font-size:.875rem;margin:.25rem 0 0;">Open the core admin workspaces.</p>
+      <p class="section-label mb-1"><%= t('admin.dashboard.tools.eyebrow') %></p>
+      <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;"><%= t('admin.dashboard.tools.title') %></h5>
+      <p style="color:var(--muted);font-size:.875rem;margin:.25rem 0 0;"><%= t('admin.dashboard.tools.subtitle') %></p>
     </div>
-    <div class="admin-module-controls" aria-label="Platform tool slider controls">
-      <button type="button" class="admin-module-btn" id="modulePrevBtn" aria-label="Previous platform tools"><i class="bi bi-chevron-left"></i></button>
-      <button type="button" class="admin-module-btn" id="moduleNextBtn" aria-label="Next platform tools"><i class="bi bi-chevron-right"></i></button>
+    <div class="admin-module-controls" aria-label="<%= t('admin.dashboard.tools.sliderAria') %>">
+      <button type="button" class="admin-module-btn" id="modulePrevBtn" aria-label="<%= t('admin.dashboard.tools.previousAria') %>"><i class="bi bi-chevron-left"></i></button>
+      <button type="button" class="admin-module-btn" id="moduleNextBtn" aria-label="<%= t('admin.dashboard.tools.nextAria') %>"><i class="bi bi-chevron-right"></i></button>
     </div>
   </div>
 
@@ -584,50 +589,50 @@
       {
         href:'/admin/customers',
         icon:'bi-person-lines-fill',
-        label:'Customer Information',
-        sub:'View customer profiles, booking history, loyalty points, vouchers, wallet balances, cancellations, and favourite merchants.'
+        label:t('admin.dashboard.modules.customers.title'),
+        sub:t('admin.dashboard.modules.customers.desc')
       },
       {
         href:'/admin/merchants',
         icon:'bi-shop-window',
-        label:'Merchant Information',
-        sub:'Review merchant business details, services, staff, promotions, cancellation policies, revenue, QR bookings, and performance analytics.'
+        label:t('admin.dashboard.modules.merchants.title'),
+        sub:t('admin.dashboard.modules.merchants.desc')
       },
       {
         href:'/admin/promotions',
         icon:'bi-megaphone',
-        label:'Promotion Review',
-        sub:'Review merchant-submitted promotions, approve valid campaigns, or reject requests with admin feedback.'
+        label:t('admin.dashboard.modules.promotions.title'),
+        sub:t('admin.dashboard.modules.promotions.desc')
       },
       {
         href:'/admin/platform-feedback',
         icon:'bi-chat-square-heart',
-        label:'Uniday Feedback',
-        sub:'Read customer ratings and comments about booking, payment, QR check-in, WhatsApp, and platform experience.'
+        label:t('admin.dashboard.modules.feedback.title'),
+        sub:t('admin.dashboard.modules.feedback.desc')
       },
       {
         href:'/admin/reviews',
         icon:'bi-images',
-        label:'Review Moderation',
-        sub:'Resolve customer photo-removal requests, moderate merchant reviews, and inspect recent review activity.'
+        label:t('admin.dashboard.modules.reviews.title'),
+        sub:t('admin.dashboard.modules.reviews.desc')
       },
       {
         href:'/admin/validation',
         icon:'bi-shield-exclamation',
-        label:'View All Validation & Support Logs',
-        sub:'Monitor booking failures, payment failures, WhatsApp/API issues, invalid vouchers, and backend validation errors.'
+        label:t('admin.dashboard.modules.validation.title'),
+        sub:t('admin.dashboard.modules.validation.desc')
       },
       {
         href:'/admin/featured',
         icon:'bi-stars',
-        label:'Featured Merchants',
-        sub:'Select merchants to feature on the marketplace homepage and promotional sections.'
+        label:t('admin.dashboard.modules.featured.title'),
+        sub:t('admin.dashboard.modules.featured.desc')
       },
       {
         href:'/admin/campaigns',
         icon:'bi-ticket-perforated',
-        label:'Voucher Management',
-        sub:'Manage loyalty wallet rewards, platform vouchers, seasonal campaigns, and eligibility rules.'
+        label:t('admin.dashboard.modules.campaigns.title'),
+        sub:t('admin.dashboard.modules.campaigns.desc')
       },
     ].forEach(item => { %>
     <div class="admin-module-card">
@@ -638,7 +643,7 @@
         <p class="admin-tool-card-title"><%= item.label %></p>
         <p class="admin-tool-card-copy"><%= item.sub %></p>
         <span class="admin-tool-card-link">
-          Open module <i class="bi bi-arrow-right"></i>
+          <%= t('admin.dashboard.tools.openModule') %> <i class="bi bi-arrow-right"></i>
         </span>
       </a>
     </div>
@@ -651,26 +656,26 @@
     <div class="col-12">
       <div class="card overflow-hidden h-100 admin-system-log-card admin-dashboard-panel">
         <div class="p-4" style="border-bottom:1px solid var(--border);">
-          <p class="section-label mb-1">System Activity</p>
-          <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Recent System Logs</h5>
+          <p class="section-label mb-1"><%= t('admin.dashboard.logs.eyebrow') %></p>
+          <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;"><%= t('admin.dashboard.logs.title') %></h5>
         </div>
         <% if (recentErrors.length === 0) { %>
         <div class="text-center py-5 px-4">
           <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
             <i class="bi bi-shield-check" style="font-size:2rem;color:var(--success);"></i>
           </div>
-          <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No validation errors</h6>
-          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Recent platform validation issues will appear here.</p>
+          <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.dashboard.logs.emptyTitle') %></h6>
+          <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;"><%= t('admin.dashboard.logs.emptyBody') %></p>
         </div>
         <% } else { %>
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
             <thead style="background:var(--accent-light);">
               <tr>
-                <th>ID</th>
-                <th>Module</th>
-                <th>Type</th>
-                <th>Resolved</th>
+                <th><%= t('admin.dashboard.logs.colId') %></th>
+                <th><%= t('admin.dashboard.logs.colModule') %></th>
+                <th><%= t('admin.dashboard.logs.colType') %></th>
+                <th><%= t('admin.dashboard.logs.colResolved') %></th>
               </tr>
             </thead>
             <tbody>
@@ -684,7 +689,7 @@
                 <td><%= log.error_type || '-' %></td>
                 <td>
                   <span class="badge" style="<%= log.is_resolved ? 'background:var(--success-bg);color:var(--success);' : 'background:var(--warn-bg);color:var(--warn);' %>">
-                    <%= log.is_resolved ? 'Resolved' : 'Open' %>
+                    <%= log.is_resolved ? t('admin.common.resolved') : t('admin.common.open') %>
                   </span>
                 </td>
               </tr>

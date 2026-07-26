@@ -4,13 +4,13 @@
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
   <div class="container" style="max-width:1100px;">
     <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-      <i class="bi bi-arrow-left me-1"></i>Dashboard Overview
+      <i class="bi bi-arrow-left me-1"></i><%= t('merchant.manage.dashboardOverview') %>
     </a>
 
     <div class="mb-4">
-      <p class="section-label">Business Settings</p>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Management</h2>
-      <p style="color:var(--muted);margin:0;">Manage services, staff, customer engagement, and marketplace settings.</p>
+      <p class="section-label"><%= t('merchant.manage.eyebrow') %></p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.manage.title') %></h2>
+      <p style="color:var(--muted);margin:0;"><%= t('merchant.manage.subtitle') %></p>
     </div>
 
     <% if (imageError) { %>
@@ -23,16 +23,16 @@
     <div class="row g-3 mb-5">
       <% const activeWaitlists = Number(activeWaitlistCount || 0); %>
       <% [
-        {href:'/merchant/services', icon:'bi-scissors', label:'Services', sub:'Add, edit, and publish services'},
-        {href:'/merchant/bookings', icon:'bi-calendar-check', label:'Bookings', sub:'View and update appointments'},
-        {href:'/merchant/waitlists', icon:'bi-list-ol', label:'Waitlists', sub:'View customers waiting for full slots', badge:activeWaitlists},
-        {href:'/merchant/staff', icon:'bi-people', label:'Staff', sub:'Manage employees and assignments'},
-        {href:'/merchant/availability', icon:'bi-clock', label:'Availability', sub:'Set operating hours'},
-        {href:'/merchant/promotions', icon:'bi-tag', label:'Promotions', sub:'Create and manage deals'},
-        {href:'/merchant/reviews', icon:'bi-star', label:'Reviews', sub:'Read and reply to customers'},
-        {href:'/merchant/qr', icon:'bi-qr-code', label:'QR Code', sub:'Manage booking and arrival QR'},
-        {href:'/merchant/cancellation-policy', icon:'bi-hourglass-split', label:'Cancellation Policy', sub:'View platform rules'},
-        {href:'/merchant/revenue', icon:'bi-graph-up', label:'Revenue Report', sub:'Review revenue and your earnings'},
+        {href:'/merchant/services', icon:'bi-scissors', label:t('merchant.nav.services'), sub:t('merchant.manage.servicesSub')},
+        {href:'/merchant/bookings', icon:'bi-calendar-check', label:t('merchant.nav.bookings'), sub:t('merchant.manage.bookingsSub')},
+        {href:'/merchant/waitlists', icon:'bi-list-ol', label:t('merchant.nav.waitlists'), sub:t('merchant.manage.waitlistsSub'), badge:activeWaitlists},
+        {href:'/merchant/staff', icon:'bi-people', label:t('merchant.nav.staff'), sub:t('merchant.manage.staffSub')},
+        {href:'/merchant/availability', icon:'bi-clock', label:t('merchant.nav.availability'), sub:t('merchant.manage.availabilitySub')},
+        {href:'/merchant/promotions', icon:'bi-tag', label:t('merchant.nav.promotions'), sub:t('merchant.manage.promotionsSub')},
+        {href:'/merchant/reviews', icon:'bi-star', label:t('merchant.nav.reviews'), sub:t('merchant.manage.reviewsSub')},
+        {href:'/merchant/qr', icon:'bi-qr-code', label:t('merchant.nav.qr'), sub:t('merchant.manage.qrSub')},
+        {href:'/merchant/cancellation-policy', icon:'bi-hourglass-split', label:t('merchant.nav.cancellationPolicy'), sub:t('merchant.manage.policySub')},
+        {href:'/merchant/revenue', icon:'bi-graph-up', label:t('merchant.nav.revenue'), sub:t('merchant.manage.revenueSub')},
       ].forEach(action => { %>
         <div class="col-6 col-md-4">
           <a href="<%= action.href %>?from=manage" class="action-card h-100">
@@ -61,14 +61,14 @@
         </div>
         <div class="col-md-8">
           <div class="p-4 h-100 d-flex flex-column justify-content-center">
-            <p class="section-label mb-2">Marketplace Photo</p>
-            <h5 style="font-weight:800;color:var(--ink);">Your merchant card image</h5>
-            <p style="color:var(--muted);">Upload the picture customers see on your marketplace card.</p>
+            <p class="section-label mb-2"><%= t('merchant.manage.photoEyebrow') %></p>
+            <h5 style="font-weight:800;color:var(--ink);"><%= t('merchant.manage.photoTitle') %></h5>
+            <p style="color:var(--muted);"><%= t('merchant.manage.photoBody') %></p>
             <form action="/merchant/marketplace-image" method="POST" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
               <input type="file" name="marketplace_image" class="form-control rounded-xl" accept="image/*" required style="max-width:360px;">
-              <button type="submit" class="btn btn-primary btn-pill"><i class="bi bi-upload me-1"></i>Update Photo</button>
+              <button type="submit" class="btn btn-primary btn-pill"><i class="bi bi-upload me-1"></i><%= t('merchant.manage.updatePhoto') %></button>
             </form>
-            <p class="small mt-2 mb-0" style="color:var(--muted);">Recommended: landscape photo, under 2MB.</p>
+            <p class="small mt-2 mb-0" style="color:var(--muted);"><%= t('merchant.manage.photoHint') %></p>
           </div>
         </div>
       </div>

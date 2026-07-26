@@ -4,12 +4,12 @@
 <%
   const waitlistRows = Array.isArray(waitlists) ? waitlists : [];
   const statusStyles = {
-    waiting:   { label: 'Waiting', bg: 'var(--warn-bg)', color: 'var(--warn)' },
-    offered:   { label: 'Offer Sent', bg: 'var(--success-bg)', color: 'var(--success)' },
-    confirmed: { label: 'Confirmed', bg: 'var(--success-bg)', color: 'var(--success)' },
-    expired:   { label: 'Expired', bg: 'var(--danger-bg)', color: 'var(--danger)' },
-    cancelled: { label: 'Cancelled', bg: 'var(--canvas)', color: 'var(--muted)' },
-    removed:   { label: 'Removed', bg: 'var(--canvas)', color: 'var(--muted)' },
+    waiting:   { label: t('merchant.waitlists.status.waiting'), bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    offered:   { label: t('merchant.waitlists.status.offered'), bg: 'var(--success-bg)', color: 'var(--success)' },
+    confirmed: { label: t('bookings.confirmed'), bg: 'var(--success-bg)', color: 'var(--success)' },
+    expired:   { label: t('admin.promotions.lifecycle.expired'), bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    cancelled: { label: t('bookings.cancelled'), bg: 'var(--canvas)', color: 'var(--muted)' },
+    removed:   { label: t('bookings.removed'), bg: 'var(--canvas)', color: 'var(--muted)' },
   };
 
   function formatDate(value) {
@@ -28,17 +28,17 @@
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
   <div class="container" style="max-width:1100px;">
     <a href="/merchant/manage" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-      <i class="bi bi-arrow-left me-1"></i>Management
+      <i class="bi bi-arrow-left me-1"></i><%= t('merchant.waitlists.management') %>
     </a>
 
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
       <div>
-        <p class="section-label mb-2">Waitlist</p>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Slot Waitlists</h2>
-        <p style="color:var(--muted);margin:0;">View customers waiting for fully booked service times.</p>
+        <p class="section-label mb-2"><%= t('merchant.waitlists.eyebrow') %></p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.waitlists.title') %></h2>
+        <p style="color:var(--muted);margin:0;"><%= t('merchant.waitlists.subtitle') %></p>
       </div>
       <a href="/merchant/bookings" class="btn btn-primary btn-pill">
-        <i class="bi bi-calendar-check me-1"></i>Bookings
+        <i class="bi bi-calendar-check me-1"></i><%= t('merchant.nav.bookings') %>
       </a>
     </div>
 
@@ -58,9 +58,9 @@
         <div class="icon-circle-lg mx-auto mb-3">
           <i class="bi bi-list-ol" style="font-size:2rem;color:var(--accent);"></i>
         </div>
-        <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">No waitlist requests</h6>
+        <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.waitlists.emptyTitle') %></h6>
         <p style="color:var(--muted);font-size:.875rem;margin:0 auto;max-width:420px;">
-          Fully booked slot requests will appear here when customers join a waitlist.
+          <%= t('merchant.waitlists.emptyBody') %>
         </p>
       </div>
     <% } else { %>
@@ -69,12 +69,12 @@
           <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
             <thead style="background:var(--accent-light);">
               <tr>
-                <th>Customer</th>
-                <th>Service</th>
-                <th>Date &amp; Time</th>
-                <th>Queue Size</th>
-                <th>Status</th>
-                <th>Joined</th>
+                <th><%= t('admin.table.customer') %></th>
+                <th><%= t('common.service') %></th>
+                <th><%= t('admin.table.dateTime') %></th>
+                <th><%= t('merchant.waitlists.queueSize') %></th>
+                <th><%= t('admin.table.status') %></th>
+                <th><%= t('merchant.waitlists.joined') %></th>
               </tr>
             </thead>
             <tbody>
@@ -84,7 +84,7 @@
               <tr>
                 <td>
                   <p style="font-weight:700;margin-bottom:0;color:var(--ink);"><%= entry.customer_name %></p>
-                  <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= entry.customer_phone || entry.customer_email || 'No contact' %></p>
+                  <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= entry.customer_phone || entry.customer_email || t('merchant.waitlists.noContact') %></p>
                 </td>
                 <td><%= entry.service_name %></td>
                 <td>
@@ -94,7 +94,7 @@
                 </td>
                 <td>
                   <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);">
-                    <%= entry.waiting_count || 1 %> waiting
+                    <%= t('merchant.waitlists.waitingCount', { count: entry.waiting_count || 1 }) %>
                   </span>
                 </td>
                 <td>
@@ -102,7 +102,7 @@
                     <%= status.label %>
                   </span>
                   <% if (entry.status === 'offered' && entry.offer_expires_at) { %>
-                    <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem;">Expires <%= new Date(entry.offer_expires_at).toLocaleTimeString('en-SG',{hour:'2-digit',minute:'2-digit'}) %></div>
+                    <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem;"><%= t('merchant.waitlists.expiresAt', { time: new Date(entry.offer_expires_at).toLocaleTimeString('en-SG',{hour:'2-digit',minute:'2-digit'}) }) %></div>
                   <% } %>
                 </td>
                 <td style="color:var(--muted);"><%= new Date(entry.joined_at).toLocaleString('en-SG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></td>

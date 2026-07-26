@@ -11,12 +11,12 @@
   <div class="account-shell">
     <div class="account-heading">
       <div>
-        <p class="section-label mb-2">Merchant account</p>
+        <p class="section-label mb-2"><%= t('merchant.account.eyebrow') %></p>
         <h1><%= merchant.merchant_name %></h1>
-        <p>Manage your account contact details and public business information.</p>
+        <p><%= t('merchant.account.subtitle') %></p>
       </div>
       <a href="/marketplace/merchant/<%= merchant.merchant_id %>" class="btn btn-outline-secondary btn-pill" target="_blank" rel="noopener noreferrer">
-        <i class="bi bi-shop me-1"></i>View storefront
+        <i class="bi bi-shop me-1"></i><%= t('merchant.account.viewStorefront') %>
       </a>
     </div>
 
@@ -32,59 +32,59 @@
         <div class="account-section">
           <div class="account-section-head">
             <div>
-              <p class="section-label mb-1">Profile overview</p>
-              <h2>Merchant information</h2>
+              <p class="section-label mb-1"><%= t('merchant.account.overviewEyebrow') %></p>
+              <h2><%= t('merchant.account.merchantInfo') %></h2>
             </div>
-            <span class="badge rounded-pill text-bg-light text-capitalize"><%= merchant.verification_status %></span>
+            <span class="badge rounded-pill text-bg-light"><%= t('admin.verification.' + merchant.verification_status, {}, merchant.verification_status) %></span>
           </div>
           <div class="account-info-grid">
-            <div><span>Account owner</span><strong><%= merchant.full_name %></strong></div>
-            <div><span>Login email</span><strong><%= merchant.login_email %></strong></div>
-            <div><span>Business category</span><strong><%= merchant.category || 'Not specified' %></strong></div>
+            <div><span><%= t('merchant.account.accountOwner') %></span><strong><%= merchant.full_name %></strong></div>
+            <div><span><%= t('merchant.account.loginEmail') %></span><strong><%= merchant.login_email %></strong></div>
+            <div><span><%= t('merchant.account.businessCategory') %></span><strong><%= merchant.category || t('merchant.account.notSpecified') %></strong></div>
           </div>
         </div>
 
         <form class="account-section" method="POST" action="/account/merchant-profile">
           <div class="account-section-head">
             <div>
-              <p class="section-label mb-1">Profile details</p>
-              <h2>Owner and business information</h2>
+              <p class="section-label mb-1"><%= t('merchant.account.detailsEyebrow') %></p>
+              <h2><%= t('merchant.account.detailsTitle') %></h2>
             </div>
           </div>
 
           <div class="account-two-col">
             <div>
               <label class="account-field">
-                <span>Owner name</span>
+                <span><%= t('merchant.account.ownerName') %></span>
                 <input type="text" name="full_name" value="<%= merchant.full_name || '' %>" maxlength="120" required>
               </label>
               <label class="account-field">
-                <span>Owner phone</span>
+                <span><%= t('merchant.account.ownerPhone') %></span>
                 <div class="input-group account-phone-group">
                   <span class="input-group-text">+65</span>
                   <input type="tel" name="owner_phone_local" class="form-control" value="<%= localPhone(merchant.owner_phone) %>" inputmode="numeric" maxlength="8" pattern="[689][0-9]{7}">
                 </div>
               </label>
               <label class="account-field">
-                <span>Login email</span>
+                <span><%= t('merchant.account.loginEmail') %></span>
                 <input type="email" value="<%= merchant.login_email || '' %>" disabled>
-                <small class="account-field-note">Used for sign-in and account security. This email is locked.</small>
+                <small class="account-field-note"><%= t('merchant.account.loginEmailNote') %></small>
               </label>
             </div>
 
             <div>
               <label class="account-field">
-                <span>Business name</span>
+                <span><%= t('merchant.account.businessName') %></span>
                 <input type="text" value="<%= merchant.merchant_name || '' %>" disabled>
-                <small class="account-field-note">Locked because this is the verified business name.</small>
+                <small class="account-field-note"><%= t('merchant.account.businessNameNote') %></small>
               </label>
               <label class="account-field">
-                <span>Customer contact email</span>
+                <span><%= t('merchant.account.contactEmail') %></span>
                 <input type="email" name="business_email" value="<%= merchant.email || '' %>" maxlength="190" required>
-                <small class="account-field-note">Displayed to customers as the business contact email.</small>
+                <small class="account-field-note"><%= t('merchant.account.contactEmailNote') %></small>
               </label>
               <label class="account-field">
-                <span>Business phone</span>
+                <span><%= t('merchant.account.businessPhone') %></span>
                 <div class="input-group account-phone-group">
                   <span class="input-group-text">+65</span>
                   <input type="tel" name="business_phone_local" class="form-control" value="<%= localPhone(merchant.contact_no) %>" inputmode="numeric" maxlength="8" pattern="[689][0-9]{7}">
@@ -94,32 +94,32 @@
           </div>
 
           <label class="account-field">
-            <span>Business address</span>
+            <span><%= t('merchant.account.businessAddress') %></span>
             <input type="text" name="address" value="<%= merchant.address || '' %>" maxlength="255" required>
           </label>
           <label class="account-field">
-            <span>Business description</span>
+            <span><%= t('merchant.account.businessDescription') %></span>
             <textarea name="description" rows="4" maxlength="1000"><%= merchant.description || '' %></textarea>
           </label>
           <button class="btn btn-primary btn-pill account-submit" type="submit">
-            <i class="bi bi-save me-1"></i>Save profile
+            <i class="bi bi-save me-1"></i><%= t('merchant.account.saveProfile') %>
           </button>
         </form>
 
         <form class="account-section" method="POST" action="/account/password">
           <div class="account-section-head">
             <div>
-              <p class="section-label mb-1">Security</p>
-              <h2>Change password</h2>
+              <p class="section-label mb-1"><%= t('merchant.account.securityEyebrow') %></p>
+              <h2><%= t('merchant.account.changePassword') %></h2>
             </div>
           </div>
           <div class="account-info-grid">
-            <label class="account-field"><span>Current password</span><input type="password" name="current_password" autocomplete="current-password" required></label>
-            <label class="account-field"><span>New password</span><input type="password" name="new_password" autocomplete="new-password" minlength="6" required></label>
-            <label class="account-field"><span>Confirm password</span><input type="password" name="confirm_password" autocomplete="new-password" minlength="6" required></label>
+            <label class="account-field"><span><%= t('merchant.account.currentPassword') %></span><input type="password" name="current_password" autocomplete="current-password" required></label>
+            <label class="account-field"><span><%= t('merchant.account.newPassword') %></span><input type="password" name="new_password" autocomplete="new-password" minlength="6" required></label>
+            <label class="account-field"><span><%= t('merchant.account.confirmPassword') %></span><input type="password" name="confirm_password" autocomplete="new-password" minlength="6" required></label>
           </div>
           <button class="btn btn-outline-secondary btn-pill account-submit" type="submit">
-            <i class="bi bi-shield-lock me-1"></i>Update password
+            <i class="bi bi-shield-lock me-1"></i><%= t('merchant.account.updatePassword') %>
           </button>
         </form>
       </section>

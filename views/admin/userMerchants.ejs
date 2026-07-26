@@ -10,30 +10,30 @@
 <main class="container py-5">
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
-      <p class="section-label">User Operations</p>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Merchant Accounts</h2>
-      <p style="color:var(--muted);margin:0;">Control merchant account access and marketplace availability.</p>
+      <p class="section-label"><%= t('admin.userOps.eyebrow') %></p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.userManagement.merchantAccounts') %></h2>
+      <p style="color:var(--muted);margin:0;"><%= t('admin.userOps.merchantSubtitle') %></p>
     </div>
     <a href="/admin/user-management" class="btn btn-outline-secondary btn-pill">
-      <i class="bi bi-arrow-left me-1"></i>User Management
+      <i class="bi bi-arrow-left me-1"></i><%= t('admin.userManagement.title') %>
     </a>
   </div>
 
-  <% if (query.updated) { %><div class="alert alert-success"><i class="bi bi-check-circle"></i><span>Merchant account updated.</span></div><% } %>
+  <% if (query.updated) { %><div class="alert alert-success"><i class="bi bi-check-circle"></i><span><%= t('admin.userOps.merchantUpdated') %></span></div><% } %>
   <% if (query.error || (typeof error !== 'undefined' && error)) { %>
     <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i><span><%= query.error || error %></span></div>
   <% } %>
 
   <!-- Search and verification filter reload this same page. -->
   <form method="GET" action="/admin/user-management/merchants" class="d-flex flex-wrap gap-2 mb-4">
-    <input type="search" name="search" value="<%= search %>" class="form-control" placeholder="Search merchants by business, owner, email, or phone" style="max-width:420px;">
+    <input type="search" name="search" value="<%= search %>" class="form-control" placeholder="<%= t('admin.userOps.searchMerchants') %>" style="max-width:420px;">
     <select name="verification" class="form-select" style="max-width:180px;">
-      <option value="all" <%= verification === 'all' ? 'selected' : '' %>>All statuses</option>
-      <option value="pending" <%= verification === 'pending' ? 'selected' : '' %>>Pending</option>
-      <option value="approved" <%= verification === 'approved' ? 'selected' : '' %>>Approved</option>
+      <option value="all" <%= verification === 'all' ? 'selected' : '' %>><%= t('admin.userOps.allStatuses') %></option>
+      <option value="pending" <%= verification === 'pending' ? 'selected' : '' %>><%= t('admin.userOps.pending') %></option>
+      <option value="approved" <%= verification === 'approved' ? 'selected' : '' %>><%= t('admin.userOps.approved') %></option>
     </select>
-    <button class="btn btn-primary btn-pill" type="submit"><i class="bi bi-search me-1"></i>Search</button>
-    <% if (search || verification !== 'all') { %><a href="/admin/user-management/merchants" class="btn btn-outline-secondary btn-pill">Clear</a><% } %>
+    <button class="btn btn-primary btn-pill" type="submit"><i class="bi bi-search me-1"></i><%= t('admin.common.search') %></button>
+    <% if (search || verification !== 'all') { %><a href="/admin/user-management/merchants" class="btn btn-outline-secondary btn-pill"><%= t('admin.common.clear') %></a><% } %>
   </form>
 
   <!-- Merchant table includes owner details, verification and account actions. -->
@@ -42,18 +42,18 @@
       <table class="table table-hover align-middle mb-0">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Merchant</th>
-            <th>Owner</th>
-            <th>Status</th>
-            <th>Verification</th>
-            <th>Last Booking</th>
-            <th>Actions</th>
+            <th><%= t('admin.dashboard.logs.colId') %></th>
+            <th><%= t('common.merchant') %></th>
+            <th><%= t('admin.table.owner') %></th>
+            <th><%= t('admin.table.status') %></th>
+            <th><%= t('admin.table.verification') %></th>
+            <th><%= t('admin.table.lastBooking') %></th>
+            <th><%= t('admin.table.actions') %></th>
           </tr>
         </thead>
         <tbody>
           <% if (!merchants.length) { %>
-            <tr><td colspan="7" class="text-center py-5 text-muted">No merchant accounts found.</td></tr>
+            <tr><td colspan="7" class="text-center py-5 text-muted"><%= t('admin.userOps.noMerchants') %></td></tr>
           <% } %>
           <% merchants.forEach(merchant => {
             // A merchant is usable only when both the user and merchant records are active.
@@ -66,7 +66,7 @@
             <td class="mono">#<%= merchant.merchant_id %></td>
             <td>
               <strong><%= merchant.merchant_name %></strong>
-              <div class="small text-muted"><%= merchant.category || 'General' %></div>
+              <div class="small text-muted"><%= merchant.category || t('admin.table.generalCategory') %></div>
             </td>
             <td>
               <strong><%= merchant.owner_name %></strong>
@@ -74,33 +74,33 @@
             </td>
             <td>
               <span class="badge rounded-pill" style="<%= active ? 'background:var(--success-bg);color:var(--success);' : 'background:var(--warn-bg);color:var(--warn);' %>">
-                <%= active ? 'active' : 'disabled' %>
+                <%= active ? t('admin.accountStatus.active') : t('admin.accountStatus.disabled') %>
               </span>
             </td>
-            <td><span class="badge rounded-pill" style="<%= verificationStyle %>"><%= merchant.verification_status %></span></td>
+            <td><span class="badge rounded-pill" style="<%= verificationStyle %>"><%= t('admin.verification.' + merchant.verification_status, {}, merchant.verification_status) %></span></td>
             <td><%= formatDate(merchant.last_booking_at) %></td>
             <td>
               <div class="d-flex flex-wrap gap-2">
                 <a href="/admin/user-management/merchants/<%= merchant.merchant_id %>/bookings" class="btn btn-outline-secondary btn-sm btn-pill">
-                  <i class="bi bi-calendar-check me-1"></i>View Bookings
+                  <i class="bi bi-calendar-check me-1"></i><%= t('admin.userOps.viewBookings') %>
                 </a>
                 <!-- Toggle marketplace/account access for this merchant. -->
                 <form method="POST" action="/admin/user-management/merchants/<%= merchant.merchant_id %>/status" class="d-flex flex-wrap gap-2">
                   <input type="hidden" name="status" value="<%= active ? 'suspended' : 'active' %>">
                   <% if (active) { %>
                     <select name="disable_reason" class="form-select form-select-sm" style="width:280px;" required>
-                      <option value="">Select disable reason</option>
+                      <option value=""><%= t('admin.userOps.selectDisableReason') %></option>
                       <% (disableReasons || []).forEach(reason => { %>
-                        <option value="<%= reason %>"><%= reason %></option>
+                        <option value="<%= reason %>"><%= t('admin.disableReason.' + reason, {}, reason) %></option>
                       <% }) %>
                     </select>
                   <% } %>
                   <button
                     class="btn <%= active ? 'btn-outline-danger' : 'btn-outline-success' %> btn-sm btn-pill"
                     type="submit"
-                    onclick="<%= active ? 'return confirm(\'Disable this merchant account using the selected policy reason?\')' : 'return confirm(\'Enable this merchant account?\')' %>"
+                    onclick="return confirm('<%= active ? t('admin.userOps.disableMerchantConfirm') : t('admin.userOps.enableMerchantConfirm') %>')"
                   >
-                    <%= active ? 'Disable' : 'Enable' %>
+                    <%= active ? t('admin.common.disable') : t('admin.common.enable') %>
                   </button>
                 </form>
               </div>

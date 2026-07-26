@@ -5,12 +5,12 @@
 <main class="container py-5">
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-5">
     <div>
-      <p class="section-label">Admin Campaigns</p>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Voucher Management</h2>
-      <p style="color:var(--muted);margin:0;">Choose which voucher area you want to manage.</p>
+      <p class="section-label"><%= t('admin.campaignsHome.eyebrow') %></p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.campaignsHome.title') %></h2>
+      <p style="color:var(--muted);margin:0;"><%= t('admin.campaignsHome.subtitle') %></p>
     </div>
     <a href="/admin/dashboard" class="btn btn-outline-secondary btn-pill">
-      <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+      <i class="bi bi-arrow-left me-1"></i><%= t('admin.common.backToDashboard') %>
     </a>
   </div>
 
@@ -22,24 +22,24 @@
     <div class="col-md-6">
       <a href="/admin/campaigns/loyalty" class="action-card h-100" style="min-height:260px;">
         <div class="action-icon"><i class="bi bi-stars"></i></div>
-        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;">Loyalty Vouchers Management</h5>
-        <p style="color:var(--muted);margin-bottom:1.5rem;">Create point-based reward vouchers shown in the customer loyalty wallet.</p>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;"><%= t('admin.campaignsHome.loyaltyTitle') %></h5>
+        <p style="color:var(--muted);margin-bottom:1.5rem;"><%= t('admin.campaignsHome.loyaltyDesc') %></p>
         <div class="d-flex flex-wrap gap-2 mt-auto">
-          <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);"><%= loyaltySummary.total_count || 0 %> total</span>
-          <span class="badge rounded-pill" style="background:var(--success-bg);color:var(--success);"><%= loyaltySummary.active_count || 0 %> active</span>
-          <span class="badge rounded-pill" style="background:var(--warn-bg);color:var(--warn);"><%= loyaltySummary.paused_count || 0 %> paused</span>
+          <span class="badge rounded-pill" style="background:var(--accent-light);color:var(--accent);"><%= t('admin.common.countTotal', { count: loyaltySummary.total_count || 0 }) %></span>
+          <span class="badge rounded-pill" style="background:var(--success-bg);color:var(--success);"><%= t('admin.common.countActive', { count: loyaltySummary.active_count || 0 }) %></span>
+          <span class="badge rounded-pill" style="background:var(--warn-bg);color:var(--warn);"><%= t('admin.common.countPaused', { count: loyaltySummary.paused_count || 0 }) %></span>
         </div>
       </a>
     </div>
     <div class="col-md-6">
       <a href="/admin/campaigns/vouchers" class="action-card h-100" style="min-height:260px;">
         <div class="action-icon"><i class="bi bi-ticket-perforated"></i></div>
-        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;">Voucher &amp; Campaign Management</h5>
-        <p style="color:var(--muted);margin-bottom:1.5rem;">Manage platform vouchers, seasonal campaigns, public claims, and eligibility rules.</p>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;"><%= t('admin.campaignsHome.voucherTitle') %></h5>
+        <p style="color:var(--muted);margin-bottom:1.5rem;"><%= t('admin.campaignsHome.voucherDesc') %></p>
         <div class="d-flex flex-wrap gap-2 mt-auto">
-          <span class="badge rounded-pill" style="background:var(--success-bg);color:var(--success);"><%= voucherSummary.active_count || 0 %> active</span>
-          <span class="badge rounded-pill" style="background:#EFF6FF;color:#1D4ED8;"><%= voucherSummary.upcoming_count || 0 %> upcoming</span>
-          <span class="badge rounded-pill" style="background:var(--warn-bg);color:var(--warn);"><%= voucherSummary.paused_count || 0 %> paused</span>
+          <span class="badge rounded-pill" style="background:var(--success-bg);color:var(--success);"><%= t('admin.common.countActive', { count: voucherSummary.active_count || 0 }) %></span>
+          <span class="badge rounded-pill" style="background:#EFF6FF;color:#1D4ED8;"><%= t('admin.common.countUpcoming', { count: voucherSummary.upcoming_count || 0 }) %></span>
+          <span class="badge rounded-pill" style="background:var(--warn-bg);color:var(--warn);"><%= t('admin.common.countPaused', { count: voucherSummary.paused_count || 0 }) %></span>
         </div>
       </a>
     </div>

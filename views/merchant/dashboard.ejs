@@ -167,39 +167,39 @@
   const hasReliableCancellationSample = Number(metrics.monthlyFinishedBookings || 0) >= 5;
   const cancellationColor = !hasReliableCancellationSample ? 'var(--muted)' : cancellationRate <= 10 ? 'var(--success)' : cancellationRate <= 20 ? 'var(--warn)' : 'var(--danger)';
   const cancellationInsight = !hasFinalOutcomes
-    ? 'Complete appointments to begin tracking cancellation risk.'
+    ? t('merchant.dashboard.cancelInsight.none')
     : !hasReliableCancellationSample
-      ? Number(metrics.monthlyCancelledBookings || 0) + ' cancelled of ' + Number(metrics.monthlyFinishedBookings || 0) + ' final outcome(s). More results are needed before judging the trend.'
+      ? t('merchant.dashboard.cancelInsight.limited', { cancelled: Number(metrics.monthlyCancelledBookings || 0), total: Number(metrics.monthlyFinishedBookings || 0) })
     : cancellationRate <= 10
-      ? 'Bookings are being retained well. Keep your current confirmation process.'
+      ? t('merchant.dashboard.cancelInsight.good')
       : cancellationRate <= 20
-        ? 'Some revenue is at risk. Review reminders and cancellation reasons.'
-        : 'High booking loss. Consider deposits, reminders, or policy changes.';
+        ? t('merchant.dashboard.cancelInsight.watch')
+        : t('merchant.dashboard.cancelInsight.risk');
   const hasPeriodReviews = Number(reviews.review_count || 0) > 0;
   const hasRating = hasPeriodReviews || reviews.latest_rating !== null && typeof reviews.latest_rating !== 'undefined';
   const rating = Number(hasPeriodReviews ? reviews.average_rating : reviews.latest_rating || 0);
-  const ratingLabel = hasPeriodReviews ? 'Average Rating' : 'Latest Rating';
+  const ratingLabel = hasPeriodReviews ? t('admin.feedback.averageRating') : t('merchant.dashboard.latestRating');
   const ratingNote = hasPeriodReviews
-    ? Number(reviews.review_count || 0) + ' customer review(s) in ' + periodLabel
+    ? t('merchant.dashboard.reviewsInPeriod', { count: Number(reviews.review_count || 0), period: periodLabel })
     : hasRating
-      ? 'Latest available merchant review'
-      : 'No customer reviews yet';
+      ? t('merchant.dashboard.latestAvailableReview')
+      : t('merchant.dashboard.noReviewsYet');
   const ratingColor = !hasRating ? 'var(--muted)' : rating >= 4.5 ? 'var(--success)' : rating >= 4 ? 'var(--warn)' : 'var(--danger)';
   const ratingInsight = !hasRating
-    ? 'Ask completed customers for reviews to establish a satisfaction baseline.'
+    ? t('merchant.dashboard.ratingInsight.none')
     : !hasPeriodReviews
-      ? 'No reviews were submitted in ' + periodLabel + '. Showing the latest available merchant rating.'
+      ? t('merchant.dashboard.ratingInsight.noneInPeriod', { period: periodLabel })
     : rating >= 4.5
-      ? 'Customers are highly satisfied. Maintain the service experience.'
+      ? t('merchant.dashboard.ratingInsight.great')
       : rating >= 4
-        ? 'Feedback is positive, with room to improve recurring concerns.'
-        : 'Customer experience needs attention. Review recent comments and reply quickly.';
+        ? t('merchant.dashboard.ratingInsight.good')
+        : t('merchant.dashboard.ratingInsight.needsAttention');
   const maxMonthlyRevenue = Math.max(...revenueTrend.map(item => Number(item.revenue || 0)), 1);
   const outcomeItems = [
-    {label:'Completed', value:Number(bookings.month_completed || 0), color:'var(--success)', bg:'var(--success-bg)', icon:'bi-check2-all'},
-    {label:'Cancelled', value:Number(bookings.month_cancelled || 0), color:'var(--danger)', bg:'var(--danger-bg)', icon:'bi-x-circle'},
-    {label:'No Shows', value:Number(bookings.month_no_show || 0), color:'var(--warn)', bg:'var(--warn-bg)', icon:'bi-person-x'},
-    {label:'Confirmed', value:Number(bookings.confirmed || 0), color:'#2563EB', bg:'#EFF6FF', icon:'bi-calendar-check'},
+    {label:t('bookings.completed'), value:Number(bookings.month_completed || 0), color:'var(--success)', bg:'var(--success-bg)', icon:'bi-check2-all'},
+    {label:t('bookings.cancelled'), value:Number(bookings.month_cancelled || 0), color:'var(--danger)', bg:'var(--danger-bg)', icon:'bi-x-circle'},
+    {label:t('merchant.dashboard.noShows'), value:Number(bookings.month_no_show || 0), color:'var(--warn)', bg:'var(--warn-bg)', icon:'bi-person-x'},
+    {label:t('bookings.confirmed'), value:Number(bookings.confirmed || 0), color:'#2563EB', bg:'#EFF6FF', icon:'bi-calendar-check'},
   ];
   const outcomeTotal = outcomeItems.reduce((sum, item) => sum + item.value, 0);
   const maxOutcome = Math.max(...outcomeItems.map(item => item.value), 1);
@@ -214,9 +214,9 @@
     return new Date(year, month - 1, 1).toLocaleDateString('en-SG', { month:'short' });
   }
   const statusStyles = {
-    confirmed: { label: 'Confirmed', bg: '#EFF6FF', color: '#2563EB' },
-    rescheduled: { label: 'Rescheduled', bg: '#EFF6FF', color: '#2563EB' },
-    arrived: { label: 'Arrived', bg: '#F5F3FF', color: '#7C3AED' },
+    confirmed: { label: t('admin.bookingStatus.confirmed'), bg: '#EFF6FF', color: '#2563EB' },
+    rescheduled: { label: t('admin.bookingStatus.rescheduled'), bg: '#EFF6FF', color: '#2563EB' },
+    arrived: { label: t('admin.bookingStatus.arrived'), bg: '#F5F3FF', color: '#7C3AED' },
   };
 %>
 
@@ -224,26 +224,26 @@
   <div class="container merchant-analytics-shell" style="max-width:1240px;">
     <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
       <div>
-        <p class="section-label">Business Overview</p>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= merchant?.merchant_name || 'Merchant' %> Dashboard</h2>
-        <p style="color:var(--muted);margin-bottom:0;">Today’s operations, alerts, and a high-level overview of <strong><%= periodLabel %></strong>.</p>
+        <p class="section-label"><%= t('merchant.dashboard.eyebrow') %></p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.dashboard.title', { name: merchant?.merchant_name || t('common.merchant') }) %></h2>
+        <p style="color:var(--muted);margin-bottom:0;"><%- t('merchant.dashboard.subtitle', { period: periodLabel }) %></p>
       </div>
       <div class="d-flex gap-2 flex-wrap justify-content-end">
         <a href="/merchant/manage" class="btn btn-primary btn-pill" style="font-weight:800;padding:.72rem 1.15rem;">
-          <i class="bi bi-sliders me-1"></i>Merchant Management
+          <i class="bi bi-sliders me-1"></i><%= t('merchant.manage.title') %>
         </a>
       </div>
     </div>
 
     <div class="d-flex justify-content-between align-items-end gap-2 mb-2">
-      <div><p class="section-label mb-1">Today · <%= todayLabel %></p><h5 style="font-weight:800;color:var(--ink);margin:0;">Daily operations</h5></div>
-      <span style="color:var(--muted);font-size:.75rem;">Live information · not affected by the month selector</span>
+      <div><p class="section-label mb-1"><%= t('merchant.dashboard.todayLabel', { date: todayLabel }) %></p><h5 style="font-weight:800;color:var(--ink);margin:0;"><%= t('merchant.dashboard.dailyOps') %></h5></div>
+      <span style="color:var(--muted);font-size:.75rem;"><%= t('merchant.dashboard.liveInfo') %></span>
     </div>
     <div class="row g-3 mb-4">
       <% [
-        { label:"Today's Bookings", value:bookings.today_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:'Appointments to prepare for', featured:true },
-        { label:'Upcoming Bookings', value:bookings.upcoming_bookings, icon:'bi-calendar-week', color:'#1D4ED8', note:'Future confirmed workload' },
-        { label:'Items Needing Attention', value:actions.length, icon:'bi-exclamation-circle', color:actions.length ? 'var(--warn)' : 'var(--success)', note:actions.length ? 'Open alerts requiring action' : 'No action needed right now' },
+        { label:t('merchant.dashboard.todayBookings'), value:bookings.today_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:t('merchant.dashboard.todayBookingsNote'), featured:true },
+        { label:t('merchant.dashboard.upcomingBookings'), value:bookings.upcoming_bookings, icon:'bi-calendar-week', color:'#1D4ED8', note:t('merchant.dashboard.upcomingNote') },
+        { label:t('merchant.dashboard.needAttention'), value:actions.length, icon:'bi-exclamation-circle', color:actions.length ? 'var(--warn)' : 'var(--success)', note:actions.length ? t('merchant.dashboard.openAlerts') : t('merchant.dashboard.noActionNeeded') },
       ].forEach(item => { %>
         <div class="col-12 col-md-4">
           <div class="dashboard-kpi h-100 <%= item.featured ? 'featured' : '' %>" style="color:<%= item.color %>;">
@@ -258,25 +258,25 @@
     </div>
 
     <div class="d-flex justify-content-between align-items-end gap-3 mb-2 flex-wrap">
-      <div><p class="section-label mb-1"><%= periodLabel %></p><h5 style="font-weight:800;color:var(--ink);margin:0;">Monthly indicators</h5></div>
+      <div><p class="section-label mb-1"><%= periodLabel %></p><h5 style="font-weight:800;color:var(--ink);margin:0;"><%= t('merchant.dashboard.monthlyIndicators') %></h5></div>
       <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
         <a href="<%= isCurrentPeriod ? '/merchant/insights?period=month' : '/merchant/revenue?month=' + selectedPeriod %>" style="font-size:.78rem;font-weight:800;white-space:nowrap;">
-          <%= isCurrentPeriod ? 'View detailed insights' : 'View selected month report' %> <i class="bi bi-arrow-right"></i>
+          <%= isCurrentPeriod ? t('merchant.dashboard.viewInsights') : t('merchant.dashboard.viewMonthReport') %> <i class="bi bi-arrow-right"></i>
         </a>
         <form action="/merchant/dashboard" method="GET" class="d-flex gap-2 align-items-center dashboard-panel p-2">
-          <label for="dashboardMonth" style="font-size:.7rem;font-weight:800;color:var(--muted);padding-left:.35rem;white-space:nowrap;">View month</label>
+          <label for="dashboardMonth" style="font-size:.7rem;font-weight:800;color:var(--muted);padding-left:.35rem;white-space:nowrap;"><%= t('merchant.revenue.viewMonth') %></label>
           <input id="dashboardMonth" type="month" name="month" value="<%= selectedPeriod %>" max="<%= currentPeriod %>"
                  class="form-control form-control-sm" style="width:150px;border-radius:999px;" onchange="this.form.submit()">
-          <% if (!isCurrentPeriod) { %><a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill">Current</a><% } %>
+          <% if (!isCurrentPeriod) { %><a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill"><%= t('merchant.dashboard.current') %></a><% } %>
         </form>
       </div>
     </div>
     <div class="row g-3 mb-4">
       <% [
-        { label:'Bookings', value:bookings.month_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:'Scheduled bookings in ' + periodLabel + '; cancellations excluded', featured:true },
-        { label:'Revenue', value:'S$' + Number(revenue.month_revenue || 0).toFixed(2), icon:'bi-cash-stack', color:'var(--success)', note:'Successful payments in ' + periodLabel },
-        { label:'Cancellation Rate', value:hasFinalOutcomes ? cancellationRate + '%' : 'N/A', icon:'bi-x-circle', color:cancellationColor, note:hasFinalOutcomes ? Number(metrics.monthlyCancelledBookings || 0) + ' cancelled of ' + Number(metrics.monthlyFinishedBookings || 0) + ' final outcome(s)' + (!hasReliableCancellationSample ? '; limited data' : '') : 'No final appointment outcomes yet' },
-        { label:ratingLabel, value:hasRating ? rating.toFixed(1) : 'N/A', icon:'bi-star-fill', color:ratingColor, note:ratingNote },
+        { label:t('admin.table.bookings'), value:bookings.month_bookings, icon:'bi-calendar2-check', color:'var(--accent)', note:t('merchant.dashboard.scheduledNote', { period: periodLabel }), featured:true },
+        { label:t('admin.table.revenue'), value:'S$' + Number(revenue.month_revenue || 0).toFixed(2), icon:'bi-cash-stack', color:'var(--success)', note:t('merchant.dashboard.paymentsNote', { period: periodLabel }) },
+        { label:t('merchant.dashboard.cancellationRate'), value:hasFinalOutcomes ? cancellationRate + '%' : t('merchant.dashboard.na'), icon:'bi-x-circle', color:cancellationColor, note:hasFinalOutcomes ? t('merchant.dashboard.cancelledOf', { cancelled: Number(metrics.monthlyCancelledBookings || 0), total: Number(metrics.monthlyFinishedBookings || 0) }) + (!hasReliableCancellationSample ? t('merchant.dashboard.limitedDataSuffix') : '') : t('merchant.dashboard.noOutcomes') },
+        { label:ratingLabel, value:hasRating ? rating.toFixed(1) : t('merchant.dashboard.na'), icon:'bi-star-fill', color:ratingColor, note:ratingNote },
       ].forEach(item => { %>
         <div class="col-6 col-lg-3">
           <div class="dashboard-kpi h-100 <%= item.featured ? 'featured' : '' %>" style="color:<%= item.color %>;">
@@ -430,18 +430,18 @@
         <div class="dashboard-panel h-100">
           <div class="dashboard-panel-head">
             <div>
-              <p class="section-label mb-2">Operational readiness</p>
-              <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Business setup status</h5>
-              <p style="color:var(--muted);font-size:.75rem;margin:0;">Live service, staff, and opening-hour coverage.</p>
+              <p class="section-label mb-2"><%= t('merchant.dashboard.readiness') %></p>
+              <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.dashboard.setupStatus') %></h5>
+              <p style="color:var(--muted);font-size:.75rem;margin:0;"><%= t('merchant.dashboard.setupSub') %></p>
             </div>
-            <span class="signal-pill"><i class="bi bi-activity"></i><%= actions.length ? actions.length + ' alert(s)' : 'Ready' %></span>
+            <span class="signal-pill"><i class="bi bi-activity"></i><%= actions.length ? t('merchant.dashboard.alertCount', { count: actions.length }) : t('merchant.dashboard.ready') %></span>
           </div>
           <div class="dashboard-panel-body">
             <div class="row g-3">
               <% [
-                {label:'Service Coverage', value:operations.activeServices + ' active', note:operations.inactiveServices + ' disabled', percent:serviceCoverage, icon:'bi-scissors', href:'/merchant/services'},
-                {label:'Staff Availability', value:operations.activeStaff + ' active', note:operations.inactiveStaff + ' inactive', percent:staffCoverage, icon:'bi-people', href:'/merchant/staff'},
-                {label:'Operating Hours', value:operations.activeAvailabilityDays + ' days active', note:operations.missingAvailabilityDays.length ? 'Missing: ' + operations.missingAvailabilityDays.join(', ') : 'All days configured', percent:hoursCoverage, icon:'bi-clock', href:'/merchant/availability'},
+                {label:t('merchant.dashboard.serviceCoverage'), value:t('admin.common.countActive', { count: operations.activeServices }), note:t('admin.common.countDisabled', { count: operations.inactiveServices }), percent:serviceCoverage, icon:'bi-scissors', href:'/merchant/services'},
+                {label:t('merchant.dashboard.staffAvailability'), value:t('admin.common.countActive', { count: operations.activeStaff }), note:t('merchant.dashboard.countInactive', { count: operations.inactiveStaff }), percent:staffCoverage, icon:'bi-people', href:'/merchant/staff'},
+                {label:t('merchant.dashboard.operatingHours'), value:t('merchant.dashboard.daysActive', { count: operations.activeAvailabilityDays }), note:operations.missingAvailabilityDays.length ? t('merchant.dashboard.missingDays', { days: operations.missingAvailabilityDays.join(', ') }) : t('merchant.dashboard.allDaysConfigured'), percent:hoursCoverage, icon:'bi-clock', href:'/merchant/availability'},
               ].forEach(item => { %>
                 <div class="col-md-4">
                   <a href="<%= item.href %>" class="rounded-xl p-3 h-100 d-block text-decoration-none" style="background:var(--neutral-bg);">
@@ -462,10 +462,10 @@
         <div class="dashboard-panel h-100" style="background:linear-gradient(145deg,#fff,var(--accent-light));border-color:rgba(225,29,72,.18);">
           <div class="dashboard-panel-body h-100 d-flex flex-column justify-content-center">
             <div class="metric-icon mb-3"><i class="bi bi-graph-up-arrow"></i></div>
-            <p class="section-label mb-2">Reporting & decision support</p>
-            <h5 style="font-weight:800;color:var(--ink);">Understand business performance</h5>
-            <p style="color:var(--muted);font-size:.78rem;">Explore trends, service and staff performance, customer behaviour, recommendations, and the AI Business Coach.</p>
-            <a href="/merchant/insights?period=30d" class="btn btn-primary btn-pill mt-auto">Open Business Insights <i class="bi bi-arrow-right ms-1"></i></a>
+            <p class="section-label mb-2"><%= t('merchant.dashboard.reportingEyebrow') %></p>
+            <h5 style="font-weight:800;color:var(--ink);"><%= t('merchant.dashboard.understandPerf') %></h5>
+            <p style="color:var(--muted);font-size:.78rem;"><%= t('merchant.dashboard.exploreTrends') %></p>
+            <a href="/merchant/insights?period=30d" class="btn btn-primary btn-pill mt-auto"><%= t('merchant.dashboard.openInsights') %> <i class="bi bi-arrow-right ms-1"></i></a>
           </div>
         </div>
       </div>
@@ -477,15 +477,15 @@
         <div class="dashboard-panel h-100">
           <div class="dashboard-panel-head">
             <div>
-          <h5 style="font-weight:800;color:var(--ink);"><i class="bi bi-exclamation-circle me-2" style="color:var(--warn);"></i>Live Pending Actions</h5>
-          <p style="color:var(--muted);font-size:.8rem;">Current items requiring attention, regardless of the viewed month.</p>
+          <h5 style="font-weight:800;color:var(--ink);"><i class="bi bi-exclamation-circle me-2" style="color:var(--warn);"></i><%= t('merchant.dashboard.pendingActions') %></h5>
+          <p style="color:var(--muted);font-size:.8rem;"><%= t('merchant.dashboard.pendingActionsSub') %></p>
             </div>
-            <span class="signal-pill"><%= actions.length %> alert(s)</span>
+            <span class="signal-pill"><%= t('merchant.dashboard.alertCount', { count: actions.length }) %></span>
           </div>
           <div class="dashboard-panel-body">
           <% if (!actions.length) { %>
             <div class="rounded-xl p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-              <i class="bi bi-check-circle me-2"></i>No action needed right now.
+              <i class="bi bi-check-circle me-2"></i><%= t('merchant.dashboard.noActionNeeded') %>
             </div>
           <% } else { %>
             <div class="d-grid gap-2">
@@ -507,21 +507,21 @@
         <div class="dashboard-panel h-100 overflow-hidden">
           <div class="dashboard-panel-head">
             <div>
-            <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Today's Schedule</h5>
-            <p style="color:var(--muted);font-size:.8rem;">Upcoming appointments for the rest of today, regardless of the selected reporting month.</p>
+            <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.dashboard.todaySchedule') %></h5>
+            <p style="color:var(--muted);font-size:.8rem;"><%= t('merchant.dashboard.todayScheduleSub') %></p>
             </div>
-            <span class="signal-pill"><i class="bi bi-calendar3"></i><%= schedule.length %> upcoming</span>
+            <span class="signal-pill"><i class="bi bi-calendar3"></i><%= t('merchant.dashboard.upcomingCount', { count: schedule.length }) %></span>
           </div>
           <% if (!schedule.length) { %>
             <div class="text-center px-4 pb-5 pt-3">
               <i class="bi bi-calendar2-check" style="font-size:2rem;color:var(--accent);"></i>
-              <p style="font-weight:700;color:var(--ink);margin:.7rem 0 .2rem;">No more appointments today</p>
-              <p style="color:var(--muted);font-size:.8rem;margin:0;">Your upcoming schedule is clear.</p>
+              <p style="font-weight:700;color:var(--ink);margin:.7rem 0 .2rem;"><%= t('merchant.dashboard.noMoreToday') %></p>
+              <p style="color:var(--muted);font-size:.8rem;margin:0;"><%= t('merchant.dashboard.scheduleClear') %></p>
             </div>
           <% } else { %>
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0" style="font-size:.8rem;">
-                <thead style="background:var(--accent-light);"><tr><th>Time</th><th>Customer</th><th>Service</th><th>Staff</th><th>Status</th></tr></thead>
+                <thead style="background:var(--accent-light);"><tr><th><%= t('common.time') %></th><th><%= t('admin.table.customer') %></th><th><%= t('common.service') %></th><th><%= t('common.staff') %></th><th><%= t('admin.table.status') %></th></tr></thead>
                 <tbody>
                   <% schedule.forEach(item => { const style = statusStyles[item.status] || statusStyles.confirmed; %>
                     <tr>
@@ -626,19 +626,19 @@
 
     <!-- Management shortcuts remain available without repeating dashboard indicators. -->
     <div class="d-flex justify-content-between align-items-end gap-2 mb-3">
-      <div><h5 style="font-weight:800;color:var(--ink);margin:0;">Quick Actions</h5><p style="color:var(--muted);font-size:.8rem;margin:0;">Manage your business after reviewing the indicators.</p></div>
-      <a href="/merchant/manage" class="btn btn-outline-secondary btn-pill btn-sm">All Management Tools</a>
+      <div><h5 style="font-weight:800;color:var(--ink);margin:0;"><%= t('merchant.dashboard.quickActions') %></h5><p style="color:var(--muted);font-size:.8rem;margin:0;"><%= t('merchant.dashboard.quickActionsSub') %></p></div>
+      <a href="/merchant/manage" class="btn btn-outline-secondary btn-pill btn-sm"><%= t('merchant.dashboard.allTools') %></a>
     </div>
     <div class="row g-3">
       <% [
-        {href:'/merchant/bookings', icon:'bi-calendar-check', label:'View Bookings'},
-        {href:'/merchant/services', icon:'bi-scissors', label:'Manage Services'},
-        {href:'/merchant/staff', icon:'bi-people', label:'Manage Staff'},
-        {href:'/merchant/availability', icon:'bi-clock', label:'Manage Availability'},
-        {href:'/merchant/promotions', icon:'bi-tag', label:'Manage Promotions'},
-        {href:'/merchant/qr', icon:'bi-qr-code', label:'Manage QR Code'},
-        {href:'/merchant/waitlists', icon:'bi-list-ol', label:'View Waitlists', badge:activeWaitlists},
-        {href:'/merchant/revenue?month=' + selectedPeriod, icon:'bi-graph-up', label:'View Revenue Report'},
+        {href:'/merchant/bookings', icon:'bi-calendar-check', label:t('merchant.dashboard.qa.bookings')},
+        {href:'/merchant/services', icon:'bi-scissors', label:t('merchant.insights.manageServices')},
+        {href:'/merchant/staff', icon:'bi-people', label:t('merchant.insights.manageStaff')},
+        {href:'/merchant/availability', icon:'bi-clock', label:t('merchant.dashboard.qa.availability')},
+        {href:'/merchant/promotions', icon:'bi-tag', label:t('merchant.dashboard.qa.promotions')},
+        {href:'/merchant/qr', icon:'bi-qr-code', label:t('merchant.dashboard.qa.qr')},
+        {href:'/merchant/waitlists', icon:'bi-list-ol', label:t('merchant.dashboard.qa.waitlists'), badge:activeWaitlists},
+        {href:'/merchant/revenue?month=' + selectedPeriod, icon:'bi-graph-up', label:t('merchant.dashboard.qa.revenue')},
       ].forEach(action => { %>
         <div class="col-6 col-md-3">
           <a href="<%= action.href %>" class="action-card h-100">

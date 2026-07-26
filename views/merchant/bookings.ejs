@@ -36,16 +36,23 @@
 </style>
 
 <%
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char]));
   const bookingList = Array.isArray(bookings) ? bookings : [];
   const statusStyles = {
-    pending_payment: { label: 'Pending Payment', bg: 'var(--warn-bg)', color: 'var(--warn)' },
-    confirmed:       { label: 'Confirmed', bg: '#EFF6FF', color: '#2563EB' },
-    rescheduled:     { label: 'Rescheduled', bg: '#EFF6FF', color: '#2563EB' },
-    arrived:         { label: 'Arrived', bg: '#F5F3FF', color: '#7C3AED' },
-    completed:       { label: 'Completed', bg: 'var(--success-bg)', color: 'var(--success)' },
-    cancelled:       { label: 'Cancelled', bg: 'var(--danger-bg)', color: 'var(--danger)' },
-    payment_failed:  { label: 'Payment Failed', bg: 'var(--danger-bg)', color: 'var(--danger)' },
-    no_show:         { label: 'No Show', bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    pending_payment: { label: t('admin.bookingStatus.pending_payment'), bg: 'var(--warn-bg)', color: 'var(--warn)' },
+    confirmed:       { label: t('admin.bookingStatus.confirmed'), bg: '#EFF6FF', color: '#2563EB' },
+    rescheduled:     { label: t('admin.bookingStatus.rescheduled'), bg: '#EFF6FF', color: '#2563EB' },
+    arrived:         { label: t('admin.bookingStatus.arrived'), bg: '#F5F3FF', color: '#7C3AED' },
+    completed:       { label: t('admin.bookingStatus.completed'), bg: 'var(--success-bg)', color: 'var(--success)' },
+    cancelled:       { label: t('admin.bookingStatus.cancelled'), bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    payment_failed:  { label: t('admin.bookingStatus.payment_failed'), bg: 'var(--danger-bg)', color: 'var(--danger)' },
+    no_show:         { label: t('admin.bookingStatus.no_show'), bg: 'var(--warn-bg)', color: 'var(--warn)' },
   };
 
   function formatDate(value) {
@@ -63,12 +70,12 @@
   function bookingSource(value) {
     const source = String(value || '').toLowerCase();
     if (source === 'qr' || source === 'qr_scan') {
-      return { label: 'QR Booking', icon: 'bi-qr-code' };
+      return { label: t('merchant.bookings.sourceQr'), icon: 'bi-qr-code' };
     }
     if (source === 'whatsapp') {
-      return { label: 'WhatsApp', icon: 'bi-whatsapp' };
+      return { label: t('admin.source.whatsapp'), icon: 'bi-whatsapp' };
     }
-    return { label: 'Web', icon: 'bi-globe2' };
+    return { label: t('admin.source.web'), icon: 'bi-globe2' };
   }
 
   function appointmentDateTime(booking, time) {
@@ -102,21 +109,21 @@
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
   <div class="container merchant-bookings-shell">
     <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-      <i class="bi bi-arrow-left me-1"></i>Dashboard
+      <i class="bi bi-arrow-left me-1"></i><%= t('nav.dashboard') %>
     </a>
 
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
       <div>
-        <p class="section-label mb-2">Bookings</p>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--accent);margin-bottom:.25rem;">All Merchant Bookings</h2>
-        <p style="color:var(--muted);margin:0;">View and manage every booking made for your merchant account.</p>
+        <p class="section-label mb-2"><%= t('merchant.nav.bookings') %></p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--accent);margin-bottom:.25rem;"><%= t('merchant.bookings.title') %></h2>
+        <p style="color:var(--muted);margin:0;"><%= t('merchant.bookings.subtitle') %></p>
       </div>
       <a href="/merchant/qr" class="btn btn-primary btn-pill">
-        <i class="bi bi-qr-code me-1"></i>My QR Code
+        <i class="bi bi-qr-code me-1"></i><%= t('merchant.bookings.myQr') %>
       </a>
     </div>
 
-    <div id="booking-list" class="d-flex flex-wrap gap-2 mb-3" aria-label="Booking status colours">
+    <div id="booking-list" class="d-flex flex-wrap gap-2 mb-3" aria-label="<%= t('merchant.bookings.statusColoursAria') %>">
       <% [
         statusStyles.confirmed,
         statusStyles.arrived,
@@ -135,19 +142,19 @@
       const cancelledCount = bookingList.filter(item => item.status === 'cancelled').length;
       const notCompletedCount = bookingList.length - completedCount - cancelledCount;
     %>
-      <div class="booking-filter-bar" role="group" aria-label="Filter bookings by completion status">
-        <span class="me-1" style="font-size:.8rem;font-weight:800;color:var(--ink);">Show:</span>
+      <div class="booking-filter-bar" role="group" aria-label="<%= t('merchant.bookings.filterAria') %>">
+        <span class="me-1" style="font-size:.8rem;font-weight:800;color:var(--ink);"><%= t('merchant.bookings.show') %></span>
         <button type="button" class="booking-filter-button is-active" data-booking-filter="all" aria-pressed="true">
-          All <span class="booking-filter-count"><%= bookingList.length %></span>
+          <%= t('merchant.bookings.filterAll') %> <span class="booking-filter-count"><%= bookingList.length %></span>
         </button>
         <button type="button" class="booking-filter-button" data-booking-filter="completed" aria-pressed="false">
-          Completed <span class="booking-filter-count"><%= completedCount %></span>
+          <%= t('bookings.completed') %> <span class="booking-filter-count"><%= completedCount %></span>
         </button>
         <button type="button" class="booking-filter-button" data-booking-filter="not-completed" aria-pressed="false">
-          Not completed <span class="booking-filter-count"><%= notCompletedCount %></span>
+          <%= t('merchant.bookings.filterNotCompleted') %> <span class="booking-filter-count"><%= notCompletedCount %></span>
         </button>
         <button type="button" class="booking-filter-button" data-booking-filter="cancelled" aria-pressed="false">
-          Cancelled <span class="booking-filter-count"><%= cancelledCount %></span>
+          <%= t('bookings.cancelled') %> <span class="booking-filter-count"><%= cancelledCount %></span>
         </button>
       </div>
     <% } %>
@@ -165,27 +172,27 @@
 
     <details class="card border-0 mb-4" style="box-shadow:var(--shadow-sm);border-radius:var(--r-xl);">
       <summary class="p-3" style="cursor:pointer;font-weight:800;color:var(--danger);">
-        <i class="bi bi-exclamation-triangle me-2"></i>Declare Emergency Closure
+        <i class="bi bi-exclamation-triangle me-2"></i><%= t('merchant.bookings.declareClosure') %>
       </summary>
       <form id="emergencyClosureForm" action="/merchant/emergency-closures" method="POST" class="p-4 pt-1" autocomplete="off">
-        <p class="small text-muted">All confirmed bookings overlapping this period will be cancelled and customers will be notified about their full refund.</p>
+        <p class="small text-muted"><%= t('merchant.bookings.closureWarning') %></p>
         <div class="row g-3">
-          <div class="col-md-4"><label class="form-label fw-bold">Closure starts</label><input id="closureStartsAt" class="form-control rounded-xl" type="datetime-local" name="starts_at" required></div>
-          <div class="col-md-4"><label class="form-label fw-bold">Closure ends</label><input id="closureEndsAt" class="form-control rounded-xl" type="datetime-local" name="ends_at" required></div>
+          <div class="col-md-4"><label class="form-label fw-bold"><%= t('merchant.bookings.closureStarts') %></label><input id="closureStartsAt" class="form-control rounded-xl" type="datetime-local" name="starts_at" required></div>
+          <div class="col-md-4"><label class="form-label fw-bold"><%= t('merchant.bookings.closureEnds') %></label><input id="closureEndsAt" class="form-control rounded-xl" type="datetime-local" name="ends_at" required></div>
           <div class="col-md-4">
-            <label class="form-label fw-bold">Closure reason</label>
+            <label class="form-label fw-bold"><%= t('merchant.bookings.closureReason') %></label>
             <select id="closureReasonSuggestion" class="form-select rounded-xl mb-2" autocomplete="off">
-              <option value="">Choose a suggestion or write your own</option>
-              <option value="We need to close temporarily due to an unforeseen operational emergency. We sincerely apologise for the inconvenience caused.">Unforeseen operational emergency</option>
-              <option value="We need to close temporarily due to an unexpected utilities disruption. We sincerely apologise for the inconvenience caused.">Utilities disruption</option>
-              <option value="We need to close temporarily because the premises are currently inaccessible. We sincerely apologise for the inconvenience caused.">Premises inaccessible</option>
-              <option value="We need to close temporarily due to an urgent health and safety concern. We sincerely apologise for the inconvenience caused.">Health and safety concern</option>
+              <option value=""><%= t('merchant.bookings.chooseSuggestion') %></option>
+              <option value="<%= t('merchant.bookings.reasonBody.operational') %>"><%= t('merchant.bookings.reasonLabel.operational') %></option>
+              <option value="<%= t('merchant.bookings.reasonBody.utilities') %>"><%= t('merchant.bookings.reasonLabel.utilities') %></option>
+              <option value="<%= t('merchant.bookings.reasonBody.premises') %>"><%= t('merchant.bookings.reasonLabel.premises') %></option>
+              <option value="<%= t('merchant.bookings.reasonBody.safety') %>"><%= t('merchant.bookings.reasonLabel.safety') %></option>
             </select>
-            <label class="form-label fw-bold">Message sent to customers</label>
-            <textarea id="closureReason" class="form-control rounded-xl" name="reason" minlength="5" maxlength="500" required autocomplete="new-password" placeholder="Explain why the business must close during this period"></textarea>
+            <label class="form-label fw-bold"><%= t('merchant.bookings.messageToCustomers') %></label>
+            <textarea id="closureReason" class="form-control rounded-xl" name="reason" minlength="5" maxlength="500" required autocomplete="new-password" placeholder="<%= t('merchant.bookings.reasonPlaceholder') %>"></textarea>
           </div>
         </div>
-        <button class="btn btn-danger btn-pill mt-3" type="submit">Confirm closure and refund customers</button>
+        <button class="btn btn-danger btn-pill mt-3" type="submit"><%= t('merchant.bookings.confirmClosure') %></button>
       </form>
     </details>
 
@@ -194,13 +201,13 @@
         <div class="icon-circle-lg mx-auto mb-3">
           <i class="bi bi-calendar2-x" style="font-size:2rem;color:var(--accent);"></i>
         </div>
-        <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">No bookings yet</h6>
+        <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('bookings.noBookingsTitle') %></h6>
         <p style="color:var(--muted);font-size:.875rem;margin:0 auto 1.25rem;max-width:420px;">
-          Bookings from customers will appear here once they reserve one of your services.
+          <%= t('merchant.bookings.emptyBody') %>
         </p>
         <div class="d-flex gap-2 justify-content-center flex-wrap">
-          <a href="/merchant/qr" class="btn btn-primary btn-pill btn-sm">Get My QR Code</a>
-          <a href="/merchant/services" class="btn btn-outline-secondary btn-pill btn-sm">Manage Services</a>
+          <a href="/merchant/qr" class="btn btn-primary btn-pill btn-sm"><%= t('merchant.bookings.getQr') %></a>
+          <a href="/merchant/services" class="btn btn-outline-secondary btn-pill btn-sm"><%= t('merchant.insights.manageServices') %></a>
         </div>
       </div>
     <% } else { %>
@@ -209,32 +216,32 @@
           <table class="table table-hover align-middle mb-0 merchant-bookings-table" style="font-size:.8125rem;">
             <thead style="background:var(--accent-light);">
               <tr>
-                <th>ID</th>
-                <th>Customer</th>
-                <th>Service</th>
-                <th>Staff</th>
-                <th>Date &amp; Time</th>
-                <th>Source</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th style="min-width:210px;">Action</th>
+                <th><%= t('admin.dashboard.logs.colId') %></th>
+                <th><%= t('admin.table.customer') %></th>
+                <th><%= t('common.service') %></th>
+                <th><%= t('common.staff') %></th>
+                <th><%= t('admin.table.dateTime') %></th>
+                <th><%= t('admin.table.source') %></th>
+                <th><%= t('common.total') %></th>
+                <th><%= t('admin.table.status') %></th>
+                <th style="min-width:210px;"><%= t('admin.logs.colAction') %></th>
               </tr>
             </thead>
             <tbody>
               <% bookingList.forEach(booking => {
                 const baseStatus = statusStyles[booking.status] || {
-                  label: booking.status || 'Booked',
+                  label: t('admin.bookingStatus.' + booking.status, {}, booking.status || t('bookings.booked')),
                   bg: 'var(--accent-light)',
                   color: 'var(--accent)',
                 };
                 const isFinalBookingStatus = ['cancelled', 'payment_failed', 'completed', 'no_show'].includes(booking.status);
                 let status = baseStatus;
                 if (!isFinalBookingStatus && booking.staff_change_status === 'pending') {
-                  status = { label: 'Awaiting replacement response', bg: 'var(--warn-bg)', color: 'var(--warn)' };
+                  status = { label: t('merchant.bookings.awaitingReplacement'), bg: 'var(--warn-bg)', color: 'var(--warn)' };
                 } else if (!isFinalBookingStatus && booking.staff_change_status === 'accepted') {
                   status = statusStyles.confirmed;
                 } else if (!isFinalBookingStatus && booking.staff_change_status === 'reschedule_requested') {
-                  status = { label: 'Rescheduled', bg: '#EFF6FF', color: '#2563EB' };
+                  status = { label: t('admin.bookingStatus.rescheduled'), bg: '#EFF6FF', color: '#2563EB' };
                 }
                 const arrivalAvailable = canMarkArrived(booking);
                 const appointmentHasStarted = hasAppointmentStarted(booking);
@@ -247,10 +254,10 @@
                   <td style="font-weight:600;color:var(--muted);font-family:var(--font-mono);">#<%= booking.booking_id %></td>
                   <td>
                     <p style="font-weight:700;margin-bottom:0;color:var(--ink);"><%= booking.customer_name %></p>
-                    <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= booking.customer_phone || 'No phone' %></p>
+                    <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= booking.customer_phone || t('admin.customers.noPhone') %></p>
                   </td>
                   <td><%= booking.service_name %></td>
-                  <td><%= booking.staff_name || 'Unassigned' %></td>
+                  <td><%= booking.staff_name || t('merchant.bookings.unassigned') %></td>
                   <td>
                     <%= formatDate(booking.booking_date) %>
                     <br>
@@ -270,7 +277,7 @@
                     </span>
                     <% if (!isFinalBookingStatus && booking.staff_change_status === 'pending') { %>
                       <div style="color:var(--muted);font-size:.7rem;margin-top:.2rem;">
-                        Proposed: <%= booking.proposed_staff_name || 'Replacement staff' %>
+                        <%= t('merchant.bookings.proposed', { name: booking.proposed_staff_name || t('merchant.bookings.replacementStaff') }) %>
                       </div>
                     <% } %>
                   </td>
@@ -281,76 +288,75 @@
                       <form action="/merchant/bookings/<%= booking.booking_id %>/arrived" method="POST" class="d-inline">
                         <input type="hidden" name="returnTo" value="/merchant/bookings">
                         <button class="btn btn-sm btn-outline-secondary btn-pill" style="font-size:.72rem;padding:.2rem .6rem;">
-                          <i class="bi bi-person-check me-1"></i>Arrived
+                          <i class="bi bi-person-check me-1"></i><%= t('bookings.arrived') %>
                         </button>
                       </form>
                     <% } else { %>
-                      <span style="color:var(--muted);font-size:.72rem;" title="Available 15 minutes before the appointment">
-                        <i class="bi bi-clock me-1"></i>Awaiting appointment
+                      <span style="color:var(--muted);font-size:.72rem;" title="<%= t('merchant.bookings.arrivalHint') %>">
+                        <i class="bi bi-clock me-1"></i><%= t('merchant.bookings.awaitingAppointment') %>
                       </span>
                     <% } %>
                     <% if (canMarkNoShow) { %>
                       <form action="/merchant/bookings/<%= booking.booking_id %>/no-show" method="POST" class="d-inline"
-                            onsubmit="return confirm('Mark this appointment as a no-show?');">
+                            onsubmit="return confirm('<%= t('merchant.bookings.noShowConfirm') %>');">
                         <button class="btn btn-sm btn-pill" style="font-size:.72rem;padding:.2rem .6rem;background:var(--warn-bg);color:var(--warn);border:1px solid rgba(217,119,6,.2);">
-                          <i class="bi bi-person-x me-1"></i>No Show
+                          <i class="bi bi-person-x me-1"></i><%= t('bookings.noShow') %>
                         </button>
                       </form>
                     <% } %>
                     <% if (['confirmed', 'rescheduled'].includes(booking.status) && !appointmentHasStarted) { %>
                       <button type="button" class="btn btn-sm btn-outline-secondary btn-pill js-open-booking-modal" style="font-size:.75rem;" data-modal-id="bookingManageModal-<%= booking.booking_id %>">
-                        <i class="bi bi-three-dots-vertical me-1"></i>Manage booking
+                        <i class="bi bi-three-dots-vertical me-1"></i><%= t('merchant.bookings.manageBooking') %>
                       </button>
                       <div class="booking-manage-overlay" id="bookingManageModal-<%= booking.booking_id %>" role="dialog" aria-modal="true" aria-labelledby="bookingManageTitle-<%= booking.booking_id %>" aria-hidden="true">
                         <div class="booking-manage-dialog">
                           <div class="booking-manage-header">
                             <div>
-                              <p class="section-label mb-1">Booking #<%= booking.booking_id %></p>
-                              <h5 id="bookingManageTitle-<%= booking.booking_id %>" style="font-weight:800;color:var(--ink);margin:0;">Manage <%= booking.customer_name %>'s booking</h5>
-                              <p style="color:var(--muted);font-size:.82rem;margin:.3rem 0 0;"><%= booking.service_name %> · <%= formatDate(booking.booking_date) %> at <%= formatTime(booking.booking_time) %></p>
+                              <p class="section-label mb-1"><%= t('admin.reviews.bookingRef', { id: booking.booking_id }) %></p>
+                              <h5 id="bookingManageTitle-<%= booking.booking_id %>" style="font-weight:800;color:var(--ink);margin:0;"><%= t('merchant.bookings.manageFor', { name: booking.customer_name }) %></h5>
+                              <p style="color:var(--muted);font-size:.82rem;margin:.3rem 0 0;"><%= booking.service_name %> · <%= t('merchant.bookings.dateAtTime', { date: formatDate(booking.booking_date), time: formatTime(booking.booking_time) }) %></p>
                             </div>
-                            <button type="button" class="booking-manage-close js-close-booking-modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+                            <button type="button" class="booking-manage-close js-close-booking-modal" aria-label="<%= t('merchant.bookings.close') %>"><i class="bi bi-x-lg"></i></button>
                           </div>
                           <% if (booking.staff_change_status === 'pending') { %>
                           <div class="booking-manage-section">
-                            <p class="booking-manage-label"><i class="bi bi-hourglass-split me-1"></i>Replacement proposal pending</p>
+                            <p class="booking-manage-label"><i class="bi bi-hourglass-split me-1"></i><%= t('merchant.bookings.proposalPending') %></p>
                             <div style="background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:.8rem;font-size:.82rem;">
-                              <strong><%= booking.proposed_staff_name || 'Replacement staff' %></strong> was proposed.
-                              The customer has not replied yet.
+                              <%- t('merchant.bookings.proposedBody', { name: escapeHtml(booking.proposed_staff_name || t('merchant.bookings.replacementStaff')) }) %>
                               <% if (booking.staff_change_requested_at) { %>
-                                <div class="mt-1" style="opacity:.8;">Sent <%= new Date(booking.staff_change_requested_at).toLocaleString('en-SG', { dateStyle:'medium', timeStyle:'short' }) %></div>
+                                <div class="mt-1" style="opacity:.8;"><%= t('merchant.bookings.sentAt', { time: new Date(booking.staff_change_requested_at).toLocaleString('en-SG', { dateStyle:'medium', timeStyle:'short' }) }) %></div>
                               <% } %>
                             </div>
                           </div>
                           <% } else if (availableReplacements.length) { %>
                           <div class="booking-manage-section">
-                            <p class="booking-manage-label"><i class="bi bi-person-exclamation me-1"></i>Staff unavailable</p>
-                            <p class="small text-muted">Propose an available replacement. The customer can accept, reschedule, or cancel for a full refund.</p>
+                            <p class="booking-manage-label"><i class="bi bi-person-exclamation me-1"></i><%= t('merchant.bookings.staffUnavailable') %></p>
+                            <p class="small text-muted"><%= t('merchant.bookings.proposeHint') %></p>
                             <form action="/merchant/bookings/<%= booking.booking_id %>/propose-replacement" method="POST">
                           <select name="proposed_staff_id" class="form-select form-select-sm mb-2" required>
-                            <option value="">Choose replacement staff</option>
+                            <option value=""><%= t('merchant.bookings.chooseReplacement') %></option>
                             <% availableReplacements.forEach(member => { %><option value="<%= member.staff_id %>"><%= member.full_name %></option><% }) %>
                           </select>
-                          <textarea name="reason" class="form-control form-control-sm mb-2" maxlength="500" required>Assigned staff member is unexpectedly unavailable.</textarea>
-                              <button class="btn btn-primary btn-sm btn-pill w-100" type="submit">Send customer options</button>
+                          <textarea name="reason" class="form-control form-control-sm mb-2" maxlength="500" required><%= t('merchant.bookings.defaultReplacementReason') %></textarea>
+                              <button class="btn btn-primary btn-sm btn-pill w-100" type="submit"><%= t('merchant.bookings.sendOptions') %></button>
                             </form>
                           </div>
                           <% } %>
                           <div class="booking-manage-section">
-                            <p class="booking-manage-label"><i class="bi bi-x-circle me-1"></i>Cancel for another reason</p>
-                            <p class="small text-muted">This cancels the appointment, blocks its slot, and initiates a 100% refund.</p>
-                            <form action="/merchant/bookings/<%= booking.booking_id %>/cancel-other" method="POST" onsubmit="return confirm('Cancel this booking, block its slot, and initiate a 100% refund?');">
-                              <label class="form-label small fw-bold">Suggested explanation</label>
+                            <p class="booking-manage-label"><i class="bi bi-x-circle me-1"></i><%= t('merchant.bookings.cancelOther') %></p>
+                            <p class="small text-muted"><%= t('merchant.bookings.cancelOtherHint') %></p>
+                            <form action="/merchant/bookings/<%= booking.booking_id %>/cancel-other" method="POST" onsubmit="return confirm('<%= t('merchant.bookings.cancelConfirm') %>');">
+                              <label class="form-label small fw-bold"><%= t('merchant.bookings.suggestedExplanation') %></label>
                               <select class="form-select form-select-sm mb-2 js-cancellation-suggestion">
-                                <option value="">Choose a suggestion or write your own</option>
-                                <option value="We are unable to fulfil this appointment due to an unexpected operational issue. We sincerely apologise for the inconvenience caused.">Unexpected operational issue</option>
-                                <option value="We need to cancel this appointment due to an unavoidable scheduling conflict. We sincerely apologise for the inconvenience caused.">Unavoidable scheduling conflict</option>
-                                <option value="The selected service is temporarily unavailable. We sincerely apologise for the inconvenience caused.">Service temporarily unavailable</option>
-                                <option value="Due to unforeseen circumstances, we are unable to proceed with this appointment. We sincerely apologise for the inconvenience caused.">Unforeseen circumstances</option>
+                                <option value=""><%= t('merchant.bookings.chooseSuggestion') %></option>
+                                <option value="<%= t('merchant.bookings.cancelBody.operational') %>"><%= t('merchant.bookings.cancelLabel.operational') %></option>
+                                <option value="<%= t('merchant.bookings.cancelBody.conflict') %>"><%= t('merchant.bookings.cancelLabel.conflict') %></option>
+                                <option value="<%= t('merchant.bookings.cancelBody.unavailable') %>"><%= t('merchant.bookings.cancelLabel.unavailable') %></option>
+                                <option value="<%= t('merchant.bookings.cancelBody.unforeseen') %>"><%= t('merchant.bookings.cancelLabel.unforeseen') %></option>
                               </select>
-                              <label class="form-label small fw-bold">Message sent to customer</label>
-                              <textarea name="reason" class="form-control form-control-sm mb-2 js-cancellation-reason" minlength="5" maxlength="500" required placeholder="Explain the cancellation to the customer"></textarea>
-                              <button class="btn btn-outline-danger btn-sm btn-pill w-100" type="submit">Cancel and refund 100%</button>
+                              <label class="form-label small fw-bold"><%= t('merchant.bookings.messageToCustomer') %></label>
+                              <textarea name="reason" class="form-control form-control-sm mb-2 js-cancellation-reason" minlength="5" maxlength="500" required placeholder="<%= t('merchant.bookings.cancelPlaceholder') %>"></textarea>
+                              <button class="btn btn-outline-danger btn-sm btn-pill w-100" type="submit"><%= t('merchant.bookings.cancelRefund') %></button>
                             </form>
                           </div>
                         </div>
@@ -360,12 +366,12 @@
                       <form action="/merchant/bookings/<%= booking.booking_id %>/complete" method="POST" class="d-inline">
                         <input type="hidden" name="returnTo" value="/merchant/bookings">
                         <button class="btn btn-sm btn-pill" style="font-size:.72rem;padding:.2rem .6rem;background:var(--success);color:#fff;border:none;">
-                          <i class="bi bi-check2-all me-1"></i>Complete
+                          <i class="bi bi-check2-all me-1"></i><%= t('merchant.bookings.complete') %>
                         </button>
                       </form>
                     <% } else if (booking.status === 'arrived') { %>
                       <span style="color:var(--muted);font-size:.72rem;">
-                        <i class="bi bi-clock me-1"></i>Awaiting appointment end
+                        <i class="bi bi-clock me-1"></i><%= t('merchant.bookings.awaitingEnd') %>
                       </span>
                     <% } else { %>
                       <span style="color:var(--muted);font-size:.75rem;">-</span>
@@ -379,7 +385,7 @@
         </div>
         <div id="booking-filter-empty" class="text-center p-5" hidden>
           <i class="bi bi-funnel" style="font-size:1.5rem;color:var(--muted);"></i>
-          <p class="mt-2 mb-0" style="font-weight:700;color:var(--ink);">No bookings match this filter.</p>
+          <p class="mt-2 mb-0" style="font-weight:700;color:var(--ink);"><%= t('merchant.bookings.noFilterMatch') %></p>
         </div>
       </div>
     <% } %>

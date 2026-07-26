@@ -3,33 +3,33 @@
 
 <%
   const formatDate = value => value ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
-  const discountText = promo => promo.offer_text || `${Number(promo.discount_pct || 0).toFixed(0)}% off`;
+  const discountText = promo => promo.offer_text || t('admin.promotions.percentOff', { pct: Number(promo.discount_pct || 0).toFixed(0) });
   const dayNames = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
   const dayLabel = value => {
     const values = String(value || '').split(',').filter(Boolean);
-    if (!values.length || values.length === 7) return 'Every day';
-    if (values.join(',') === 'sat,sun') return 'Weekends only';
-    if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
+    if (!values.length || values.length === 7) return t('home.everyDay');
+    if (values.join(',') === 'sat,sun') return t('home.weekendsOnly');
+    if (values.join(',') === 'mon,tue,wed,thu,fri') return t('home.weekdaysOnly');
     return values.map(day => dayNames[day] || day).join(', ');
   };
   const lifecycleStyle = status => ({
-    active:   { label: 'Active',   icon: 'bi-broadcast',  bg: 'var(--success-bg)', color: 'var(--success)' },
-    upcoming: { label: 'Upcoming', icon: 'bi-clock',      bg: '#EFF6FF',           color: '#1D4ED8' },
-    paused:   { label: 'Paused',   icon: 'bi-pause',      bg: 'var(--warn-bg)',    color: 'var(--warn)' },
-    expired:  { label: 'Expired',  icon: 'bi-calendar-x', bg: 'var(--danger-bg)',  color: 'var(--danger)' },
-  }[status] || { label: 'Approved', icon: 'bi-check-circle', bg: 'var(--success-bg)', color: 'var(--success)' });
+    active:   { label: t('admin.promotions.lifecycle.active'),   icon: 'bi-broadcast',  bg: 'var(--success-bg)', color: 'var(--success)' },
+    upcoming: { label: t('admin.promotions.lifecycle.upcoming'), icon: 'bi-clock',      bg: '#EFF6FF',           color: '#1D4ED8' },
+    paused:   { label: t('admin.promotions.lifecycle.paused'),   icon: 'bi-pause',      bg: 'var(--warn-bg)',    color: 'var(--warn)' },
+    expired:  { label: t('admin.promotions.lifecycle.expired'),  icon: 'bi-calendar-x', bg: 'var(--danger-bg)',  color: 'var(--danger)' },
+  }[status] || { label: t('admin.promotions.lifecycle.approved'), icon: 'bi-check-circle', bg: 'var(--success-bg)', color: 'var(--success)' });
   const pastApprovedList = Array.isArray(pastApprovedPromotions) ? pastApprovedPromotions : [];
 %>
 
 <div class="container py-5">
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
-      <p class="section-label">Admin Review</p>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Promotion Approvals</h2>
-      <p style="color:var(--muted);margin-bottom:0;">Review merchant-submitted promotions before they appear in the marketplace.</p>
+      <p class="section-label"><%= t('admin.promotions.eyebrow') %></p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.promotions.title') %></h2>
+      <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.promotions.subtitle') %></p>
     </div>
     <a href="/admin/dashboard" class="btn btn-outline-secondary btn-pill btn-sm">
-      <i class="bi bi-arrow-left me-1"></i>Dashboard
+      <i class="bi bi-arrow-left me-1"></i><%= t('nav.dashboard') %>
     </a>
   </div>
 
@@ -41,29 +41,29 @@
 
   <% if (query && query.approved) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i>Promotion approved and published.
+    <i class="bi bi-check-circle me-2"></i><%= t('admin.promotions.approvedMsg') %>
   </div>
   <% } %>
 
   <% if (query && query.rejected) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i>Promotion rejected.
+    <i class="bi bi-check-circle me-2"></i><%= t('admin.promotions.rejectedMsg') %>
   </div>
   <% } %>
 
   <% if (query && query.error) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
-    <i class="bi bi-exclamation-circle me-2"></i>Unable to update promotion request.
+    <i class="bi bi-exclamation-circle me-2"></i><%= t('admin.promotions.errorMsg') %>
   </div>
   <% } %>
 
   <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
       <div>
-        <p class="section-label mb-1">Approval Queue</p>
-        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Pending Promotion Requests</h5>
+        <p class="section-label mb-1"><%= t('admin.promotions.queueEyebrow') %></p>
+        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;"><%= t('admin.promotions.queueTitle') %></h5>
       </div>
-      <span class="badge" style="background:#EFF6FF;color:#1D4ED8;"><%= pendingPromotions.length %> pending</span>
+      <span class="badge" style="background:#EFF6FF;color:#1D4ED8;"><%= t('admin.common.countPending', { count: pendingPromotions.length }) %></span>
     </div>
 
     <% if (!pendingPromotions.length) { %>
@@ -71,19 +71,19 @@
       <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
         <i class="bi bi-check-circle" style="font-size:2rem;color:var(--success);"></i>
       </div>
-      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No pending promotions</h6>
-      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">New merchant promotion requests will appear here.</p>
+      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.promotions.emptyTitle') %></h6>
+      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;"><%= t('admin.promotions.emptyBody') %></p>
     </div>
     <% } else { %>
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
         <thead style="background:var(--accent-light);">
           <tr>
-            <th>Promotion</th>
-            <th>Merchant</th>
-            <th>Offer</th>
-            <th>Dates</th>
-            <th>Review</th>
+            <th><%= t('admin.promotions.colPromotion') %></th>
+            <th><%= t('common.merchant') %></th>
+            <th><%= t('admin.promotions.colOffer') %></th>
+            <th><%= t('admin.promotions.colDates') %></th>
+            <th><%= t('admin.promotions.colReview') %></th>
           </tr>
         </thead>
         <tbody>
@@ -109,24 +109,24 @@
             </td>
             <td>
               <p style="font-weight:700;margin-bottom:.15rem;"><%= discountText(promo) %></p>
-              <p style="color:var(--muted);margin-bottom:0;"><%= Number(promo.discount_pct || 0).toFixed(0) %>% discount</p>
+              <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.promotions.percentDiscount', { pct: Number(promo.discount_pct || 0).toFixed(0) }) %></p>
             </td>
             <td>
               <%= formatDate(promo.start_date) %>
-              <span style="color:var(--muted);">to</span>
+              <span style="color:var(--muted);"><%= t('admin.promotions.dateRangeTo') %></span>
               <%= formatDate(promo.end_date) %>
               <p style="color:var(--muted);margin:.25rem 0 0;"><i class="bi bi-calendar-week me-1"></i><%= dayLabel(promo.applicable_days) %></p>
             </td>
             <td style="min-width:260px;">
               <form action="/admin/promotions/<%= promo.promo_id %>/approve" method="POST" class="d-inline">
                 <button type="submit" class="btn btn-sm btn-success btn-pill mb-2">
-                  <i class="bi bi-check-circle me-1"></i>Approve
+                  <i class="bi bi-check-circle me-1"></i><%= t('admin.common.approve') %>
                 </button>
               </form>
               <form action="/admin/promotions/<%= promo.promo_id %>/reject" method="POST">
                 <div class="input-group input-group-sm">
-                  <input type="text" name="rejection_reason" class="form-control" placeholder="Optional rejection reason" />
-                  <button type="submit" class="btn btn-outline-danger">Reject</button>
+                  <input type="text" name="rejection_reason" class="form-control" placeholder="<%= t('admin.promotions.rejectionReason') %>" />
+                  <button type="submit" class="btn btn-outline-danger"><%= t('admin.common.reject') %></button>
                 </div>
               </form>
             </td>
@@ -141,10 +141,10 @@
   <div class="card border-0 overflow-hidden mt-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
       <div>
-        <p class="section-label mb-1">Approved History</p>
-        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Approved Promotions</h5>
+        <p class="section-label mb-1"><%= t('admin.promotions.historyEyebrow') %></p>
+        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;"><%= t('admin.promotions.historyTitle') %></h5>
       </div>
-      <span class="badge" style="background:var(--success-bg);color:var(--success);"><%= pastApprovedList.length %> approved</span>
+      <span class="badge" style="background:var(--success-bg);color:var(--success);"><%= t('admin.promotions.countApproved', { count: pastApprovedList.length }) %></span>
     </div>
 
     <% if (!pastApprovedList.length) { %>
@@ -152,19 +152,19 @@
       <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
         <i class="bi bi-calendar-check" style="font-size:2rem;color:var(--muted);"></i>
       </div>
-      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No approved promotions yet</h6>
-      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Approved promotions will appear here after review.</p>
+      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.promotions.historyEmptyTitle') %></h6>
+      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;"><%= t('admin.promotions.historyEmptyBody') %></p>
     </div>
     <% } else { %>
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
         <thead style="background:var(--canvas);">
           <tr>
-            <th>Promotion</th>
-            <th>Merchant</th>
-            <th>Offer</th>
-            <th>Campaign Period</th>
-            <th>Status</th>
+            <th><%= t('admin.promotions.colPromotion') %></th>
+            <th><%= t('common.merchant') %></th>
+            <th><%= t('admin.promotions.colOffer') %></th>
+            <th><%= t('admin.promotions.colPeriod') %></th>
+            <th><%= t('admin.table.status') %></th>
           </tr>
         </thead>
         <tbody>
@@ -191,11 +191,11 @@
             </td>
             <td>
               <p style="font-weight:700;margin-bottom:.15rem;"><%= discountText(promo) %></p>
-              <p style="color:var(--muted);margin-bottom:0;"><%= Number(promo.discount_pct || 0).toFixed(0) %>% discount</p>
+              <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.promotions.percentDiscount', { pct: Number(promo.discount_pct || 0).toFixed(0) }) %></p>
             </td>
             <td>
               <%= formatDate(promo.start_date) %>
-              <span style="color:var(--muted);">to</span>
+              <span style="color:var(--muted);"><%= t('admin.promotions.dateRangeTo') %></span>
               <%= formatDate(promo.end_date) %>
               <p style="color:var(--muted);margin:.25rem 0 0;"><i class="bi bi-calendar-week me-1"></i><%= dayLabel(promo.applicable_days) %></p>
             </td>
@@ -203,7 +203,7 @@
               <span class="badge rounded-pill" style="background:<%= lifecycle.bg %>;color:<%= lifecycle.color %>;">
                 <i class="bi <%= lifecycle.icon %> me-1"></i><%= lifecycle.label %>
               </span>
-              <p style="color:var(--muted);margin:.35rem 0 0;">Approved <%= formatDate(promo.approved_at) %></p>
+              <p style="color:var(--muted);margin:.35rem 0 0;"><%= t('admin.promotions.approvedOn', { date: formatDate(promo.approved_at) }) %></p>
             </td>
           </tr>
           <% }) %>

@@ -4,7 +4,7 @@
 <!-- Merchant services page: merchants add and manage services customers can book. -->
 <div class="container py-5">
   <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-    <i class="bi bi-arrow-left me-1"></i>Dashboard
+    <i class="bi bi-arrow-left me-1"></i><%= t('nav.dashboard') %>
   </a>
   <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
     <div class="d-flex align-items-center gap-3">
@@ -12,12 +12,12 @@
         <i class="bi bi-scissors" style="color:var(--accent);"></i>
       </div>
       <div>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;">My Services</h2>
-        <p style="color:var(--muted);margin-bottom:0;font-size:.875rem;">Add the services customers can book via your QR code.</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;"><%= t('merchant.services.title') %></h2>
+        <p style="color:var(--muted);margin-bottom:0;font-size:.875rem;"><%= t('merchant.services.subtitle') %></p>
       </div>
     </div>
     <span class="badge" style="background:var(--accent-light);color:var(--accent);font-size:.8125rem;padding:.45rem .9rem;border-radius:999px;font-weight:600;">
-      <%= services.filter(s => s.is_active).length %> active · <%= services.length %> total
+      <%= t('admin.common.countActive', { count: services.filter(s => s.is_active).length }) %> · <%= t('admin.common.countTotal', { count: services.length }) %>
     </span>
   </div>
 
@@ -29,12 +29,12 @@
   <% } %>
   <% if (added) { %>
   <div class="rounded-xl p-3 mb-4" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i>Service added successfully!
+    <i class="bi bi-check-circle me-2"></i><%= t('merchant.services.addedMsg') %>
   </div>
   <% } %>
   <% if (typeof updated !== 'undefined' && updated) { %>
   <div class="rounded-xl p-3 mb-4" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i>Service updated successfully!
+    <i class="bi bi-check-circle me-2"></i><%= t('merchant.services.updatedMsg') %>
   </div>
   <% } %>
 
@@ -43,50 +43,50 @@
     <div class="col-md-5">
       <div class="card border-0 p-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);position:sticky;top:80px;">
         <h5 id="serviceFormTitle" style="font-weight:700;color:var(--ink);margin-bottom:1.25rem;">
-          <i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i>Add New Service
+          <i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i><%= t('merchant.services.addNew') %>
         </h5>
         <form id="serviceForm" action="/merchant/services/add" method="POST">
           <div class="mb-3">
-            <label class="form-label" style="font-size:.875rem;font-weight:600;">Service Name <span style="color:var(--danger);">*</span></label>
+            <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('merchant.services.nameLabel') %> <span style="color:var(--danger);">*</span></label>
             <input id="serviceName" type="text" name="service_name" class="form-control rounded-xl"
-              placeholder="e.g. Gel Manicure" required maxlength="100" />
+              placeholder="<%= t('merchant.services.namePlaceholder') %>" required maxlength="100" />
           </div>
           <div class="mb-3">
-            <label class="form-label" style="font-size:.875rem;font-weight:600;">Description <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('admin.loyalty.description') %> <span style="color:var(--muted);font-weight:400;">(<%= t('booking.optional') %>)</span></label>
             <textarea id="serviceDescription" name="description" class="form-control rounded-xl" rows="2"
-              placeholder="Brief description of the service..." maxlength="255"></textarea>
+              placeholder="<%= t('merchant.services.descPlaceholder') %>" maxlength="255"></textarea>
           </div>
           <div class="mb-3">
-            <label class="form-label" style="font-size:.875rem;font-weight:600;">Category <span style="color:var(--danger);">*</span></label>
+            <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('admin.table.category') %> <span style="color:var(--danger);">*</span></label>
             <select id="serviceCategory" name="category" class="form-select rounded-xl" required>
-              <option value="">Select category</option>
+              <option value=""><%= t('merchant.services.selectCategory') %></option>
               <% (categories || []).forEach(category => { %>
-              <option value="<%= category %>"><%= category %></option>
+              <option value="<%= category %>"><%= t('categories.' + category, {}, category) %></option>
               <% }) %>
             </select>
           </div>
           <div class="row g-2 mb-4">
             <div class="col-6">
-              <label class="form-label" style="font-size:.875rem;font-weight:600;">Price (S$) <span style="color:var(--danger);">*</span></label>
+              <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('merchant.services.priceLabel') %> <span style="color:var(--danger);">*</span></label>
               <input id="servicePrice" type="number" name="price" class="form-control rounded-xl"
                 placeholder="0.00" min="1" max="9999" step="0.01" required />
             </div>
             <div class="col-6">
-              <label class="form-label" style="font-size:.875rem;font-weight:600;">Duration (min) <span style="color:var(--danger);">*</span></label>
+              <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('merchant.services.durationLabel') %> <span style="color:var(--danger);">*</span></label>
               <input id="serviceDuration" type="number" name="duration_mins" class="form-control rounded-xl"
                 placeholder="60" min="5" max="480" step="5" required />
             </div>
           </div>
           <button type="submit" class="btn btn-primary btn-pill w-100" style="font-weight:700;">
-            <i id="serviceSubmitIcon" class="bi bi-plus-lg me-2"></i><span id="serviceSubmitText">Add Service</span>
+            <i id="serviceSubmitIcon" class="bi bi-plus-lg me-2"></i><span id="serviceSubmitText"><%= t('merchant.services.addService') %></span>
           </button>
           <button id="cancelServiceEdit" type="button" class="btn btn-outline-secondary btn-pill w-100 mt-2" style="font-weight:700;display:none;">
-            Cancel Edit
+            <%= t('admin.loyalty.cancelEdit') %>
           </button>
         </form>
         <div class="mt-3 p-3 rounded-xl" style="background:var(--accent-light);">
-          <p style="font-size:.8125rem;font-weight:700;color:var(--accent);margin-bottom:.25rem;"><i class="bi bi-lightbulb me-1"></i>Tip</p>
-          <p style="font-size:.8125rem;color:var(--muted);margin-bottom:0;">Only <strong>active</strong> services appear on your QR booking page. Toggle services on/off as needed.</p>
+          <p style="font-size:.8125rem;font-weight:700;color:var(--accent);margin-bottom:.25rem;"><i class="bi bi-lightbulb me-1"></i><%= t('merchant.services.tipLabel') %></p>
+          <p style="font-size:.8125rem;color:var(--muted);margin-bottom:0;"><%- t('merchant.services.tipBody') %></p>
         </div>
       </div>
     </div>
@@ -98,8 +98,8 @@
         <div class="icon-circle-lg mx-auto mb-3">
           <i class="bi bi-scissors" style="font-size:2rem;color:var(--accent);"></i>
         </div>
-        <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No services yet</h6>
-        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Add your first service so customers can book through your QR code.</p>
+        <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.services.emptyTitle') %></h6>
+        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;"><%= t('merchant.services.emptyBody') %></p>
       </div>
       <% } else { %>
       <div class="d-flex flex-column gap-3">
@@ -110,23 +110,23 @@
               <div class="d-flex align-items-center gap-2 mb-1">
                 <h6 style="font-weight:700;color:var(--ink);margin-bottom:0;"><%= s.service_name %></h6>
                 <% if (!s.is_active) { %>
-                <span class="badge" style="background:var(--neutral-bg);color:var(--muted);font-size:.7rem;">Inactive</span>
+                <span class="badge" style="background:var(--neutral-bg);color:var(--muted);font-size:.7rem;"><%= t('admin.merchants.inactive') %></span>
                 <% } %>
               </div>
               <% if (s.description) { %>
               <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= s.description %></p>
               <% } %>
               <div class="d-flex gap-3" style="font-size:.8125rem;">
-                <span style="color:var(--muted);"><i class="bi bi-grid me-1"></i><%= s.category || 'General' %></span>
+                <span style="color:var(--muted);"><i class="bi bi-grid me-1"></i><%= s.category ? t('categories.' + s.category, {}, s.category) : t('admin.table.generalCategory') %></span>
                 <span style="font-weight:700;color:var(--accent);font-family:var(--font-mono);">S$<%= Number(s.price).toFixed(2) %></span>
-                <span style="color:var(--muted);"><i class="bi bi-clock me-1"></i><%= s.duration_mins %> min</span>
+                <span style="color:var(--muted);"><i class="bi bi-clock me-1"></i><%= t('common.minutes', { count: s.duration_mins }) %></span>
               </div>
             </div>
             <div class="d-flex gap-2 flex-shrink-0">
               <button
                 type="button"
                 class="btn btn-sm btn-pill btn-outline-secondary edit-service-btn"
-                title="Edit"
+                title="<%= t('admin.common.edit') %>"
                 data-id="<%= s.service_id %>"
                 data-name="<%= s.service_name %>"
                 data-description="<%= s.description || '' %>"
@@ -139,14 +139,14 @@
               <!-- Toggle keeps the service but hides/shows it from booking pages. -->
               <form action="/merchant/services/<%= s.service_id %>/toggle" method="POST">
                 <button type="submit" class="btn btn-sm btn-pill <%= s.is_active ? 'btn-outline-secondary' : 'btn-outline-success' %>"
-                  title="<%= s.is_active ? 'Deactivate' : 'Activate' %>">
+                  title="<%= s.is_active ? t('merchant.services.deactivate') : t('admin.common.activate') %>">
                   <i class="bi bi-<%= s.is_active ? 'eye-slash' : 'eye' %>"></i>
                 </button>
               </form>
               <!-- Delete removes the service record for this merchant. -->
               <form action="/merchant/services/<%= s.service_id %>/delete" method="POST"
-                onsubmit="return confirm('Delete <%= s.service_name %>? This cannot be undone.')">
-                <button type="submit" class="btn btn-sm btn-pill btn-outline-danger" title="Delete">
+                onsubmit="return confirm('<%= t('merchant.services.deleteConfirm', { name: s.service_name }) %>')">
+                <button type="submit" class="btn btn-sm btn-pill btn-outline-danger" title="<%= t('merchant.services.delete') %>">
                   <i class="bi bi-trash"></i>
                 </button>
               </form>
@@ -175,9 +175,9 @@
   const resetServiceForm = () => {
     serviceForm.action = '/merchant/services/add';
     serviceForm.reset();
-    serviceFormTitle.innerHTML = '<i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i>Add New Service';
+    serviceFormTitle.innerHTML = '<i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i>' + window.t('merchant.services.addNew');
     serviceSubmitIcon.className = 'bi bi-plus-lg me-2';
-    serviceSubmitText.textContent = 'Add Service';
+    serviceSubmitText.textContent = window.t('merchant.services.addService');
     cancelServiceEdit.style.display = 'none';
   };
 
@@ -189,9 +189,9 @@
       serviceCategory.value = button.dataset.category || '';
       servicePrice.value = button.dataset.price || '';
       serviceDuration.value = button.dataset.duration || '';
-      serviceFormTitle.innerHTML = '<i class="bi bi-pencil-square me-2" style="color:var(--accent);"></i>Edit Service';
+      serviceFormTitle.innerHTML = '<i class="bi bi-pencil-square me-2" style="color:var(--accent);"></i>' + window.t('merchant.services.editService');
       serviceSubmitIcon.className = 'bi bi-check2 me-2';
-      serviceSubmitText.textContent = 'Save Changes';
+      serviceSubmitText.textContent = window.t('merchant.services.saveChanges');
       cancelServiceEdit.style.display = '';
       serviceForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });

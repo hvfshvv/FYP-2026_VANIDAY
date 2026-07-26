@@ -44,21 +44,16 @@
       timeZone: 'Asia/Singapore'
     }) : '-';
   };
-  const label = value => String(value || '-').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const label = value => {
+    const key = String(value || '-');
+    return t(`admin.logs.label.${key}`, {}, key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+  };
   const messageLines = value => String(value || '').split('\n').filter(Boolean);
   const supportTemplates = [
-    { key:'acknowledgement', label:'Acknowledgement' },
-    { key:'booking_issue', label:'Booking Issue' },
-    { key:'payment_issue', label:'Payment Issue' },
-    { key:'refund_issue', label:'Refund Issue' },
-    { key:'voucher_promotion_issue', label:'Voucher / Promotion Issue' },
-    { key:'whatsapp_issue', label:'WhatsApp Issue' },
-    { key:'account_issue', label:'Account Issue' },
-    { key:'merchant_issue', label:'Merchant Issue' },
-    { key:'technical_issue', label:'Technical Issue' },
-    { key:'more_information', label:'Request More Information' },
-    { key:'issue_resolved', label:'Issue Resolved' },
-  ];
+    'acknowledgement', 'booking_issue', 'payment_issue', 'refund_issue',
+    'voucher_promotion_issue', 'whatsapp_issue', 'account_issue',
+    'merchant_issue', 'technical_issue', 'more_information', 'issue_resolved',
+  ].map(key => ({ key, label: t(`admin.logs.template.${key}`) }));
   const templateLabels = supportTemplates.reduce((labels, template) => {
     labels[template.key] = template.label;
     return labels;
@@ -89,10 +84,12 @@
     if (row.customer_name) return row.customer_name;
     if (row.module === 'web_support') {
       const submittedName = getMessageField(row.error_message, 'Name');
-      return submittedName && submittedName !== '-' ? `${submittedName} (Guest Web User)` : 'Guest Web User';
+      return submittedName && submittedName !== '-'
+        ? t('admin.logs.guestWebUserNamed', { name: submittedName })
+        : t('admin.logs.guestWebUser');
     }
-    if (row.module === 'whatsapp_support') return 'Unlinked WhatsApp user';
-    return 'Unlinked user';
+    if (row.module === 'whatsapp_support') return t('admin.logs.unlinkedWhatsapp');
+    return t('admin.logs.unlinkedUser');
   };
   const pageHref = page => {
     const params = new URLSearchParams();
@@ -114,47 +111,47 @@
   <div class="container" style="max-width:1180px;">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
       <div>
-        <p class="section-label">Admin Support</p>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Validation & Support Logs</h2>
-        <p style="color:var(--muted);margin-bottom:0;">Monitor WhatsApp support handoffs, validation issues, and backend logs.</p>
+        <p class="section-label"><%= t('admin.logs.eyebrow') %></p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.logs.pageTitle') %></h2>
+        <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.logs.subtitle') %></p>
       </div>
       <a href="/admin/dashboard" class="btn btn-outline-secondary btn-pill btn-sm">
-        <i class="bi bi-arrow-left me-1"></i>Dashboard
+        <i class="bi bi-arrow-left me-1"></i><%= t('nav.dashboard') %>
       </a>
     </div>
 
     <% if (query && query.resolved) { %>
     <div class="alert alert-success mb-4">
       <i class="bi bi-check-circle"></i>
-      <span>Log marked as resolved.</span>
+      <span><%= t('admin.logs.msg.resolved') %></span>
     </div>
     <% } %>
 
     <% if (query && query.replySent) { %>
     <div class="alert alert-success mb-4">
       <i class="bi bi-whatsapp"></i>
-      <span>WhatsApp reply sent and request marked as resolved.</span>
+      <span><%= t('admin.logs.msg.replySent') %></span>
     </div>
     <% } %>
 
     <% if (query && query.replyKeptOpen) { %>
     <div class="alert alert-success mb-4">
       <i class="bi bi-whatsapp"></i>
-      <span>WhatsApp reply sent and request kept open.</span>
+      <span><%= t('admin.logs.msg.replyKeptOpen') %></span>
     </div>
     <% } %>
 
     <% if (query && query.webReplySent) { %>
     <div class="alert alert-success mb-4">
       <i class="bi bi-envelope-check"></i>
-      <span>Email reply sent and web support request marked as resolved.</span>
+      <span><%= t('admin.logs.msg.webReplySent') %></span>
     </div>
     <% } %>
 
     <% if (query && query.webReplyKeptOpen) { %>
     <div class="alert alert-success mb-4">
       <i class="bi bi-envelope-check"></i>
-      <span>Email reply sent and web support request kept open.</span>
+      <span><%= t('admin.logs.msg.webReplyKeptOpen') %></span>
     </div>
     <% } %>
 
@@ -162,27 +159,7 @@
     <div class="alert alert-warning mb-4">
       <i class="bi bi-exclamation-triangle"></i>
       <span>
-        <% if (query.error === 'webReplyValidation') { %>
-          Please enter an email reply between 2 and 2,000 characters.
-        <% } else if (query.error === 'webReplyEmail') { %>
-          No valid customer email could be found for that web support request.
-        <% } else if (query.error === 'webReplySend') { %>
-          The email reply could not be delivered. The request is still open.
-        <% } else if (query.error === 'webReplyResolved') { %>
-          That web support request is already resolved.
-        <% } else if (query.error === 'webReplyNotFound') { %>
-          Web support request not found.
-        <% } else if (query.error === 'webReplyAuth') { %>
-          Admin access is required.
-        <% } else if (query.error === 'webReplyAction') { %>
-          Please choose whether to keep the web support request open or resolve it.
-        <% } else if (query.error === 'replyAction') { %>
-          Please choose whether to keep the WhatsApp support request open or resolve it.
-        <% } else if (query.error === 'replyResolved') { %>
-          That WhatsApp support request is already resolved.
-        <% } else { %>
-          Unable to complete that action.
-        <% } %>
+        <%= t('admin.logs.err.' + query.error, {}, t('admin.logs.err.generic')) %>
       </span>
     </div>
     <% } %>
@@ -196,10 +173,10 @@
 
     <div class="row g-3 mb-4">
       <% [
-        { label:'Total Logs', value:summary.total_logs || 0, icon:'bi-list-check', color:'var(--ink)' },
-        { label:'Open Logs', value:summary.open_logs || 0, icon:'bi-exclamation-circle', color:'var(--danger)' },
-        { label:'Resolved', value:summary.resolved_logs || 0, icon:'bi-check-circle', color:'var(--success)' },
-        { label:'Open WhatsApp Support', value:summary.open_whatsapp_support || 0, icon:'bi-whatsapp', color:'#16a34a' },
+        { label:t('admin.logs.totalLogs'), value:summary.total_logs || 0, icon:'bi-list-check', color:'var(--ink)' },
+        { label:t('admin.logs.openLogs'), value:summary.open_logs || 0, icon:'bi-exclamation-circle', color:'var(--danger)' },
+        { label:t('admin.common.resolved'), value:summary.resolved_logs || 0, icon:'bi-check-circle', color:'var(--success)' },
+        { label:t('admin.logs.openWhatsapp'), value:summary.open_whatsapp_support || 0, icon:'bi-whatsapp', color:'#16a34a' },
       ].forEach(stat => { %>
       <div class="col-6 col-lg-3">
         <div class="stat-card">
@@ -219,31 +196,31 @@
       <div class="card-body p-3">
         <div class="row g-2 align-items-end">
           <div class="col-md-4">
-            <label class="form-label" style="font-size:.8rem;font-weight:700;">Search</label>
-            <input type="search" name="search" value="<%= filters.search || '' %>" class="form-control rounded-xl" placeholder="Phone, customer, issue, module">
+            <label class="form-label" style="font-size:.8rem;font-weight:700;"><%= t('admin.common.search') %></label>
+            <input type="search" name="search" value="<%= filters.search || '' %>" class="form-control rounded-xl" placeholder="<%= t('admin.logs.searchPlaceholder') %>">
           </div>
           <div class="col-md-3">
-            <label class="form-label" style="font-size:.8rem;font-weight:700;">Module</label>
+            <label class="form-label" style="font-size:.8rem;font-weight:700;"><%= t('admin.dashboard.logs.colModule') %></label>
             <select name="module" class="form-select rounded-xl">
               <% [
-                ['all', 'All modules'],
-                ['whatsapp_support', 'WhatsApp support'],
-                ['web_support', 'Web Support'],
-                ['booking', 'Booking Errors'],
-                ['payment', 'Payment Errors'],
-                ['whatsapp', 'WhatsApp Errors']
+                ['all', t('admin.logs.moduleFilter.all')],
+                ['whatsapp_support', t('admin.logs.moduleFilter.whatsapp_support')],
+                ['web_support', t('admin.logs.moduleFilter.web_support')],
+                ['booking', t('admin.logs.moduleFilter.booking')],
+                ['payment', t('admin.logs.moduleFilter.payment')],
+                ['whatsapp', t('admin.logs.moduleFilter.whatsapp')]
               ].forEach(option => { %>
               <option value="<%= option[0] %>" <%= filters.module === option[0] ? 'selected' : '' %>><%= option[1] %></option>
               <% }) %>
             </select>
           </div>
           <div class="col-md-2">
-            <label class="form-label" style="font-size:.8rem;font-weight:700;">Status</label>
+            <label class="form-label" style="font-size:.8rem;font-weight:700;"><%= t('admin.table.status') %></label>
             <select name="status" class="form-select rounded-xl">
               <% [
-                ['all', 'All'],
-                ['open', 'Open'],
-                ['resolved', 'Resolved']
+                ['all', t('admin.feedback.allRatings')],
+                ['open', t('admin.common.open')],
+                ['resolved', t('admin.common.resolved')]
               ].forEach(option => { %>
               <option value="<%= option[0] %>" <%= filters.status === option[0] ? 'selected' : '' %>><%= option[1] %></option>
               <% }) %>
@@ -251,9 +228,9 @@
           </div>
           <div class="col-md-3 d-flex gap-2">
             <button class="btn btn-primary btn-pill flex-fill" style="font-weight:800;">
-              <i class="bi bi-funnel me-1"></i>Filter
+              <i class="bi bi-funnel me-1"></i><%= t('admin.common.filter') %>
             </button>
-            <a href="/admin/validation" class="btn btn-outline-secondary btn-pill">Clear</a>
+            <a href="/admin/validation" class="btn btn-outline-secondary btn-pill"><%= t('admin.common.clear') %></a>
           </div>
         </div>
       </div>
@@ -261,10 +238,10 @@
 
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <p style="color:var(--muted);font-size:.875rem;margin:0;">
-        Showing <%= pager.startItem %>&ndash;<%= pager.endItem %> of <%= pager.totalLogs %> logs
+        <%- t('admin.logs.showingRange', { start: pager.startItem, end: pager.endItem, total: pager.totalLogs }) %>
       </p>
       <p style="color:var(--muted);font-size:.8125rem;margin:0;">
-        Page <%= pager.currentPage %> of <%= pager.totalPages %>
+        <%= t('admin.logs.pageOf', { current: pager.currentPage, total: pager.totalPages }) %>
       </p>
     </div>
 
@@ -273,8 +250,8 @@
       <div class="icon-circle-lg mx-auto mb-3">
         <i class="bi bi-shield-check" style="font-size:2rem;color:var(--success);"></i>
       </div>
-      <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">No logs found</h6>
-      <p style="color:var(--muted);margin:0;">WhatsApp support requests and validation logs will appear here.</p>
+      <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.logs.noLogsTitle') %></h6>
+      <p style="color:var(--muted);margin:0;"><%= t('admin.logs.noLogsBody') %></p>
     </div>
     <% } else { %>
     <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
@@ -282,12 +259,12 @@
         <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
           <thead style="background:var(--accent-light);">
             <tr>
-              <th>Log</th>
-              <th>Customer</th>
-              <th>Message</th>
-              <th>Status</th>
-              <th>Created</th>
-              <th style="min-width:320px;">Action</th>
+              <th><%= t('admin.logs.colLog') %></th>
+              <th><%= t('admin.table.customer') %></th>
+              <th><%= t('admin.logs.colMessage') %></th>
+              <th><%= t('admin.table.status') %></th>
+              <th><%= t('admin.logs.colCreated') %></th>
+              <th style="min-width:320px;"><%= t('admin.logs.colAction') %></th>
             </tr>
           </thead>
           <tbody>
@@ -312,7 +289,7 @@
               </td>
               <td>
                 <span class="badge" style="<%= row.is_resolved ? 'background:var(--success-bg);color:var(--success);' : 'background:var(--warn-bg);color:var(--warn);' %>">
-                  <%= row.is_resolved ? 'Resolved' : 'Open' %>
+                  <%= row.is_resolved ? t('admin.common.resolved') : t('admin.common.open') %>
                 </span>
               </td>
               <td><%= fmtDateTime(row.created_at) %></td>
@@ -321,13 +298,13 @@
                 <% const recommendedTemplate = recommendedSupportTemplate(row); %>
                 <form method="POST" action="/admin/validation/<%= row.log_id %>/reply" class="d-grid gap-2">
                   <div>
-                    <p style="color:var(--muted);font-size:.72rem;font-weight:700;margin:0 0 .45rem;">Choose a template to draft a reply. Review and edit it before sending.</p>
+                    <p style="color:var(--muted);font-size:.72rem;font-weight:700;margin:0 0 .45rem;"><%= t('admin.logs.templateHint') %></p>
                     <div class="d-grid gap-2">
                       <button type="button" class="btn btn-outline-primary btn-sm btn-pill" data-support-template-key="<%= recommendedTemplate %>" style="font-size:.72rem;font-weight:800;">
-                        <i class="bi bi-lightning-charge me-1"></i>Suggested: <%= templateLabels[recommendedTemplate] %>
+                        <i class="bi bi-lightning-charge me-1"></i><%= t('admin.logs.suggested', { label: templateLabels[recommendedTemplate] }) %>
                       </button>
-                      <select class="form-select form-select-sm rounded-xl" data-support-template-select aria-label="Other WhatsApp support reply templates">
-                        <option value="">Other templates</option>
+                      <select class="form-select form-select-sm rounded-xl" data-support-template-select aria-label="<%= t('admin.logs.otherTemplatesAria') %>">
+                        <option value=""><%= t('admin.logs.otherTemplates') %></option>
                         <% supportTemplates.forEach(template => { %>
                         <option value="<%= template.key %>"><%= template.label %></option>
                         <% }) %>
@@ -339,34 +316,34 @@
                     class="form-control rounded-xl"
                     rows="3"
                     maxlength="1000"
-                    placeholder="Type Uniday support reply..."
+                    placeholder="<%= t('admin.logs.replyPlaceholder') %>"
                     required
                   ></textarea>
                   <div class="d-flex flex-wrap gap-2 justify-content-end">
                     <button class="btn btn-outline-primary btn-sm btn-pill" name="action" value="keep_open" style="font-weight:800;">
-                      <i class="bi bi-send me-1"></i>Send Reply &amp; Keep Open
+                      <i class="bi bi-send me-1"></i><%= t('admin.logs.sendKeepOpen') %>
                     </button>
                     <button class="btn btn-primary btn-sm btn-pill" name="action" value="resolve" style="font-weight:800;">
-                      <i class="bi bi-whatsapp me-1"></i>Send Reply &amp; Resolve
+                      <i class="bi bi-whatsapp me-1"></i><%= t('admin.logs.sendResolve') %>
                     </button>
                   </div>
                 </form>
                 <form method="POST" action="/admin/validation/<%= row.log_id %>/resolve" class="mt-2 text-end">
                   <button class="btn btn-outline-secondary btn-sm btn-pill" style="font-weight:800;">
-                    <i class="bi bi-check2 me-1"></i>Resolve Without Reply
+                    <i class="bi bi-check2 me-1"></i><%= t('admin.logs.resolveNoReply') %>
                   </button>
                 </form>
                 <% } else if (!row.is_resolved && row.module === 'web_support') { %>
                 <% const recommendedTemplate = recommendedSupportTemplate(row); %>
                 <form method="POST" action="/admin/validation/<%= row.log_id %>/web-reply" class="d-grid gap-2">
                   <div>
-                    <p style="color:var(--muted);font-size:.72rem;font-weight:700;margin:0 0 .45rem;">Choose a template to draft a reply. Review and edit it before sending.</p>
+                    <p style="color:var(--muted);font-size:.72rem;font-weight:700;margin:0 0 .45rem;"><%= t('admin.logs.templateHint') %></p>
                     <div class="d-grid gap-2">
                       <button type="button" class="btn btn-outline-primary btn-sm btn-pill" data-support-template-key="<%= recommendedTemplate %>" style="font-size:.72rem;font-weight:800;">
-                        <i class="bi bi-lightning-charge me-1"></i>Suggested: <%= templateLabels[recommendedTemplate] %>
+                        <i class="bi bi-lightning-charge me-1"></i><%= t('admin.logs.suggested', { label: templateLabels[recommendedTemplate] }) %>
                       </button>
-                      <select class="form-select form-select-sm rounded-xl" data-support-template-select aria-label="Other web support reply templates">
-                        <option value="">Other templates</option>
+                      <select class="form-select form-select-sm rounded-xl" data-support-template-select aria-label="<%= t('admin.logs.otherWebTemplatesAria') %>">
+                        <option value=""><%= t('admin.logs.otherTemplates') %></option>
                         <% supportTemplates.forEach(template => { %>
                         <option value="<%= template.key %>"><%= template.label %></option>
                         <% }) %>
@@ -378,27 +355,27 @@
                     class="form-control rounded-xl"
                     rows="3"
                     maxlength="2000"
-                    placeholder="Type email reply..."
+                    placeholder="<%= t('admin.logs.emailReplyPlaceholder') %>"
                     required
                   ></textarea>
                   <div class="d-flex flex-wrap gap-2 justify-content-end">
                     <button class="btn btn-outline-primary btn-sm btn-pill" name="action" value="keep_open" style="font-weight:800;">
-                      <i class="bi bi-send me-1"></i>Send Reply &amp; Keep Open
+                      <i class="bi bi-send me-1"></i><%= t('admin.logs.sendKeepOpen') %>
                     </button>
                     <button class="btn btn-primary btn-sm btn-pill" name="action" value="resolve" style="font-weight:800;">
-                      <i class="bi bi-envelope me-1"></i>Send Reply &amp; Resolve
+                      <i class="bi bi-envelope me-1"></i><%= t('admin.logs.sendResolve') %>
                     </button>
                   </div>
                 </form>
                 <form method="POST" action="/admin/validation/<%= row.log_id %>/resolve" class="mt-2 text-end">
                   <button class="btn btn-outline-secondary btn-sm btn-pill" style="font-weight:800;">
-                    <i class="bi bi-check2 me-1"></i>Resolve Without Reply
+                    <i class="bi bi-check2 me-1"></i><%= t('admin.logs.resolveNoReply') %>
                   </button>
                 </form>
                 <% } else if (!row.is_resolved) { %>
                 <form method="POST" action="/admin/validation/<%= row.log_id %>/resolve" class="text-end">
                   <button class="btn btn-outline-success btn-sm btn-pill" style="font-weight:800;">
-                    <i class="bi bi-check2 me-1"></i>Resolve
+                    <i class="bi bi-check2 me-1"></i><%= t('admin.logs.resolveAction') %>
                   </button>
                 </form>
                 <% } else { %>
@@ -411,18 +388,18 @@
         </table>
       </div>
     </div>
-    <nav class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3" aria-label="Validation log pages">
+    <nav class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3" aria-label="<%= t('admin.logs.pagesAria') %>">
       <% if (pager.hasPrevious) { %>
       <a class="btn btn-outline-secondary btn-sm btn-pill" href="<%= pageHref(pager.currentPage - 1) %>">
-        <i class="bi bi-chevron-left me-1"></i>Previous
+        <i class="bi bi-chevron-left me-1"></i><%= t('admin.logs.previous') %>
       </a>
       <% } else { %>
       <span class="btn btn-outline-secondary btn-sm btn-pill disabled" aria-disabled="true">
-        <i class="bi bi-chevron-left me-1"></i>Previous
+        <i class="bi bi-chevron-left me-1"></i><%= t('admin.logs.previous') %>
       </span>
       <% } %>
 
-      <div class="d-flex flex-wrap gap-1 justify-content-center" aria-label="Page numbers">
+      <div class="d-flex flex-wrap gap-1 justify-content-center" aria-label="<%= t('admin.logs.pageNumbersAria') %>">
         <% pageNumbers.forEach(pageNumber => { %>
         <% if (pageNumber === pager.currentPage) { %>
         <span class="btn btn-primary btn-sm btn-pill" aria-current="page"><%= pageNumber %></span>
@@ -434,11 +411,11 @@
 
       <% if (pager.hasNext) { %>
       <a class="btn btn-outline-secondary btn-sm btn-pill" href="<%= pageHref(pager.currentPage + 1) %>">
-        Next<i class="bi bi-chevron-right ms-1"></i>
+        <%= t('admin.logs.next') %><i class="bi bi-chevron-right ms-1"></i>
       </a>
       <% } else { %>
       <span class="btn btn-outline-secondary btn-sm btn-pill disabled" aria-disabled="true">
-        Next<i class="bi bi-chevron-right ms-1"></i>
+        <%= t('admin.logs.next') %><i class="bi bi-chevron-right ms-1"></i>
       </span>
       <% } %>
     </nav>
@@ -448,19 +425,12 @@
 
 <script>
   (() => {
-    const templates = Object.freeze({
-      acknowledgement: 'Hi, thanks for contacting Uniday Support. We have received your request and are checking it now. We will update you as soon as possible.',
-      booking_issue: 'Hi, thanks for letting us know. We are checking your booking details and will help you resolve the issue as soon as possible. Please include your booking ID if you have not shared it yet.',
-      payment_issue: 'Hi, thanks for reaching out. We are reviewing your payment issue. Please do not share card details, passwords, or one-time codes. We will update you once we have checked the payment status.',
-      refund_issue: 'Hi, thanks for contacting Uniday Support. We are checking the refund details for your request. Please include the booking ID if you have not shared it yet, and we will update you after reviewing the record.',
-      voucher_promotion_issue: 'Hi, thanks for letting us know. We are reviewing the voucher or promotion issue and checking the eligibility details. We will update you once we have confirmed what happened.',
-      whatsapp_issue: 'Hi, thanks for contacting us. We are checking the WhatsApp notification issue and will follow up once we have reviewed the message status.',
-      account_issue: 'Hi, thanks for contacting Uniday Support. We are checking your account issue now. Please do not share passwords, OTPs, or private security details.',
-      merchant_issue: 'Hi, thanks for letting us know. We are reviewing the merchant-related issue and will follow up once we have checked the details.',
-      technical_issue: 'Hi, thanks for reporting this. We are reviewing the technical issue and checking the affected steps. Please share what you were trying to do if you have not already included it.',
-      more_information: 'Hi, thanks for contacting Uniday Support. Could you please share more details about what happened, including the booking ID if available and the step where the issue occurred?',
-      issue_resolved: 'Hi, thanks for your patience. This issue has been resolved. Please try again and let us know if you still face any problems.'
-    });
+    const templates = Object.freeze(<%- JSON.stringify(
+      supportTemplates.reduce((acc, tpl) => {
+        acc[tpl.key] = t(`admin.logs.reply.${tpl.key}`);
+        return acc;
+      }, {})
+    ).replace(/</g, '\\u003c') %>);
 
     function fillTemplate(control, key) {
       const template = templates[key];

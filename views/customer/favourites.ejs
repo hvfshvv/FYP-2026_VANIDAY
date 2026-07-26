@@ -9,7 +9,7 @@
   <div class="container">
 
     <p class="section-label">
-      Customer
+      <%= t('admin.table.customer') %>
     </p>
 
     <h1 style="
@@ -18,11 +18,11 @@
       color:var(--ink);
       margin-bottom:.25rem;
     ">
-      My Favourites
+      <%= t('nav.myFavourites') %>
     </h1>
 
     <p style="color:var(--muted);margin-bottom:0;">
-      Saved merchants and services you love.
+      <%= t('fav.subtitle') %>
     </p>
 
   </div>
@@ -38,15 +38,15 @@
       <div>
 
         <p class="section-label">
-          Merchants
+          <%= t('fav.merchantsLabel') %>
         </p>
 
         <h2 class="section-title">
-          Favourite merchants
+          <%= t('fav.merchantsTitle') %>
         </h2>
 
         <p class="section-sub">
-          Your saved beauty and wellness merchants.
+          <%= t('fav.merchantsSub') %>
         </p>
 
       </div>
@@ -68,18 +68,18 @@
         </div>
 
         <h5 style="font-weight:700;color:var(--ink);">
-          No favourite merchants yet
+          <%= t('fav.noMerchantsTitle') %>
         </h5>
 
         <p style="color:var(--muted);">
-          Start exploring merchants and save your favourites.
+          <%= t('fav.noMerchantsBody') %>
         </p>
 
         <a
           href="/marketplace"
           class="btn btn-primary btn-pill"
         >
-          Browse Marketplace
+          <%= t('auth.browseMarketplace') %>
         </a>
 
     </div>
@@ -127,28 +127,28 @@
 
                   </div>
 
-                  <p class="card-meta">
-                    <%= merchant.description || 'Beauty and wellness merchant' %>
-                  </p>
+                <p class="card-meta">
+                  <%= merchant.description || t('fav.defaultMerchantDesc') %>
+                </p>
 
-                  <div class="discount-pill">
-                    <i class="bi bi-grid"></i>
-                    <%= merchant.category || 'General' %>
-                  </div>
+                <div class="discount-pill">
+                  <i class="bi bi-grid"></i>
+                  <%= merchant.category ? t('categories.' + merchant.category, {}, merchant.category) : t('admin.table.generalCategory') %>
+                </div>
 
-                  <div class="info-row">
+                <div class="info-row">
 
-                    <i class="bi bi-geo-alt"></i>
+                  <i class="bi bi-geo-alt"></i>
 
-                    <span>
-                      <%= merchant.address || 'Singapore' %>
-                    </span>
-
-                  </div>
+                  <span>
+                    <%= merchant.address || t('common.singapore') %>
+                  </span>
 
                 </div>
 
-              </a>
+              </div>
+
+            </a>
 
               <!-- Remove this merchant without reloading the favourites page. -->
               <form
@@ -160,8 +160,8 @@
                 <button
                   type="submit"
                   style="width:36px;height:36px;border-radius:999px;border:none;background:white;color:var(--accent);box-shadow:var(--shadow);display:inline-flex;align-items:center;justify-content:center;padding:0;"
-                  aria-label="Remove <%= merchant.merchant_name %> from favourites"
-                  title="Remove from favourites"
+                  aria-label="<%= t('fav.removeMerchantAria', { name: merchant.merchant_name }) %>"
+                  title="<%= t('fav.removeFromFavourites') %>"
                 >
                   <i class="bi bi-heart-fill"></i>
                 </button>
@@ -185,15 +185,15 @@
       <div>
 
         <p class="section-label">
-          Services
+          <%= t('merchant.nav.services') %>
         </p>
 
         <h2 class="section-title">
-          Favourite services
+          <%= t('fav.servicesTitle') %>
         </h2>
 
         <p class="section-sub">
-          Services you saved for future bookings.
+          <%= t('fav.servicesSub') %>
         </p>
 
         <!-- Category filter: reloads this page with ?category=... -->
@@ -203,7 +203,7 @@
             href="/favourite#favourite-services"
             class="btn btn-sm btn-pill <%= !selectedCategory ? 'btn-primary' : 'btn-outline-secondary' %>"
           >
-            All
+            <%= t('merchant.bookings.filterAll') %>
           </a>
 
           <% categories.forEach(category => { %>
@@ -212,7 +212,7 @@
               href="/favourite?category=<%= category %>#favourite-services"
               class="btn btn-sm btn-pill <%= selectedCategory === category ? 'btn-primary' : 'btn-outline-secondary' %>"
             >
-              <%= category %>
+              <%= t('categories.' + category, {}, category) %>
             </a>
 
           <% }) %>
@@ -237,14 +237,14 @@
 
         <h5 style="font-weight:700;color:var(--ink);">
           <%= selectedCategory
-            ? 'No favourite services under ' + selectedCategory + ' yet'
-            : 'No favourite services yet' %>
+            ? t('fav.noServicesInCategory', { category: t('categories.' + selectedCategory, {}, selectedCategory) })
+            : t('fav.noServicesTitle') %>
         </h5>
 
         <p style="color:var(--muted);">
           <%= selectedCategory
-            ? 'Browse ' + selectedCategory.toLowerCase() + ' merchants and save services you like.'
-            : 'Save services from merchant pages to see them here.' %>
+            ? t('fav.noServicesInCategoryBody', { category: t('categories.' + selectedCategory, {}, selectedCategory) })
+            : t('fav.noServicesBody') %>
         </p>
 
         <% if (selectedCategory) { %>
@@ -253,7 +253,7 @@
             href="/marketplace?category=<%= selectedCategory %>"
             class="btn btn-primary btn-pill"
           >
-            Browse <%= selectedCategory %> merchants
+            <%= t('fav.browseCategory', { category: t('categories.' + selectedCategory, {}, selectedCategory) }) %>
           </a>
 
         <% } else { %>
@@ -262,7 +262,7 @@
             href="/marketplace"
             class="btn btn-primary btn-pill"
           >
-            Browse Marketplace
+            <%= t('auth.browseMarketplace') %>
           </a>
 
         <% } %>
@@ -305,17 +305,17 @@
               </div>
 
               <p class="small text-muted mb-3">
-                <%= service.description || 'No description available.' %>
+                <%= service.description || t('fav.noDescription') %>
               </p>
 
               <div class="discount-pill mb-3">
                 <i class="bi bi-grid"></i>
-                <%= service.category || 'General' %>
+                <%= service.category ? t('categories.' + service.category, {}, service.category) : t('admin.table.generalCategory') %>
               </div>
 
               <p class="promo-date">
                 <i class="bi bi-clock me-1"></i>
-                <%= service.duration_mins %> mins
+                <%= t('bookings.mins', { count: service.duration_mins }) %>
               </p>
 
               <div class="d-flex gap-2 mt-3">
@@ -324,7 +324,7 @@
                   href="/book?merchantId=<%= service.merchant_id %>&serviceId=<%= service.service_id %>"
                   class="btn btn-primary btn-sm"
                 >
-                  Book now
+                  <%= t('bookings.bookNow') %>
                 </a>
 
                 <!-- Remove only this saved service from the customer's favourites. -->

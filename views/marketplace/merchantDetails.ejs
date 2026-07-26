@@ -25,7 +25,7 @@
       .filter(Boolean)
       .sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day));
 
-    if (!slots.length) return ['Operating hours not set'];
+    if (!slots.length) return [t('home.operatingHoursNotSet')];
 
     const groups = [];
     slots.forEach(slot => {
@@ -53,7 +53,7 @@
       <i class="bi bi-arrow-left me-1"></i><%= backLabel || 'Back to Marketplace' %>
     </a>
 
-    <p class="section-label">Merchant</p>
+    <p class="section-label"><%= t('common.merchant') %></p>
 
     <h1 style="font-size:2rem;font-weight:800;color:var(--ink);margin-bottom:.25rem;">
       <%= merchant.merchant_name %>
@@ -80,7 +80,7 @@
 
   <% if (typeof upcomingClosures !== 'undefined' && upcomingClosures.length) { %>
     <div class="rounded-xl p-4 mb-4" style="background:var(--warn-bg);color:var(--ink);border:1px solid rgba(217,119,6,.22);">
-      <h5 style="font-weight:800;color:var(--warn);margin-bottom:.5rem;"><i class="bi bi-shop-window me-2"></i>Upcoming temporary closure</h5>
+      <h5 style="font-weight:800;color:var(--warn);margin-bottom:.5rem;"><i class="bi bi-shop-window me-2"></i><%= t('mp.upcomingClosure') %></h5>
       <% upcomingClosures.forEach(closure => { %>
         <p style="margin:.25rem 0;font-weight:700;">
           <%= new Date(closure.starts_at).toLocaleString('en-SG', { dateStyle:'medium', timeStyle:'short' }) %>
@@ -88,7 +88,7 @@
         </p>
         <p style="color:var(--muted);margin:0;"><%= closure.reason %></p>
       <% }) %>
-      <p class="small mt-2 mb-0" style="color:var(--muted);">Bookings are unavailable during this period.</p>
+      <p class="small mt-2 mb-0" style="color:var(--muted);"><%= t('mp.closureNote') %></p>
     </div>
   <% } %>
 
@@ -115,13 +115,13 @@
               <%= averageRating.toFixed(1) %>
             </span>
             <span style="color:var(--muted);font-size:.875rem;">
-              (<%= reviewCount %> review<%= reviewCount === 1 ? '' : 's' %>)
+              (<%= t('merchant.reviews.reviewCount', { count: reviewCount }) %>)
             </span>
           <% } else { %>
-            <span class="badge" style="background:var(--accent-light);color:var(--accent);font-size:.8rem;font-weight:700;">New merchant</span>
+            <span class="badge" style="background:var(--accent-light);color:var(--accent);font-size:.8rem;font-weight:700;"><%= t('mp.newMerchant') %></span>
           <% } %>
           <span class="badge ms-1" style="background:var(--accent-light);color:var(--accent);font-size:.78rem;">
-            <%= merchant.service_categories || merchant.category || 'General' %>
+            <%= merchant.service_categories || (merchant.category ? t('categories.' + merchant.category, {}, merchant.category) : t('admin.table.generalCategory')) %>
           </span>
         </div>
 
@@ -129,18 +129,18 @@
         <div class="d-flex flex-column gap-2" style="font-size:.9rem;">
           <div class="d-flex gap-2 align-items-start">
             <i class="bi bi-geo-alt-fill flex-shrink-0 mt-1" style="color:var(--accent);"></i>
-            <span style="color:var(--ink);"><%= merchant.address || 'Singapore' %></span>
+            <span style="color:var(--ink);"><%= merchant.address || t('common.singapore') %></span>
           </div>
           <div class="d-flex gap-2 align-items-start">
             <i class="bi bi-telephone-fill flex-shrink-0 mt-1" style="color:var(--accent);"></i>
-            <span style="color:var(--ink);"><%= merchant.contact_no || 'Not provided' %></span>
+            <span style="color:var(--ink);"><%= merchant.contact_no || t('mp.notProvided') %></span>
           </div>
           <div class="d-flex gap-2 align-items-start">
             <i class="bi bi-envelope-fill flex-shrink-0 mt-1" style="color:var(--accent);"></i>
             <% if (merchant.email) { %>
               <a href="mailto:<%= merchant.email %>" style="color:var(--ink);overflow-wrap:anywhere;"><%= merchant.email %></a>
             <% } else { %>
-              <span style="color:var(--muted);">Email not provided</span>
+              <span style="color:var(--muted);"><%= t('mp.emailNotProvided') %></span>
             <% } %>
           </div>
           <div class="d-flex gap-2 align-items-start">
@@ -160,11 +160,11 @@
   <% if (typeof merchantPromotions !== 'undefined' && merchantPromotions && merchantPromotions.length > 0) { %>
   <%
     const promoDay = value => {
-      if (!value) return 'Every day';
+      if (!value) return t('home.everyDay');
       const vals = String(value).split(',').filter(Boolean);
-      if (!vals.length || vals.length === 7) return 'Every day';
-      if (vals.join(',') === 'sat,sun') return 'Weekends only';
-      if (vals.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
+      if (!vals.length || vals.length === 7) return t('home.everyDay');
+      if (vals.join(',') === 'sat,sun') return t('home.weekendsOnly');
+      if (vals.join(',') === 'mon,tue,wed,thu,fri') return t('home.weekdaysOnly');
       const names = { mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',sun:'Sun' };
       return vals.map(d => names[d] || d).join(', ');
     };
@@ -172,13 +172,13 @@
   <hr style="margin:0 0 2rem;">
   <div class="section-header mb-3">
     <div>
-      <p class="section-label">Current deals</p>
-      <h2 class="section-title">Active Promotions</h2>
-      <p class="section-sub">These merchant deals apply automatically when you book.</p>
+      <p class="section-label"><%= t('mp.currentDeals') %></p>
+      <h2 class="section-title"><%= t('mp.activePromotions') %></h2>
+      <p class="section-sub"><%= t('mp.promoSub') %></p>
     </div>
   </div>
   <div style="position:relative;">
-    <button class="promo-carousel-nav promo-carousel-prev" onclick="shiftCarousel('promo-carousel-merchant',-1)" aria-label="Previous">
+    <button class="promo-carousel-nav promo-carousel-prev" onclick="shiftCarousel('promo-carousel-merchant',-1)" aria-label="<%= t('admin.logs.previous') %>">
       <i class="bi bi-chevron-left"></i>
     </button>
     <div class="promo-carousel" id="promo-carousel-merchant">
@@ -194,10 +194,10 @@
               <% if (promo.service_name) { %>
               <p class="small mb-0" style="color:var(--accent);font-weight:600;"><i class="bi bi-scissors me-1"></i><%= promo.service_name %></p>
               <% } else { %>
-              <p class="small mb-0" style="color:var(--muted);">All services</p>
+              <p class="small mb-0" style="color:var(--muted);"><%= t('merchant.promotions.allServices') %></p>
               <% } %>
             </div>
-            <div class="promo-discount flex-shrink-0"><%= Number(promo.discount_pct || 0).toFixed(0) %>%<br/><span style="font-size:.7rem;font-weight:700;">off</span></div>
+            <div class="promo-discount flex-shrink-0"><%= Number(promo.discount_pct || 0).toFixed(0) %>%<br/><span style="font-size:.7rem;font-weight:700;"><%= t('merchant.promotions.off') %></span></div>
           </div>
           <% if (promo.description) { %><p class="small text-muted mb-2 mt-1"><%= promo.description %></p><% } %>
           <% if (promo.min_spend) { %>
@@ -209,7 +209,7 @@
       </div>
       <% }) %>
     </div>
-    <button class="promo-carousel-nav promo-carousel-next" onclick="shiftCarousel('promo-carousel-merchant',1)" aria-label="Next">
+    <button class="promo-carousel-nav promo-carousel-next" onclick="shiftCarousel('promo-carousel-merchant',1)" aria-label="<%= t('admin.logs.next') %>">
       <i class="bi bi-chevron-right"></i>
     </button>
   </div>
@@ -219,14 +219,14 @@
 
   <div class="section-header">
     <div>
-      <p class="section-label">Services</p>
+      <p class="section-label"><%= t('merchant.nav.services') %></p>
 
       <h2 class="section-title">
-        Available services
+        <%= t('mp.availableServices') %>
       </h2>
 
       <p class="section-sub">
-        View pricing and choose a service to book.
+        <%= t('mp.servicesSub') %>
       </p>
     </div>
   </div>
@@ -234,19 +234,19 @@
   <% if (!services || services.length === 0) { %>
 
     <p style="color:var(--muted);">
-      No services available yet.
+      <%= t('mp.noServices') %>
     </p>
 
   <% } else { %>
     <% if (serviceCategories && serviceCategories.length > 1) { %>
-    <nav class="service-filter-panel mb-4" aria-label="Filter services by category">
+    <nav class="service-filter-panel mb-4" aria-label="<%= t('mp.filterServicesAria') %>">
       <div class="service-filter-inner">
         <button
           type="button"
           class="service-filter-link <%= !selectedServiceCategory ? 'active' : '' %>"
           data-service-category=""
         >
-          <i class="bi bi-grid-3x3-gap"></i>All
+          <i class="bi bi-grid-3x3-gap"></i><%= t('merchant.bookings.filterAll') %>
         </button>
         <% serviceCategories.forEach(category => { %>
         <button
@@ -339,16 +339,16 @@
                   disabled
                   aria-disabled="true"
                   style="opacity:1;cursor:not-allowed;"
-                  title="Booking is disabled in merchant storefront preview"
+                  title="<%= t('mp.bookingPreviewDisabled') %>"
                 >
-                  Book now
+                  <%= t('booking.bookNow') %>
                 </button>
               <% } else { %>
                 <a
                   class="btn btn-primary"
                   href="/book?merchantId=<%= merchant.merchant_id %>&serviceId=<%= service.service_id %>"
                 >
-                  Book now
+                  <%= t('booking.bookNow') %>
                 </a>
               <% } %>
 
@@ -366,7 +366,7 @@
                     disabled
                     aria-disabled="true"
                     style="opacity:1;cursor:not-allowed;"
-                    title="WhatsApp booking is disabled in merchant storefront preview"
+                    title="<%= t('mp.whatsappPreviewDisabled') %>"
                   >
                     <i class="bi bi-whatsapp me-1"></i>WhatsApp
                   </button>
@@ -376,7 +376,7 @@
                     href="https://wa.me/<%= whatsappBookingNumber %>?text=<%= encodeURIComponent(whatsappMessage) %>"
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="Book <%= service.service_name %> via WhatsApp"
+                    aria-label="<%= t('mp.bookViaWhatsapp', { service: service.service_name }) %>"
                   >
                     <i class="bi bi-whatsapp me-1"></i>WhatsApp
                   </a>
@@ -404,22 +404,22 @@
   <hr style="margin:2.5rem 0;">
   <div class="section-header mb-3">
     <div>
-      <p class="section-label">Reviews</p>
-      <h2 class="section-title">Customer Reviews</h2>
-      <p class="section-sub">Verified feedback from completed bookings.</p>
+      <p class="section-label"><%= t('merchant.nav.reviews') %></p>
+      <h2 class="section-title"><%= t('merchant.reviews.title') %></h2>
+      <p class="section-sub"><%= t('mp.reviewsSub') %></p>
     </div>
   </div>
 
   <% if (!reviewList.length) { %>
-    <p style="color:var(--muted);">No reviews yet.</p>
+    <p style="color:var(--muted);"><%= t('admin.customers.noReviews') %></p>
   <% } else { %>
     <div class="review-carousel-wrap">
       <% if (reviewList.length > 1) { %>
-      <button class="promo-carousel-nav promo-carousel-prev" onclick="shiftCarousel('merchant-review-carousel',-1)" aria-label="Previous reviews">
+      <button class="promo-carousel-nav promo-carousel-prev" onclick="shiftCarousel('merchant-review-carousel',-1)" aria-label="<%= t('mp.prevReviews') %>">
         <i class="bi bi-chevron-left"></i>
       </button>
       <% } %>
-      <div class="promo-carousel review-carousel" id="merchant-review-carousel" aria-label="Customer reviews">
+      <div class="promo-carousel review-carousel" id="merchant-review-carousel" aria-label="<%= t('merchant.reviews.title') %>">
       <% reviewList.forEach(review => { %>
       <%
         const reviewText = review.review_text || 'No written comment.';
@@ -444,25 +444,25 @@
               <% if (reviewIsLong) { %>
                 <span data-preview><%= previewText(reviewText, reviewPreviewLimit) %>...</span>
                 <span data-full hidden><%= reviewText %></span>
-                <button type="button" class="review-more-toggle" data-review-more>more</button>
+                <button type="button" class="review-more-toggle" data-review-more><%= t('mp.more') %></button>
               <% } else { %>
                 <%= reviewText %>
               <% } %>
             </p>
             <% if (review.review_image_path) { %>
-            <a href="<%= review.review_image_path %>" target="_blank" rel="noopener noreferrer" class="review-photo-thumb" aria-label="Open photo review by <%= review.customer_name %>">
-              <img src="<%= review.review_image_path %>" alt="Photo review by <%= review.customer_name %>">
+            <a href="<%= review.review_image_path %>" target="_blank" rel="noopener noreferrer" class="review-photo-thumb" aria-label="<%= t('mp.openPhotoReview', { name: review.customer_name }) %>">
+              <img src="<%= review.review_image_path %>" alt="<%= t('merchant.reviews.photoAlt', { name: review.customer_name }) %>">
             </a>
             <% } %>
           </div>
           <% if (review.merchant_reply) { %>
           <div class="review-reply-compact">
-            <p class="small mb-1" style="font-weight:800;color:var(--accent);">Merchant reply</p>
+            <p class="small mb-1" style="font-weight:800;color:var(--accent);"><%= t('custReview.merchantReply') %></p>
             <p class="small mb-0">
               <% if (replyIsLong) { %>
                 <span data-preview><%= previewText(review.merchant_reply, replyPreviewLimit) %>...</span>
                 <span data-full hidden><%= review.merchant_reply %></span>
-                <button type="button" class="review-more-toggle" data-review-more>more</button>
+                <button type="button" class="review-more-toggle" data-review-more><%= t('mp.more') %></button>
               <% } else { %>
                 <%= review.merchant_reply %>
               <% } %>
@@ -474,7 +474,7 @@
       <% }) %>
       </div>
       <% if (reviewList.length > 1) { %>
-      <button class="promo-carousel-nav promo-carousel-next" onclick="shiftCarousel('merchant-review-carousel',1)" aria-label="Next reviews">
+      <button class="promo-carousel-nav promo-carousel-next" onclick="shiftCarousel('merchant-review-carousel',1)" aria-label="<%= t('mp.nextReviews') %>">
         <i class="bi bi-chevron-right"></i>
       </button>
       <% } %>
@@ -496,7 +496,7 @@ document.addEventListener('click', event => {
     const expanded = !full.hidden;
     preview.hidden = !expanded;
     full.hidden = expanded;
-    moreButton.textContent = expanded ? 'more' : 'less';
+    moreButton.textContent = expanded ? window.t('mp.more') : window.t('mp.less');
     return;
   }
 
@@ -552,7 +552,7 @@ document.addEventListener('submit', async (event) => {
 
     const result = await response.json();
     if (!response.ok || !result.success) {
-      throw new Error(result.error || 'Could not update favourite.');
+      throw new Error(result.error || window.t('mp.favouriteError'));
     }
 
     const favourited = Boolean(result.favourited);

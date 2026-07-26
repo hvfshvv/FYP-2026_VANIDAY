@@ -3,12 +3,12 @@
 
 <div class="container py-5" style="max-width:1080px;">
   <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-    <i class="bi bi-arrow-left me-1"></i>Dashboard
+    <i class="bi bi-arrow-left me-1"></i><%= t('nav.dashboard') %>
   </a>
 
-  <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">QR Code Management</h2>
+  <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.qr.title') %></h2>
   <p style="color:var(--muted);margin-bottom:2rem;max-width:780px;">
-    Use separate merchant-specific QR codes for booking and arrival confirmation. Print the booking QR where customers discover services, and place the arrival QR at your counter.
+    <%= t('merchant.qr.subtitle') %>
   </p>
 
   <div class="row g-4 align-items-start">
@@ -19,28 +19,28 @@
             <% if (qr) { %>
               <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
                 <i class="bi bi-check-circle-fill" style="color:var(--success);font-size:1.1rem;"></i>
-                <p style="font-weight:800;color:var(--success);margin-bottom:0;font-size:.9375rem;">Booking QR Code</p>
+                <p style="font-weight:800;color:var(--success);margin-bottom:0;font-size:.9375rem;"><%= t('merchant.qr.bookingQr') %></p>
               </div>
               <div class="p-3 d-inline-block rounded-xl mx-auto mb-3" style="background:#fff;border:3px solid var(--accent);box-shadow:0 4px 20px rgba(225,29,72,.12);">
-                <img src="<%= qr.qr_image_path %>" alt="Booking QR Code" style="width:210px;height:210px;" />
+                <img src="<%= qr.qr_image_path %>" alt="<%= t('merchant.qr.bookingQr') %>" style="width:210px;height:210px;" />
               </div>
-              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">Customers scan this to open your booking page.</p>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;"><%= t('merchant.qr.bookingBody') %></p>
               <a href="<%= qr.qr_image_path %>" download="uniday-merchant-<%= qr.merchant_id %>-booking-qr.png" class="btn btn-primary btn-pill w-100 mb-2">
-                <i class="bi bi-download me-2"></i>Download Booking QR
+                <i class="bi bi-download me-2"></i><%= t('merchant.qr.downloadBooking') %>
               </a>
               <button type="button" onclick="printQR('booking-qr-print-area', 'qr-printing-booking')" class="btn btn-outline-secondary btn-pill w-100 mb-2">
-                <i class="bi bi-printer me-2"></i>Print Booking QR
+                <i class="bi bi-printer me-2"></i><%= t('merchant.qr.printBooking') %>
               </button>
               <div class="mt-3 p-2 rounded-xl text-start" style="background:var(--accent-light);">
-                <p style="font-size:.75rem;color:var(--accent);margin-bottom:.1rem;"><i class="bi bi-link-45deg me-1"></i>Booking URL</p>
+                <p style="font-size:.75rem;color:var(--accent);margin-bottom:.1rem;"><i class="bi bi-link-45deg me-1"></i><%= t('merchant.qr.bookingUrl') %></p>
                 <p style="font-size:.78rem;font-family:var(--font-mono);font-weight:600;color:var(--ink);margin-bottom:0;word-break:break-all;"><%= qr.qr_url %></p>
               </div>
             <% } else { %>
               <div class="icon-circle-lg mx-auto mb-3">
                 <i class="bi bi-qr-code" style="font-size:2rem;color:var(--accent);"></i>
               </div>
-              <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;">No Booking QR Yet</h5>
-              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">Unable to generate your booking QR automatically. Please refresh or contact support.</p>
+              <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;"><%= t('merchant.qr.noBookingTitle') %></h5>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;"><%= t('merchant.qr.noBookingBody') %></p>
             <% } %>
           </div>
         </div>
@@ -50,28 +50,28 @@
             <% if (arrivalQr) { %>
               <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
                 <i class="bi bi-person-check-fill" style="color:var(--accent);font-size:1.1rem;"></i>
-                <p style="font-weight:800;color:var(--accent);margin-bottom:0;font-size:.9375rem;">Arrival Confirmation QR Code</p>
+                <p style="font-weight:800;color:var(--accent);margin-bottom:0;font-size:.9375rem;"><%= t('merchant.qr.arrivalQr') %></p>
               </div>
               <div class="p-3 d-inline-block rounded-xl mx-auto mb-3" style="background:#fff;border:3px solid var(--accent);box-shadow:0 4px 20px rgba(225,29,72,.12);">
-                <img src="<%= arrivalQr.qr_image_path %>" alt="Arrival Confirmation QR Code" style="width:210px;height:210px;" />
+                <img src="<%= arrivalQr.qr_image_path %>" alt="<%= t('merchant.qr.arrivalQr') %>" style="width:210px;height:210px;" />
               </div>
-              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">Customers scan this when they arrive for today's confirmed booking.</p>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;"><%= t('merchant.qr.arrivalBody') %></p>
               <a href="<%= arrivalQr.qr_image_path %>" download="uniday-merchant-<%= arrivalQr.merchant_id %>-arrival-qr.png" class="btn btn-primary btn-pill w-100 mb-2">
-                <i class="bi bi-download me-2"></i>Download Arrival QR
+                <i class="bi bi-download me-2"></i><%= t('merchant.qr.downloadArrival') %>
               </a>
               <button type="button" onclick="printQR('arrival-qr-print-area', 'qr-printing-arrival')" class="btn btn-outline-secondary btn-pill w-100 mb-2">
-                <i class="bi bi-printer me-2"></i>Print Arrival QR
+                <i class="bi bi-printer me-2"></i><%= t('merchant.qr.printArrival') %>
               </button>
               <div class="mt-3 p-2 rounded-xl text-start" style="background:var(--accent-light);">
-                <p style="font-size:.75rem;color:var(--accent);margin-bottom:.1rem;"><i class="bi bi-link-45deg me-1"></i>Arrival URL</p>
+                <p style="font-size:.75rem;color:var(--accent);margin-bottom:.1rem;"><i class="bi bi-link-45deg me-1"></i><%= t('merchant.qr.arrivalUrl') %></p>
                 <p style="font-size:.78rem;font-family:var(--font-mono);font-weight:600;color:var(--ink);margin-bottom:0;word-break:break-all;"><%= arrivalQr.qr_url %></p>
               </div>
             <% } else { %>
               <div class="icon-circle-lg mx-auto mb-3">
                 <i class="bi bi-person-check" style="font-size:2rem;color:var(--accent);"></i>
               </div>
-              <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;">No Arrival QR Yet</h5>
-              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">Unable to generate your arrival QR automatically. Please refresh or contact support.</p>
+              <h5 style="font-weight:800;color:var(--ink);margin-bottom:.5rem;"><%= t('merchant.qr.noArrivalTitle') %></h5>
+              <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;"><%= t('merchant.qr.noArrivalBody') %></p>
             <% } %>
           </div>
         </div>
@@ -81,13 +81,13 @@
     <div class="col-lg-5">
       <div class="card border-0 p-4 mb-3" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
         <h6 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">
-          <i class="bi bi-list-check me-2" style="color:var(--accent);"></i>How to use your QR codes
+          <i class="bi bi-list-check me-2" style="color:var(--accent);"></i><%= t('merchant.qr.howToTitle') %>
         </h6>
         <div class="d-flex flex-column gap-3">
           <% [
-            ['bi-calendar-plus', 'Booking QR', 'Place this on posters or social posts. It opens only your merchant booking page.'],
-            ['bi-person-check', 'Arrival QR', 'Place this at your counter. It marks the logged-in customer arrived for today only.'],
-            ['bi-shield-check', 'Merchant-specific', 'Each QR is tied to your merchant account and cannot update another merchant booking.'],
+            ['bi-calendar-plus', t('merchant.qr.tip1Title'), t('merchant.qr.tip1Body')],
+            ['bi-person-check', t('merchant.qr.tip2Title'), t('merchant.qr.tip2Body')],
+            ['bi-shield-check', t('merchant.qr.tip3Title'), t('merchant.qr.tip3Body')],
           ].forEach(([icon,title,desc]) => { %>
           <div class="d-flex gap-3 align-items-start">
             <div class="icon-circle flex-shrink-0" style="background:var(--accent-light);width:40px;height:40px;min-width:40px;">
@@ -104,7 +104,7 @@
       <div class="p-3 rounded-xl" style="background:var(--accent-light);border:1.5px solid rgba(225,29,72,.15);">
         <p style="font-size:.8125rem;color:var(--accent);margin-bottom:0;">
           <i class="bi bi-shield-check me-1"></i>
-          <strong>Note:</strong> Booking and arrival QR codes are created automatically and remain active until the system updates them.
+          <strong><%= t('merchant.qr.noteLabel') %></strong> <%= t('merchant.qr.noteBody') %>
         </p>
       </div>
     </div>
@@ -114,15 +114,15 @@
 <% if (qr) { %>
 <div id="booking-qr-print-area" class="qr-print-area">
   <div class="qr-print-card">
-    <p class="qr-print-kicker">Uniday Booking QR</p>
-    <h1><%= qr.merchant_name || 'Uniday Partner' %></h1>
+    <p class="qr-print-kicker"><%= t('merchant.qr.printBookingKicker') %></p>
+    <h1><%= qr.merchant_name || t('merchant.qr.unidayPartner') %></h1>
     <% if (qr.address) { %>
     <p class="qr-print-address"><%= qr.address %></p>
     <% } %>
     <div class="qr-print-code">
-      <img src="<%= qr.qr_image_path %>" alt="Booking QR Code" />
+      <img src="<%= qr.qr_image_path %>" alt="<%= t('merchant.qr.bookingQr') %>" />
     </div>
-    <p class="qr-print-title">Scan to book an appointment</p>
+    <p class="qr-print-title"><%= t('merchant.qr.printBookingCta') %></p>
   </div>
 </div>
 <% } %>
@@ -130,15 +130,15 @@
 <% if (arrivalQr) { %>
 <div id="arrival-qr-print-area" class="qr-print-area">
   <div class="qr-print-card">
-    <p class="qr-print-kicker">Uniday Arrival QR</p>
-    <h1><%= arrivalQr.merchant_name || qr?.merchant_name || 'Uniday Partner' %></h1>
+    <p class="qr-print-kicker"><%= t('merchant.qr.printArrivalKicker') %></p>
+    <h1><%= arrivalQr.merchant_name || qr?.merchant_name || t('merchant.qr.unidayPartner') %></h1>
     <% if (arrivalQr.address || qr?.address) { %>
     <p class="qr-print-address"><%= arrivalQr.address || qr?.address %></p>
     <% } %>
     <div class="qr-print-code">
-      <img src="<%= arrivalQr.qr_image_path %>" alt="Arrival Confirmation QR Code" />
+      <img src="<%= arrivalQr.qr_image_path %>" alt="<%= t('merchant.qr.arrivalQr') %>" />
     </div>
-    <p class="qr-print-title">Scan on arrival to confirm your appointment</p>
+    <p class="qr-print-title"><%= t('merchant.qr.printArrivalCta') %></p>
   </div>
 </div>
 <% } %>

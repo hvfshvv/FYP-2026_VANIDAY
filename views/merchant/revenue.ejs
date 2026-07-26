@@ -37,7 +37,7 @@
     const money = value => 'S$' + Number(value || 0).toFixed(2);
     const dateTime = value => value ? new Date(value).toLocaleString('en-SG', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
     const gatewayFees = row => Number(row.processor_fee_amount || 0) + Number(row.dispute_fee_amount || 0);
-    const paymentStatusLabel = status => status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unpaid';
+    const paymentStatusLabel = status => status ? t('admin.paymentStatus.' + status, {}, status.charAt(0).toUpperCase() + status.slice(1)) : t('admin.paymentStatus.unpaid');
     const paymentStatusStyle = status => {
       if (status === 'paid') return 'background:var(--success-bg);color:var(--success);';
       if (status === 'pending') return 'background:var(--warn-bg);color:var(--warn);';
@@ -46,7 +46,7 @@
     const monthFees = Number(summary.month_processor_fees || 0) + Number(summary.month_dispute_fees || 0);
   %>
   <a href="/merchant/dashboard?month=<%= selectedPeriod %>" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-    <i class="bi bi-arrow-left me-1"></i>Dashboard
+    <i class="bi bi-arrow-left me-1"></i><%= t('nav.dashboard') %>
   </a>
   <div class="d-flex justify-content-between align-items-end gap-3 mb-4 flex-wrap">
     <div class="d-flex align-items-center gap-3">
@@ -54,12 +54,12 @@
         <i class="bi bi-graph-up" style="color:var(--accent);"></i>
       </div>
       <div>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;">Revenue Summary</h2>
-        <p style="color:var(--muted);margin-bottom:0;font-size:.875rem;">This month summary for <strong><%= periodLabel %></strong>. Payout-ready bookings are shown separately below.</p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;"><%= t('admin.revenue.title') %></h2>
+        <p style="color:var(--muted);margin-bottom:0;font-size:.875rem;"><%- t('merchant.revenue.subtitle', { period: periodLabel }) %></p>
       </div>
     </div>
     <form action="/merchant/revenue" method="GET" class="d-flex gap-2 align-items-center">
-      <label for="revenueMonth" style="font-size:.75rem;font-weight:700;color:var(--muted);">View month</label>
+      <label for="revenueMonth" style="font-size:.75rem;font-weight:700;color:var(--muted);"><%= t('merchant.revenue.viewMonth') %></label>
       <input id="revenueMonth" type="month" name="month" value="<%= selectedPeriod %>" max="<%= currentPeriod %>"
              class="form-control form-control-sm" style="width:155px;border-radius:999px;" onchange="this.form.submit()">
     </form>
@@ -74,8 +74,8 @@
 
   <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
     <div>
-      <p class="section-label mb-1">Selected Month</p>
-      <h5 style="font-weight:800;color:var(--ink);margin-bottom:0;"><%= periodLabel %> Paid Bookings</h5>
+      <p class="section-label mb-1"><%= t('merchant.revenue.selectedMonth') %></p>
+      <h5 style="font-weight:800;color:var(--ink);margin-bottom:0;"><%= t('merchant.revenue.paidBookings', { period: periodLabel }) %></h5>
     </div>
   </div>
 
@@ -83,30 +83,30 @@
   <div class="row g-3 mb-5">
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= periodLabel %> Gross Paid</p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= t('merchant.revenue.grossPaid', { period: periodLabel }) %></p>
         <p class="stat-value" style="color:var(--accent);">S$<%= Number(summary.month_revenue || 0).toFixed(2) %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">Customer payments received</p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= t('merchant.revenue.paymentsReceived') %></p>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= periodLabel %> Uniday Fee</p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= t('merchant.revenue.unidayFee', { period: periodLabel }) %></p>
         <p class="stat-value" style="color:var(--accent);">S$<%= Number(summary.month_platform_commission || 0).toFixed(2) %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">10% platform fee</p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= t('merchant.revenue.platformFee') %></p>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= periodLabel %> Earnings</p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= t('merchant.revenue.earnings', { period: periodLabel }) %></p>
         <p class="stat-value" style="color:var(--success);">S$<%= Number(summary.month_merchant_earnings || 0).toFixed(2) %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;">90% minus gateway/dispute fees</p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= t('merchant.revenue.earningsSub') %></p>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card text-center">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= periodLabel %> Gateway Fees</p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.4rem;"><%= t('merchant.revenue.gatewayFees', { period: periodLabel }) %></p>
         <p class="stat-value" style="color:var(--ink);">S$<%= monthFees.toFixed(2) %></p>
-        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= Number(summary.month_successful_payments || 0) %> paid bookings · avg <%= money(summary.month_avg_order_value) %></p>
+        <p style="color:var(--ghost);font-size:.72rem;margin-bottom:0;"><%= t('merchant.revenue.paidAvg', { count: Number(summary.month_successful_payments || 0), avg: money(summary.month_avg_order_value) }) %></p>
       </div>
     </div>
   </div>
@@ -115,10 +115,10 @@
     <div class="rounded-xl p-4 mb-4" style="background:var(--canvas);border:1px solid var(--border);">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
-          <p class="section-label mb-1">Payout Account</p>
-          <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Stripe Connect Sandbox</h6>
+          <p class="section-label mb-1"><%= t('merchant.revenue.payoutAccount') %></p>
+          <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.revenue.stripeSandbox') %></h6>
           <p style="color:var(--muted);font-size:.84rem;margin-bottom:0;">
-            <%= stripeReady ? 'Your Stripe payout account has been submitted for test payouts.' : 'Connect a Stripe sandbox account before real Stripe test transfers can be sent.' %>
+            <%= stripeReady ? t('merchant.revenue.stripeReady') : t('merchant.revenue.stripeNotReady') %>
           </p>
           <% if (stripeAccount && stripeAccount.stripe_account_id) { %>
             <p class="mono mt-2 mb-0" style="color:var(--ghost);font-size:.76rem;"><%= stripeAccount.stripe_account_id %></p>
@@ -126,7 +126,7 @@
         </div>
         <form method="POST" action="/merchant/stripe/connect">
           <button class="btn btn-primary btn-pill" type="submit">
-            <i class="bi bi-credit-card me-1"></i><%= stripeReady ? 'Update Stripe account' : 'Connect Stripe' %>
+            <i class="bi bi-credit-card me-1"></i><%= stripeReady ? t('merchant.revenue.updateStripe') : t('merchant.revenue.connectStripe') %>
           </button>
         </form>
       </div>
@@ -134,7 +134,7 @@
 
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
       <div>
-        <p class="section-label mb-1">Ready For Payout</p>
+        <p class="section-label mb-1"><%= t('merchant.revenue.readyForPayout') %></p>
         <%
           function nextMondayFromCutoffLabel(cutoffLabel) {
             const parts = String(cutoffLabel || '').split('/');
@@ -152,36 +152,36 @@
             ? nextPayoutLabel
             : nextMondayFromCutoffLabel(payoutCutoffLabel);
         %>
-        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Next payout: Monday, <%= safeNextPayoutLabel %></h5>
-        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Includes completed, paid, non-refunded bookings before <%= payoutCutoffLabel %> that are not in a payout batch yet.</p>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.revenue.nextPayout', { date: safeNextPayoutLabel }) %></h5>
+        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;"><%= t('merchant.revenue.payoutNote', { date: payoutCutoffLabel }) %></p>
       </div>
-      <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">Pending payout</span>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;"><%= t('merchant.revenue.pendingPayout') %></span>
     </div>
 
     <div class="rounded-xl p-4 mb-4" style="background:var(--canvas);border:1px solid var(--border);">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
-          <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;">Pending payout</p>
+          <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;"><%= t('merchant.revenue.pendingPayout') %></p>
           <strong class="mono" style="font-size:1.75rem;color:var(--success);"><%= money(payout.eligibleAmount) %></strong>
-          <p style="color:var(--ghost);font-size:.78rem;margin-bottom:0;"><%= payout.eligibleBookings.length %> completed paid booking(s) ready for the next payout batch</p>
+          <p style="color:var(--ghost);font-size:.78rem;margin-bottom:0;"><%= t('merchant.revenue.eligibleReady', { count: payout.eligibleBookings.length }) %></p>
         </div>
       </div>
     </div>
 
-    <h6 style="font-weight:800;color:var(--ink);margin-bottom:.85rem;">Payout history</h6>
+    <h6 style="font-weight:800;color:var(--ink);margin-bottom:.85rem;"><%= t('admin.payouts.historyTitle') %></h6>
     <div class="table-responsive">
       <table class="table align-middle mb-0" style="font-size:.82rem;">
         <thead style="background:var(--accent-light);">
           <tr>
-            <th>Payout</th>
-            <th>Status</th>
-            <th>Bookings</th>
-            <th>Gross</th>
-            <th>Uniday</th>
-            <th>Paid to you</th>
-            <th>Reference</th>
-            <th>Created</th>
-            <th>Paid</th>
+            <th><%= t('merchant.revenue.colPayout') %></th>
+            <th><%= t('admin.table.status') %></th>
+            <th><%= t('admin.table.bookings') %></th>
+            <th><%= t('admin.payouts.gross') %></th>
+            <th><%= t('admin.payouts.unidayShort') %></th>
+            <th><%= t('merchant.revenue.paidToYou') %></th>
+            <th><%= t('merchant.revenue.reference') %></th>
+            <th><%= t('admin.logs.colCreated') %></th>
+            <th><%= t('admin.payouts.status.paid') %></th>
           </tr>
         </thead>
         <tbody>
@@ -189,7 +189,7 @@
           <tr>
             <td class="mono">#<%= row.payout_id %></td>
             <td>
-              <span class="badge" style="background:<%= row.status === 'paid' ? 'var(--success-bg)' : 'var(--warn-bg)' %>;color:<%= row.status === 'paid' ? 'var(--success)' : 'var(--warn)' %>;text-transform:capitalize;"><%= row.status %></span>
+              <span class="badge" style="background:<%= row.status === 'paid' ? 'var(--success-bg)' : 'var(--warn-bg)' %>;color:<%= row.status === 'paid' ? 'var(--success)' : 'var(--warn)' %>;"><%= t('admin.payouts.status.' + row.status, {}, row.status) %></span>
             </td>
             <td><%= row.booking_count %></td>
             <td class="mono"><%= money(row.gross_amount) %></td>
@@ -201,7 +201,7 @@
           </tr>
           <% }) %>
           <% if (!(payout.payouts || []).length) { %>
-          <tr><td colspan="9" class="text-center py-4" style="color:var(--muted);">No payout batches yet.</td></tr>
+          <tr><td colspan="9" class="text-center py-4" style="color:var(--muted);"><%= t('merchant.revenue.noPayouts') %></td></tr>
           <% } %>
         </tbody>
       </table>
@@ -212,19 +212,19 @@
   <% if (monthly.length > 0) { %>
   <div class="card border-0 p-4 mb-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <h6 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">
-      <i class="bi bi-calendar3 me-2" style="color:var(--accent);"></i>Monthly Paid Revenue (Last 6 Months)
+      <i class="bi bi-calendar3 me-2" style="color:var(--accent);"></i><%= t('merchant.revenue.monthlyTitle') %>
     </h6>
-    <p style="color:var(--muted);font-size:.82rem;margin-bottom:.75rem;">Select a month to update the transaction history below.</p>
+    <p style="color:var(--muted);font-size:.82rem;margin-bottom:.75rem;"><%= t('merchant.revenue.monthlyHint') %></p>
     <div class="table-responsive monthly-revenue-scroll">
       <table class="table align-middle mb-0" style="font-size:.875rem;">
         <thead style="background:var(--accent-light);">
           <tr>
-            <th>Month</th>
-            <th>Bookings</th>
-            <th>Gross</th>
-            <th>Uniday 10%</th>
-            <th>Gateway Fees</th>
-            <th>Your Earnings</th>
+            <th><%= t('merchant.revenue.month') %></th>
+            <th><%= t('admin.table.bookings') %></th>
+            <th><%= t('admin.payouts.gross') %></th>
+            <th><%= t('merchant.revenue.uniday10') %></th>
+            <th><%= t('admin.payouts.gatewayFees') %></th>
+            <th><%= t('merchant.revenue.yourEarnings') %></th>
           </tr>
         </thead>
         <tbody>
@@ -245,14 +245,14 @@
   <% } %>
 
   <!-- Transaction History -->
-  <h5 style="font-weight:700;color:var(--ink);margin-bottom:1rem;"><%= periodLabel %> Paid Transaction History</h5>
+  <h5 style="font-weight:700;color:var(--ink);margin-bottom:1rem;"><%= t('merchant.revenue.txnHistory', { period: periodLabel }) %></h5>
   <% if (transactions.length === 0) { %>
   <div class="card border-0 text-center py-5" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <div class="icon-circle-lg mx-auto mb-3">
       <i class="bi bi-receipt" style="font-size:2rem;color:var(--accent);"></i>
     </div>
-    <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No transactions yet</h6>
-    <p style="color:var(--muted);font-size:.875rem;">Complete bookings will appear here.</p>
+    <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.revenue.noTxnTitle') %></h6>
+    <p style="color:var(--muted);font-size:.875rem;"><%= t('merchant.revenue.noTxnBody') %></p>
   </div>
   <% } else { %>
   <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
@@ -260,48 +260,48 @@
       <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
         <thead style="background:var(--accent-light);">
           <tr>
-            <th>Order ID</th>
-            <th>Customer</th>
-            <th>Service</th>
-            <th>Appt Date</th>
-            <th>Source</th>
-            <th>Gross</th>
-            <th>Gateway Fees</th>
-            <th>Your Earnings</th>
-            <th>Status</th>
+            <th><%= t('merchant.revenue.orderId') %></th>
+            <th><%= t('admin.table.customer') %></th>
+            <th><%= t('common.service') %></th>
+            <th><%= t('merchant.revenue.apptDate') %></th>
+            <th><%= t('admin.table.source') %></th>
+            <th><%= t('admin.payouts.gross') %></th>
+            <th><%= t('admin.payouts.gatewayFees') %></th>
+            <th><%= t('merchant.revenue.yourEarnings') %></th>
+            <th><%= t('admin.table.status') %></th>
           </tr>
         </thead>
         <tbody>
-          <% transactions.forEach(t => { %>
+          <% transactions.forEach(txn => { %>
           <tr>
-            <td style="color:var(--muted);font-weight:600;font-family:var(--font-mono);">#<%= t.booking_id %></td>
+            <td style="color:var(--muted);font-weight:600;font-family:var(--font-mono);">#<%= txn.booking_id %></td>
             <td>
-              <p style="font-weight:600;margin-bottom:0;"><%= t.customer_name %></p>
-              <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= t.customer_email %></p>
+              <p style="font-weight:600;margin-bottom:0;"><%= txn.customer_name %></p>
+              <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= txn.customer_email %></p>
             </td>
             <td>
-              <p style="margin-bottom:0;"><%= t.service_name %></p>
-              <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= t.duration_mins %> min</p>
+              <p style="margin-bottom:0;"><%= txn.service_name %></p>
+              <p style="color:var(--muted);font-size:.75rem;margin-bottom:0;"><%= t('common.minutes', { count: txn.duration_mins }) %></p>
             </td>
             <td>
-              <%= new Date(t.booking_date).toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'}) %>
-              <br/><span style="color:var(--muted);"><%= String(t.booking_time).slice(0,5) %></span>
+              <%= new Date(txn.booking_date).toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'}) %>
+              <br/><span style="color:var(--muted);"><%= String(txn.booking_time).slice(0,5) %></span>
             </td>
             <td>
-              <% if (t.source === 'qr' || t.source === 'qr_scan') { %>
+              <% if (txn.source === 'qr' || txn.source === 'qr_scan') { %>
               <span class="badge" style="background:var(--accent-light);color:var(--accent);">
                 <i class="bi bi-qr-code me-1"></i>QR
               </span>
               <% } else { %>
-              <span class="badge bg-secondary"><%= t.source %></span>
+              <span class="badge bg-secondary"><%= t('admin.source.' + txn.source, {}, txn.source) %></span>
               <% } %>
             </td>
-            <td style="font-family:var(--font-mono);font-weight:600;"><%= t.amount ? 'S$' + Number(t.amount).toFixed(2) : '—' %></td>
-            <td style="font-family:var(--font-mono);"><%= t.amount ? 'S$' + gatewayFees(t).toFixed(2) : '—' %></td>
-            <td style="font-weight:700;color:var(--success);font-family:var(--font-mono);"><%= t.merchant_earnings ? 'S$' + Number(t.merchant_earnings).toFixed(2) : '—' %></td>
+            <td style="font-family:var(--font-mono);font-weight:600;"><%= txn.amount ? 'S$' + Number(txn.amount).toFixed(2) : '—' %></td>
+            <td style="font-family:var(--font-mono);"><%= txn.amount ? 'S$' + gatewayFees(txn).toFixed(2) : '—' %></td>
+            <td style="font-weight:700;color:var(--success);font-family:var(--font-mono);"><%= txn.merchant_earnings ? 'S$' + Number(txn.merchant_earnings).toFixed(2) : '—' %></td>
             <td>
-              <span class="badge" style="<%= paymentStatusStyle(t.payment_status) %>">
-                <%= paymentStatusLabel(t.payment_status) %>
+              <span class="badge" style="<%= paymentStatusStyle(txn.payment_status) %>">
+                <%= paymentStatusLabel(txn.payment_status) %>
               </span>
             </td>
           </tr>

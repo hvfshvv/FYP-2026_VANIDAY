@@ -3,12 +3,12 @@
 
 <div class="container py-5">
   <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-pill btn-sm mb-4">
-    <i class="bi bi-arrow-left me-1"></i>Dashboard
+    <i class="bi bi-arrow-left me-1"></i><%= t('nav.dashboard') %>
   </a>
 
   <div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-3">
     <div>
-      <p class="section-label">Schedule</p>
+      <p class="section-label"><%= t('merchant.availability.eyebrow') %></p>
       <h2
         style="
           font-weight: 800;
@@ -17,10 +17,10 @@
           margin-bottom: .25rem;
         "
       >
-        Merchant Availability
+        <%= t('merchant.availability.title') %>
       </h2>
       <p style="color: var(--muted); margin-bottom: 0;">
-        Set weekly operating hours for customer bookings.
+        <%= t('merchant.availability.subtitle') %>
       </p>
     </div>
 
@@ -28,8 +28,7 @@
       class="badge"
       style="background: var(--accent-light); color: var(--accent);"
     >
-      <%= availability.filter(a => a.is_active).length %> active day<%=
-      availability.filter(a => a.is_active).length !== 1 ? 's' : '' %>
+      <%= t('merchant.availability.activeDays', { count: availability.filter(a => a.is_active).length }) %>
     </span>
   </div>
 
@@ -46,12 +45,12 @@
               class="bi bi-clock me-2"
               style="color: var(--accent);"
             ></i>
-            Add / Update Hours
+            <%= t('merchant.availability.addUpdate') %>
           </h5>
 
           <form action="/merchant/availability/save" method="POST">
             <div class="mb-3">
-              <label class="form-label">Day</label>
+              <label class="form-label"><%= t('merchant.availability.day') %></label>
               <select
                 name="day_of_week"
                 class="form-select rounded-xl"
@@ -59,14 +58,14 @@
               >
                 <% ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday',
                 'Saturday', 'Sunday'].forEach(day => { %>
-                  <option value="<%= day %>"><%= day %></option>
+                  <option value="<%= day %>"><%= t('common.days.' + day, {}, day) %></option>
                 <% }) %>
               </select>
             </div>
 
             <div class="row g-3 mb-3">
               <div class="col-6">
-                <label class="form-label">Start Time</label>
+                <label class="form-label"><%= t('merchant.availability.startTime') %></label>
                 <input
                   type="time"
                   name="start_time"
@@ -76,7 +75,7 @@
               </div>
 
               <div class="col-6">
-                <label class="form-label">End Time</label>
+                <label class="form-label"><%= t('merchant.availability.endTime') %></label>
                 <input
                   type="time"
                   name="end_time"
@@ -95,12 +94,12 @@
                 checked
               >
               <label class="form-check-label" for="is_active">
-                Available for booking
+                <%= t('merchant.availability.availableForBooking') %>
               </label>
             </div>
 
             <button class="btn btn-primary btn-pill w-100">
-              <i class="bi bi-save me-1"></i>Save Availability
+              <i class="bi bi-save me-1"></i><%= t('merchant.availability.save') %>
             </button>
           </form>
         </div>
@@ -128,7 +127,7 @@
               margin-bottom: .25rem;
             "
           >
-            No availability set yet
+            <%= t('merchant.availability.emptyTitle') %>
           </h6>
 
           <p
@@ -138,7 +137,7 @@
               margin-bottom: 0;
             "
           >
-            Add operating hours so customers know when they can book.
+            <%= t('merchant.availability.emptyBody') %>
           </p>
         </div>
       <% } else { %>
@@ -153,11 +152,11 @@
             >
               <thead>
                 <tr>
-                  <th>Day</th>
-                  <th>Start</th>
-                  <th>End</th>
-                  <th>Status</th>
-                  <th style="width: 100px;">Action</th>
+                  <th><%= t('merchant.availability.day') %></th>
+                  <th><%= t('merchant.availability.start') %></th>
+                  <th><%= t('merchant.availability.end') %></th>
+                  <th><%= t('admin.table.status') %></th>
+                  <th style="width: 100px;"><%= t('admin.logs.colAction') %></th>
                 </tr>
               </thead>
 
@@ -165,7 +164,7 @@
                 <% availability.forEach(a => { %>
                   <tr>
                     <td>
-                      <strong><%= a.day_of_week %></strong>
+                      <strong><%= t('common.days.' + a.day_of_week, {}, a.day_of_week) %></strong>
                     </td>
 
                     <td><%= String(a.start_time).slice(0, 5) %></td>
@@ -180,10 +179,10 @@
                             color: var(--success);
                           "
                         >
-                          Open
+                          <%= t('merchant.availability.open') %>
                         </span>
                       <% } else { %>
-                        <span class="badge bg-secondary">Closed</span>
+                        <span class="badge bg-secondary"><%= t('merchant.availability.closed') %></span>
                       <% } %>
                     </td>
 
@@ -201,7 +200,7 @@
                           data-end="<%= String(a.end_time).slice(0, 5) %>"
                           data-active="<%= a.is_active %>"
                         >
-                          Edit
+                          <%= t('admin.common.edit') %>
                         </button>
 
                         <form
@@ -216,7 +215,7 @@
                               min-width: 72px;
                             "
                           >
-                            Delete
+                            <%= t('merchant.services.delete') %>
                           </button>
                         </form>
                       </div>
@@ -240,21 +239,21 @@
         <div>
           <h5 style="font-weight: 800; margin-bottom: .35rem;">
             <i class="bi bi-calendar-x me-2" style="color: var(--accent);"></i>
-            Temporary Closures
+            <%= t('merchant.availability.closuresTitle') %>
           </h5>
           <p style="color: var(--muted); margin-bottom: 0;">
-            Emergency closures override your regular weekly operating hours.
+            <%= t('merchant.availability.closuresSubtitle') %>
           </p>
         </div>
         <a href="/merchant/bookings" class="btn btn-outline-danger btn-pill">
-          Declare a closure
+          <%= t('merchant.availability.declareClosure') %>
         </a>
       </div>
 
       <% const closureList = Array.isArray(closures) ? closures : []; %>
       <% if (closureList.length === 0) { %>
         <div class="rounded-xl bg-light p-4 text-center" style="color: var(--muted);">
-          No active or upcoming emergency closures.
+          <%= t('merchant.availability.noClosures') %>
         </div>
       <% } else { %>
         <div class="d-grid gap-3">
@@ -273,18 +272,18 @@
               <div>
                 <div style="font-weight: 700; color: var(--ink);">
                   <%= startsAt.toLocaleString('en-SG', displayOptions) %>
-                  <span style="color: var(--muted);"> to </span>
+                  <span style="color: var(--muted);"> <%= t('admin.promotions.dateRangeTo') %> </span>
                   <%= endsAt.toLocaleString('en-SG', displayOptions) %>
                 </div>
                 <div class="small mt-1" style="color: var(--muted);">
-                  <%= closure.reason || 'Unexpected emergency closure' %>
+                  <%= closure.reason || t('merchant.availability.defaultReason') %>
                 </div>
               </div>
               <span
                 class="badge"
                 style="background: var(--danger-bg, #fff0f2); color: var(--danger, #ef4056); padding: .55rem .85rem;"
               >
-                <%= isActive ? 'Active now' : 'Scheduled' %>
+                <%= isActive ? t('merchant.availability.activeNow') : t('merchant.availability.scheduled') %>
               </span>
             </div>
           <% }) %>

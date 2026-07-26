@@ -5,9 +5,9 @@
 <main class="container py-5" style="max-width:980px;">
   <div class="mb-4">
     <div>
-      <p class="text-uppercase small mb-1" style="color:var(--accent);font-weight:800;letter-spacing:.08em;">Stored SGD balance</p>
-      <h2 class="mb-1" style="font-weight:800;">Payment Wallet</h2>
-      <p class="mb-0" style="color:var(--muted);">Top up securely, pay for bookings, and receive wallet refunds.</p>
+      <p class="text-uppercase small mb-1" style="color:var(--accent);font-weight:800;letter-spacing:.08em;"><%= t('wallet.storedBalance') %></p>
+      <h2 class="mb-1" style="font-weight:800;"><%= t('wallet.title') %></h2>
+      <p class="mb-0" style="color:var(--muted);"><%= t('wallet.subtitle') %></p>
     </div>
   </div>
 
@@ -18,23 +18,23 @@
   <% if (paymentContext) { %>
     <% if (paymentContext.shortfall <= 0 && paymentContext.bookingId) { %>
       <div class="d-flex justify-content-end mb-4">
-        <a href="/payment/checkout/<%= paymentContext.bookingId %>" class="btn btn-primary px-4"><i class="bi bi-arrow-left me-2"></i>Back to payment</a>
+        <a href="/payment/checkout/<%= paymentContext.bookingId %>" class="btn btn-primary px-4"><i class="bi bi-arrow-left me-2"></i><%= t('wallet.backToPayment') %></a>
       </div>
     <% } else { %>
     <div class="alert mb-4 p-3 p-md-4" data-persist style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:16px;color:var(--ink);">
       <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
         <div>
-          <div style="font-weight:800;"><i class="bi bi-info-circle me-1" style="color:#c2410c;"></i> Top up for your booking</div>
-          <div class="small mt-1" style="color:var(--muted);">Your wallet does not currently cover the booking amount.</div>
+          <div style="font-weight:800;"><i class="bi bi-info-circle me-1" style="color:#c2410c;"></i> <%= t('wallet.topUpForBooking') %></div>
+          <div class="small mt-1" style="color:var(--muted);"><%= t('wallet.insufficientNote') %></div>
         </div>
         <% if (paymentContext.bookingId) { %>
-          <a href="/payment/checkout/<%= paymentContext.bookingId %>" class="btn btn-sm btn-primary"><i class="bi bi-arrow-left me-1"></i>Back to payment</a>
+          <a href="/payment/checkout/<%= paymentContext.bookingId %>" class="btn btn-sm btn-primary"><i class="bi bi-arrow-left me-1"></i><%= t('wallet.backToPayment') %></a>
         <% } %>
       </div>
       <div class="row g-2 mt-2">
-        <div class="col-sm-4"><span class="small d-block" style="color:var(--muted);">Booking amount due</span><strong style="font-family:var(--font-mono);">S$<%= paymentContext.amountDue.toFixed(2) %></strong></div>
-        <div class="col-sm-4"><span class="small d-block" style="color:var(--muted);">Current wallet balance</span><strong style="font-family:var(--font-mono);">S$<%= Number(wallet.balance).toFixed(2) %></strong></div>
-        <div class="col-sm-4"><span class="small d-block" style="color:var(--muted);">Additional amount needed</span><strong style="font-family:var(--font-mono);color:#c2410c;">S$<%= paymentContext.shortfall.toFixed(2) %></strong></div>
+        <div class="col-sm-4"><span class="small d-block" style="color:var(--muted);"><%= t('wallet.amountDue') %></span><strong style="font-family:var(--font-mono);">S$<%= paymentContext.amountDue.toFixed(2) %></strong></div>
+        <div class="col-sm-4"><span class="small d-block" style="color:var(--muted);"><%= t('wallet.currentBalance') %></span><strong style="font-family:var(--font-mono);">S$<%= Number(wallet.balance).toFixed(2) %></strong></div>
+        <div class="col-sm-4"><span class="small d-block" style="color:var(--muted);"><%= t('wallet.additionalNeeded') %></span><strong style="font-family:var(--font-mono);color:#c2410c;">S$<%= paymentContext.shortfall.toFixed(2) %></strong></div>
       </div>
     </div>
     <% } %>
@@ -44,11 +44,11 @@
     <div class="col-lg-5">
       <section class="card border-0 h-100" style="border-radius:24px;box-shadow:var(--shadow);">
         <div class="card-body p-4">
-          <span class="small" style="color:var(--muted);">Available balance</span>
+          <span class="small" style="color:var(--muted);"><%= t('wallet.availableBalance') %></span>
           <div class="mt-2 mb-4" style="font:700 2.7rem var(--font-mono);color:var(--ink);">S$<%= Number(wallet.balance).toFixed(2) %></div>
 
-          <h5 style="font-weight:800;">Top up wallet</h5>
-          <p class="small" style="color:var(--muted);">Choose a preset or enter any amount from S$<%= minTopup.toFixed(2) %> to S$<%= maxTopup.toFixed(2) %>. Money is added only after Stripe confirms payment.</p>
+          <h5 style="font-weight:800;"><%= t('wallet.topUpTitle') %></h5>
+          <p class="small" style="color:var(--muted);"><%= t('wallet.topUpHint', { min: 'S$' + minTopup.toFixed(2), max: 'S$' + maxTopup.toFixed(2) }) %></p>
           <div class="d-grid gap-2" style="grid-template-columns:repeat(2,1fr);">
             <% allowedTopups.forEach((amount) => { %>
               <button type="button" class="btn <%= amount === suggestedTopup ? 'btn-primary' : 'btn-outline-secondary' %> wallet-amount" data-amount="<%= amount %>">S$<%= amount %></button>
@@ -62,11 +62,11 @@
           <% } %>
 
           <div class="mt-3">
-            <label for="custom-topup-amount" class="form-label small mb-1" style="font-weight:700;">Custom amount</label>
+            <label for="custom-topup-amount" class="form-label small mb-1" style="font-weight:700;"><%= t('wallet.customAmount') %></label>
             <div class="input-group">
               <span class="input-group-text">S$</span>
-              <input type="number" id="custom-topup-amount" class="form-control" min="<%= minTopup %>" max="<%= maxTopup %>" step="0.01" placeholder="Enter amount">
-              <button type="button" id="use-custom-amount" class="btn btn-outline-secondary">Use amount</button>
+              <input type="number" id="custom-topup-amount" class="form-control" min="<%= minTopup %>" max="<%= maxTopup %>" step="0.01" placeholder="<%= t('wallet.enterAmount') %>">
+              <button type="button" id="use-custom-amount" class="btn btn-outline-secondary"><%= t('wallet.useAmount') %></button>
             </div>
             <div id="custom-amount-error" class="invalid-feedback"></div>
           </div>
@@ -76,37 +76,37 @@
               <i class="bi bi-stars"></i>
             </span>
             <div>
-              <div style="font-weight:800;">Wallet bonus</div>
-              <div class="small" style="color:var(--muted);">Earn 2% additional loyalty points on completed bookings.</div>
+              <div style="font-weight:800;"><%= t('wallet.bonusTitle') %></div>
+              <div class="small" style="color:var(--muted);"><%= t('wallet.bonusSub') %></div>
             </div>
           </div>
 
           <% if (bonusThreshold > 0 && bonusAmount > 0) { %>
             <div class="mt-3 p-2 rounded" style="background:#f0fdf4;color:#166534;font-size:.82rem;">
-              <i class="bi bi-gift me-1"></i> Top up S$<%= bonusThreshold.toFixed(2) %> or more and receive S$<%= bonusAmount.toFixed(2) %> bonus credit.
+              <i class="bi bi-gift me-1"></i> <%= t('wallet.bonusOffer', { threshold: 'S$' + bonusThreshold.toFixed(2), bonus: 'S$' + bonusAmount.toFixed(2) }) %>
             </div>
           <% } %>
 
           <div class="d-flex gap-2 mt-4">
-            <button type="button" id="select-card" class="btn btn-primary flex-fill"><i class="bi bi-credit-card me-1"></i> Card</button>
+            <button type="button" id="select-card" class="btn btn-primary flex-fill"><i class="bi bi-credit-card me-1"></i> <%= t('wallet.card') %></button>
             <button type="button" id="select-paynow" class="btn btn-outline-secondary flex-fill"><i class="bi bi-qr-code me-1"></i> PayNow</button>
           </div>
           <div id="card-topup-panel">
             <div id="wallet-card-element" class="mt-3 p-3 rounded" style="border:1.5px solid var(--border);background:#fff;"></div>
             <button type="button" id="confirm-card-topup" class="btn btn-primary w-100 mt-3">
-              <span id="card-confirm-label"><i class="bi bi-lock me-1"></i> Top up S$<%= suggestedTopup.toFixed(2) %></span>
-              <span id="card-confirm-loading" class="d-none"><span class="spinner-border spinner-border-sm me-1"></span> Processing...</span>
+              <span id="card-confirm-label"><i class="bi bi-lock me-1"></i> <%= t('wallet.topUpAmount', { amount: 'S$' + suggestedTopup.toFixed(2) }) %></span>
+              <span id="card-confirm-loading" class="d-none"><span class="spinner-border spinner-border-sm me-1"></span> <%= t('wallet.processing') %></span>
             </button>
           </div>
           <div id="paynow-topup-panel" class="d-none">
             <div class="mt-3 p-3 rounded small" style="background:var(--surface);border:1.5px solid var(--border);color:var(--muted);">
-              You will continue to Stripe to approve the PayNow top-up.
+              <%= t('wallet.paynowNote') %>
             </div>
             <button type="button" id="confirm-paynow-topup" class="btn btn-primary w-100 mt-3">
-              <i class="bi bi-qr-code me-1"></i> Top up S$<%= suggestedTopup.toFixed(2) %> with PayNow
+              <i class="bi bi-qr-code me-1"></i> <%= t('wallet.topUpPaynow', { amount: 'S$' + suggestedTopup.toFixed(2) }) %>
             </button>
           </div>
-          <p id="selected-label" class="small text-center mt-2 mb-0" style="color:var(--muted);">Selected amount: S$<%= suggestedTopup.toFixed(2) %></p>
+          <p id="selected-label" class="small text-center mt-2 mb-0" style="color:var(--muted);"><%= t('wallet.selectedAmount', { amount: 'S$' + suggestedTopup.toFixed(2) }) %></p>
         </div>
       </section>
     </div>
@@ -115,11 +115,11 @@
       <section class="card border-0" style="border-radius:24px;box-shadow:var(--shadow);">
         <div class="card-body p-4">
           <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-            <h5 class="mb-0" style="font-weight:800;">Recent activity</h5>
-            <a href="<%= walletHistoryUrl %>" class="btn btn-sm btn-outline-secondary">View all</a>
+            <h5 class="mb-0" style="font-weight:800;"><%= t('wallet.recentActivity') %></h5>
+            <a href="<%= walletHistoryUrl %>" class="btn btn-sm btn-outline-secondary"><%= t('wallet.viewAll') %></a>
           </div>
           <% if (!transactions.length) { %>
-            <p class="py-5 text-center" style="color:var(--muted);">No wallet activity yet.</p>
+            <p class="py-5 text-center" style="color:var(--muted);"><%= t('wallet.noActivity') %></p>
           <% } %>
           <% transactions.forEach(tx => {
             const outgoing = tx.transaction_type === 'payment';
@@ -133,23 +133,23 @@
                 ? 'var(--danger)'
                 : 'var(--success)';
             const statusLabel = pending
-              ? 'Awaiting payment confirmation - not added to balance'
+              ? t('wallet.statusPending')
               : failed
-                ? 'Expired or failed - no balance change'
-                : 'Completed';
+                ? t('wallet.statusFailed')
+                : t('bookings.completed');
             tx.status = statusLabel;
           %>
             <div class="d-flex justify-content-between align-items-center py-3 border-bottom gap-3">
               <div>
-                <div style="font-weight:700;"><%= tx.description || tx.transaction_type %></div>
+                <div style="font-weight:700;"><%= tx.description || t('wallet.txType.' + tx.transaction_type, {}, tx.transaction_type) %></div>
                 <div class="small" style="color:var(--muted);"><%= new Date(tx.created_at).toLocaleString('en-SG') %> · <%= tx.status %></div>
               </div>
               <div class="text-end flex-shrink-0">
                 <span style="font-family:var(--font-mono);font-weight:700;color:<%= amountColor %>;<%= failed ? 'text-decoration:line-through;' : '' %>">
                   <%= amountPrefix %>S$<%= Number(tx.amount).toFixed(2) %>
                 </span>
-                <% if (pending) { %><span class="badge rounded-pill text-bg-secondary d-block mt-1">Pending</span><% } %>
-                <% if (failed) { %><span class="badge rounded-pill text-bg-light d-block mt-1">Not credited</span><% } %>
+                <% if (pending) { %><span class="badge rounded-pill text-bg-secondary d-block mt-1"><%= t('admin.payouts.status.pending') %></span><% } %>
+                <% if (failed) { %><span class="badge rounded-pill text-bg-light d-block mt-1"><%= t('wallet.notCredited') %></span><% } %>
               </div>
             </div>
           <% }) %>
@@ -193,17 +193,17 @@
   function selectAmount(amount, selectedButton = null, isCustom = false) {
     const normalized = Math.round(Number(amount) * 100) / 100;
     if (!Number.isFinite(normalized)) {
-      const message = 'Enter a valid top-up amount.';
+      const message = window.t('wallet.err.invalidAmount');
       if (isCustom) showCustomAmountError(message); else showError(message);
       return false;
     }
     if (normalized < <%= minTopup %>) {
-      const message = 'Minimum top-up is S$<%= minTopup.toFixed(2) %>.';
+      const message = window.t('wallet.err.minAmount', { min: 'S$<%= minTopup.toFixed(2) %>' });
       if (isCustom) showCustomAmountError(message); else showError(message);
       return false;
     }
     if (normalized > <%= maxTopup %>) {
-      const message = 'Maximum top-up is S$<%= maxTopup.toFixed(2) %>.';
+      const message = window.t('wallet.err.maxAmount', { max: 'S$<%= maxTopup.toFixed(2) %>' });
       if (isCustom) showCustomAmountError(message); else showError(message);
       return false;
     }
@@ -217,9 +217,9 @@
       selectedButton.classList.remove('btn-outline-secondary');
       selectedButton.classList.add('btn-primary');
     }
-    label.textContent = `Selected amount: S$${selectedAmount.toFixed(2)}`;
-    cardConfirmLabel.innerHTML = `<i class="bi bi-lock me-1"></i> Top up S$${selectedAmount.toFixed(2)}`;
-    paynowConfirm.innerHTML = `<i class="bi bi-qr-code me-1"></i> Top up S$${selectedAmount.toFixed(2)} with PayNow`;
+    label.textContent = window.t('wallet.selectedAmount', { amount: 'S$' + selectedAmount.toFixed(2) });
+    cardConfirmLabel.innerHTML = '<i class="bi bi-lock me-1"></i> ' + window.t('wallet.topUpAmount', { amount: 'S$' + selectedAmount.toFixed(2) });
+    paynowConfirm.innerHTML = '<i class="bi bi-qr-code me-1"></i> ' + window.t('wallet.topUpPaynow', { amount: 'S$' + selectedAmount.toFixed(2) });
     errorBox.classList.add('d-none');
     return true;
   }

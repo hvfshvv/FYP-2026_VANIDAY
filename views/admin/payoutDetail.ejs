@@ -15,7 +15,7 @@
 
 <main class="container py-5">
   <a href="/admin/payouts" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-    <i class="bi bi-arrow-left me-1"></i>Payouts
+    <i class="bi bi-arrow-left me-1"></i><%= t('admin.payouts.title') %>
   </a>
 
   <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
@@ -25,50 +25,50 @@
     <div class="card-body p-4">
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
-          <p class="section-label mb-2">Merchant Settlement</p>
-          <h2 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Payout #<%= payout.payout_id %></h2>
-          <p style="color:var(--muted);margin:0;"><%= payout.merchant_name %> · <%= payout.booking_count %> eligible completed paid bookings</p>
+          <p class="section-label mb-2"><%= t('admin.payouts.settlementEyebrow') %></p>
+          <h2 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.payouts.payoutRef', { id: payout.payout_id }) %></h2>
+          <p style="color:var(--muted);margin:0;"><%= payout.merchant_name %> · <%= t('admin.payouts.eligibleBookings', { count: payout.booking_count }) %></p>
         </div>
-        <span class="badge" style="background:<%= payout.status === 'paid' ? 'var(--success-bg)' : 'var(--warn-bg)' %>;color:<%= payout.status === 'paid' ? 'var(--success)' : 'var(--warn)' %>;font-weight:800;text-transform:capitalize;"><%= payout.status %></span>
+        <span class="badge" style="background:<%= payout.status === 'paid' ? 'var(--success-bg)' : 'var(--warn-bg)' %>;color:<%= payout.status === 'paid' ? 'var(--success)' : 'var(--warn)' %>;font-weight:800;"><%= t('admin.payouts.status.' + payout.status, {}, payout.status) %></span>
       </div>
 
       <div class="row g-3 mt-3">
-        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;">Gross</span><strong class="d-block mono"><%= settlementBand(payout.gross_amount) %></strong></div></div>
-        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;">Uniday commission</span><strong class="d-block mono" style="color:var(--accent);"><%= money(payout.platform_commission) %></strong></div></div>
-        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;">Gateway fees</span><strong class="d-block mono"><%= money(Number(payout.processor_fee_amount || 0) + Number(payout.dispute_fee_amount || 0)) %></strong></div></div>
-        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;">Settlement</span><strong class="d-block mono" style="color:var(--success);"><%= money(payout.payout_amount) %></strong></div></div>
+        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;"><%= t('admin.payouts.gross') %></span><strong class="d-block mono"><%= settlementBand(payout.gross_amount) %></strong></div></div>
+        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;"><%= t('admin.payouts.commission') %></span><strong class="d-block mono" style="color:var(--accent);"><%= money(payout.platform_commission) %></strong></div></div>
+        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;"><%= t('admin.payouts.gatewayFees') %></span><strong class="d-block mono"><%= money(Number(payout.processor_fee_amount || 0) + Number(payout.dispute_fee_amount || 0)) %></strong></div></div>
+        <div class="col-md-3"><div class="rounded-xl p-3" style="background:var(--canvas);"><span style="color:var(--muted);font-size:.82rem;"><%= t('admin.payouts.settlement') %></span><strong class="d-block mono" style="color:var(--success);"><%= money(payout.payout_amount) %></strong></div></div>
       </div>
     </div>
   </div>
 
   <div class="card border-0 mb-4" style="border-radius:var(--r-xl);box-shadow:var(--shadow-sm);">
     <div class="card-body p-4">
-      <h5 style="font-weight:800;color:var(--ink);">Automated settlement</h5>
-      <p style="color:var(--muted);font-size:.9rem;margin-bottom:0;">Payout batches are created and credited by the automated Monday payout run. Merchants are notified when the batch is credited.</p>
+      <h5 style="font-weight:800;color:var(--ink);"><%= t('admin.payouts.automatedTitle') %></h5>
+      <p style="color:var(--muted);font-size:.9rem;margin-bottom:0;"><%= t('admin.payouts.automatedBody') %></p>
       <% if (payout.stripe_transfer_id || payout.payout_reference) { %>
-      <p class="mono mt-3 mb-0" style="color:var(--muted);font-size:.82rem;">Reference: <%= payout.stripe_transfer_id || payout.payout_reference %></p>
+      <p class="mono mt-3 mb-0" style="color:var(--muted);font-size:.82rem;"><%= t('admin.payouts.reference') %> <%= payout.stripe_transfer_id || payout.payout_reference %></p>
       <% } %>
       <% if (payout.stripe_transfer_error) { %>
-      <p class="mt-3 mb-0" style="color:var(--danger);font-size:.85rem;">Stripe transfer error: <%= payout.stripe_transfer_error %></p>
+      <p class="mt-3 mb-0" style="color:var(--danger);font-size:.85rem;"><%= t('admin.payouts.transferError') %> <%= payout.stripe_transfer_error %></p>
       <% } %>
     </div>
   </div>
 
   <div class="card border-0" style="border-radius:var(--r-xl);box-shadow:var(--shadow);">
     <div class="card-body p-4">
-      <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;">Included bookings</h5>
+      <h5 style="font-weight:800;color:var(--ink);margin-bottom:1rem;"><%= t('admin.payouts.includedBookings') %></h5>
       <div class="table-responsive">
         <table class="table align-middle mb-0">
           <thead style="background:var(--accent-light);">
             <tr>
-              <th>Booking</th>
-              <th>Customer</th>
-              <th>Service</th>
-              <th>Slot</th>
-              <th>Gross</th>
-              <th>Uniday</th>
-              <th>Gateway Fees</th>
-              <th>Settlement</th>
+              <th><%= t('admin.table.booking') %></th>
+              <th><%= t('admin.table.customer') %></th>
+              <th><%= t('common.service') %></th>
+              <th><%= t('admin.table.slot') %></th>
+              <th><%= t('admin.payouts.gross') %></th>
+              <th><%= t('admin.payouts.unidayShort') %></th>
+              <th><%= t('admin.payouts.gatewayFees') %></th>
+              <th><%= t('admin.payouts.settlement') %></th>
             </tr>
           </thead>
           <tbody>

@@ -17,20 +17,20 @@
     start.setHours(0, 0, 0, 0);
     end.setHours(0, 0, 0, 0);
 
-    if (!voucher.is_active) return { label: 'Paused', className: 'status-paused' };
-    if (today < start) return { label: 'Upcoming', className: 'status-upcoming' };
-    if (today > end) return { label: 'Expired', className: 'status-expired' };
-    return { label: 'Active', className: 'status-active' };
+    if (!voucher.is_active) return { key: 'paused', label: t('admin.promotions.lifecycle.paused'), className: 'status-paused' };
+    if (today < start) return { key: 'upcoming', label: t('admin.promotions.lifecycle.upcoming'), className: 'status-upcoming' };
+    if (today > end) return { key: 'expired', label: t('admin.promotions.lifecycle.expired'), className: 'status-expired' };
+    return { key: 'active', label: t('admin.promotions.lifecycle.active'), className: 'status-active' };
   };
   const summary = { active_count: 0, upcoming_count: 0, paused_count: 0, expired_count: 0 };
 
   vouchers.forEach(voucher => {
-    const status = campaignStatus(voucher).label;
+    const status = campaignStatus(voucher).key;
 
-    if (status === 'Active') summary.active_count += 1;
-    if (status === 'Upcoming') summary.upcoming_count += 1;
-    if (status === 'Paused') summary.paused_count += 1;
-    if (status === 'Expired') summary.expired_count += 1;
+    if (status === 'active') summary.active_count += 1;
+    if (status === 'upcoming') summary.upcoming_count += 1;
+    if (status === 'paused') summary.paused_count += 1;
+    if (status === 'expired') summary.expired_count += 1;
   });
 %>
 
@@ -161,16 +161,16 @@
 <div class="container py-5">
   <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
     <div>
-      <p class="section-label">Admin Campaigns</p>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Voucher &amp; Campaign Management</h2>
-      <p style="color:var(--muted);margin-bottom:0;">Create platform-wide vouchers and monitor voucher usage.</p>
+      <p class="section-label"><%= t('admin.campaignsHome.eyebrow') %></p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.campaignsHome.voucherTitle') %></h2>
+      <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.campaigns.subtitle') %></p>
     </div>
     <div class="d-flex flex-wrap gap-2">
       <a href="/admin/campaigns/vouchers/analytics" class="btn btn-primary btn-pill btn-sm">
-        <i class="bi bi-bar-chart-line me-1"></i>View Analytics
+        <i class="bi bi-bar-chart-line me-1"></i><%= t('admin.campaigns.viewAnalytics') %>
       </a>
       <a href="/admin/campaigns" class="btn btn-outline-secondary btn-pill btn-sm">
-        <i class="bi bi-arrow-left me-1"></i>Voucher Home
+        <i class="bi bi-arrow-left me-1"></i><%= t('admin.loyalty.voucherHome') %>
       </a>
     </div>
   </div>
@@ -183,25 +183,25 @@
 
   <% if (query && query.created) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i>Voucher campaign created.
+    <i class="bi bi-check-circle me-2"></i><%= t('admin.campaigns.createdMsg') %>
   </div>
   <% } %>
 
   <% if (query && query.updated) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i>Voucher status updated.
+    <i class="bi bi-check-circle me-2"></i><%= t('admin.campaigns.statusUpdatedMsg') %>
   </div>
   <% } %>
 
   <% if (query && query.saved) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--success-bg);color:var(--success);font-size:.875rem;">
-    <i class="bi bi-check-circle me-2"></i>Voucher campaign saved.
+    <i class="bi bi-check-circle me-2"></i><%= t('admin.campaigns.savedMsg') %>
   </div>
   <% } %>
 
   <% if (query && query.error) { %>
   <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
-    <i class="bi bi-exclamation-circle me-2"></i>Unable to update voucher campaign.
+    <i class="bi bi-exclamation-circle me-2"></i><%= t('admin.campaigns.errorMsg') %>
   </div>
   <% } %>
 
@@ -210,7 +210,7 @@
       <div class="stat-card">
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
-            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Active</p>
+            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= t('admin.promotions.lifecycle.active') %></p>
             <p class="stat-value" style="color:var(--success);"><%= summary.active_count || 0 %></p>
           </div>
           <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
@@ -223,7 +223,7 @@
       <div class="stat-card">
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
-            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Upcoming</p>
+            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= t('admin.promotions.lifecycle.upcoming') %></p>
             <p class="stat-value" style="color:#1D4ED8;"><%= summary.upcoming_count || 0 %></p>
           </div>
           <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
@@ -236,7 +236,7 @@
       <div class="stat-card">
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
-            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Paused</p>
+            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= t('admin.promotions.lifecycle.paused') %></p>
             <p class="stat-value" style="color:var(--muted);"><%= summary.paused_count || 0 %></p>
           </div>
           <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
@@ -249,7 +249,7 @@
       <div class="stat-card">
         <div class="d-flex justify-content-between align-items-start gap-3">
           <div>
-            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Expired</p>
+            <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;"><%= t('admin.promotions.lifecycle.expired') %></p>
             <p class="stat-value" style="color:var(--danger);"><%= summary.expired_count || 0 %></p>
           </div>
           <div class="icon-circle" style="width:42px;height:42px;background:var(--accent-light);color:var(--accent);">
@@ -262,48 +262,56 @@
 
   <section class="ai-campaign-card mb-4">
     <div class="mb-4">
-      <p class="section-label mb-1">Smart Suggestions</p>
-      <h5 style="font-weight:800;color:var(--ink);margin-bottom:.35rem;">AI Campaign Assistant</h5>
-      <p style="color:var(--muted);margin-bottom:0;">Generate voucher suggestions based on upcoming occasions and seasonal events.</p>
+      <p class="section-label mb-1"><%= t('admin.campaigns.ai.eyebrow') %></p>
+      <h5 style="font-weight:800;color:var(--ink);margin-bottom:.35rem;"><%= t('admin.campaigns.ai.title') %></h5>
+      <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.campaigns.ai.subtitle') %></p>
     </div>
     <div class="ai-campaign-grid">
       <div class="ai-campaign-panel">
         <div class="row g-3">
           <div class="col-12">
-            <label class="form-label" for="aiOccasion" style="font-weight:600;font-size:.875rem;">Occasion</label>
+            <label class="form-label" for="aiOccasion" style="font-weight:600;font-size:.875rem;"><%= t('admin.campaigns.ai.occasion') %></label>
             <select id="aiOccasion" class="form-select rounded-xl">
-              <option value="">Select occasion</option>
-              <option value="National Day">National Day</option>
-              <option value="Hari Raya">Hari Raya</option>
-              <option value="Chinese New Year">Chinese New Year</option>
-              <option value="Deepavali">Deepavali</option>
-              <option value="Christmas">Christmas</option>
-              <option value="Valentine's Day">Valentine's Day</option>
-              <option value="6.6 Sale">6.6 Sale</option>
-              <option value="7.7 Sale">7.7 Sale</option>
-              <option value="8.8 Sale">8.8 Sale</option>
-              <option value="9.9 Sale">9.9 Sale</option>
-              <option value="10.10 Sale">10.10 Sale</option>
-              <option value="11.11 Sale">11.11 Sale</option>
-              <option value="12.12 Sale">12.12 Sale</option>
+              <option value=""><%= t('admin.campaigns.ai.selectOccasion') %></option>
+              <% [
+                { key: 'nationalDay', value: 'National Day' },
+                { key: 'hariRaya', value: 'Hari Raya' },
+                { key: 'chineseNewYear', value: 'Chinese New Year' },
+                { key: 'deepavali', value: 'Deepavali' },
+                { key: 'christmas', value: 'Christmas' },
+                { key: 'valentinesDay', value: "Valentine's Day" },
+                { key: 'sale66', value: '6.6 Sale' },
+                { key: 'sale77', value: '7.7 Sale' },
+                { key: 'sale88', value: '8.8 Sale' },
+                { key: 'sale99', value: '9.9 Sale' },
+                { key: 'sale1010', value: '10.10 Sale' },
+                { key: 'sale1111', value: '11.11 Sale' },
+                { key: 'sale1212', value: '12.12 Sale' }
+              ].forEach(occasion => { %>
+              <option value="<%= occasion.value %>"><%= t('admin.campaigns.occasion.' + occasion.key, {}, occasion.value) %></option>
+              <% }) %>
             </select>
           </div>
           <div class="col-12">
-            <label class="form-label" for="aiEventDate" style="font-weight:600;font-size:.875rem;">Event Date</label>
+            <label class="form-label" for="aiEventDate" style="font-weight:600;font-size:.875rem;"><%= t('admin.campaigns.ai.eventDate') %></label>
             <input id="aiEventDate" type="date" class="form-control rounded-xl" />
           </div>
           <div class="col-12">
-            <label class="form-label" for="aiCampaignGoal" style="font-weight:600;font-size:.875rem;">Campaign Goal</label>
+            <label class="form-label" for="aiCampaignGoal" style="font-weight:600;font-size:.875rem;"><%= t('admin.campaigns.ai.goal') %></label>
             <select id="aiCampaignGoal" class="form-select rounded-xl">
-              <option value="Increase bookings">Increase bookings</option>
-              <option value="Attract new customers">Attract new customers</option>
-              <option value="Reward existing customers">Reward existing customers</option>
-              <option value="Promote quiet periods">Promote quiet periods</option>
+              <% [
+                { key: 'increaseBookings', value: 'Increase bookings' },
+                { key: 'attractNewCustomers', value: 'Attract new customers' },
+                { key: 'rewardExistingCustomers', value: 'Reward existing customers' },
+                { key: 'promoteQuietPeriods', value: 'Promote quiet periods' }
+              ].forEach(goal => { %>
+              <option value="<%= goal.value %>"><%= t('admin.campaigns.goal.' + goal.key, {}, goal.value) %></option>
+              <% }) %>
             </select>
           </div>
         </div>
         <button type="button" class="btn btn-primary btn-pill mt-3 w-100" id="generateAiCampaignBtn">
-          <i class="bi bi-stars me-1"></i>Generate Recommendation
+          <i class="bi bi-stars me-1"></i><%= t('admin.campaigns.ai.generate') %>
         </button>
       </div>
 
@@ -312,29 +320,29 @@
           <div class="icon-circle-lg mb-3" style="width:64px;height:64px;">
             <i class="bi bi-stars" style="font-size:2rem;color:var(--accent);"></i>
           </div>
-          <p style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">Select an occasion and generate a campaign recommendation.</p>
+          <p style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.campaigns.ai.emptyHint') %></p>
         </div>
 
         <div class="ai-recommendation-card" id="aiRecommendationCard">
-          <span class="ai-rec-pill" id="aiRecOccasion">Based on occasion</span>
-          <h5 id="aiRecName" style="font-weight:800;color:var(--ink);margin-bottom:.35rem;">Campaign Recommendation</h5>
-          <p id="aiRecSummary" style="color:var(--muted);font-size:.875rem;line-height:1.5;margin-bottom:0;">Review the generated voucher suggestion.</p>
+          <span class="ai-rec-pill" id="aiRecOccasion"><%= t('admin.campaigns.ai.basedOnOccasion') %></span>
+          <h5 id="aiRecName" style="font-weight:800;color:var(--ink);margin-bottom:.35rem;"><%= t('admin.campaigns.ai.recommendation') %></h5>
+          <p id="aiRecSummary" style="color:var(--muted);font-size:.875rem;line-height:1.5;margin-bottom:0;"><%= t('admin.campaigns.ai.reviewSuggestion') %></p>
           <div class="ai-rec-metrics">
             <div class="ai-rec-metric">
-              <small>Discount</small>
+              <small><%= t('admin.loyalty.colDiscount') %></small>
               <strong id="aiRecDiscount">-</strong>
             </div>
             <div class="ai-rec-metric">
-              <small>Min Spend</small>
+              <small><%= t('admin.loyalty.minSpend') %></small>
               <strong id="aiRecMinSpend">-</strong>
             </div>
             <div class="ai-rec-metric">
-              <small>Validity</small>
+              <small><%= t('admin.loyalty.colValidity') %></small>
               <strong id="aiRecValidity">-</strong>
             </div>
           </div>
           <div class="ai-rec-reason mb-3">
-            <strong style="color:var(--ink);display:block;margin-bottom:.25rem;">Why this campaign?</strong>
+            <strong style="color:var(--ink);display:block;margin-bottom:.25rem;"><%= t('admin.campaigns.ai.whyThis') %></strong>
             <span id="aiRecReason">-</span>
           </div>
           <button type="button" class="btn btn-primary btn-pill w-100" id="useAiRecommendationBtn">
@@ -352,62 +360,62 @@
     <div class="col-12">
       <div class="card border-0 h-100" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.5rem;">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-          <p class="section-label mb-0"><%= editing ? 'Edit Voucher' : 'Create Voucher' %></p>
+          <p class="section-label mb-0"><%= editing ? t('admin.campaigns.editVoucher') : t('admin.campaigns.createVoucher') %></p>
           <% if (editing) { %>
           <a href="/admin/campaigns/vouchers" class="btn btn-sm btn-outline-secondary btn-pill">
-            <i class="bi bi-x-lg me-1"></i>Cancel edit
+            <i class="bi bi-x-lg me-1"></i><%= t('admin.loyalty.cancelEdit') %>
           </a>
           <% } %>
         </div>
         <form action="<%= editing ? `/admin/campaigns/vouchers/${editingCampaign.voucher_id}/edit` : '/admin/campaigns/vouchers/create' %>" method="POST">
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Campaign Name</label>
-              <input type="text" name="campaign_name" class="form-control rounded-xl" value="<%= form.campaign_name || '' %>" placeholder="e.g. May Beauty Deals" required />
+              <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.campaigns.campaignName') %></label>
+              <input type="text" name="campaign_name" class="form-control rounded-xl" value="<%= form.campaign_name || '' %>" placeholder="<%= t('admin.campaigns.campaignNamePlaceholder') %>" required />
             </div>
             <div class="col-md-6">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Voucher Code</label>
-              <input type="text" name="voucher_code" class="form-control rounded-xl text-uppercase" value="<%= form.voucher_code || '' %>" placeholder="e.g. BEAUTY20" maxlength="50" required />
+              <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.campaigns.voucherCode') %></label>
+              <input type="text" name="voucher_code" class="form-control rounded-xl text-uppercase" value="<%= form.voucher_code || '' %>" placeholder="<%= t('admin.campaigns.voucherCodePlaceholder') %>" maxlength="50" required />
             </div>
             <div class="col-md-6">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Discount Type</label>
+              <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.discountType') %></label>
               <select name="discount_type" class="form-select rounded-xl">
                 <% if (form.discount_type === 'fixed_amount') { %>
-                <option value="percent">Percent</option>
-                <option value="fixed_amount" selected>Fixed amount</option>
+                <option value="percent"><%= t('admin.loyalty.percent') %></option>
+                <option value="fixed_amount" selected><%= t('admin.loyalty.fixedAmount') %></option>
                 <% } else { %>
-                <option value="percent" selected>Percent</option>
-                <option value="fixed_amount">Fixed amount</option>
+                <option value="percent" selected><%= t('admin.loyalty.percent') %></option>
+                <option value="fixed_amount"><%= t('admin.loyalty.fixedAmount') %></option>
                 <% } %>
               </select>
             </div>
             <div class="col-md-6">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Discount Value</label>
+              <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.discountValue') %></label>
               <input type="number" name="discount_value" class="form-control rounded-xl" value="<%= form.discount_value || '' %>" min="0.01" step="0.01" placeholder="20" required />
             </div>
             <div class="col-md-4">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Min Spend</label>
+              <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.loyalty.minSpend') %></label>
               <input type="number" name="min_spend" class="form-control rounded-xl" value="<%= form.min_spend || '' %>" min="0" step="0.01" placeholder="50" />
             </div>
             <div class="col-md-4">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Usage Limit</label>
+              <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.campaigns.usageLimit') %></label>
               <input type="number" name="usage_limit" class="form-control rounded-xl" value="<%= form.usage_limit || '' %>" min="1" step="1" placeholder="100" />
             </div>
             <div class="col-md-4">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Per Customer</label>
+              <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.campaigns.perCustomer') %></label>
               <input type="number" name="usage_per_customer" class="form-control rounded-xl" value="<%= form.usage_per_customer || '1' %>" min="1" step="1" />
             </div>
             <div class="col-md-6">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">Start Date</label>
+              <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.campaigns.startDate') %></label>
               <input type="date" name="start_date" class="form-control rounded-xl" value="<%= form.start_date || '' %>" required />
             </div>
             <div class="col-md-6">
-              <label class="form-label" style="font-weight:600;font-size:.875rem;">End Date</label>
+              <label class="form-label" style="font-weight:600;font-size:.875rem;"><%= t('admin.campaigns.endDate') %></label>
               <input type="date" name="end_date" class="form-control rounded-xl" value="<%= form.end_date || '' %>" required />
             </div>
           </div>
           <button type="submit" class="btn btn-primary btn-pill mt-3">
-            <i class="bi <%= editing ? 'bi-save' : 'bi-ticket-perforated' %> me-1"></i><%= editing ? 'Save Campaign' : 'Create Campaign' %>
+            <i class="bi <%= editing ? 'bi-save' : 'bi-ticket-perforated' %> me-1"></i><%= editing ? t('admin.campaigns.saveCampaign') : t('admin.campaigns.createCampaign') %>
           </button>
         </form>
       </div>
@@ -417,10 +425,10 @@
   <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
     <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
       <div>
-        <p class="section-label mb-1">Voucher Campaigns</p>
-        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">All Vouchers</h5>
+        <p class="section-label mb-1"><%= t('admin.campaigns.listEyebrow') %></p>
+        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;"><%= t('admin.campaigns.listTitle') %></h5>
       </div>
-      <span class="badge" style="background:var(--accent-light);color:var(--accent);"><%= vouchers.length %> total</span>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);"><%= t('admin.common.countTotal', { count: vouchers.length }) %></span>
     </div>
 
     <% if (vouchers.length === 0) { %>
@@ -428,67 +436,67 @@
       <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
         <i class="bi bi-ticket-perforated" style="font-size:2rem;color:var(--accent);"></i>
       </div>
-      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No voucher campaigns yet</h6>
-      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Created voucher campaigns will appear here.</p>
+      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.campaigns.emptyTitle') %></h6>
+      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;"><%= t('admin.campaigns.emptyBody') %></p>
     </div>
     <% } else { %>
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
         <thead style="background:var(--accent-light);">
           <tr>
-            <th>Campaign</th>
-            <th>Scope</th>
-            <th>Discount</th>
-            <th>Dates</th>
-            <th>Usage</th>
-            <th>Status</th>
-            <th>Action</th>
+            <th><%= t('admin.campaigns.colCampaign') %></th>
+            <th><%= t('admin.campaigns.colScope') %></th>
+            <th><%= t('admin.loyalty.colDiscount') %></th>
+            <th><%= t('admin.promotions.colDates') %></th>
+            <th><%= t('admin.campaigns.colUsage') %></th>
+            <th><%= t('admin.table.status') %></th>
+            <th><%= t('admin.logs.colAction') %></th>
           </tr>
         </thead>
         <tbody>
           <% vouchers.forEach(voucher => { const status = campaignStatus(voucher); %>
           <tr>
             <td>
-              <p style="font-weight:700;color:var(--ink);margin-bottom:.15rem;"><%= voucher.campaign_name || 'Untitled Campaign' %></p>
+              <p style="font-weight:700;color:var(--ink);margin-bottom:.15rem;"><%= voucher.campaign_name || t('admin.campaigns.untitled') %></p>
               <p style="color:var(--muted);font-family:var(--font-mono);margin-bottom:0;"><%= voucher.voucher_code %></p>
             </td>
             <td>
-              <span class="badge" style="background:var(--accent-light);color:var(--accent);"><%= voucher.voucher_type %></span>
-              <p style="color:var(--muted);margin:.25rem 0 0;"><%= voucher.merchant_name || 'All merchants' %></p>
+              <span class="badge" style="background:var(--accent-light);color:var(--accent);"><%= t('admin.campaigns.voucherType.' + voucher.voucher_type, {}, voucher.voucher_type) %></span>
+              <p style="color:var(--muted);margin:.25rem 0 0;"><%= voucher.merchant_name || t('admin.campaigns.allMerchants') %></p>
             </td>
             <td>
               <p style="font-weight:700;margin-bottom:.15rem;"><%= discountText(voucher) %></p>
-              <p style="color:var(--muted);margin-bottom:0;">Min <%= money(voucher.min_spend) %></p>
+              <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.loyalty.minLabel', { value: money(voucher.min_spend) }) %></p>
             </td>
             <td>
               <%= formatDate(voucher.start_date) %>
-              <span style="color:var(--muted);">to</span>
+              <span style="color:var(--muted);"><%= t('admin.promotions.dateRangeTo') %></span>
               <%= formatDate(voucher.end_date) %>
             </td>
             <td>
-              <p style="font-weight:700;margin-bottom:.15rem;"><%= voucher.claim_count || 0 %> claimed</p>
-              <p style="color:var(--muted);margin-bottom:.1rem;"><%= voucher.use_count || 0 %> used</p>
-              <p style="color:var(--muted);margin-bottom:0;font-size:.75rem;">Limit <%= voucher.usage_limit || 'Unlimited' %></p>
+              <p style="font-weight:700;margin-bottom:.15rem;"><%= t('admin.campaigns.claimed', { count: voucher.claim_count || 0 }) %></p>
+              <p style="color:var(--muted);margin-bottom:.1rem;"><%= t('admin.campaigns.used', { count: voucher.use_count || 0 }) %></p>
+              <p style="color:var(--muted);margin-bottom:0;font-size:.75rem;"><%= t('admin.campaigns.limit', { value: voucher.usage_limit || t('admin.campaigns.unlimited') }) %></p>
             </td>
             <td><span class="badge campaign-status-badge <%= status.className %>"><%= status.label %></span></td>
             <td>
               <div class="d-flex align-items-center gap-2 flex-wrap">
               <a href="/admin/campaigns/vouchers/<%= voucher.voucher_id %>/edit" class="btn btn-sm btn-pill btn-outline-secondary">
-                <i class="bi bi-pencil-square me-1"></i>Edit
+                <i class="bi bi-pencil-square me-1"></i><%= t('admin.common.edit') %>
               </a>
-              <% if (status.label === 'Expired') { %>
+              <% if (status.key === 'expired') { %>
               <button type="button" class="btn btn-sm btn-pill btn-outline-secondary" disabled>
-                <i class="bi bi-calendar-x me-1"></i>Expired
+                <i class="bi bi-calendar-x me-1"></i><%= t('admin.promotions.lifecycle.expired') %>
               </button>
               <% } else { %>
               <form action="/admin/campaigns/vouchers/<%= voucher.voucher_id %>/toggle" method="POST" class="m-0">
                 <% if (voucher.is_active) { %>
                 <button type="submit" class="btn btn-sm btn-pill btn-outline-secondary">
-                  <i class="bi bi-pause-circle me-1"></i>Pause
+                  <i class="bi bi-pause-circle me-1"></i><%= t('admin.common.pause') %>
                 </button>
                 <% } else { %>
                 <button type="submit" class="btn btn-sm btn-pill btn-outline-success">
-                  <i class="bi bi-play-circle me-1"></i>Activate
+                  <i class="bi bi-play-circle me-1"></i><%= t('admin.common.activate') %>
                 </button>
                 <% } %>
               </form>
@@ -577,9 +585,9 @@
   function renderAiRecommendation(recommendation) {
     activeAiRecommendation = recommendation;
 
-    document.getElementById('aiRecOccasion').textContent = `Based on: ${activeAiRecommendation.occasion}`;
+    document.getElementById('aiRecOccasion').textContent = window.t('admin.campaigns.ai.basedOn', { occasion: activeAiRecommendation.occasion });
     document.getElementById('aiRecName').textContent = activeAiRecommendation.campaignName;
-    document.getElementById('aiRecSummary').textContent = 'Platform-wide voucher recommendation for participating Uniday merchants.';
+    document.getElementById('aiRecSummary').textContent = window.t('admin.campaigns.ai.recSummary');
     document.getElementById('aiRecDiscount').textContent = activeAiRecommendation.discountType === 'percent'
       ? `${Number(activeAiRecommendation.discountValue).toFixed(0)}% OFF`
       : `S$${Number(activeAiRecommendation.discountValue).toFixed(2)} OFF`;
@@ -615,8 +623,8 @@
       const goal = aiCampaignGoal.value;
 
       generateAiCampaignBtn.disabled = true;
-      generateAiCampaignBtn.textContent = 'Generating...';
-      showAiPanelMessage('AI is generating a campaign recommendation...');
+      generateAiCampaignBtn.textContent = window.t('admin.customers.ai.generating');
+      showAiPanelMessage(window.t('admin.campaigns.ai.generatingMsg'));
 
       try {
         const response = await fetch('/admin/campaigns/ai-recommendation', {
@@ -627,12 +635,12 @@
         const payload = await response.json().catch(() => null);
 
         if (!response.ok || !payload || !payload.success || !payload.recommendation) {
-          throw new Error('Recommendation request failed.');
+          throw new Error(window.t('admin.campaigns.ai.requestFailed'));
         }
 
         renderAiRecommendation(normalizeAiRecommendation(payload.recommendation, occasion));
       } catch (err) {
-        showAiPanelMessage('Unable to generate a recommendation right now. Please try again.', true);
+        showAiPanelMessage(window.t('admin.campaigns.ai.errorMsg'), true);
       } finally {
         generateAiCampaignBtn.disabled = false;
         generateAiCampaignBtn.innerHTML = generateAiCampaignBtnDefaultHtml;

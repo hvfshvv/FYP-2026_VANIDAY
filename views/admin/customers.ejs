@@ -18,7 +18,7 @@
   };
   const maskPhone = value => {
     const phone = String(value || '');
-    if (!phone) return 'No phone';
+    if (!phone) return t('admin.customers.noPhone');
     let seen = 0;
     return phone.replace(/\d/g, digit => (++seen <= 4 ? digit : 'x'));
   };
@@ -276,23 +276,23 @@
   <div class="container" style="max-width:1400px;">
     <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
       <div>
-        <p class="section-label mb-2">Admin View</p>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Customer Dashboard</h2>
-        <p style="color:var(--muted);margin-bottom:0;">Account health, bookings, loyalty, spending, recommendations, reviews, and security settings.</p>
+        <p class="section-label mb-2"><%= t('admin.customers.eyebrow') %></p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.customers.title') %></h2>
+        <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.customers.subtitle') %></p>
       </div>
       <div class="d-flex flex-wrap gap-2 align-items-center">
         <form method="GET" action="/admin/customers" class="d-flex flex-wrap gap-2 align-items-center">
           <input type="date" name="startDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.startDate %>" />
           <input type="date" name="endDate" class="form-control rounded-xl" style="width:150px;" value="<%= range.endDate %>" />
           <button type="submit" class="btn btn-primary btn-pill">
-            <i class="bi bi-funnel me-1"></i>Filter
+            <i class="bi bi-funnel me-1"></i><%= t('admin.common.filter') %>
           </button>
         </form>
         <button type="button" class="btn btn-outline-secondary btn-pill" id="themeToggle">
-          <i class="bi bi-moon-stars me-1"></i>Theme
+          <i class="bi bi-moon-stars me-1"></i><%= t('admin.customers.theme') %>
         </button>
         <button type="button" class="btn btn-outline-secondary btn-pill" id="summaryButton">
-          <i class="bi bi-file-earmark-text me-1"></i>Summarize Data
+          <i class="bi bi-file-earmark-text me-1"></i><%= t('admin.customers.summarize') %>
         </button>
       </div>
     </div>
@@ -305,23 +305,23 @@
     <% } %>
 
     <div class="admin-tabs mb-4">
-      <a href="#overview">Account Overview</a>
-      <a href="#whatsapp">WhatsApp</a>
-      <a href="#loyalty">Loyalty</a>
-      <a href="#spending">Spending</a>
-      <a href="#recommendations">Recommendations</a>
-      <a href="#reviews">Reviews</a>
-      <a href="#security">Security</a>
+      <a href="#overview"><%= t('admin.customers.tab.overview') %></a>
+      <a href="#whatsapp"><%= t('admin.customers.tab.whatsapp') %></a>
+      <a href="#loyalty"><%= t('admin.customers.tab.loyalty') %></a>
+      <a href="#spending"><%= t('admin.customers.tab.spending') %></a>
+      <a href="#recommendations"><%= t('admin.customers.tab.recommendations') %></a>
+      <a href="#reviews"><%= t('admin.customers.tab.reviews') %></a>
+      <a href="#security"><%= t('admin.customers.tab.security') %></a>
     </div>
 
     <section class="summary-panel mb-4" id="summaryPanel" aria-live="polite">
       <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-2">
         <div>
-          <p class="section-label mb-1">Customer Data Summary</p>
-          <h4 class="customer-title">Data Analysis</h4>
+          <p class="section-label mb-1"><%= t('admin.customers.summaryEyebrow') %></p>
+          <h4 class="customer-title"><%= t('admin.customers.summaryTitle') %></h4>
         </div>
         <button type="button" class="btn btn-outline-secondary btn-sm btn-pill" id="copySummaryButton">
-          <i class="bi bi-clipboard me-1"></i>Copy
+          <i class="bi bi-clipboard me-1"></i><%= t('admin.customers.copy') %>
         </button>
       </div>
       <p class="summary-panel__meta" id="summaryMeta"></p>
@@ -331,10 +331,10 @@
     <section id="overview" class="section-anchor mb-5">
       <div class="row g-3">
         <% [
-          { label:'Customer accounts', value:number(overview.total_customers), icon:'bi-person-badge', color:'var(--accent)' },
-          { label:'Payment methods used', value:number(overview.saved_payment_methods), icon:'bi-credit-card', color:'#1D4ED8' },
-          { label:'Total amount spent', value:maskMoney(overview.total_amount_spent), icon:'bi-cash-stack', color:'var(--success)' },
-          { label:'Average order value', value:money(overview.average_order_value), icon:'bi-bag-check', color:'var(--ink)' },
+          { label:t('admin.customers.stat.accounts'), value:number(overview.total_customers), icon:'bi-person-badge', color:'var(--accent)' },
+          { label:t('admin.customers.stat.paymentMethods'), value:number(overview.saved_payment_methods), icon:'bi-credit-card', color:'#1D4ED8' },
+          { label:t('admin.customers.stat.totalSpent'), value:maskMoney(overview.total_amount_spent), icon:'bi-cash-stack', color:'var(--success)' },
+          { label:t('admin.customers.stat.avgOrder'), value:money(overview.average_order_value), icon:'bi-bag-check', color:'var(--ink)' },
         ].forEach(stat => { %>
           <div class="col-6 col-lg-3">
             <div class="stat-card h-100">
@@ -355,16 +355,16 @@
       <div class="row g-3 mt-1">
         <div class="col-lg-8">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Profile Information &amp; Membership Status</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.profileTitle') %></h6>
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
-                <thead style="background:var(--accent-light);"><tr><th>Customer</th><th>Contact</th><th>Birthday</th><th>Points</th><th>Bookings</th><th>Spent</th><th>Favourites</th></tr></thead>
+                <thead style="background:var(--accent-light);"><tr><th><%= t('admin.table.customer') %></th><th><%= t('admin.customers.contact') %></th><th><%= t('admin.customers.birthday') %></th><th><%= t('admin.table.points') %></th><th><%= t('admin.table.bookings') %></th><th><%= t('admin.customers.spent') %></th><th><%= t('admin.customers.favourites') %></th></tr></thead>
                 <tbody>
                   <% (a.accountProfiles || []).forEach(customer => { %>
                     <tr>
                       <td>
                         <p style="font-weight:700;margin:0;"><%= customer.full_name || '-' %></p>
-                        <p style="color:var(--muted);margin:0;font-size:.75rem;"><%= customer.status || 'active' %></p>
+                        <p style="color:var(--muted);margin:0;font-size:.75rem;"><%= t('admin.accountStatus.' + (customer.status || 'active'), {}, customer.status || 'active') %></p>
                       </td>
                       <td>
                         <p style="margin:0;"><%= customer.email || '-' %></p>
@@ -380,22 +380,22 @@
                 </tbody>
               </table>
             </div>
-            <% if (!(a.accountProfiles || []).length) { %><p style="color:var(--muted);margin:0;">No customer profiles found.</p><% } %>
+            <% if (!(a.accountProfiles || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.customers.noProfiles') %></p><% } %>
           </div>
         </div>
         <div class="col-lg-4">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Loyalty Tier Progression</h6>
-            <p style="color:var(--muted);margin-bottom:.35rem;">Average points balance</p>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.tierProgression') %></h6>
+            <p style="color:var(--muted);margin-bottom:.35rem;"><%= t('admin.customers.avgPoints') %></p>
             <p class="stat-value" style="font-size:2rem;color:var(--accent);"><%= number(avgPoints) %></p>
             <div class="mini-bar mb-2"><span style="width:<%= barWidth(tierProgress, 100) %>%;"></span></div>
             <div class="d-flex justify-content-between" style="color:var(--muted);font-size:.75rem;font-weight:700;">
-              <span>Bronze</span><span>Silver</span><span>Gold</span>
+              <span><%= t('admin.tier.bronze') %></span><span><%= t('admin.tier.silver') %></span><span><%= t('admin.tier.gold') %></span>
             </div>
             <div class="metric-list mt-4">
-              <div class="metric-row"><p>Bronze members</p><small><%= number(loyalty.bronze_members) %></small></div>
-              <div class="metric-row"><p>Silver members</p><small><%= number(loyalty.silver_members) %></small></div>
-              <div class="metric-row"><p>Gold members</p><small><%= number(loyalty.gold_members) %></small></div>
+              <div class="metric-row"><p><%= t('admin.customers.bronzeMembers') %></p><small><%= number(loyalty.bronze_members) %></small></div>
+              <div class="metric-row"><p><%= t('admin.customers.silverMembers') %></p><small><%= number(loyalty.silver_members) %></small></div>
+              <div class="metric-row"><p><%= t('admin.customers.goldMembers') %></p><small><%= number(loyalty.gold_members) %></small></div>
             </div>
           </div>
         </div>
@@ -403,15 +403,15 @@
     </section>
 
     <section id="whatsapp" class="section-anchor mb-5">
-      <p class="section-label mb-1">WhatsApp Booking Data</p>
-      <h4 class="customer-title mb-3">WhatsApp Bookings</h4>
+      <p class="section-label mb-1"><%= t('admin.customers.whatsappEyebrow') %></p>
+      <h4 class="customer-title mb-3"><%= t('admin.customers.whatsappTitle') %></h4>
       <div class="row g-3">
         <% const whatsappSummary = a.whatsappBookingSummary || {}; %>
         <% [
-          { label:'WhatsApp bookings', value:number(whatsappSummary.total_bookings), icon:'bi-whatsapp', color:'var(--success)' },
-          { label:'WhatsApp customers', value:number(whatsappSummary.customers), icon:'bi-people', color:'var(--accent)' },
-          { label:'Paid revenue', value:maskMoney(whatsappSummary.paid_revenue), icon:'bi-cash-stack', color:'var(--success)' },
-          { label:'Avg paid booking', value:maskMoney(whatsappSummary.average_paid_booking), icon:'bi-bag-check', color:'var(--ink)' },
+          { label:t('admin.customers.wa.bookings'), value:number(whatsappSummary.total_bookings), icon:'bi-whatsapp', color:'var(--success)' },
+          { label:t('admin.customers.wa.customers'), value:number(whatsappSummary.customers), icon:'bi-people', color:'var(--accent)' },
+          { label:t('admin.customers.wa.paidRevenue'), value:maskMoney(whatsappSummary.paid_revenue), icon:'bi-cash-stack', color:'var(--success)' },
+          { label:t('admin.customers.wa.avgPaid'), value:maskMoney(whatsappSummary.average_paid_booking), icon:'bi-bag-check', color:'var(--ink)' },
         ].forEach(stat => { %>
           <div class="col-6 col-lg-3">
             <div class="customer-card">
@@ -425,21 +425,21 @@
         <% }) %>
         <div class="col-lg-4">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">WhatsApp Status</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.wa.statusTitle') %></h6>
             <div class="metric-list">
               <% (a.whatsappBookingStatus || []).forEach(row => { %>
-                <div class="metric-row"><p><%= String(row.status || 'unknown').replace('_', ' ') %></p><small><%= number(row.total) %></small></div>
+                <div class="metric-row"><p><%= t('admin.bookingStatus.' + row.status, {}, String(row.status || 'unknown').replace('_', ' ')) %></p><small><%= number(row.total) %></small></div>
               <% }) %>
-              <% if (!(a.whatsappBookingStatus || []).length) { %><p style="color:var(--muted);margin:0;">No WhatsApp booking statuses yet.</p><% } %>
+              <% if (!(a.whatsappBookingStatus || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.customers.wa.noStatuses') %></p><% } %>
             </div>
           </div>
         </div>
         <div class="col-lg-8">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Recent WhatsApp Bookings</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.wa.recentTitle') %></h6>
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
-                <thead style="background:var(--accent-light);"><tr><th>Customer</th><th>Merchant</th><th>Service</th><th>Status</th><th>Paid</th><th>Created</th></tr></thead>
+                <thead style="background:var(--accent-light);"><tr><th><%= t('admin.table.customer') %></th><th><%= t('common.merchant') %></th><th><%= t('common.service') %></th><th><%= t('admin.table.status') %></th><th><%= t('admin.payouts.status.paid') %></th><th><%= t('admin.logs.colCreated') %></th></tr></thead>
                 <tbody>
                   <% (a.whatsappRecentBookings || []).forEach(booking => { %>
                     <tr>
@@ -449,7 +449,7 @@
                       </td>
                       <td><%= booking.merchant_name || '-' %></td>
                       <td><%= booking.service_name || '-' %></td>
-                      <td><%= String(booking.status || 'unknown').replace('_', ' ') %></td>
+                      <td><%= t('admin.bookingStatus.' + booking.status, {}, String(booking.status || 'unknown').replace('_', ' ')) %></td>
                       <td style="font-family:var(--font-mono);font-weight:700;"><%= booking.payment_status === 'paid' ? maskMoney(booking.amount) : '-' %></td>
                       <td><%= dateLabel(booking.created_at) %></td>
                     </tr>
@@ -457,22 +457,22 @@
                 </tbody>
               </table>
             </div>
-            <% if (!(a.whatsappRecentBookings || []).length) { %><p style="color:var(--muted);margin:0;">No WhatsApp bookings found for this period.</p><% } %>
+            <% if (!(a.whatsappRecentBookings || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.customers.wa.noBookings') %></p><% } %>
           </div>
         </div>
       </div>
     </section>
 
     <section id="loyalty" class="section-anchor mb-5">
-      <p class="section-label mb-1">Loyalty &amp; Rewards</p>
-      <h4 class="customer-title mb-3">Points, Vouchers &amp; Referral Signals</h4>
+      <p class="section-label mb-1"><%= t('admin.customers.loyaltyEyebrow') %></p>
+      <h4 class="customer-title mb-3"><%= t('admin.customers.loyaltyTitle') %></h4>
       <div class="row g-3">
         <div class="col-12">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Reward Balance Visual</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.rewardVisual') %></h6>
             <div class="visual-strip">
               <div class="visual-tile">
-                <p style="color:var(--muted);margin:0 0 .35rem;">Tier progress</p>
+                <p style="color:var(--muted);margin:0 0 .35rem;"><%= t('admin.customers.tierProgress') %></p>
                 <p class="stat-value" style="font-size:1.45rem;"><%= percent(tierProgress) %></p>
                 <div class="mini-bar"><span style="width:<%= barWidth(tierProgress, 100) %>%;"></span></div>
               </div>
@@ -481,7 +481,7 @@
         </div>
         <div class="col-12">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Available Vouchers &amp; Promotions</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.availableVouchers') %></h6>
             <div class="metric-list">
               <% (a.availableVouchers || []).forEach(voucher => { %>
                 <div class="metric-row">
@@ -496,12 +496,12 @@
     </section>
 
     <section id="spending" class="section-anchor mb-5">
-      <p class="section-label mb-1">Spending &amp; Activity Analytics</p>
-      <h4 class="customer-title mb-3">Trends, Categories &amp; Usage</h4>
+      <p class="section-label mb-1"><%= t('admin.customers.spendingEyebrow') %></p>
+      <h4 class="customer-title mb-3"><%= t('admin.customers.spendingTitle') %></h4>
       <div class="row g-3">
         <div class="col-lg-6">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Spending Categories</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.spendCategories') %></h6>
             <% const categoryTotal = (a.spendingCategories || []).reduce((sum, row) => sum + Number(row.total || 0), 0) || 1; %>
             <div class="donut-grid mb-3">
               <% (a.spendingCategories || []).slice(0, 4).forEach(row => {
@@ -515,18 +515,18 @@
                   <small style="color:var(--muted);font-family:var(--font-mono);"><%= maskMoney(row.total) %></small>
                 </div>
               <% }) %>
-              <% if (!(a.spendingCategories || []).length) { %><p style="color:var(--muted);margin:0;">No category spend yet.</p><% } %>
+              <% if (!(a.spendingCategories || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.customers.noCategorySpend') %></p><% } %>
             </div>
           </div>
         </div>
         <div class="col-lg-6">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Booking Frequency</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.bookingFrequency') %></h6>
             <% const frequencyMax = maxOf(a.bookingFrequency || [], 'bookings'); %>
             <div class="metric-list">
               <% (a.bookingFrequency || []).forEach(row => { %>
                 <div>
-                  <div class="metric-row mb-1"><p><%= row.day_label %></p><small><%= number(row.bookings) %> bookings</small></div>
+                  <div class="metric-row mb-1"><p><%= row.day_label %></p><small><%= t('admin.payouts.bookingsCount', { count: number(row.bookings) }) %></small></div>
                   <div class="mini-bar"><span style="width:<%= barWidth(row.bookings, frequencyMax) %>%;"></span></div>
                 </div>
               <% }) %>
@@ -537,12 +537,12 @@
     </section>
 
     <section id="recommendations" class="section-anchor mb-5">
-      <p class="section-label mb-1">Personalized Recommendations</p>
-      <h4 class="customer-title mb-3">Merchant, Service &amp; Promotion Suggestions</h4>
+      <p class="section-label mb-1"><%= t('admin.customers.recEyebrow') %></p>
+      <h4 class="customer-title mb-3"><%= t('admin.customers.recTitle') %></h4>
       <div class="row g-3">
         <div class="col-lg-4">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Recommended Merchants</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.recMerchants') %></h6>
             <div class="metric-list">
               <% (a.recommendedMerchants || []).forEach(row => { %>
                 <div class="metric-row"><p><%= row.merchant_name %></p><small><%= rating(row.rating) %></small></div>
@@ -552,7 +552,7 @@
         </div>
         <div class="col-lg-4">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Suggested Services</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.recServices') %></h6>
             <div class="metric-list">
               <% (a.suggestedServices || []).forEach(row => { %>
                 <div class="metric-row"><p><%= row.service_name %></p><small><%= row.category %></small></div>
@@ -562,7 +562,7 @@
         </div>
         <div class="col-lg-4">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Promos</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.recPromos') %></h6>
             <div class="metric-list">
               <% (a.behaviourPromotions || []).slice(0, 4).forEach(row => { %>
                 <div class="metric-row"><p><%= row.campaign_name || row.voucher_code %></p></div>
@@ -574,20 +574,20 @@
     </section>
 
     <section id="reviews" class="section-anchor mb-5">
-      <p class="section-label mb-1">Reviews &amp; Feedback</p>
-      <h4 class="customer-title mb-3">Ratings, Previous Feedback &amp; Support Signals</h4>
+      <p class="section-label mb-1"><%= t('admin.customers.reviewsEyebrow') %></p>
+      <h4 class="customer-title mb-3"><%= t('admin.customers.reviewsTitle') %></h4>
       <div class="row g-3">
         <div class="col-lg-4">
           <div class="customer-card">
-            <p style="color:var(--muted);margin-bottom:.35rem;">Average rating</p>
+            <p style="color:var(--muted);margin-bottom:.35rem;"><%= t('admin.feedback.averageRating') %></p>
             <p class="stat-value" style="font-size:2rem;color:var(--warn);"><%= rating(a.reviewSummary?.avg_rating) %></p>
-            <p style="color:var(--muted);margin-bottom:.35rem;">Reviews submitted</p>
+            <p style="color:var(--muted);margin-bottom:.35rem;"><%= t('admin.customers.reviewsSubmitted') %></p>
             <p class="stat-value"><%= number(a.reviewSummary?.review_count) %></p>
           </div>
         </div>
         <div class="col-lg-4">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Previous Feedback</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.previousFeedback') %></h6>
             <div class="metric-list">
               <% (a.recentReviews || []).forEach(row => { %>
                 <div>
@@ -595,18 +595,18 @@
                   <p style="color:var(--muted);margin:.15rem 0 0;font-size:.8rem;"><%= row.merchant_name %> · <%= row.service_name %></p>
                 </div>
               <% }) %>
-              <% if (!(a.recentReviews || []).length) { %><p style="color:var(--muted);margin:0;">No reviews yet.</p><% } %>
+              <% if (!(a.recentReviews || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.customers.noReviews') %></p><% } %>
             </div>
           </div>
         </div>
         <div class="col-lg-4">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Complaint / Support Requests</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.supportRequests') %></h6>
             <div class="metric-list">
               <% (a.platformFeedback || []).forEach(row => { %>
-                <div class="metric-row"><p><%= String(row.feedback_type || 'general').replace('_', ' ') %></p><small><%= number(row.total) %></small></div>
+                <div class="metric-row"><p><%= t('admin.feedback.type.' + (row.feedback_type || 'general'), {}, String(row.feedback_type || 'general').replace('_', ' ')) %></p><small><%= number(row.total) %></small></div>
               <% }) %>
-              <% if (!(a.platformFeedback || []).length) { %><p style="color:var(--muted);margin:0;">No platform feedback or support records yet.</p><% } %>
+              <% if (!(a.platformFeedback || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.customers.noPlatformFeedback') %></p><% } %>
             </div>
           </div>
         </div>
@@ -614,13 +614,13 @@
     </section>
 
     <section id="security" class="section-anchor mb-3">
-      <p class="section-label mb-1">Security &amp; Settings</p>
-      <h4 class="customer-title mb-3">Account Controls</h4>
+      <p class="section-label mb-1"><%= t('admin.customers.securityEyebrow') %></p>
+      <h4 class="customer-title mb-3"><%= t('admin.customers.securityTitle') %></h4>
       <div class="row g-3">
         <% [
-          { label:'Active accounts', value:number(security.active_accounts), icon:'bi-shield-check' },
-          { label:'Suspended accounts', value:number(security.suspended_accounts), icon:'bi-shield-exclamation' },
-          { label:'Notification preferences', value:'Email / WhatsApp records', icon:'bi-bell' },
+          { label:t('admin.customers.activeAccounts'), value:number(security.active_accounts), icon:'bi-shield-check' },
+          { label:t('admin.customers.suspendedAccounts'), value:number(security.suspended_accounts), icon:'bi-shield-exclamation' },
+          { label:t('admin.customers.notificationPrefs'), value:t('admin.customers.notificationPrefsValue'), icon:'bi-bell' },
         ].forEach(item => { %>
           <div class="col-md-6 col-xl-4">
             <div class="customer-card">
@@ -634,12 +634,12 @@
         <% }) %>
         <div class="col-12">
           <div class="customer-card">
-            <h6 class="customer-title mb-3">Payment Method Usage</h6>
+            <h6 class="customer-title mb-3"><%= t('admin.customers.paymentUsage') %></h6>
             <div class="metric-list">
               <% (a.paymentMethods || []).forEach(row => { %>
-                <div class="metric-row"><p><%= row.payment_method || 'Unknown' %></p><small><%= number(row.total) %> payments</small></div>
+                <div class="metric-row"><p><%= row.payment_method || t('admin.customers.unknown') %></p><small><%= t('admin.customers.paymentsCount', { count: number(row.total) }) %></small></div>
               <% }) %>
-              <% if (!(a.paymentMethods || []).length) { %><p style="color:var(--muted);margin:0;">No payment method records yet.</p><% } %>
+              <% if (!(a.paymentMethods || []).length) { %><p style="color:var(--muted);margin:0;"><%= t('admin.customers.noPaymentMethods') %></p><% } %>
             </div>
           </div>
         </div>
@@ -677,9 +677,9 @@
     async function fetchAiSummary(endpoint, metaText) {
       const defaultButtonHtml = summaryButton.innerHTML;
       summaryButton.disabled = true;
-      summaryButton.textContent = 'Generating...';
+      summaryButton.textContent = window.t('admin.customers.ai.generating');
       summaryMeta.textContent = metaText;
-      summaryOutput.textContent = 'Generating Gemini AI summary from database data...';
+      summaryOutput.textContent = window.t('admin.customers.ai.generatingBody');
       summaryPanel.classList.add('is-visible');
       summaryPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -694,14 +694,14 @@
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) {
-          throw new Error(payload.message || 'AI summary request failed.');
+          throw new Error(payload.message || window.t('admin.customers.ai.requestFailed'));
         }
-        summaryMeta.textContent = `Generated by Gemini AI from database data: ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
-        summaryOutput.textContent = payload.summary?.text || 'No Gemini summary was generated for the selected period.';
+        summaryMeta.textContent = window.t('admin.customers.ai.generatedMeta', { from: dateLabel(range.startDate), to: dateLabel(range.endDate) });
+        summaryOutput.textContent = payload.summary?.text || window.t('admin.customers.ai.noSummary');
       } catch (error) {
         console.error('Failed to generate Gemini summary', error);
-        summaryMeta.textContent = `Gemini summary unavailable for ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}.`;
-        summaryOutput.textContent = `AI summary could not be generated right now. ${error.message || 'Please check the Gemini API key, network connection, or server logs, then try again.'}`;
+        summaryMeta.textContent = window.t('admin.customers.ai.unavailableMeta', { from: dateLabel(range.startDate), to: dateLabel(range.endDate) });
+        summaryOutput.textContent = window.t('admin.customers.ai.errorBody') + ' ' + (error.message || window.t('admin.customers.ai.errorHint'));
       } finally {
         summaryButton.disabled = false;
         summaryButton.innerHTML = defaultButtonHtml;
@@ -719,9 +719,9 @@
       const value = summaryOutput.textContent || '';
       if (!value) return;
       await navigator.clipboard.writeText(value);
-      copySummaryButton.innerHTML = '<i class="bi bi-check2 me-1"></i>Copied';
+      copySummaryButton.innerHTML = '<i class="bi bi-check2 me-1"></i>' + window.t('admin.customers.copied');
       setTimeout(() => {
-        copySummaryButton.innerHTML = '<i class="bi bi-clipboard me-1"></i>Copy';
+        copySummaryButton.innerHTML = '<i class="bi bi-clipboard me-1"></i>' + window.t('admin.customers.copy');
       }, 1600);
     });
   })();

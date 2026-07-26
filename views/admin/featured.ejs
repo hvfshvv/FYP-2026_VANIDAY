@@ -4,31 +4,31 @@
 <div class="container py-5">
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
-      <p class="section-label">Admin Control</p>
-      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Featured Merchants</h2>
-      <p style="color:var(--muted);margin-bottom:0;">Manage which merchant cards appear in the marketplace featured section.</p>
+      <p class="section-label"><%= t('admin.featured.eyebrow') %></p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.featured.title') %></h2>
+      <p style="color:var(--muted);margin-bottom:0;"><%= t('admin.featured.subtitle') %></p>
     </div>
     <a href="/admin/merchants#leaderboard" class="btn btn-primary btn-pill" style="font-weight:800;">
-      <i class="bi bi-trophy me-1"></i>View Leaderboard
+      <i class="bi bi-trophy me-1"></i><%= t('admin.featured.viewLeaderboard') %>
     </a>
   </div>
 
   <% if (error || query.error) { %>
     <div class="alert alert-danger d-flex align-items-center gap-2">
       <i class="bi bi-exclamation-circle"></i>
-      <span><%= error || 'Could not update featured merchants.' %></span>
+      <span><%= error || t('admin.featured.updateFailed') %></span>
     </div>
   <% } %>
   <% if (query.updated) { %>
     <div class="alert alert-success d-flex align-items-center gap-2">
       <i class="bi bi-check-circle"></i>
-      <span>Featured listing visibility updated.</span>
+      <span><%= t('admin.featured.visibilityUpdated') %></span>
     </div>
   <% } %>
   <% if (query.removed) { %>
     <div class="alert alert-success d-flex align-items-center gap-2">
       <i class="bi bi-check-circle"></i>
-      <span>Featured listing removed.</span>
+      <span><%= t('admin.featured.listingRemoved') %></span>
     </div>
   <% } %>
 
@@ -37,9 +37,9 @@
       <div class="icon-circle-lg mx-auto mb-3">
         <i class="bi bi-star" style="font-size:2rem;color:var(--accent);"></i>
       </div>
-      <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">No featured merchants yet</h6>
-      <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;">Use the merchant leaderboard to feature top-performing businesses.</p>
-      <a href="/admin/merchants#leaderboard" class="btn btn-primary btn-pill btn-sm">Open Leaderboard</a>
+      <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.featured.emptyTitle') %></h6>
+      <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;"><%= t('admin.featured.emptyBody') %></p>
+      <a href="/admin/merchants#leaderboard" class="btn btn-primary btn-pill btn-sm"><%= t('admin.featured.openLeaderboard') %></a>
     </div>
   <% } else { %>
     <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
@@ -47,13 +47,13 @@
         <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
           <thead style="background:var(--accent-light);">
             <tr>
-              <th>Merchant</th>
-              <th>Category</th>
-              <th>Bookings</th>
-              <th>Revenue</th>
-              <th>Rating</th>
-              <th>Status</th>
-              <th class="text-end">Actions</th>
+              <th><%= t('common.merchant') %></th>
+              <th><%= t('admin.table.category') %></th>
+              <th><%= t('admin.table.bookings') %></th>
+              <th><%= t('admin.table.revenue') %></th>
+              <th><%= t('admin.table.rating') %></th>
+              <th><%= t('admin.table.status') %></th>
+              <th class="text-end"><%= t('admin.table.actions') %></th>
             </tr>
           </thead>
           <tbody>
@@ -80,9 +80,9 @@
                 <td><%= Number(listing.rating || 0).toFixed(1) %></td>
                 <td>
                   <% if (Number(listing.is_visible || 0)) { %>
-                    <span class="badge" style="background:var(--success-bg);color:var(--success);">Visible</span>
+                    <span class="badge" style="background:var(--success-bg);color:var(--success);"><%= t('admin.reviews.visibility.visible') %></span>
                   <% } else { %>
-                    <span class="badge" style="background:var(--neutral-bg);color:var(--muted);">Hidden</span>
+                    <span class="badge" style="background:var(--neutral-bg);color:var(--muted);"><%= t('admin.reviews.visibility.hidden') %></span>
                   <% } %>
                 </td>
                 <td>
@@ -90,12 +90,12 @@
                     <form action="/admin/featured/<%= listing.listing_id %>/toggle" method="POST" class="m-0">
                       <button type="submit" class="btn btn-sm btn-outline-secondary btn-pill">
                         <i class="bi bi-<%= Number(listing.is_visible || 0) ? 'eye-slash' : 'eye' %> me-1"></i>
-                        <%= Number(listing.is_visible || 0) ? 'Hide' : 'Show' %>
+                        <%= Number(listing.is_visible || 0) ? t('admin.common.hide') : t('admin.common.show') %>
                       </button>
                     </form>
-                    <form action="/admin/featured/<%= listing.listing_id %>/remove" method="POST" class="m-0" onsubmit="return confirm('Remove this merchant from featured listings?');">
+                    <form action="/admin/featured/<%= listing.listing_id %>/remove" method="POST" class="m-0" onsubmit="return confirm('<%= t('admin.featured.removeConfirm') %>');">
                       <button type="submit" class="btn btn-sm btn-outline-danger btn-pill">
-                        <i class="bi bi-trash me-1"></i>Remove
+                        <i class="bi bi-trash me-1"></i><%= t('admin.common.remove') %>
                       </button>
                     </form>
                   </div>

@@ -16,26 +16,26 @@
       ? [formValues.applicable_days]
       : [];
   const dayLabel = value => {
-    if (!value) return 'Every day';
+    if (!value) return t('home.everyDay');
     const values = String(value).split(',').filter(Boolean);
-    if (!values.length || values.length === 7) return 'Every day';
-    if (values.join(',') === 'sat,sun') return 'Weekends only';
-    if (values.join(',') === 'mon,tue,wed,thu,fri') return 'Weekdays only';
+    if (!values.length || values.length === 7) return t('home.everyDay');
+    if (values.join(',') === 'sat,sun') return t('home.weekendsOnly');
+    if (values.join(',') === 'mon,tue,wed,thu,fri') return t('home.weekdaysOnly');
     return values.map(day => (dayList.find(option => option.value === day) || {}).label || day).join(', ');
   };
 %>
 
 <div class="container py-5">
   <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-    <i class="bi bi-arrow-left me-1"></i>Dashboard
+    <i class="bi bi-arrow-left me-1"></i><%= t('nav.dashboard') %>
   </a>
   <div class="d-flex align-items-center gap-3 mb-1">
     <div class="icon-circle flex-shrink-0" style="background:var(--accent-light);width:40px;height:40px;">
       <i class="bi bi-tag" style="color:var(--accent);"></i>
     </div>
-    <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;">My Promotions</h2>
+    <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:0;"><%= t('merchant.promotions.title') %></h2>
   </div>
-  <p style="color:var(--muted);margin-bottom:1.5rem;margin-left:52px;">Submit promotion requests for admin approval before they appear on the marketplace.</p>
+  <p style="color:var(--muted);margin-bottom:1.5rem;margin-left:52px;"><%= t('merchant.promotions.subtitle') %></p>
 
   <% if (error) { %>
   <div class="rounded-xl p-3 mb-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
@@ -52,90 +52,90 @@
     <div class="col-lg-5">
       <div id="new-promotion" class="card border-0 p-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);position:sticky;top:80px;">
         <h6 style="font-weight:700;color:var(--ink);margin-bottom:1rem;">
-          <i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i>New Promotion Request
+          <i class="bi bi-plus-circle me-2" style="color:var(--accent);"></i><%= t('merchant.promotions.newRequest') %>
         </h6>
         <div class="rounded-xl p-3 mb-4" style="border:1px solid var(--border);background:var(--accent-light);">
           <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
             <p class="mb-0" style="font-weight:800;color:var(--ink);">
-              <i class="bi bi-stars me-1" style="color:var(--accent);"></i>AI Promotion Assistant
+              <i class="bi bi-stars me-1" style="color:var(--accent);"></i><%= t('merchant.promotions.aiTitle') %>
             </p>
           </div>
           <div class="mb-2">
-            <label class="form-label" style="font-size:.8rem;font-weight:700;">Goal</label>
-            <input type="text" id="aiPromotionGoal" class="form-control form-control-sm rounded-xl" value="<%= formValues.suggested_goal || '' %>" placeholder="e.g. fill weekday slots" />
+            <label class="form-label" style="font-size:.8rem;font-weight:700;"><%= t('merchant.promotions.goal') %></label>
+            <input type="text" id="aiPromotionGoal" class="form-control form-control-sm rounded-xl" value="<%= formValues.suggested_goal || '' %>" placeholder="<%= t('merchant.promotions.goalPlaceholder') %>" />
           </div>
           <div class="mb-3">
-            <label class="form-label" style="font-size:.8rem;font-weight:700;">Occasion</label>
-            <input type="text" id="aiPromotionSeason" class="form-control form-control-sm rounded-xl" placeholder="e.g. school holiday, payday, Valentine" />
+            <label class="form-label" style="font-size:.8rem;font-weight:700;"><%= t('admin.campaigns.ai.occasion') %></label>
+            <input type="text" id="aiPromotionSeason" class="form-control form-control-sm rounded-xl" placeholder="<%= t('merchant.promotions.occasionPlaceholder') %>" />
           </div>
           <button type="button" id="aiPromotionButton" class="btn btn-outline-secondary btn-sm btn-pill w-100" style="background:#fff;">
-            <i class="bi bi-magic me-1"></i>Generate Suggestion
+            <i class="bi bi-magic me-1"></i><%= t('merchant.promotions.generateSuggestion') %>
           </button>
           <div id="aiPromotionMessage" class="small mt-2" style="display:none;"></div>
         </div>
         <form id="promotionRequestForm" action="/merchant/promotions/create" method="POST" enctype="multipart/form-data">
           <div class="mb-3">
-            <label class="form-label" style="font-size:.875rem;font-weight:600;">Promotion Title</label>
-            <input type="text" name="title" class="form-control rounded-xl" value="<%= formValues.title || '' %>" placeholder="e.g. 20% Off Facials This May" required />
+            <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('merchant.promotions.titleLabel') %></label>
+            <input type="text" name="title" class="form-control rounded-xl" value="<%= formValues.title || '' %>" placeholder="<%= t('merchant.promotions.titlePlaceholder') %>" required />
           </div>
           <div class="mb-3">
-            <label class="form-label" style="font-size:.875rem;font-weight:600;">Offer Text</label>
-            <input type="text" name="offer_text" class="form-control rounded-xl" value="<%= formValues.offer_text || '' %>" placeholder="e.g. 20% off selected facials" required />
+            <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('merchant.promotions.offerText') %></label>
+            <input type="text" name="offer_text" class="form-control rounded-xl" value="<%= formValues.offer_text || '' %>" placeholder="<%= t('merchant.promotions.offerPlaceholder') %>" required />
           </div>
           <div class="mb-3">
-            <label class="form-label" style="font-size:.875rem;font-weight:600;">Description <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
-            <textarea name="description" class="form-control rounded-xl" rows="2" placeholder="Short details about the promo..."><%= formValues.description || '' %></textarea>
+            <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('admin.loyalty.description') %> <span style="color:var(--muted);font-weight:400;">(<%= t('booking.optional') %>)</span></label>
+            <textarea name="description" class="form-control rounded-xl" rows="2" placeholder="<%= t('merchant.promotions.descPlaceholder') %>"><%= formValues.description || '' %></textarea>
           </div>
           <div class="mb-3">
-            <label class="form-label" style="font-size:.875rem;font-weight:600;">Related Service <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('merchant.promotions.relatedService') %> <span style="color:var(--muted);font-weight:400;">(<%= t('booking.optional') %>)</span></label>
             <select name="service_id" class="form-select rounded-xl">
-              <option value="">All services</option>
+              <option value=""><%= t('merchant.promotions.allServices') %></option>
               <% services.forEach(service => { %>
               <option value="<%= service.service_id %>" <%= String(formValues.service_id || '') === String(service.service_id) ? 'selected' : '' %>><%= service.service_name %></option>
               <% }) %>
             </select>
           </div>
           <div class="mb-3">
-            <label class="form-label" style="font-size:.875rem;font-weight:600;">Banner Image <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('merchant.promotions.bannerImage') %> <span style="color:var(--muted);font-weight:400;">(<%= t('booking.optional') %>)</span></label>
             <input type="file" name="image" class="form-control rounded-xl" accept="image/*" />
           </div>
           <div class="mb-3">
-            <label class="form-label" style="font-size:.875rem;font-weight:600;">Discount Percentage</label>
+            <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('merchant.promotions.discountPct') %></label>
             <div class="input-group">
               <input type="number" name="discount_pct" class="form-control" min="1" max="100" step="0.01" value="<%= formValues.discount_pct || '' %>" placeholder="e.g. 20" required />
               <span class="input-group-text fw-700">%</span>
             </div>
           </div>
           <div class="mb-3">
-            <label class="form-label" style="font-size:.875rem;font-weight:600;">Minimum Spend <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('admin.loyalty.minSpend') %> <span style="color:var(--muted);font-weight:400;">(<%= t('booking.optional') %>)</span></label>
             <div class="input-group">
               <span class="input-group-text">S$</span>
               <input type="number" name="min_spend" class="form-control" min="0" step="0.01" value="<%= formValues.min_spend || '' %>" placeholder="e.g. 50.00" />
             </div>
-            <p class="small mb-0 mt-1" style="color:var(--muted);">Leave blank if there is no minimum spend requirement.</p>
+            <p class="small mb-0 mt-1" style="color:var(--muted);"><%= t('merchant.promotions.minSpendHint') %></p>
           </div>
           <div class="row g-2 mb-4">
             <div class="col">
-              <label class="form-label" style="font-size:.875rem;font-weight:600;">Start Date</label>
+              <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('admin.campaigns.startDate') %></label>
               <input type="date" name="start_date" class="form-control rounded-xl" value="<%= formValues.start_date || '' %>" required />
             </div>
             <div class="col">
-              <label class="form-label" style="font-size:.875rem;font-weight:600;">End Date</label>
+              <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('admin.campaigns.endDate') %></label>
               <input type="date" name="end_date" class="form-control rounded-xl" value="<%= formValues.end_date || '' %>" required />
             </div>
           </div>
           <div class="mb-4">
-            <label class="form-label" style="font-size:.875rem;font-weight:600;">Applicable Days <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <label class="form-label" style="font-size:.875rem;font-weight:600;"><%= t('merchant.promotions.applicableDays') %> <span style="color:var(--muted);font-weight:400;">(<%= t('booking.optional') %>)</span></label>
             <div class="d-flex flex-wrap gap-2">
               <% dayList.forEach(day => { %>
               <input type="checkbox" class="btn-check" id="promo-day-<%= day.value %>" name="applicable_days" value="<%= day.value %>" <%= selectedDays.includes(day.value) ? 'checked' : '' %> />
-              <label class="btn btn-sm btn-outline-secondary btn-pill" for="promo-day-<%= day.value %>"><%= day.label %></label>
+              <label class="btn btn-sm btn-outline-secondary btn-pill" for="promo-day-<%= day.value %>"><%= t('merchant.promotions.dayShort.' + day.value, {}, day.label) %></label>
               <% }) %>
             </div>
-            <p class="small mb-0 mt-2" style="color:var(--muted);">Leave blank if this promotion applies every day.</p>
+            <p class="small mb-0 mt-2" style="color:var(--muted);"><%= t('merchant.promotions.daysHint') %></p>
           </div>
           <button type="submit" class="btn btn-primary w-100 btn-pill" style="font-weight:700;">
-            <i class="bi bi-send me-1"></i>Submit for Approval
+            <i class="bi bi-send me-1"></i><%= t('merchant.promotions.submit') %>
           </button>
           <div id="promotionSubmitMessage" class="small mt-3" style="display:none;"></div>
         </form>
@@ -148,8 +148,8 @@
         <div class="icon-circle-lg mx-auto mb-3">
           <i class="bi bi-tag" style="font-size:2rem;color:var(--accent);"></i>
         </div>
-        <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No promotion requests yet</h6>
-        <p style="color:var(--muted);font-size:.875rem;">Submit your first promotion request for admin review.</p>
+        <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.promotions.emptyTitle') %></h6>
+        <p style="color:var(--muted);font-size:.875rem;"><%= t('merchant.promotions.emptyBody') %></p>
       </div>
       <% } else { %>
       <div class="d-flex flex-column gap-3">
@@ -162,10 +162,10 @@
             <div class="flex-grow-1">
               <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                 <p class="promo-title mb-0"><%= p.title %></p>
-                <span class="badge text-capitalize" style="<%= statusStyle(p.approval_status) %>;"><%= p.approval_status || 'approved' %></span>
+                <span class="badge" style="<%= statusStyle(p.approval_status) %>;"><%= t('admin.verification.' + (p.approval_status || 'approved'), {}, p.approval_status || 'approved') %></span>
                 <% if (p.approval_status === 'approved') { %>
                 <span class="badge" style="background:<%= p.is_active ? 'var(--success-bg)' : 'var(--neutral-bg)' %>;color:<%= p.is_active ? 'var(--success)' : 'var(--muted)' %>;">
-                  <%= p.is_active ? 'Live' : 'Paused' %>
+                  <%= p.is_active ? t('merchant.promotions.live') : t('admin.promotions.lifecycle.paused') %>
                 </span>
                 <% } %>
               </div>
@@ -178,11 +178,11 @@
               <% } %>
               <p class="promo-date mb-0"><i class="bi bi-calendar3 me-1"></i><%= formatDate(p.start_date) %> - <%= formatDate(p.end_date) %></p>
               <p class="small mb-0" style="color:var(--muted);"><i class="bi bi-calendar-week me-1"></i><%= dayLabel(p.applicable_days) %></p>
-              <% if (p.min_spend) { %><p class="small mb-0" style="color:var(--muted);"><i class="bi bi-wallet me-1"></i>Min. spend S$<%= Number(p.min_spend).toFixed(2) %></p><% } %>
+              <% if (p.min_spend) { %><p class="small mb-0" style="color:var(--muted);"><i class="bi bi-wallet me-1"></i><%= t('merchant.promotions.minSpendValue', { value: 'S$' + Number(p.min_spend).toFixed(2) }) %></p><% } %>
             </div>
             <div class="promo-discount flex-shrink-0 text-end">
               <%= Number(p.discount_pct || 0).toFixed(0) %>%<br/>
-              <span style="font-size:.7rem;font-weight:700;">off</span>
+              <span style="font-size:.7rem;font-weight:700;"><%= t('merchant.promotions.off') %></span>
             </div>
           </div>
           <p class="small mb-0" style="color:var(--muted);font-weight:700;"><%= p.offer_text || '' %></p>
@@ -190,14 +190,14 @@
             <% if (p.approval_status === 'approved') { %>
             <form action="/merchant/promotions/<%= p.promo_id %>/toggle" method="POST" class="m-0">
               <button class="btn btn-sm btn-pill <%= p.is_active ? 'btn-outline-secondary' : 'btn-outline-success' %>">
-                <i class="bi bi-<%= p.is_active ? 'pause' : 'play' %>-circle me-1"></i><%= p.is_active ? 'Pause' : 'Activate' %>
+                <i class="bi bi-<%= p.is_active ? 'pause' : 'play' %>-circle me-1"></i><%= p.is_active ? t('admin.common.pause') : t('admin.common.activate') %>
               </button>
             </form>
             <% } %>
             <form action="/merchant/promotions/<%= p.promo_id %>/delete" method="POST" class="m-0"
-              onsubmit="return confirm('Delete this promotion?')">
+              onsubmit="return confirm('<%= t('merchant.promotions.deleteConfirm') %>')">
               <button class="btn btn-sm btn-pill btn-outline-danger">
-                <i class="bi bi-trash me-1"></i>Delete
+                <i class="bi bi-trash me-1"></i><%= t('merchant.services.delete') %>
               </button>
             </form>
           </div>
@@ -252,7 +252,7 @@
     aiPromotionButton.addEventListener('click', async () => {
       const originalHtml = aiPromotionButton.innerHTML;
       aiPromotionButton.disabled = true;
-      aiPromotionButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
+      aiPromotionButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>' + window.t('admin.customers.ai.generating');
       setAiMessage('', 'muted');
 
       try {
@@ -287,13 +287,13 @@
           return;
         }
         if (!response.ok || !payload.success) {
-          throw new Error(payload.error || 'Unable to generate a promotion suggestion right now.');
+          throw new Error(payload.error || window.t('merchant.promotions.ai.error'));
         }
 
         applyAiSuggestion(payload.suggestion);
-        setAiMessage(payload.suggestion.reason || 'Suggestion applied.', 'success');
+        setAiMessage(payload.suggestion.reason || window.t('merchant.promotions.ai.applied'), 'success');
       } catch (err) {
-        setAiMessage(err.message || 'Unable to generate a promotion suggestion right now.', 'danger');
+        setAiMessage(err.message || window.t('merchant.promotions.ai.error'), 'danger');
       } finally {
         aiPromotionButton.disabled = false;
         aiPromotionButton.innerHTML = originalHtml;
@@ -309,7 +309,7 @@
       const originalHtml = submitButton.innerHTML;
       promotionMessage.style.display = 'none';
       submitButton.disabled = true;
-      submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Submitting...';
+      submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>' + window.t('merchant.promotions.submitting');
 
       try {
         const response = await fetch(promotionForm.action, {
@@ -333,14 +333,14 @@
         }
 
         if (!response.ok || !payload.success) {
-          throw new Error(payload.error || 'Failed to submit promotion request.');
+          throw new Error(payload.error || window.t('merchant.promotions.submitFailed'));
         }
 
         window.location.href = payload.redirectUrl || '/merchant/promotions?success=1';
       } catch (err) {
         promotionMessage.style.display = 'block';
         promotionMessage.style.color = 'var(--danger)';
-        promotionMessage.textContent = err.message || 'Failed to submit promotion request.';
+        promotionMessage.textContent = err.message || window.t('merchant.promotions.submitFailed');
         submitButton.disabled = false;
         submitButton.innerHTML = originalHtml;
       }

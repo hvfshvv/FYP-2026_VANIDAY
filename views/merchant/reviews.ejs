@@ -15,19 +15,19 @@
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
   <div class="container" style="max-width:980px;">
     <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-      <i class="bi bi-arrow-left me-1"></i>Dashboard
+      <i class="bi bi-arrow-left me-1"></i><%= t('nav.dashboard') %>
     </a>
 
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
       <div>
-        <p class="section-label mb-2">Reviews</p>
-        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Customer Reviews</h2>
-        <p style="color:var(--muted);margin:0;">Read verified booking reviews and reply to customers.</p>
+        <p class="section-label mb-2"><%= t('merchant.nav.reviews') %></p>
+        <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.reviews.title') %></h2>
+        <p style="color:var(--muted);margin:0;"><%= t('merchant.reviews.subtitle') %></p>
       </div>
       <div class="stat-card text-center" style="min-width:170px;">
-        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;">Average Rating</p>
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.35rem;"><%= t('admin.feedback.averageRating') %></p>
         <p class="stat-value" style="color:#f59e0b;"><%= avg.toFixed(1) %>/5</p>
-        <p style="color:var(--muted);font-size:.8rem;margin:0;"><%= count %> review<%= count === 1 ? '' : 's' %></p>
+        <p style="color:var(--muted);font-size:.8rem;margin:0;"><%= t('merchant.reviews.reviewCount', { count: count }) %></p>
       </div>
     </div>
 
@@ -47,8 +47,8 @@
         <div class="icon-circle-lg mx-auto mb-3">
           <i class="bi bi-star" style="font-size:2rem;color:var(--accent);"></i>
         </div>
-        <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">No reviews yet</h6>
-        <p style="color:var(--muted);margin-bottom:0;">Completed bookings can leave verified reviews.</p>
+        <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('admin.customers.noReviews') %></h6>
+        <p style="color:var(--muted);margin-bottom:0;"><%= t('merchant.reviews.emptyBody') %></p>
       </div>
     <% } else { %>
       <div class="d-flex flex-column gap-3">
@@ -71,22 +71,22 @@
               </div>
             </div>
 
-            <p style="color:var(--ink);margin:1rem 0;"><%= review.review_text || 'No written comment.' %></p>
+            <p style="color:var(--ink);margin:1rem 0;"><%= review.review_text || t('merchant.reviews.noComment') %></p>
             <% if (review.review_image_path) { %>
-              <img src="<%= review.review_image_path %>" alt="Photo review by <%= review.customer_name %>" style="width:100%;max-height:360px;object-fit:contain;background:#111;border-radius:12px;margin-bottom:1rem;">
+              <img src="<%= review.review_image_path %>" alt="<%= t('merchant.reviews.photoAlt', { name: review.customer_name }) %>" style="width:100%;max-height:360px;object-fit:contain;background:#111;border-radius:12px;margin-bottom:1rem;">
             <% } %>
 
             <% if (review.merchant_reply) { %>
               <div class="rounded-xl p-3" style="background:var(--accent-light);border:1px solid rgba(225,29,72,.12);">
-                <p style="font-weight:800;color:var(--accent);font-size:.85rem;margin-bottom:.35rem;">Your reply</p>
+                <p style="font-weight:800;color:var(--accent);font-size:.85rem;margin-bottom:.35rem;"><%= t('merchant.reviews.yourReply') %></p>
                 <p style="color:var(--ink);margin:0;"><%= review.merchant_reply %></p>
               </div>
             <% } else { %>
               <form action="/merchant/reviews/<%= review.review_id %>/reply" method="POST" class="mt-3">
-                <label class="form-label" style="font-weight:700;font-size:.875rem;">Reply to this review</label>
-                <textarea name="reply_text" class="form-control rounded-xl mb-2" rows="2" maxlength="1000" required placeholder="Thank the customer or address their feedback..."></textarea>
+                <label class="form-label" style="font-weight:700;font-size:.875rem;"><%= t('merchant.reviews.replyLabel') %></label>
+                <textarea name="reply_text" class="form-control rounded-xl mb-2" rows="2" maxlength="1000" required placeholder="<%= t('merchant.reviews.replyPlaceholder') %>"></textarea>
                 <button class="btn btn-primary btn-sm btn-pill" style="font-weight:800;">
-                  <i class="bi bi-reply me-1"></i>Save Reply
+                  <i class="bi bi-reply me-1"></i><%= t('merchant.reviews.saveReply') %>
                 </button>
               </form>
             <% } %>
