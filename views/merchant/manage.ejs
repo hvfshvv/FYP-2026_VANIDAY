@@ -35,7 +35,7 @@
         {href:'/merchant/revenue', icon:'bi-graph-up', label:'Revenue Report', sub:'Review revenue and your earnings'},
       ].forEach(action => { %>
         <div class="col-6 col-md-4">
-          <a href="<%= action.href %>" class="action-card h-100">
+          <a href="<%= action.href %>?from=manage" class="action-card h-100">
             <div class="d-flex justify-content-between align-items-start gap-2 w-100">
               <div class="action-icon"><i class="bi <%= action.icon %>"></i></div>
               <% if (Number(action.badge || 0) > 0) { %>

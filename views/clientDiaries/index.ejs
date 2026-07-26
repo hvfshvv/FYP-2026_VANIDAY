@@ -2,17 +2,19 @@
 <%- include('../partials/header') %>
 <style>
   .diaries-hero{background:linear-gradient(135deg,#fff1f4,#fff);border:1px solid rgba(225,29,72,.09);border-radius:26px;padding:2rem;box-shadow:var(--shadow)}
-  .diaries-feed{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.25rem;align-items:start}
-  .diaries-card{background:#fff;border:1px solid var(--border);border-radius:16px;overflow:visible;box-shadow:0 10px 28px rgba(136,19,55,.07)}
-  .diaries-card-head{position:relative;display:flex;justify-content:space-between;align-items:center;padding:.8rem 1rem;background:#fff;border-radius:16px 16px 0 0}
-  .diaries-card-user{display:flex;align-items:center;gap:.65rem}.diaries-avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#fb7185);color:#fff;font-weight:800}.diaries-card-user p{font-weight:800;color:var(--ink);font-size:.86rem;margin:0}.diaries-card-user small{color:var(--muted);font-size:.68rem}.diaries-card-user small i{color:var(--success)}
-  .diaries-photo{width:100%;height:min(48vh,350px);background:#111;display:grid;place-items:center;overflow:hidden}.diaries-photo img{display:block;width:100%;height:100%;object-fit:contain}
-  .diaries-copy{padding:1rem}.diaries-caption{font-size:.84rem;color:var(--ink);margin-bottom:.75rem}.diaries-date{font-size:.66rem;text-transform:uppercase;color:var(--muted);margin:.75rem 0 0}
-  .diaries-service-tag{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);background:var(--canvas);border-radius:12px;padding:.65rem .75rem}.diaries-service-tag span{display:block;color:var(--accent);font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}.diaries-service-tag strong{color:var(--ink);font-size:.8rem}.diaries-service-tag i{color:var(--success)}
-  .diaries-rating{white-space:nowrap;color:#f59e0b;font-size:.9rem}
+  .diaries-feed{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.25rem;align-items:stretch}
+  .diaries-card{display:flex;flex-direction:column;height:100%;min-width:0;background:#fff;border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 10px 28px rgba(136,19,55,.07)}
+  .diaries-card-head{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.65rem;align-items:center;min-height:76px;padding:.8rem 1rem;background:#fff}
+  .diaries-card-user{display:flex;align-items:center;gap:.65rem;min-width:0}.diaries-card-user>div{min-width:0}.diaries-avatar{width:38px;height:38px;flex:0 0 38px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#fb7185);color:#fff;font-weight:800}.diaries-card-user p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800;color:var(--ink);font-size:.86rem;margin:0}.diaries-card-user small{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;color:var(--muted);font-size:.68rem;line-height:1.35}.diaries-card-user small i{color:var(--success)}
+  .diaries-photo{width:100%;height:330px;flex:0 0 330px;background:#111;display:grid;place-items:center;overflow:hidden}.diaries-photo img{display:block;width:100%;height:100%;object-fit:contain}
+  .diaries-copy{display:flex;flex:1;flex-direction:column;padding:1rem}.diaries-caption-wrap{min-height:5.15em;margin-bottom:.75rem}.diaries-caption{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:4;font-size:.84rem;line-height:1.45;color:var(--ink)}.diaries-caption.is-expanded{display:block;overflow:visible}.diaries-caption-toggle{display:none;margin:.3rem 0 0;padding:0;border:0;background:transparent;color:var(--accent);font-size:.74rem;font-weight:700}.diaries-caption-toggle.is-visible{display:inline-block}
+  .diaries-card-footer{margin-top:auto}.diaries-date{font-size:.66rem;text-transform:uppercase;color:var(--muted);margin:.75rem 0 0}
+  .diaries-service-tag{display:flex;justify-content:space-between;align-items:center;min-height:58px;border:1px solid var(--border);background:var(--canvas);border-radius:12px;padding:.65rem .75rem}.diaries-service-tag>div{min-width:0}.diaries-service-tag span{display:block;color:var(--accent);font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}.diaries-service-tag strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-size:.8rem}.diaries-service-tag i{flex:0 0 auto;color:var(--success)}
+  .diaries-actions .btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;white-space:nowrap}
+  .diaries-rating{white-space:nowrap;color:#f59e0b;font-size:.78rem}
   @media(min-width:1500px){.diaries-feed{grid-template-columns:repeat(4,minmax(0,1fr))}}
   @media(max-width:991px){.diaries-feed{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  @media(max-width:575px){.diaries-feed{grid-template-columns:1fr}.diaries-card{border-radius:12px}.diaries-photo{height:min(52vh,420px)}}
+  @media(max-width:575px){.diaries-feed{grid-template-columns:1fr}.diaries-card{border-radius:12px}.diaries-photo{height:min(52vh,420px);flex-basis:min(52vh,420px)}}
 </style>
 
 <main style="background:var(--canvas);min-height:80vh;padding:3rem 1rem;">
@@ -24,4 +26,28 @@
     <div class="diaries-feed"><%posts.forEach(post=>{%><%-include('photoReviewCard',{post})%><%})%></div><%}%>
   </div>
 </main>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.diaries-caption').forEach(caption => {
+    const toggle = caption.parentElement.querySelector('.diaries-caption-toggle');
+    if (!toggle) return;
+
+    if (caption.scrollHeight > caption.clientHeight + 1) {
+      toggle.classList.add('is-visible');
+    }
+  });
+});
+
+document.addEventListener('click', event => {
+  const toggle = event.target.closest('.diaries-caption-toggle');
+  if (!toggle) return;
+
+  const caption = toggle.parentElement.querySelector('.diaries-caption');
+  if (!caption) return;
+
+  const expanded = caption.classList.toggle('is-expanded');
+  toggle.textContent = expanded ? 'Show less' : 'Read more';
+  toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+});
+</script>
 <%- include('../partials/footer') %>

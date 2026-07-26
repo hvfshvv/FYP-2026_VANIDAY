@@ -267,7 +267,7 @@
       <div class="row g-3">
         <% featured.forEach(listing => { %>
         <div class="col-lg-3 col-md-6">
-          <a href="/marketplace/merchant/<%= listing.merchant_id %><%= selectedCategory ? '?category=' + encodeURIComponent(selectedCategory) : '' %>" class="merchant-card featured-merchant-card">
+          <a href="/marketplace/merchant/<%= listing.merchant_id %>?from=top-merchants<%= selectedCategory ? '&category=' + encodeURIComponent(selectedCategory) : '' %>" class="merchant-card featured-merchant-card">
             <% if (listing.image_path) { %>
             <div class="card-img-wrapper">
               <img src="<%= listing.image_path %>" class="card-img" alt="<%= listing.merchant_name %>" loading="lazy" />

@@ -1,8 +1,31 @@
 const favouriteModel = require('../models/favouriteModel');
 const { SERVICE_CATEGORIES, normalizeServiceCategory } = require('../utils/serviceCategories');
+const { wantsJson } = require('../middleware/auth');
 
 function currentCustomerId(req) {
   return req.session.user.customer_id || req.session.user.user_id;
+}
+
+function sendFavouriteResult(req, res, result) {
+  if (wantsJson(req)) {
+    return res.json({
+      success: true,
+      ...result
+    });
+  }
+
+  return res.redirect('back');
+}
+
+function sendFavouriteError(req, res, message) {
+  if (wantsJson(req)) {
+    return res.status(500).json({
+      success: false,
+      error: message
+    });
+  }
+
+  return res.status(500).send(message);
 }
 
 // Adds the selected merchant for the current customer, then returns to the same page.
@@ -16,11 +39,15 @@ async function addMerchantFavourite(req, res) {
       merchantId
     );
 
-    res.redirect('back');
+    return sendFavouriteResult(req, res, {
+      favourited: true,
+      addUrl: `/favourite/merchant/${merchantId}`,
+      removeUrl: `/favourite/merchant/remove/${merchantId}`
+    });
 
   } catch (err) {
     console.error(err);
-    res.status(500).send('Failed to add favourite');
+    return sendFavouriteError(req, res, 'Failed to add favourite');
   }
 }
 
@@ -35,11 +62,15 @@ async function removeMerchantFavourite(req, res) {
       merchantId
     );
 
-    res.redirect('back');
+    return sendFavouriteResult(req, res, {
+      favourited: false,
+      addUrl: `/favourite/merchant/${merchantId}`,
+      removeUrl: `/favourite/merchant/remove/${merchantId}`
+    });
 
   } catch (err) {
     console.error(err);
-    res.status(500).send('Failed to remove favourite');
+    return sendFavouriteError(req, res, 'Failed to remove favourite');
   }
 }
 
@@ -77,10 +108,14 @@ async function addServiceFavourite(req, res) {
 
     await favouriteModel.addServiceFavourite(customerId, merchantId, serviceId);
 
-    res.redirect('back');
+    return sendFavouriteResult(req, res, {
+      favourited: true,
+      addUrl: '/favourite/service',
+      removeUrl: `/favourite/service/remove/${serviceId}`
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Failed to add service favourite');
+    return sendFavouriteError(req, res, 'Failed to add service favourite');
   }
 }
 
@@ -92,10 +127,14 @@ async function removeServiceFavourite(req, res) {
 
     await favouriteModel.removeServiceFavourite(customerId, serviceId);
 
-    res.redirect('back');
+    return sendFavouriteResult(req, res, {
+      favourited: false,
+      addUrl: '/favourite/service',
+      removeUrl: `/favourite/service/remove/${serviceId}`
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Failed to remove service favourite');
+    return sendFavouriteError(req, res, 'Failed to remove service favourite');
   }
 }
 

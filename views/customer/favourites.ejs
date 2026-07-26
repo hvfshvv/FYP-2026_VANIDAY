@@ -54,9 +54,11 @@
     </div>
 
     <!-- Empty state shown when the customer has not saved any merchants. -->
-    <% if (!merchants || merchants.length === 0) { %>
-
-      <div class="text-center py-5">
+    <div
+      id="favourite-merchants-empty"
+      class="text-center py-5"
+      <%- merchants && merchants.length ? 'style="display:none;"' : '' %>
+    >
 
         <div class="icon-circle-lg mx-auto mb-3">
           <i
@@ -80,79 +82,98 @@
           Browse Marketplace
         </a>
 
-      </div>
+    </div>
 
-    <% } else { %>
-
-      <div class="row g-3">
-
+    <div id="favourite-merchants-grid" class="row g-3">
+      <% if (merchants && merchants.length) { %>
         <% merchants.forEach(merchant => { %>
 
-          <div class="col-md-6 col-lg-4">
+          <div
+            class="col-md-6 col-lg-4 js-favourite-merchant-item"
+            data-merchant-id="<%= merchant.merchant_id %>"
+          >
+            <div style="position:relative;max-width:340px;height:100%;">
 
-            <a
-              href="/marketplace/merchant/<%= merchant.merchant_id %>"
-              class="merchant-card"
-            >
+              <a
+                href="/marketplace/merchant/<%= merchant.merchant_id %>"
+                class="merchant-card"
+              >
 
-              <% if (merchant.image_path) { %>
+                <% if (merchant.image_path) { %>
 
-                <div class="card-img-wrapper">
-                  <img
-                    src="<%= merchant.image_path %>"
-                    class="card-img"
-                    alt="<%= merchant.merchant_name %>"
-                  >
+                  <div class="card-img-wrapper">
+                    <img
+                      src="<%= merchant.image_path %>"
+                      class="card-img"
+                      alt="<%= merchant.merchant_name %>"
+                    >
+                  </div>
+
+                <% } else { %>
+
+                  <div class="card-no-img">
+                    <i class="bi bi-shop"></i>
+                  </div>
+
+                <% } %>
+
+                <div class="card-body">
+
+                  <div class="card-top">
+
+                    <h6 class="card-title">
+                      <%= merchant.merchant_name %>
+                    </h6>
+
+                  </div>
+
+                  <p class="card-meta">
+                    <%= merchant.description || 'Beauty and wellness merchant' %>
+                  </p>
+
+                  <div class="discount-pill">
+                    <i class="bi bi-grid"></i>
+                    <%= merchant.category || 'General' %>
+                  </div>
+
+                  <div class="info-row">
+
+                    <i class="bi bi-geo-alt"></i>
+
+                    <span>
+                      <%= merchant.address || 'Singapore' %>
+                    </span>
+
+                  </div>
+
                 </div>
 
-              <% } else { %>
+              </a>
 
-                <div class="card-no-img">
-                  <i class="bi bi-shop"></i>
-                </div>
+              <!-- Remove this merchant without reloading the favourites page. -->
+              <form
+                class="js-remove-merchant-favourite-form"
+                action="/favourite/merchant/remove/<%= merchant.merchant_id %>"
+                method="POST"
+                style="position:absolute;top:12px;right:12px;z-index:5;"
+              >
+                <button
+                  type="submit"
+                  style="width:36px;height:36px;border-radius:999px;border:none;background:white;color:var(--accent);box-shadow:var(--shadow);display:inline-flex;align-items:center;justify-content:center;padding:0;"
+                  aria-label="Remove <%= merchant.merchant_name %> from favourites"
+                  title="Remove from favourites"
+                >
+                  <i class="bi bi-heart-fill"></i>
+                </button>
+              </form>
 
-              <% } %>
-
-              <div class="card-body">
-
-                <div class="card-top">
-
-                  <h6 class="card-title">
-                    <%= merchant.merchant_name %>
-                  </h6>
-
-                </div>
-
-                <p class="card-meta">
-                  <%= merchant.description || 'Beauty and wellness merchant' %>
-                </p>
-
-                <div class="discount-pill">
-                  <i class="bi bi-grid"></i>
-                  <%= merchant.category || 'General' %>
-                </div>
-
-                <div class="info-row">
-
-                  <i class="bi bi-geo-alt"></i>
-
-                  <span>
-                    <%= merchant.address || 'Singapore' %>
-                  </span>
-
-                </div>
-
-              </div>
-
-            </a>
+            </div>
 
           </div>
 
         <% }) %>
-
-      </div>
-
-    <% } %>
+      <% } %>
+    </div>
 
   </div>
 
@@ -346,6 +367,46 @@ window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       servicesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 200);
+  }
+});
+
+document.addEventListener('submit', async (event) => {
+  const form = event.target.closest('.js-remove-merchant-favourite-form');
+  if (!form) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const button = form.querySelector('button[type="submit"]');
+  const item = form.closest('.js-favourite-merchant-item');
+  if (button) button.disabled = true;
+
+  try {
+    const response = await fetch(form.action, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: new FormData(form),
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success || result.favourited) {
+      throw new Error(result.error || 'Could not remove merchant from favourites.');
+    }
+
+    if (item) item.remove();
+
+    const grid = document.getElementById('favourite-merchants-grid');
+    const emptyState = document.getElementById('favourite-merchants-empty');
+    if (grid && emptyState && !grid.querySelector('.js-favourite-merchant-item')) {
+      emptyState.style.display = '';
+    }
+  } catch (err) {
+    console.error(err);
+    alert(err.message || 'Could not remove merchant from favourites.');
+    if (button) button.disabled = false;
   }
 });
 </script>

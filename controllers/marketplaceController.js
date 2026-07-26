@@ -144,6 +144,27 @@ async function showMerchantDetails(req, res) {
         .map(service => normalizeServiceCategory(service.category))
         .filter(Boolean)
     )];
+    const cameFromClientDiaries = req.query.from === 'client-diaries';
+    const cameFromTopMerchants = req.query.from === 'top-merchants';
+    const returnDiaryCategory = cameFromClientDiaries
+      ? normalizeServiceCategory(req.query.returnCategory)
+      : null;
+    const returnDiaryPost = cameFromClientDiaries && /^\d+$/.test(String(req.query.returnPost || ''))
+      ? String(req.query.returnPost)
+      : null;
+    const diaryQuery = returnDiaryCategory
+      ? `?category=${encodeURIComponent(returnDiaryCategory)}`
+      : '';
+    let backHref = '/marketplace';
+    let backLabel = 'Back to Marketplace';
+
+    if (cameFromClientDiaries) {
+      backHref = `/client-diaries${diaryQuery}${returnDiaryPost ? `#diary-post-${returnDiaryPost}` : ''}`;
+      backLabel = 'Back to Client Diaries';
+    } else if (cameFromTopMerchants) {
+      backHref = '/#featured-listings';
+      backLabel = 'Back to Top Merchants';
+    }
 
     res.render('marketplace/merchantDetails', {
       title: merchant.merchant_name,
@@ -156,6 +177,8 @@ async function showMerchantDetails(req, res) {
       favouriteServiceIds,
       whatsappBookingNumber: getWhatsAppBookingNumber(),
       upcomingClosures,
+      backHref,
+      backLabel,
     });
 
   } catch (err) {

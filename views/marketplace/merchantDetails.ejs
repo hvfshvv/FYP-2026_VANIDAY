@@ -49,8 +49,8 @@
 
 <div class="section" style="padding-top:2.5rem;padding-bottom:2rem;border-bottom:1px solid var(--border);">
   <div class="container">
-    <a href="/marketplace" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
-      <i class="bi bi-arrow-left me-1"></i>Back to Marketplace
+    <a href="<%= backHref || '/marketplace' %>" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
+      <i class="bi bi-arrow-left me-1"></i><%= backLabel || 'Back to Marketplace' %>
     </a>
 
     <p class="section-label">Merchant</p>
@@ -66,6 +66,17 @@
 </div>
 
 <div class="container" style="padding-top:2.5rem;padding-bottom:4rem;">
+
+  <% if (user && user.role === 'merchant') { %>
+    <div
+      class="rounded-xl p-3 mb-4 d-flex align-items-center gap-2"
+      style="background:var(--warn-bg);color:var(--ink);border:1px solid rgba(217,119,6,.22);"
+      role="status"
+    >
+      <i class="bi bi-eye" style="color:var(--warn);"></i>
+      <span><strong>Storefront preview:</strong> Customer booking actions are disabled for merchant accounts.</span>
+    </div>
+  <% } %>
 
   <% if (typeof upcomingClosures !== 'undefined' && upcomingClosures.length) { %>
     <div class="rounded-xl p-4 mb-4" style="background:var(--warn-bg);color:var(--ink);border:1px solid rgba(217,119,6,.22);">
@@ -321,12 +332,25 @@
             </p>
 
             <div class="d-flex flex-wrap gap-2 mt-auto">
-              <a
-                class="btn btn-primary"
-                href="/book?merchantId=<%= merchant.merchant_id %>&serviceId=<%= service.service_id %>"
-              >
-                Book now
-              </a>
+              <% if (user && user.role === 'merchant') { %>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  disabled
+                  aria-disabled="true"
+                  style="opacity:1;cursor:not-allowed;"
+                  title="Booking is disabled in merchant storefront preview"
+                >
+                  Book now
+                </button>
+              <% } else { %>
+                <a
+                  class="btn btn-primary"
+                  href="/book?merchantId=<%= merchant.merchant_id %>&serviceId=<%= service.service_id %>"
+                >
+                  Book now
+                </a>
+              <% } %>
 
               <% if (whatsappBookingNumber) { %>
                 <%
@@ -335,15 +359,28 @@
                     'Ref: M' + merchant.merchant_id + '-S' + service.service_id
                   ].join(' ');
                 %>
-                <a
-                  class="btn btn-outline-success"
-                  href="https://wa.me/<%= whatsappBookingNumber %>?text=<%= encodeURIComponent(whatsappMessage) %>"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Book <%= service.service_name %> via WhatsApp"
-                >
-                  <i class="bi bi-whatsapp me-1"></i>WhatsApp
-                </a>
+                <% if (user && user.role === 'merchant') { %>
+                  <button
+                    type="button"
+                    class="btn btn-outline-success"
+                    disabled
+                    aria-disabled="true"
+                    style="opacity:1;cursor:not-allowed;"
+                    title="WhatsApp booking is disabled in merchant storefront preview"
+                  >
+                    <i class="bi bi-whatsapp me-1"></i>WhatsApp
+                  </button>
+                <% } else { %>
+                  <a
+                    class="btn btn-outline-success"
+                    href="https://wa.me/<%= whatsappBookingNumber %>?text=<%= encodeURIComponent(whatsappMessage) %>"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Book <%= service.service_name %> via WhatsApp"
+                  >
+                    <i class="bi bi-whatsapp me-1"></i>WhatsApp
+                  </a>
+                <% } %>
               <% } %>
             </div>
 

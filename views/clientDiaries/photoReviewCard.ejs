@@ -1,4 +1,4 @@
-<article class="diaries-card">
+<article class="diaries-card" id="diary-post-<%= post.review_id %>" style="scroll-margin-top:calc(var(--nav-h) + 1rem);">
   <header class="diaries-card-head">
     <div class="diaries-card-user">
       <span class="diaries-avatar"><%= String(post.customer_name || 'C').charAt(0).toUpperCase() %></span>
@@ -17,15 +17,21 @@
   </div>
 
   <div class="diaries-copy">
-    <p class="diaries-caption"><strong><%= post.customer_name %></strong> <%= post.review_text || 'Shared a photo review.' %></p>
-    <div class="diaries-service-tag">
-      <div><span><%= post.service_category || 'Beauty & Wellness' %></span><strong><%= post.service_name %></strong></div>
-      <i class="bi bi-patch-check-fill" title="Verified completed booking"></i>
+    <div class="diaries-caption-wrap">
+      <div class="diaries-caption"><strong><%= post.customer_name %></strong> <%= post.review_text || 'Shared a photo review.' %></div>
+      <button type="button" class="diaries-caption-toggle" aria-expanded="false">Read more</button>
     </div>
-    <div class="d-flex gap-2 mt-3">
-      <a href="/marketplace/merchant/<%= post.merchant_id %>" class="btn btn-outline-secondary btn-sm btn-pill flex-grow-1">View Merchant</a>
-      <a href="/book?merchantId=<%= post.merchant_id %>&serviceId=<%= post.service_id %>" class="btn btn-primary btn-sm btn-pill flex-grow-1">Book Service</a>
+
+    <div class="diaries-card-footer">
+      <div class="diaries-service-tag">
+        <div><span><%= post.service_category || 'Beauty & Wellness' %></span><strong title="<%= post.service_name %>"><%= post.service_name %></strong></div>
+        <i class="bi bi-patch-check-fill" title="Verified completed booking"></i>
+      </div>
+      <div class="diaries-actions d-flex gap-2 mt-3">
+        <a href="/marketplace/merchant/<%= post.merchant_id %>?from=client-diaries<%= selectedCategory ? '&returnCategory=' + encodeURIComponent(selectedCategory) : '' %>&returnPost=<%= post.review_id %>" class="btn btn-outline-secondary btn-sm btn-pill flex-grow-1">View Merchant</a>
+        <a href="/book?merchantId=<%= post.merchant_id %>&serviceId=<%= post.service_id %>" class="btn btn-primary btn-sm btn-pill flex-grow-1">Book Service</a>
+      </div>
+      <p class="diaries-date"><%= new Date(post.created_at).toLocaleDateString('en-SG',{day:'numeric',month:'long',year:'numeric'}) %></p>
     </div>
-    <p class="diaries-date"><%= new Date(post.created_at).toLocaleDateString('en-SG',{day:'numeric',month:'long',year:'numeric'}) %></p>
   </div>
 </article>

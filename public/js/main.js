@@ -113,6 +113,17 @@ function initDealCarouselDots() {
 document.addEventListener('DOMContentLoaded', () => {
   initDealCarouselDots();
 
+  // Merchant tools opened from the Management hub should return to that hub,
+  // while the same pages opened elsewhere retain their normal Dashboard link.
+  const pageParams = new URLSearchParams(window.location.search);
+  if (pageParams.get('from') === 'manage' && window.location.pathname.startsWith('/merchant/')) {
+    document.querySelectorAll('a[href^="/merchant/dashboard"]').forEach(link => {
+      if (!link.classList.contains('btn')) return;
+      link.href = '/merchant/manage';
+      link.innerHTML = '<i class="bi bi-arrow-left me-1"></i>Merchant Management';
+    });
+  }
+
   document.querySelectorAll('.alert:not([data-persist])').forEach(el => {
     setTimeout(() => {
       el.style.transition = 'opacity 0.5s';
