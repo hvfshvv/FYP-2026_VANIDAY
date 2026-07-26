@@ -135,8 +135,25 @@
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
       <div>
         <p class="section-label mb-1">Ready For Payout</p>
-        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Completed bookings before Monday, <%= payoutCutoffLabel %></h5>
-        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Payouts are generated every Monday and include completed, paid, non-refunded bookings that are not in a payout batch yet.</p>
+        <%
+          function nextMondayFromCutoffLabel(cutoffLabel) {
+            const parts = String(cutoffLabel || '').split('/');
+            if (parts.length !== 3) return cutoffLabel;
+            const cutoff = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
+            if (Number.isNaN(cutoff.getTime())) return cutoffLabel;
+            cutoff.setDate(cutoff.getDate() + 7);
+            return cutoff.toLocaleDateString('en-SG', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            });
+          }
+          const safeNextPayoutLabel = typeof nextPayoutLabel !== 'undefined'
+            ? nextPayoutLabel
+            : nextMondayFromCutoffLabel(payoutCutoffLabel);
+        %>
+        <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">Next payout: Monday, <%= safeNextPayoutLabel %></h5>
+        <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Includes completed, paid, non-refunded bookings before <%= payoutCutoffLabel %> that are not in a payout batch yet.</p>
       </div>
       <span class="badge" style="background:var(--accent-light);color:var(--accent);font-weight:800;">Pending payout</span>
     </div>

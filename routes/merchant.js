@@ -321,7 +321,14 @@ router.get('/revenue', async (req, res) => {
   });
   const currentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   currentMonday.setDate(currentMonday.getDate() - ((currentMonday.getDay() + 6) % 7));
+  const nextMonday = new Date(currentMonday);
+  nextMonday.setDate(nextMonday.getDate() + 7);
   const payoutCutoffLabel = currentMonday.toLocaleDateString('en-SG', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const nextPayoutLabel = nextMonday.toLocaleDateString('en-SG', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -352,6 +359,7 @@ router.get('/revenue', async (req, res) => {
     currentPeriod,
     periodLabel,
     payoutCutoffLabel,
+    nextPayoutLabel,
     payoutOverview,
     stripeAccount,
     success: req.query.success || null,
