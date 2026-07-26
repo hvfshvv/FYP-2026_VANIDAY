@@ -303,10 +303,9 @@
     const status = effectiveStatus(booking);
     if (status === 'pending_payment') return 'Pending payment';
     if (status === 'payment_failed') return 'Payment failed';
-    if (isPast && ['confirmed', 'rescheduled', 'arrived'].includes(status)) return 'Completed';
-    if (status === 'confirmed') return 'Confirmed';
-    if (status === 'rescheduled') return 'Rescheduled';
-    if (status === 'arrived') return 'Arrived';
+    if (status === 'confirmed') return isPast ? 'Confirmed · awaiting merchant update' : 'Confirmed';
+    if (status === 'rescheduled') return isPast ? 'Rescheduled · awaiting merchant update' : 'Rescheduled';
+    if (status === 'arrived') return isPast ? 'Arrived · awaiting completion' : 'Arrived';
     if (status === 'completed') return 'Completed';
     if (status === 'cancelled') return 'Cancelled';
     if (status === 'no_show') return 'No show';
@@ -460,9 +459,7 @@
           const bookingStatus = effectiveStatus(booking);
           const canContinuePayment = bookingStatus === 'pending_payment';
           const isPast = group.key === 'past';
-          const displayStatus = isPast && ['confirmed', 'rescheduled', 'arrived'].includes(bookingStatus)
-            ? 'completed'
-            : bookingStatus;
+          const displayStatus = bookingStatus;
           const isNext = group.key === 'upcoming' && index === 0;
           const canManage = !isPast && !['pending_payment', 'cancelled', 'payment_failed', 'completed', 'no_show'].includes(bookingStatus);
         %>
