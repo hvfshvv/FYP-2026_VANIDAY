@@ -220,7 +220,7 @@
       </div>
       <% } %>
 
-      <form action="/auth/register" method="POST" class="merchant-register-form" autocomplete="off">
+      <form action="/auth/register" method="POST" class="merchant-register-form" autocomplete="off" enctype="multipart/form-data" id="merchantRegisterForm">
         <input type="hidden" name="role" value="merchant" />
 
         <div>
@@ -282,14 +282,14 @@
         <div>
           <label class="form-label">Upload ACRA Business Profile</label>
           <label class="merchant-upload">
-            <input type="file" name="acra_profile" accept="application/pdf" />
+            <input type="file" name="acra_profile" accept="application/pdf,.pdf" id="acraProfileInput" required />
             <span class="merchant-upload-icon" aria-hidden="true"><i class="bi bi-file-earmark-arrow-up"></i></span>
             <span>
               <span class="merchant-upload-title d-block">Click to upload or drag and drop</span>
               <span class="merchant-upload-note d-block">PDF (max. 10MB)</span>
             </span>
           </label>
-          <p class="merchant-help">Upload your latest ACRA Business Profile PDF for verification.</p>
+          <p class="merchant-help" id="acraProfileStatus">Upload your latest ACRA Business Profile PDF for verification.</p>
         </div>
 
         <div>
@@ -382,6 +382,53 @@ function toggleMerchantPassword() {
   const isPassword = password.type === 'password';
   password.type = isPassword ? 'text' : 'password';
   icon.className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+}
+
+const acraProfileInput = document.getElementById('acraProfileInput');
+const acraProfileStatus = document.getElementById('acraProfileStatus');
+const merchantRegisterForm = document.getElementById('merchantRegisterForm');
+const maxAcraSize = 10 * 1024 * 1024;
+
+function validateAcraProfileFile() {
+  if (!acraProfileInput || !acraProfileStatus) return true;
+
+  const file = acraProfileInput.files && acraProfileInput.files[0];
+  if (!file) {
+    acraProfileStatus.textContent = 'Please upload your ACRA Business Profile PDF.';
+    acraProfileStatus.style.color = 'var(--danger)';
+    return false;
+  }
+
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if (!isPdf) {
+    acraProfileStatus.textContent = 'Please choose a PDF file.';
+    acraProfileStatus.style.color = 'var(--danger)';
+    acraProfileInput.value = '';
+    return false;
+  }
+
+  if (file.size > maxAcraSize) {
+    acraProfileStatus.textContent = 'ACRA Business Profile PDF must be 10 MB or smaller.';
+    acraProfileStatus.style.color = 'var(--danger)';
+    acraProfileInput.value = '';
+    return false;
+  }
+
+  acraProfileStatus.textContent = `Selected: ${file.name}`;
+  acraProfileStatus.style.color = 'var(--success)';
+  return true;
+}
+
+if (acraProfileInput) {
+  acraProfileInput.addEventListener('change', validateAcraProfileFile);
+}
+
+if (merchantRegisterForm) {
+  merchantRegisterForm.addEventListener('submit', event => {
+    if (!validateAcraProfileFile()) {
+      event.preventDefault();
+    }
+  });
 }
 </script>
 

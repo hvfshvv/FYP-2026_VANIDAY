@@ -15,7 +15,7 @@ router.post('/reset-password/:token', ctrl.resetPassword);
 router.get('/verify-email/:token', ctrl.verifyEmail);
 router.get('/start',    ctrl.showStartpage);
 router.get('/register', ctrl.showRegister);
-router.post('/register', ctrl.register);
+router.post('/register', ctrl.handleAcraProfileUpload, ctrl.register);
 router.get('/registerMer', ctrl.showMerchantRegister);
 router.get('/merchant-pending', ctrl.showMerchantPending);
 router.get('/merchant-rejected', ctrl.showMerchantRejected);

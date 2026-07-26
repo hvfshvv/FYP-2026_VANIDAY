@@ -5,9 +5,38 @@
  * dedicated featured page), and promotion approval workflows.
  */
 
+const fs = require('fs');
+const path = require('path');
 const adminUserModel = require('../models/adminUserModel');
 const promotionModel = require('../models/promotionModel');
 const { wantsJson } = require('../middleware/auth');
+
+const PROJECT_ROOT = path.resolve(__dirname, '..');
+const ACRA_UPLOAD_ROOT = path.resolve(PROJECT_ROOT, 'uploads', 'merchant-acra');
+
+function safePdfFilename(name, merchantId) {
+  const fallback = `merchant-${merchantId}-acra.pdf`;
+  const basename = path.basename(String(name || fallback));
+  const cleaned = basename.replace(/[^a-zA-Z0-9._ -]/g, '_');
+  return cleaned.toLowerCase().endsWith('.pdf') ? cleaned : `${cleaned}.pdf`;
+}
+
+function resolveStoredAcraPath(storedPath) {
+  const normalizedPath = String(storedPath || '').replace(/\\/g, '/');
+  if (!normalizedPath || path.isAbsolute(normalizedPath)) return null;
+
+  const resolved = path.resolve(PROJECT_ROOT, normalizedPath);
+  const relativeToUploadRoot = path.relative(ACRA_UPLOAD_ROOT, resolved);
+  const isInsideUploadRoot = relativeToUploadRoot
+    && !relativeToUploadRoot.startsWith('..')
+    && !path.isAbsolute(relativeToUploadRoot);
+
+  if (!isInsideUploadRoot || path.extname(resolved).toLowerCase() !== '.pdf') {
+    return null;
+  }
+
+  return resolved;
+}
 
 // ── MERCHANT VALIDATION ────────────────────────────────────────────────────
 
@@ -69,6 +98,32 @@ async function rejectMerchant(req, res) {
   } catch (err) {
     console.error(err);
     res.redirect('/admin/merchant-validations?error=reject');
+  }
+}
+
+async function viewMerchantAcraDocument(req, res) {
+  try {
+    const merchant = await adminUserModel.getMerchantAcraDocument(req.params.merchantId);
+    const resolvedPath = resolveStoredAcraPath(merchant && merchant.acra_profile_path);
+
+    if (!merchant || !resolvedPath || !fs.existsSync(resolvedPath)) {
+      return res.status(404).send('ACRA document not found.');
+    }
+
+    const filename = safePdfFilename(
+      merchant.acra_profile_original_name || `${merchant.merchant_name || 'merchant'}-acra.pdf`,
+      merchant.merchant_id
+    );
+
+    return res.sendFile(resolvedPath, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="${filename.replace(/"/g, '')}"`,
+      },
+    });
+  } catch (err) {
+    console.error('[admin] Failed to load ACRA document:', err.message);
+    return res.status(404).send('ACRA document not found.');
   }
 }
 
@@ -233,6 +288,7 @@ module.exports = {
   showMerchantValidations,
   approveMerchant,
   rejectMerchant,
+  viewMerchantAcraDocument,
   featureMerchantFromDashboard,
   toggleFeaturedMerchantFromDashboard,
   removeFeaturedMerchantFromDashboard,

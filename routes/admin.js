@@ -72,6 +72,7 @@ router.post('/user-management/merchants/:merchantId/status',            userCtrl
 
 // Approval workflows for merchant registrations and promotions.
 router.get('/merchant-validations',                         merchantCtrl.showMerchantValidations);
+router.get('/merchant-validations/:merchantId/acra',         merchantCtrl.viewMerchantAcraDocument);
 router.post('/merchant-validations/:merchantId/approve',    merchantCtrl.approveMerchant);
 router.post('/merchant-validations/:merchantId/reject',     merchantCtrl.rejectMerchant);
 router.get('/promotions',                                   merchantCtrl.showPromotionApprovals);

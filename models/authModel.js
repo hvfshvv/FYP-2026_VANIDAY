@@ -69,13 +69,25 @@ async function ensureMerchantTermsSchema() {
   );
 }
 
-async function createMerchantProfile(userId, merchantName, email, phone, address, businessUen, category) {
+async function createMerchantProfile(userId, merchantName, email, phone, address, businessUen, category, acraProfile = {}) {
   await ensureMerchantTermsSchema();
   const [result] = await db.query(
     `INSERT INTO merchant
-      (user_id, merchant_name, email, business_uen, contact_no, address, category, verification_status, terms_accepted_at, terms_version)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), ?)`,
-    [userId, merchantName, email, businessUen, phone, address, category, '2026-07']
+      (user_id, merchant_name, email, business_uen, acra_profile_path, acra_profile_original_name, acra_profile_uploaded_at, contact_no, address, category, verification_status, terms_accepted_at, terms_version)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), ?)`,
+    [
+      userId,
+      merchantName,
+      email,
+      businessUen,
+      acraProfile.path || null,
+      acraProfile.originalName || null,
+      acraProfile.path ? new Date() : null,
+      phone,
+      address,
+      category,
+      '2026-07',
+    ]
   );
 
   return result.insertId;
@@ -92,6 +104,8 @@ async function createMerchantAccount({
   address,
   businessUen,
   category,
+  acraProfilePath = null,
+  acraProfileOriginalName = null,
   termsVersion = '2026-07',
 }) {
   await ensureMerchantTermsSchema();
@@ -108,9 +122,21 @@ async function createMerchantAccount({
     const userId = userResult.insertId;
     const [merchantResult] = await connection.query(
       `INSERT INTO merchant
-        (user_id, merchant_name, email, business_uen, contact_no, address, category, verification_status, terms_accepted_at, terms_version)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), ?)`,
-      [userId, merchantName, businessEmail, businessUen, businessPhone, address, category, termsVersion]
+        (user_id, merchant_name, email, business_uen, acra_profile_path, acra_profile_original_name, acra_profile_uploaded_at, contact_no, address, category, verification_status, terms_accepted_at, terms_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), ?)`,
+      [
+        userId,
+        merchantName,
+        businessEmail,
+        businessUen,
+        acraProfilePath,
+        acraProfileOriginalName,
+        acraProfilePath ? new Date() : null,
+        businessPhone,
+        address,
+        category,
+        termsVersion,
+      ]
     );
 
     await connection.commit();

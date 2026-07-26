@@ -1,5 +1,8 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
 const authModel = require('../models/authModel');
 const loyaltyModel = require('../models/loyaltyModel');
 const qrService = require('../services/qrService');
@@ -42,6 +45,62 @@ const HARDCODED_OTP_EMAILS = new Set([
   '24049021@myrp.edu.sg',
 ]);
 const TEST_LOGIN_OTP = '000000';
+const ACRA_UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'merchant-acra');
+const ACRA_UPLOAD_RELATIVE_DIR = path.join('uploads', 'merchant-acra');
+
+const acraUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      fs.mkdirSync(ACRA_UPLOAD_DIR, { recursive: true });
+      cb(null, ACRA_UPLOAD_DIR);
+    },
+    filename: (req, file, cb) => {
+      cb(null, `acra-${Date.now()}-${crypto.randomBytes(8).toString('hex')}.pdf`);
+    },
+  }),
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (file.mimetype !== 'application/pdf' || ext !== '.pdf') {
+      return cb(new Error('Please upload the ACRA Business Profile as a PDF file.'));
+    }
+    cb(null, true);
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
+function cleanupUploadedAcraFile(file) {
+  if (!file || !file.path) return;
+  fs.unlink(file.path, err => {
+    if (err && err.code !== 'ENOENT') {
+      console.error('[auth] Failed to remove unused ACRA upload:', err.message);
+    }
+  });
+}
+
+function handleAcraProfileUpload(req, res, next) {
+  acraUpload.single('acra_profile')(req, res, err => {
+    if (!err) return next();
+
+    const message = err.code === 'LIMIT_FILE_SIZE'
+      ? 'ACRA Business Profile PDF must be 10 MB or smaller.'
+      : err.message || 'Could not upload ACRA Business Profile.';
+
+    return res.render('auth/registerMer', {
+      title: 'Register Merchant',
+      error: message,
+      query: req.query,
+    });
+  });
+}
+
+function renderRegisterError(res, req, view, title, error) {
+  cleanupUploadedAcraFile(req.file);
+  return res.render(view, {
+    title,
+    error,
+    query: req.query,
+  });
+}
 
 function redirectDashboard(res, user) {
   if (user.role === 'admin') return res.redirect('/admin/dashboard');
@@ -495,67 +554,44 @@ async function register(req, res) {
     const existing = await authModel.findUserByEmail(email);
 
     if (existing) {
-      return res.render(registerView, {
-        title: registerTitle,
-        error: 'That email is already registered. Please log in instead.'
-      });
+      return renderRegisterError(res, req, registerView, registerTitle, 'That email is already registered. Please log in instead.');
     }
 
     if (!password || password.length < 6) {
-      return res.render(registerView, {
-        title: registerTitle,
-        error: 'Password must be at least 6 characters.'
-      });
+      return renderRegisterError(res, req, registerView, registerTitle, 'Password must be at least 6 characters.');
     }
 
     if (normalizedPhone && !isValidSingaporePhone(normalizedPhone)) {
-      return res.render(registerView, {
-        title: registerTitle,
-        error: 'Phone number must be exactly 8 digits.'
-      });
+      return renderRegisterError(res, req, registerView, registerTitle, 'Phone number must be exactly 8 digits.');
     }
 
     if (business_phone && business_phone.trim() && !isValidSingaporePhone(business_phone)) {
-      return res.render(registerView, {
-        title: registerTitle,
-        error: 'Business contact number must be exactly 8 digits.'
-      });
+      return renderRegisterError(res, req, registerView, registerTitle, 'Business contact number must be exactly 8 digits.');
     }
 
     if (safeRole === 'customer' && birthday && !isValidBirthday(birthday)) {
-      return res.render(registerView, {
-        title: registerTitle,
-        error: 'Please enter a valid birthday.'
-      });
+      return renderRegisterError(res, req, registerView, registerTitle, 'Please enter a valid birthday.');
     }
 
     if (safeRole === 'merchant') {
       if (!merchant_name || !merchant_name.trim()) {
-        return res.render(registerView, {
-          title: registerTitle,
-          error: 'Please enter your business name.'
-        });
+        return renderRegisterError(res, req, registerView, registerTitle, 'Please enter your business name.');
       }
 
       if (!business_uen || !business_uen.trim()) {
-        return res.render(registerView, {
-          title: registerTitle,
-          error: 'Please enter your Business UEN.'
-        });
+        return renderRegisterError(res, req, registerView, registerTitle, 'Please enter your Business UEN.');
       }
 
       if (!category || !category.trim()) {
-        return res.render(registerView, {
-          title: registerTitle,
-          error: 'Please select your business category.'
-        });
+        return renderRegisterError(res, req, registerView, registerTitle, 'Please select your business category.');
+      }
+
+      if (!req.file) {
+        return renderRegisterError(res, req, registerView, registerTitle, 'Please upload your ACRA Business Profile PDF.');
       }
 
       if (merchant_terms_accepted !== '1') {
-        return res.render(registerView, {
-          title: registerTitle,
-          error: 'Please accept Uniday merchant terms, cancellation policy, and refund policy to continue.'
-        });
+        return renderRegisterError(res, req, registerView, registerTitle, 'Please accept Uniday merchant terms, cancellation policy, and refund policy to continue.');
       }
     }
 
@@ -575,6 +611,8 @@ async function register(req, res) {
         address: address || '',
         businessUen: business_uen,
         category: category.trim(),
+        acraProfilePath: req.file ? path.join(ACRA_UPLOAD_RELATIVE_DIR, req.file.filename).replace(/\\/g, '/') : null,
+        acraProfileOriginalName: req.file ? req.file.originalname : null,
         termsVersion: '2026-07',
       });
       userId = created.userId;
@@ -626,10 +664,7 @@ async function register(req, res) {
   } catch (err) {
     console.error(err);
 
-    res.render(registerView, {
-      title: registerTitle,
-      error: 'Registration failed. Please try again.'
-    });
+    renderRegisterError(res, req, registerView, registerTitle, 'Registration failed. Please try again.');
   }
 }
 
@@ -910,6 +945,7 @@ async function acceptMerchantTerms(req, res) {
 }
 
 module.exports = {
+  handleAcraProfileUpload,
   showLogin,
   showLogin2fa,
   showStartpage,

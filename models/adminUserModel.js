@@ -411,6 +411,10 @@ async function getPendingMerchantApplications() {
        m.merchant_name,
        m.email AS merchant_email,
        m.business_uen,
+       m.acra_profile_path,
+       m.acra_profile_original_name,
+       m.acra_profile_uploaded_at,
+       m.category,
        m.address,
        m.contact_no,
        m.verification_status,
@@ -436,6 +440,10 @@ async function getRecentMerchantValidationDecisions(limit = 8) {
        m.merchant_name,
        m.email AS merchant_email,
        m.business_uen,
+       m.acra_profile_path,
+       m.acra_profile_original_name,
+       m.acra_profile_uploaded_at,
+       m.category,
        m.verification_status,
        m.verification_notes,
        m.verified_at,
@@ -450,6 +458,22 @@ async function getRecentMerchantValidationDecisions(limit = 8) {
   );
 
   return rows;
+}
+
+async function getMerchantAcraDocument(merchantId) {
+  const [rows] = await db.query(
+    `SELECT
+       merchant_id,
+       merchant_name,
+       acra_profile_path,
+       acra_profile_original_name
+     FROM merchant
+     WHERE merchant_id = ?
+     LIMIT 1`,
+    [merchantId]
+  );
+
+  return rows[0] || null;
 }
 
 // Returns counts of merchants in each verification status for the summary badges.
@@ -612,6 +636,7 @@ module.exports = {
   getPlatformFeedbackSummary,
   getPendingMerchantApplications,
   getRecentMerchantValidationDecisions,
+  getMerchantAcraDocument,
   getMerchantValidationStatusSummary,
   approveMerchant,
   rejectMerchant,

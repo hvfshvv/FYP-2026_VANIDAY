@@ -118,8 +118,16 @@
             </td>
             <td>
               <p style="margin-bottom:.15rem;"><strong>UEN:</strong> <%= m.business_uen || '-' %></p>
+              <p style="margin-bottom:.15rem;"><strong>Category:</strong> <%= m.category || '-' %></p>
               <p style="color:var(--muted);margin-bottom:.15rem;"><i class="bi bi-telephone me-1"></i><%= m.contact_no || m.owner_phone || '-' %></p>
-              <p style="color:var(--muted);margin-bottom:0;max-width:34ch;"><i class="bi bi-geo-alt me-1"></i><%= m.address || '-' %></p>
+              <p style="color:var(--muted);margin-bottom:.15rem;max-width:34ch;"><i class="bi bi-geo-alt me-1"></i><%= m.address || '-' %></p>
+              <% if (m.acra_profile_path) { %>
+              <a href="/admin/merchant-validations/<%= m.merchant_id %>/acra" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary btn-pill mt-1">
+                <i class="bi bi-file-earmark-pdf me-1"></i>View ACRA PDF
+              </a>
+              <% } else { %>
+              <p style="color:var(--muted);margin-bottom:0;"><i class="bi bi-file-earmark-x me-1"></i>ACRA: Not submitted</p>
+              <% } %>
             </td>
             <td><%= formatDateTime(m.submitted_at || m.created_at) %></td>
             <td>
@@ -174,6 +182,8 @@
           <tr>
             <th>Merchant</th>
             <th>UEN</th>
+            <th>Category</th>
+            <th>ACRA</th>
             <th>Status</th>
             <th>Reviewed By</th>
             <th>Reviewed At</th>
@@ -187,6 +197,16 @@
               <p style="color:var(--muted);margin-bottom:0;"><%= m.merchant_email || '-' %></p>
             </td>
             <td><%= m.business_uen || '-' %></td>
+            <td><%= m.category || '-' %></td>
+            <td>
+              <% if (m.acra_profile_path) { %>
+              <a href="/admin/merchant-validations/<%= m.merchant_id %>/acra" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary btn-pill">
+                <i class="bi bi-file-earmark-pdf me-1"></i>View ACRA PDF
+              </a>
+              <% } else { %>
+              <span style="color:var(--muted);">Not submitted</span>
+              <% } %>
+            </td>
             <td><span class="badge" style="<%= statusBadge(m.verification_status) %>"><%= m.verification_status %></span></td>
             <td><%= m.verified_by_name || '-' %></td>
             <td><%= formatDateTime(m.verified_at) %></td>
