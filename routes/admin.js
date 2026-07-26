@@ -84,6 +84,7 @@ router.post('/promotions/:promoId/reject',                  merchantCtrl.rejectP
 router.get('/campaigns',                                campaignCtrl.showCampaigns);
 router.post('/campaigns/ai-recommendation',             campaignCtrl.generateAiRecommendation);
 router.get('/campaigns/vouchers',                       campaignCtrl.showVoucherCampaigns);
+router.get('/campaigns/vouchers/analytics',             campaignCtrl.showVoucherAnalytics);
 router.post('/campaigns/vouchers/create',               campaignCtrl.createCampaign);
 router.post('/campaigns/create',                        campaignCtrl.createCampaign);
 router.get('/campaigns/vouchers/:voucherId/edit',       campaignCtrl.showEditCampaign);

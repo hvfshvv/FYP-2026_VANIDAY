@@ -1,0 +1,171 @@
+<% locals.hideCatNav = true %>
+<%- include('../partials/header') %>
+
+<%
+  const summary = analytics.summary || {};
+  const campaigns = analytics.campaigns || [];
+  const money = value => 'S$' + Number(value || 0).toLocaleString('en-SG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const number = value => Number(value || 0).toLocaleString('en-SG');
+  const percent = value => `${Number(value || 0).toFixed(1)}%`;
+  const formatDate = value => value
+    ? new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '-';
+  const statusLabel = voucher => Number(voucher.is_active) ? 'Active' : 'Inactive';
+  const statusStyle = voucher => Number(voucher.is_active)
+    ? 'background:var(--success-bg);color:var(--success);'
+    : 'background:var(--neutral-bg);color:var(--muted);';
+%>
+
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+    <div>
+      <p class="section-label">Voucher Analytics</p>
+      <h2 style="font-weight:800;letter-spacing:-.03em;color:var(--ink);margin-bottom:.25rem;">Campaign Performance</h2>
+      <p style="color:var(--muted);margin-bottom:0;">Review customer claims, successful redemptions and stored voucher discount usage.</p>
+    </div>
+    <a href="/admin/campaigns/vouchers" class="btn btn-outline-secondary btn-pill btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Platform Vouchers
+    </a>
+  </div>
+
+  <% if (error) { %>
+  <div class="rounded-xl mb-3 p-3" style="background:var(--danger-bg);color:var(--danger);font-size:.875rem;">
+    <i class="bi bi-exclamation-circle me-2"></i><%= error %>
+  </div>
+  <% } %>
+
+  <form method="GET" action="/admin/campaigns/vouchers/analytics" class="card border-0 mb-4" style="box-shadow:var(--shadow);border-radius:var(--r-xl);padding:1.25rem;">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label" style="font-weight:600;font-size:.875rem;">Campaign</label>
+        <select name="campaignId" class="form-select rounded-xl">
+          <option value="">All campaigns</option>
+          <% campaignOptions.forEach(option => { %>
+          <option value="<%= option.voucher_id %>" <%= String(filters.campaignId || '') === String(option.voucher_id) ? 'selected' : '' %>>
+            <%= option.campaign_name || option.voucher_code %>
+          </option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" style="font-weight:600;font-size:.875rem;">Status</label>
+        <select name="status" class="form-select rounded-xl">
+          <option value="" <%= !filters.status ? 'selected' : '' %>>All</option>
+          <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>>Active</option>
+          <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" style="font-weight:600;font-size:.875rem;">Start Date</label>
+        <input type="date" name="startDate" class="form-control rounded-xl" value="<%= filters.startDate || '' %>" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" style="font-weight:600;font-size:.875rem;">End Date</label>
+        <input type="date" name="endDate" class="form-control rounded-xl" value="<%= filters.endDate || '' %>" />
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-pill flex-grow-1">
+          <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+        <a href="/admin/campaigns/vouchers/analytics" class="btn btn-outline-secondary btn-pill">
+          <i class="bi bi-arrow-counterclockwise"></i>
+        </a>
+      </div>
+    </div>
+  </form>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-2">
+      <div class="stat-card h-100">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Total Campaigns</p>
+        <p class="stat-value" style="color:var(--accent);"><%= number(summary.totalCampaigns) %></p>
+      </div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="stat-card h-100">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Active</p>
+        <p class="stat-value" style="color:var(--success);"><%= number(summary.activeCampaigns) %></p>
+      </div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="stat-card h-100">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Inactive/Paused</p>
+        <p class="stat-value" style="color:var(--muted);"><%= number(summary.inactiveCampaigns) %></p>
+      </div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="stat-card h-100">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Claims</p>
+        <p class="stat-value" style="color:#1D4ED8;"><%= number(summary.totalClaims) %></p>
+      </div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="stat-card h-100">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Used</p>
+        <p class="stat-value" style="color:var(--accent);"><%= number(summary.totalUsed) %></p>
+      </div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="stat-card h-100">
+        <p style="color:var(--muted);font-size:.8125rem;margin-bottom:.5rem;">Discount Given</p>
+        <p class="stat-value" style="color:var(--success);font-size:1.5rem;"><%= money(summary.totalDiscountGiven) %></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 overflow-hidden" style="box-shadow:var(--shadow);border-radius:var(--r-xl);">
+    <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom:1px solid var(--border);">
+      <div>
+        <p class="section-label mb-1">Performance</p>
+        <h5 style="font-weight:700;color:var(--ink);margin-bottom:0;">Campaign Performance Table</h5>
+      </div>
+      <span class="badge" style="background:var(--accent-light);color:var(--accent);"><%= campaigns.length %> shown</span>
+    </div>
+
+    <% if (!campaigns.length) { %>
+    <div class="text-center py-5 px-4">
+      <div class="icon-circle-lg mx-auto mb-3" style="width:64px;height:64px;">
+        <i class="bi bi-bar-chart-line" style="font-size:2rem;color:var(--accent);"></i>
+      </div>
+      <h6 style="font-weight:700;color:var(--ink);margin-bottom:.25rem;">No voucher activity found for the selected filters</h6>
+      <p style="color:var(--muted);font-size:.875rem;margin-bottom:0;">Try a different campaign, status or date range.</p>
+    </div>
+    <% } else { %>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size:.8125rem;">
+        <thead style="background:var(--accent-light);">
+          <tr>
+            <th>Campaign</th>
+            <th>Voucher Code</th>
+            <th>Status</th>
+            <th>Claimed</th>
+            <th>Used</th>
+            <th>Usage Limit</th>
+            <th>Redemption Rate</th>
+            <th>Dates</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% campaigns.forEach(voucher => { %>
+          <tr>
+            <td style="font-weight:700;color:var(--ink);"><%= voucher.campaign_name || 'Untitled Campaign' %></td>
+            <td style="font-family:var(--font-mono);color:var(--muted);"><%= voucher.voucher_code %></td>
+            <td><span class="badge" style="<%= statusStyle(voucher) %>"><%= statusLabel(voucher) %></span></td>
+            <td><%= number(voucher.claim_count) %></td>
+            <td><%= number(voucher.used_count) %></td>
+            <td><%= voucher.usage_limit ? number(voucher.usage_limit) : 'Unlimited' %></td>
+            <td><%= percent(voucher.redemption_rate) %></td>
+            <td><%= formatDate(voucher.start_date) %> <span style="color:var(--muted);">to</span> <%= formatDate(voucher.end_date) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

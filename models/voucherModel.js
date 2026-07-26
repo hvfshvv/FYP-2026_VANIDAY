@@ -178,6 +178,138 @@ async function getVoucherStatusSummary() {
   };
 }
 
+function buildVoucherAnalyticsFilters(filters = {}) {
+  const params = [];
+  const where = ["v.voucher_code NOT LIKE 'LOYALTY\\\\_%'"];
+
+  if (filters.campaignId) {
+    where.push('v.voucher_id = ?');
+    params.push(filters.campaignId);
+  }
+
+  if (filters.status === 'active') {
+    where.push('v.is_active = 1');
+  } else if (filters.status === 'inactive') {
+    where.push('v.is_active = 0');
+  }
+
+  return { whereSql: where.join(' AND '), params };
+}
+
+function buildActivityDateSql(filters = {}, alias, column) {
+  const params = [];
+  const clauses = [];
+
+  if (filters.startDate) {
+    clauses.push(`DATE(${alias}.${column}) >= ?`);
+    params.push(filters.startDate);
+  }
+
+  if (filters.endDate) {
+    clauses.push(`DATE(${alias}.${column}) <= ?`);
+    params.push(filters.endDate);
+  }
+
+  return {
+    sql: clauses.length ? ` AND ${clauses.join(' AND ')}` : '',
+    params,
+  };
+}
+
+function hasActivityDateFilter(filters = {}) {
+  return Boolean(filters.startDate || filters.endDate);
+}
+
+async function getVoucherCampaignFilterOptions() {
+  const [rows] = await db.query(
+    `SELECT voucher_id, campaign_name, voucher_code
+     FROM voucher
+     WHERE voucher_code NOT LIKE 'LOYALTY\\\\_%'
+     ORDER BY campaign_name ASC, voucher_code ASC`
+  );
+
+  return rows;
+}
+
+async function getVoucherAnalytics(filters = {}) {
+  const { whereSql, params } = buildVoucherAnalyticsFilters(filters);
+  const claimDate = buildActivityDateSql(filters, 'cv', 'claimed_at');
+  const usedDate = buildActivityDateSql(filters, 'used_cv', 'used_at');
+  const discountDate = buildActivityDateSql(filters, 'b', 'created_at');
+  const requireActivity = hasActivityDateFilter(filters)
+    ? `HAVING claim_count > 0 OR used_count > 0 OR discount_given > 0`
+    : '';
+
+  const [campaigns] = await db.query(
+    `SELECT
+       v.voucher_id,
+       v.campaign_name,
+       v.voucher_code,
+       v.is_active,
+       v.usage_limit,
+       v.start_date,
+       v.end_date,
+       (
+         SELECT COUNT(*)
+         FROM customer_voucher cv
+         WHERE cv.voucher_id = v.voucher_id
+         ${claimDate.sql}
+       ) AS claim_count,
+       (
+         SELECT COUNT(*)
+         FROM customer_voucher used_cv
+         WHERE used_cv.voucher_id = v.voucher_id
+           AND used_cv.status = 'used'
+         ${usedDate.sql}
+       ) AS used_count,
+       (
+         SELECT COALESCE(SUM(b.voucher_discount_amount), 0)
+         FROM customer_voucher discount_cv
+         JOIN booking b ON b.applied_cv_id = discount_cv.cv_id
+         WHERE discount_cv.voucher_id = v.voucher_id
+           AND b.voucher_discount_amount > 0
+         ${discountDate.sql}
+       ) AS discount_given
+     FROM voucher v
+     WHERE ${whereSql}
+     ${requireActivity}
+     ORDER BY v.start_date DESC, v.voucher_id DESC`,
+    [
+      ...claimDate.params,
+      ...usedDate.params,
+      ...discountDate.params,
+      ...params,
+    ]
+  );
+
+  const summary = campaigns.reduce((result, row) => {
+    result.totalCampaigns += 1;
+    if (row.is_active) result.activeCampaigns += 1;
+    else result.inactiveCampaigns += 1;
+    result.totalClaims += Number(row.claim_count || 0);
+    result.totalUsed += Number(row.used_count || 0);
+    result.totalDiscountGiven += Number(row.discount_given || 0);
+    return result;
+  }, {
+    totalCampaigns: 0,
+    activeCampaigns: 0,
+    inactiveCampaigns: 0,
+    totalClaims: 0,
+    totalUsed: 0,
+    totalDiscountGiven: 0,
+  });
+
+  return {
+    summary,
+    campaigns: campaigns.map(row => ({
+      ...row,
+      redemption_rate: Number(row.claim_count || 0)
+        ? (Number(row.used_count || 0) / Number(row.claim_count || 0)) * 100
+        : 0,
+    })),
+  };
+}
+
 // ─── Customer voucher claiming ────────────────────────────────
 
 let customerVoucherSchemaReady = false;
@@ -424,6 +556,8 @@ module.exports = {
   updateVoucherCampaign,
   toggleVoucherStatus,
   getVoucherStatusSummary,
+  getVoucherCampaignFilterOptions,
+  getVoucherAnalytics,
   getAvailableVouchers,
   claimVoucherById,
   getCustomerVouchers,

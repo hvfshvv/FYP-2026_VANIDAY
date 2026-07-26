@@ -116,6 +116,30 @@ function parseAiRecommendationRequest(body) {
   return { occasion, eventDate, goal };
 }
 
+function parseVoucherAnalyticsFilters(query = {}) {
+  const campaignId = query.campaignId ? Number.parseInt(query.campaignId, 10) : null;
+  const status = ['active', 'inactive'].includes(query.status) ? query.status : '';
+  const startDate = isRealDateInput(query.startDate) ? query.startDate : '';
+  const endDate = isRealDateInput(query.endDate) ? query.endDate : '';
+
+  if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+    return {
+      filters: { campaignId: campaignId || '', status, startDate, endDate },
+      error: 'End date cannot be before start date.',
+    };
+  }
+
+  return {
+    filters: {
+      campaignId: campaignId || '',
+      status,
+      startDate,
+      endDate,
+    },
+    error: null,
+  };
+}
+
 // Re-renders the campaign form with error state, reloading needed data to populate dropdowns.
 async function renderCampaignFormError(res, req, {
   title = 'Voucher & Campaign Management',
@@ -314,6 +338,54 @@ async function generateAiRecommendation(req, res) {
   }
 }
 
+async function showVoucherAnalytics(req, res) {
+  const { filters, error: filterError } = parseVoucherAnalyticsFilters(req.query);
+
+  try {
+    const campaignOptions = await voucherModel.getVoucherCampaignFilterOptions();
+    const analytics = filterError
+      ? {
+          summary: {
+            totalCampaigns: 0,
+            activeCampaigns: 0,
+            inactiveCampaigns: 0,
+            totalClaims: 0,
+            totalUsed: 0,
+            totalDiscountGiven: 0,
+          },
+          campaigns: [],
+        }
+      : await voucherModel.getVoucherAnalytics(filters);
+
+    res.render('admin/voucherAnalytics', {
+      title: 'Voucher Analytics',
+      analytics,
+      campaignOptions,
+      filters,
+      error: filterError,
+    });
+  } catch (err) {
+    console.error('[adminCampaign] Failed to load voucher analytics:', err.message);
+    res.render('admin/voucherAnalytics', {
+      title: 'Voucher Analytics',
+      analytics: {
+        summary: {
+          totalCampaigns: 0,
+          activeCampaigns: 0,
+          inactiveCampaigns: 0,
+          totalClaims: 0,
+          totalUsed: 0,
+          totalDiscountGiven: 0,
+        },
+        campaigns: [],
+      },
+      campaignOptions: [],
+      filters,
+      error: 'Unable to load voucher analytics right now.',
+    });
+  }
+}
+
 // Renders the loyalty rewards list with the create form.
 async function showLoyaltyRewards(req, res) {
   try {
@@ -451,6 +523,7 @@ async function toggleLoyaltyReward(req, res) {
 module.exports = {
   showCampaigns,
   showVoucherCampaigns,
+  showVoucherAnalytics,
   showEditCampaign,
   createCampaign,
   updateCampaign,
