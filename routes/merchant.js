@@ -407,7 +407,6 @@ router.get('/revenue', async (req, res) => {
     revenueModel.getMerchantTransactions(merchantId, selectedPeriod).catch(() => []),
     revenueModel.getMonthlyRevenue(merchantId).catch(() => []),
     payoutModel.ensurePayoutSchema().catch(() => null),
-    merchantModel.ensureMerchantStripeSchema().catch(() => null),
   ]);
   const payoutOverview = await payoutModel.getMerchantPayoutOverview(merchantId).catch(() => ({
     eligibleBookings: [],
@@ -416,7 +415,9 @@ router.get('/revenue', async (req, res) => {
     eligibleAmount: 0,
     payouts: [],
   }));
-  const stripeAccount = await merchantModel.getMerchantStripeAccount(merchantId).catch(() => null);
+  const payoutRunLabel = Number(payoutOverview.eligibleAmount || 0) > 0
+    ? payoutCutoffLabel
+    : nextPayoutLabel;
 
   res.render('merchant/revenue', {
     title: 'Revenue Summary',
@@ -428,8 +429,8 @@ router.get('/revenue', async (req, res) => {
     periodLabel,
     payoutCutoffLabel,
     nextPayoutLabel,
+    payoutRunLabel,
     payoutOverview,
-    stripeAccount,
     success: req.query.success || null,
     error: req.query.error || null,
   });

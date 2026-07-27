@@ -33,7 +33,6 @@
 <div class="container py-5">
   <%
     const payout = payoutOverview || { eligibleBookings: [], eligibleAmount: 0, eligibleGross: 0, eligibleCommission: 0, payouts: [] };
-    const stripeReady = stripeAccount && stripeAccount.stripe_account_id && Number(stripeAccount.stripe_account_details_submitted || 0) === 1;
     const money = value => 'S$' + Number(value || 0).toFixed(2);
     const dateTime = value => value ? new Date(value).toLocaleString('en-SG', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
     const gatewayFees = row => Number(row.processor_fee_amount || 0) + Number(row.dispute_fee_amount || 0);
@@ -115,20 +114,15 @@
     <div class="rounded-xl p-4 mb-4" style="background:var(--canvas);border:1px solid var(--border);">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
-          <p class="section-label mb-1"><%= t('merchant.revenue.payoutAccount') %></p>
-          <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.revenue.stripeSandbox') %></h6>
+          <p class="section-label mb-1">Payout Schedule</p>
+          <h6 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;">In-app weekly payout</h6>
           <p style="color:var(--muted);font-size:.84rem;margin-bottom:0;">
-            <%= stripeReady ? t('merchant.revenue.stripeReady') : t('merchant.revenue.stripeNotReady') %>
+            Completed bookings from Monday to Sunday are automatically paid the following Monday.
           </p>
-          <% if (stripeAccount && stripeAccount.stripe_account_id) { %>
-            <p class="mono mt-2 mb-0" style="color:var(--ghost);font-size:.76rem;"><%= stripeAccount.stripe_account_id %></p>
-          <% } %>
         </div>
-        <form method="POST" action="/merchant/stripe/connect">
-          <button class="btn btn-primary btn-pill" type="submit">
-            <i class="bi bi-credit-card me-1"></i><%= stripeReady ? t('merchant.revenue.updateStripe') : t('merchant.revenue.connectStripe') %>
-          </button>
-        </form>
+        <span class="badge rounded-pill" style="background:var(--success-bg);color:var(--success);font-weight:800;">
+          <i class="bi bi-calendar-check me-1"></i>Automated every Monday
+        </span>
       </div>
     </div>
 
@@ -148,8 +142,10 @@
               year: 'numeric',
             });
           }
-          const safeNextPayoutLabel = typeof nextPayoutLabel !== 'undefined'
-            ? nextPayoutLabel
+          const safeNextPayoutLabel = typeof payoutRunLabel !== 'undefined'
+            ? payoutRunLabel
+            : typeof nextPayoutLabel !== 'undefined'
+              ? nextPayoutLabel
             : nextMondayFromCutoffLabel(payoutCutoffLabel);
         %>
         <h5 style="font-weight:800;color:var(--ink);margin-bottom:.25rem;"><%= t('merchant.revenue.nextPayout', { date: safeNextPayoutLabel }) %></h5>

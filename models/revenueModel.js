@@ -23,7 +23,7 @@ async function getMerchantRevenueSummary(merchantId, selectedPeriod = null) {
        COALESCE(SUM(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
                          THEN COALESCE(p.dispute_fee_amount, 0) ELSE 0 END), 0) AS month_dispute_fees,
        COALESCE(SUM(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
-                         THEN GREATEST(p.amount * 0.90 - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0) ELSE 0 END), 0) AS month_merchant_earnings,
+                         THEN GREATEST(ROUND(p.amount * 0.90, 2) - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0) ELSE 0 END), 0) AS month_merchant_earnings,
        COALESCE(AVG(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
                          THEN p.amount END), 0) AS month_avg_order_value,
        COUNT(CASE WHEN DATE_FORMAT(p.paid_at, '%Y-%m') = ?
@@ -132,7 +132,7 @@ async function getMonthlyRevenue(merchantId) {
        SUM(ROUND(p.amount * 0.10, 2))      AS platform_commission,
        SUM(${processorFee}) AS processor_fee_amount,
        SUM(COALESCE(p.dispute_fee_amount, 0)) AS dispute_fee_amount,
-       SUM(GREATEST(p.amount * 0.90 - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0)) AS merchant_earnings
+       SUM(GREATEST(ROUND(p.amount * 0.90, 2) - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0)) AS merchant_earnings
      FROM payment p
      JOIN booking b ON p.booking_id = b.booking_id
      WHERE b.merchant_id = ? AND p.payment_status = 'paid'

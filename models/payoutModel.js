@@ -1,6 +1,5 @@
 const db = require('../config/db');
 const paymentModel = require('./paymentModel');
-const merchantModel = require('./merchantModel');
 
 const PLATFORM_COMMISSION_RATE = 0.10;
 const MERCHANT_SHARE_RATE = 1 - PLATFORM_COMMISSION_RATE;
@@ -51,9 +50,38 @@ function currentPayoutCycleTimestampSql() {
   return `TIMESTAMP(${currentPayoutCycleStartSql()}, '00:01:00')`;
 }
 
+function payoutItemTotalsSubquery() {
+  const processorFee = paymentModel.processorFeeExpression('p');
+  return `
+    SELECT
+      p.merchant_payout_id AS payout_id,
+      COUNT(*) AS item_booking_count,
+      COALESCE(SUM(p.amount), 0) AS item_gross_amount,
+      COALESCE(SUM(ROUND(p.amount * ${PLATFORM_COMMISSION_RATE}, 2)), 0) AS item_platform_commission,
+      COALESCE(SUM(${processorFee}), 0) AS item_processor_fee_amount,
+      COALESCE(SUM(COALESCE(p.dispute_fee_amount, 0)), 0) AS item_dispute_fee_amount,
+      COALESCE(SUM(GREATEST(ROUND(p.amount * ${MERCHANT_SHARE_RATE}, 2) - ${processorFee} - COALESCE(p.dispute_fee_amount, 0), 0)), 0) AS item_payout_amount
+    FROM payment p
+    WHERE p.merchant_payout_id IS NOT NULL
+    GROUP BY p.merchant_payout_id
+  `;
+}
+
+function reconcilePayoutAmounts(row) {
+  if (!row || !Number(row.item_booking_count || 0)) return row;
+  return {
+    ...row,
+    booking_count: Number(row.item_booking_count || 0),
+    gross_amount: roundMoney(row.item_gross_amount),
+    platform_commission: roundMoney(row.item_platform_commission),
+    processor_fee_amount: roundMoney(row.item_processor_fee_amount),
+    dispute_fee_amount: roundMoney(row.item_dispute_fee_amount),
+    payout_amount: roundMoney(row.item_payout_amount),
+  };
+}
+
 async function ensurePayoutSchema() {
   if (payoutSchemaReady) return;
-  await merchantModel.ensureMerchantStripeSchema();
 
   const paymentColumnExists = async columnName => {
     const [[row]] = await db.query(
@@ -242,9 +270,6 @@ async function getEligiblePayoutGroups() {
        m.merchant_id,
        m.merchant_name,
        m.email,
-       m.stripe_account_id,
-       m.stripe_account_payouts_enabled,
-       m.stripe_account_details_submitted,
        COUNT(*) AS booking_count,
        COALESCE(SUM(p.amount), 0) AS gross_amount,
        COALESCE(SUM(ROUND(p.amount * ?, 2)), 0) AS platform_commission,
@@ -260,7 +285,7 @@ async function getEligiblePayoutGroups() {
      JOIN time_slot ts ON ts.slot_id = b.slot_id
      JOIN merchant m ON m.merchant_id = b.merchant_id
      WHERE ${eligibleBookingWhereClause()}
-     GROUP BY m.merchant_id, m.merchant_name, m.email, m.stripe_account_id, m.stripe_account_payouts_enabled, m.stripe_account_details_submitted
+     GROUP BY m.merchant_id, m.merchant_name, m.email
      ORDER BY payout_amount DESC, m.merchant_name ASC`,
     [PLATFORM_COMMISSION_RATE, MERCHANT_SHARE_RATE]
   );
@@ -387,13 +412,24 @@ async function getPayoutSummary() {
 
   const [[summary]] = await db.query(
     `SELECT
-       COALESCE(SUM(CASE WHEN status IN ('pending','processing') THEN payout_amount ELSE 0 END), 0) AS outstanding_amount,
-       COALESCE(SUM(CASE WHEN status = 'paid' THEN payout_amount ELSE 0 END), 0) AS paid_amount,
-       COALESCE(SUM(CASE WHEN status = 'paid' AND DATE(COALESCE(paid_at, created_at)) >= ${currentPayoutCycleStartSql()} THEN payout_amount ELSE 0 END), 0) AS paid_this_week_amount,
+       COALESCE(SUM(CASE WHEN status IN ('pending','processing') THEN effective_payout_amount ELSE 0 END), 0) AS outstanding_amount,
+       COALESCE(SUM(CASE WHEN status = 'paid' THEN effective_payout_amount ELSE 0 END), 0) AS paid_amount,
+       COALESCE(SUM(CASE WHEN status = 'paid' AND DATE(COALESCE(paid_at, created_at)) >= ${currentPayoutCycleStartSql()} THEN effective_payout_amount ELSE 0 END), 0) AS paid_this_week_amount,
        COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) AS pending_count,
        COALESCE(SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END), 0) AS paid_count,
        COALESCE(SUM(CASE WHEN status = 'paid' AND DATE(COALESCE(paid_at, created_at)) >= ${currentPayoutCycleStartSql()} THEN 1 ELSE 0 END), 0) AS paid_this_week_count
-     FROM merchant_payout`
+     FROM (
+       SELECT
+         mp.status,
+         mp.paid_at,
+         mp.created_at,
+         CASE
+           WHEN COALESCE(items.item_booking_count, 0) > 0 THEN items.item_payout_amount
+           ELSE mp.payout_amount
+         END AS effective_payout_amount
+       FROM merchant_payout mp
+       LEFT JOIN (${payoutItemTotalsSubquery()}) items ON items.payout_id = mp.payout_id
+     ) payout_totals`
   );
 
   const eligible = await getEligiblePayoutGroups();
@@ -434,9 +470,16 @@ async function getOutstandingBreakdown(limit = 5) {
   await ensurePayoutSchema();
 
   const [rows] = await db.query(
-    `SELECT mp.merchant_id, m.merchant_name, mp.payout_amount
+    `SELECT
+       mp.merchant_id,
+       m.merchant_name,
+       CASE
+         WHEN COALESCE(items.item_booking_count, 0) > 0 THEN items.item_payout_amount
+         ELSE mp.payout_amount
+       END AS payout_amount
      FROM merchant_payout mp
      JOIN merchant m ON m.merchant_id = mp.merchant_id
+     LEFT JOIN (${payoutItemTotalsSubquery()}) items ON items.payout_id = mp.payout_id
      WHERE mp.status IN ('pending','processing')
      ORDER BY mp.payout_amount DESC
      LIMIT ?`,
@@ -483,7 +526,8 @@ async function getPayouts({ merchantId = null, status = null, limit = 100 } = {}
 
   const [rows] = await db.query(
     `SELECT mp.*, m.merchant_name, m.email AS merchant_email, m.user_id AS merchant_user_id,
-            m.stripe_account_id, m.stripe_account_payouts_enabled, m.stripe_account_details_submitted,
+            items.item_booking_count, items.item_gross_amount, items.item_platform_commission,
+            items.item_processor_fee_amount, items.item_dispute_fee_amount, items.item_payout_amount,
             TIMESTAMP(DATE_SUB(DATE(mp.created_at), INTERVAL WEEKDAY(mp.created_at) DAY), '00:01:00') AS created_cycle_monday,
             CASE
               WHEN mp.paid_at IS NULL THEN NULL
@@ -491,13 +535,14 @@ async function getPayouts({ merchantId = null, status = null, limit = 100 } = {}
             END AS paid_cycle_monday
      FROM merchant_payout mp
      JOIN merchant m ON m.merchant_id = mp.merchant_id
+     LEFT JOIN (${payoutItemTotalsSubquery()}) items ON items.payout_id = mp.payout_id
      ${where}
      ORDER BY mp.created_at DESC, mp.payout_id DESC
      LIMIT ?`,
     params
   );
 
-  return rows;
+  return rows.map(reconcilePayoutAmounts);
 }
 
 async function getPayoutById(payoutId) {
@@ -506,9 +551,11 @@ async function getPayoutById(payoutId) {
 
   const [[payout]] = await db.query(
     `SELECT mp.*, m.merchant_name, m.email AS merchant_email, m.user_id AS merchant_user_id,
-            m.stripe_account_id, m.stripe_account_payouts_enabled, m.stripe_account_details_submitted
+            items.item_booking_count, items.item_gross_amount, items.item_platform_commission,
+            items.item_processor_fee_amount, items.item_dispute_fee_amount, items.item_payout_amount
      FROM merchant_payout mp
      JOIN merchant m ON m.merchant_id = mp.merchant_id
+     LEFT JOIN (${payoutItemTotalsSubquery()}) items ON items.payout_id = mp.payout_id
      WHERE mp.payout_id = ?
      LIMIT 1`,
     [payoutId]
@@ -539,7 +586,7 @@ async function getPayoutById(payoutId) {
     [PLATFORM_COMMISSION_RATE, MERCHANT_SHARE_RATE, payoutId]
   );
 
-  return { payout, items };
+  return { payout: reconcilePayoutAmounts(payout), items };
 }
 
 async function markPayoutProcessing(payoutId, { stripeTransferStatus = null, adminNote = null } = {}) {
@@ -627,7 +674,7 @@ async function markPayoutFailed(payoutId, errorMessage) {
            stripe_transfer_error = ?
        WHERE payout_id = ?
          AND status IN ('pending','processing')`,
-      [String(errorMessage || 'Stripe transfer failed').slice(0, 1000), payoutId]
+      [String(errorMessage || 'Payout settlement failed').slice(0, 1000), payoutId]
     );
 
     if (result.affectedRows) {

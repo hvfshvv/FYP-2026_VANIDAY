@@ -985,7 +985,7 @@
       "automatedTitle": "Automated settlement",
       "automatedBody": "Payout batches are created and credited by the automated Monday payout run. Merchants are notified when the batch is credited.",
       "reference": "Reference:",
-      "transferError": "Stripe transfer error:",
+      "transferError": "Payout error:",
       "includedBookings": "Included bookings",
       "pageTitle": "Merchant Payouts",
       "pageSubtitle": "Automatically creates one Monday payout batch per merchant from eligible completed paid bookings with appointment dates before the current Monday.",

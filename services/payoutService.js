@@ -1,19 +1,10 @@
 const payoutModel = require('../models/payoutModel');
 const notificationModel = require('../models/notificationModel');
-const stripeService = require('./stripeService');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 let schedulerStarted = false;
 let running = false;
-
-function isStripePayoutReady(payoutLike) {
-  return Boolean(
-    payoutLike?.stripe_account_id
-    && Number(payoutLike.stripe_account_details_submitted || 0)
-    && Number(payoutLike.stripe_account_payouts_enabled || 0)
-  );
-}
 
 async function settlePayout(payoutId) {
   const payoutResultBefore = await payoutModel.getPayoutById(payoutId);
@@ -21,41 +12,15 @@ async function settlePayout(payoutId) {
   if (!payout) return false;
 
   try {
-    if (!isStripePayoutReady(payout)) {
-      if (!payout.stripe_account_id) {
-        throw new Error('Merchant has not connected a Stripe payout account.');
-      }
-      if (!Number(payout.stripe_account_details_submitted || 0)) {
-        throw new Error('Merchant Stripe payout account onboarding is incomplete.');
-      }
-      throw new Error('Merchant Stripe payouts are not enabled.');
-    }
-
-    await payoutModel.markPayoutProcessing(payoutId, {
-      stripeTransferStatus: 'creating',
-      adminNote: 'Creating Stripe Connect transfer.',
-    });
-
-    const transfer = await stripeService.createTransferToConnectedAccount({
-      amount: payout.payout_amount,
-      destinationAccountId: payout.stripe_account_id,
-      payoutId,
-      merchantId: payout.merchant_id,
-    });
-
-    if (!transfer || !String(transfer.id || '').startsWith('tr_')) {
-      throw new Error('Stripe did not return a valid transfer.');
-    }
-
     const paidRows = await payoutModel.markPayoutPaid(payoutId, null, {
-      payoutReference: transfer.id,
-      adminNote: 'Paid through Stripe Connect transfer automation.',
+      payoutReference: `AUTO-PAYOUT-${payoutId}`,
+      adminNote: 'Paid through in-app weekly payout automation.',
     });
 
     if (!paidRows) return false;
   } catch (err) {
     await payoutModel.markPayoutFailed(payoutId, err.message);
-    console.error(`[payout] Stripe transfer failed for payout ${payoutId}:`, err.message);
+    console.error(`[payout] In-app payout settlement failed for payout ${payoutId}:`, err.message);
     return false;
   }
 
@@ -96,11 +61,6 @@ async function createDueWeeklyPayouts() {
     let created = 0;
 
     for (const group of eligibleGroups) {
-      if (!isStripePayoutReady(group)) {
-        console.warn(`[payout] Skipping merchant ${group.merchant_id}: Stripe payout account is not ready.`);
-        continue;
-      }
-
       const result = await payoutModel.createMerchantPayout(group.merchant_id, null);
       if (!result.created) continue;
 
