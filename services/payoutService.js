@@ -7,50 +7,56 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 let schedulerStarted = false;
 let running = false;
 
+function isStripePayoutReady(payoutLike) {
+  return Boolean(
+    payoutLike?.stripe_account_id
+    && Number(payoutLike.stripe_account_details_submitted || 0)
+    && Number(payoutLike.stripe_account_payouts_enabled || 0)
+  );
+}
+
 async function settlePayout(payoutId) {
   const payoutResultBefore = await payoutModel.getPayoutById(payoutId);
   const payout = payoutResultBefore?.payout;
   if (!payout) return false;
 
-  if (process.env.STRIPE_CONNECT_TRANSFERS_ENABLED === 'true') {
-    try {
+  try {
+    if (!isStripePayoutReady(payout)) {
       if (!payout.stripe_account_id) {
         throw new Error('Merchant has not connected a Stripe payout account.');
       }
       if (!Number(payout.stripe_account_details_submitted || 0)) {
         throw new Error('Merchant Stripe payout account onboarding is incomplete.');
       }
-
-      await payoutModel.markPayoutProcessing(payoutId, {
-        stripeTransferStatus: 'creating',
-        adminNote: 'Creating Stripe Connect transfer.',
-      });
-
-      const transfer = await stripeService.createTransferToConnectedAccount({
-        amount: payout.payout_amount,
-        destinationAccountId: payout.stripe_account_id,
-        payoutId,
-        merchantId: payout.merchant_id,
-      });
-
-      const paidRows = await payoutModel.markPayoutPaid(payoutId, null, {
-        payoutReference: transfer.id,
-        adminNote: 'Paid through Stripe Connect transfer automation.',
-      });
-
-      if (!paidRows) return false;
-    } catch (err) {
-      await payoutModel.markPayoutFailed(payoutId, err.message);
-      console.error(`[payout] Stripe transfer failed for payout ${payoutId}:`, err.message);
-      return false;
+      throw new Error('Merchant Stripe payouts are not enabled.');
     }
-  } else {
+
+    await payoutModel.markPayoutProcessing(payoutId, {
+      stripeTransferStatus: 'creating',
+      adminNote: 'Creating Stripe Connect transfer.',
+    });
+
+    const transfer = await stripeService.createTransferToConnectedAccount({
+      amount: payout.payout_amount,
+      destinationAccountId: payout.stripe_account_id,
+      payoutId,
+      merchantId: payout.merchant_id,
+    });
+
+    if (!transfer || !String(transfer.id || '').startsWith('tr_')) {
+      throw new Error('Stripe did not return a valid transfer.');
+    }
+
     const paidRows = await payoutModel.markPayoutPaid(payoutId, null, {
-      payoutReference: `AUTO-PAYOUT-${payoutId}`,
-      adminNote: 'Automatically settled by weekly payout automation.',
+      payoutReference: transfer.id,
+      adminNote: 'Paid through Stripe Connect transfer automation.',
     });
 
     if (!paidRows) return false;
+  } catch (err) {
+    await payoutModel.markPayoutFailed(payoutId, err.message);
+    console.error(`[payout] Stripe transfer failed for payout ${payoutId}:`, err.message);
+    return false;
   }
 
   const payoutResult = await payoutModel.getPayoutById(payoutId);
@@ -90,6 +96,11 @@ async function createDueWeeklyPayouts() {
     let created = 0;
 
     for (const group of eligibleGroups) {
+      if (!isStripePayoutReady(group)) {
+        console.warn(`[payout] Skipping merchant ${group.merchant_id}: Stripe payout account is not ready.`);
+        continue;
+      }
+
       const result = await payoutModel.createMerchantPayout(group.merchant_id, null);
       if (!result.created) continue;
 

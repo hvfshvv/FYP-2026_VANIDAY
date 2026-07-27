@@ -541,8 +541,8 @@
             <td class="mono text-end"><%= money(payout.platform_commission) %></td>
             <td class="mono text-end"><%= money(Number(payout.processor_fee_amount || 0) + Number(payout.dispute_fee_amount || 0)) %></td>
             <td class="mono text-end" style="font-weight:800;color:var(--success);"><%= money(payout.payout_amount) %></td>
-            <td style="color:var(--muted);font-size:.82rem;"><%= dateTime(payout.created_at) %></td>
-            <td style="color:var(--muted);font-size:.82rem;"><%= dateTime(payout.paid_at) %></td>
+            <td style="color:var(--muted);font-size:.82rem;"><%= dateTime(payout.created_cycle_monday || payout.created_at) %></td>
+            <td style="color:var(--muted);font-size:.82rem;"><%= dateTime(payout.paid_cycle_monday || payout.paid_at) %></td>
             <td class="text-end"><a href="/admin/payouts/<%= payout.payout_id %>" class="btn btn-outline-secondary btn-sm btn-pill"><%= t('admin.payouts.view') %></a></td>
           </tr>
           <% }) %>

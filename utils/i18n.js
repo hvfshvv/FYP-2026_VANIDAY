@@ -11,6 +11,7 @@ const LANGUAGE_LABELS = {
 };
 
 const localeDir = path.join(__dirname, '..', 'locales');
+const shouldReloadLocales = process.env.NODE_ENV !== 'production';
 
 function loadLocale(lang) {
   const filePath = path.join(localeDir, `${lang}.json`);
@@ -21,6 +22,14 @@ const dictionaries = SUPPORTED_LANGUAGES.reduce((acc, lang) => {
   acc[lang] = loadLocale(lang);
   return acc;
 }, {});
+
+function reloadDictionaries() {
+  if (!shouldReloadLocales) return;
+
+  SUPPORTED_LANGUAGES.forEach(lang => {
+    dictionaries[lang] = loadLocale(lang);
+  });
+}
 
 function normalizeLanguage(value) {
   const raw = String(value || '').toLowerCase().trim();
@@ -71,6 +80,7 @@ function isInvalidTranslationValue(value) {
 }
 
 function t(lang, key, params = {}, fallbackText) {
+  reloadDictionaries();
   const normalized = normalizeLanguage(lang);
   const localizedValue = getNested(dictionaries[normalized], key);
   const fallbackValue = getNested(dictionaries[DEFAULT_LANGUAGE], key);
@@ -90,6 +100,7 @@ function toServiceKey(name) {
 }
 
 function serviceText(lang, service, field = 'name') {
+  reloadDictionaries();
   if (!service) return '';
   const normalized = normalizeLanguage(lang);
   const idKey = service.service_id ? `services.byId.${service.service_id}.${field}` : '';
@@ -104,6 +115,7 @@ function serviceText(lang, service, field = 'name') {
 }
 
 function getClientDictionary(lang) {
+  reloadDictionaries();
   const normalized = normalizeLanguage(lang);
   return {
     lang: normalized,

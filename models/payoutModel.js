@@ -47,6 +47,10 @@ function currentPayoutCycleStartSql() {
   return 'DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)';
 }
 
+function currentPayoutCycleTimestampSql() {
+  return `TIMESTAMP(${currentPayoutCycleStartSql()}, '00:01:00')`;
+}
+
 async function ensurePayoutSchema() {
   if (payoutSchemaReady) return;
   await merchantModel.ensureMerchantStripeSchema();
@@ -238,6 +242,9 @@ async function getEligiblePayoutGroups() {
        m.merchant_id,
        m.merchant_name,
        m.email,
+       m.stripe_account_id,
+       m.stripe_account_payouts_enabled,
+       m.stripe_account_details_submitted,
        COUNT(*) AS booking_count,
        COALESCE(SUM(p.amount), 0) AS gross_amount,
        COALESCE(SUM(ROUND(p.amount * ?, 2)), 0) AS platform_commission,
@@ -253,7 +260,7 @@ async function getEligiblePayoutGroups() {
      JOIN time_slot ts ON ts.slot_id = b.slot_id
      JOIN merchant m ON m.merchant_id = b.merchant_id
      WHERE ${eligibleBookingWhereClause()}
-     GROUP BY m.merchant_id, m.merchant_name, m.email
+     GROUP BY m.merchant_id, m.merchant_name, m.email, m.stripe_account_id, m.stripe_account_payouts_enabled, m.stripe_account_details_submitted
      ORDER BY payout_amount DESC, m.merchant_name ASC`,
     [PLATFORM_COMMISSION_RATE, MERCHANT_SHARE_RATE]
   );
@@ -342,8 +349,8 @@ async function createMerchantPayout(merchantId, adminUserId) {
 
     const [payoutResult] = await connection.query(
       `INSERT INTO merchant_payout
-         (merchant_id, status, gross_amount, platform_commission, processor_fee_amount, dispute_fee_amount, payout_amount, booking_count, payout_period_start, payout_period_end, created_by)
-       VALUES (?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (merchant_id, status, gross_amount, platform_commission, processor_fee_amount, dispute_fee_amount, payout_amount, booking_count, payout_period_start, payout_period_end, created_by, created_at, updated_at)
+       VALUES (?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ${currentPayoutCycleTimestampSql()}, ${currentPayoutCycleTimestampSql()})`,
       [merchantId, grossAmount, platformCommission, processorFeeAmount, disputeFeeAmount, payoutAmount, bookings.length, payoutPeriodStart, payoutPeriodEnd, adminUserId || null]
     );
 
@@ -476,7 +483,12 @@ async function getPayouts({ merchantId = null, status = null, limit = 100 } = {}
 
   const [rows] = await db.query(
     `SELECT mp.*, m.merchant_name, m.email AS merchant_email, m.user_id AS merchant_user_id,
-            m.stripe_account_id, m.stripe_account_payouts_enabled, m.stripe_account_details_submitted
+            m.stripe_account_id, m.stripe_account_payouts_enabled, m.stripe_account_details_submitted,
+            TIMESTAMP(DATE_SUB(DATE(mp.created_at), INTERVAL WEEKDAY(mp.created_at) DAY), '00:01:00') AS created_cycle_monday,
+            CASE
+              WHEN mp.paid_at IS NULL THEN NULL
+              ELSE TIMESTAMP(DATE_SUB(DATE(mp.paid_at), INTERVAL WEEKDAY(mp.paid_at) DAY), '00:01:00')
+            END AS paid_cycle_monday
      FROM merchant_payout mp
      JOIN merchant m ON m.merchant_id = mp.merchant_id
      ${where}
@@ -567,7 +579,7 @@ async function markPayoutPaid(payoutId, adminUserId, { payoutReference = null, a
            stripe_transfer_error = NULL,
            admin_note = ?,
            paid_by = ?,
-           paid_at = NOW()
+           paid_at = ${currentPayoutCycleTimestampSql()}
        WHERE payout_id = ?
          AND status IN ('pending','processing')`,
       [
@@ -585,7 +597,7 @@ async function markPayoutPaid(payoutId, adminUserId, { payoutReference = null, a
         `UPDATE payment
          SET platform_hold_status = 'released_to_merchant',
              merchant_payout_status = 'paid',
-             merchant_payout_at = NOW()
+             merchant_payout_at = ${currentPayoutCycleTimestampSql()}
          WHERE merchant_payout_id = ?`,
         [payoutId]
       );
@@ -603,16 +615,40 @@ async function markPayoutPaid(payoutId, adminUserId, { payoutReference = null, a
 
 async function markPayoutFailed(payoutId, errorMessage) {
   await ensurePayoutSchema();
-  const [result] = await db.query(
-    `UPDATE merchant_payout
-     SET status = 'failed',
-         stripe_transfer_status = 'failed',
-         stripe_transfer_error = ?
-     WHERE payout_id = ?
-       AND status IN ('pending','processing')`,
-    [String(errorMessage || 'Stripe transfer failed').slice(0, 1000), payoutId]
-  );
-  return result.affectedRows;
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [result] = await connection.query(
+      `UPDATE merchant_payout
+       SET status = 'failed',
+           stripe_transfer_status = 'failed',
+           stripe_transfer_error = ?
+       WHERE payout_id = ?
+         AND status IN ('pending','processing')`,
+      [String(errorMessage || 'Stripe transfer failed').slice(0, 1000), payoutId]
+    );
+
+    if (result.affectedRows) {
+      await connection.query(
+        `UPDATE payment
+         SET merchant_payout_id = NULL,
+             merchant_payout_status = 'pending',
+             merchant_payout_at = NULL
+         WHERE merchant_payout_id = ?`,
+        [payoutId]
+      );
+    }
+
+    await connection.commit();
+    return result.affectedRows;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
 }
 
 async function getMerchantPayoutOverview(merchantId) {

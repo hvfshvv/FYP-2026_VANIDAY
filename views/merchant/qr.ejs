@@ -1,6 +1,11 @@
 <% locals.hideCatNav = true %>
 <%- include('../partials/header') %>
 
+<%
+  const bookingQrImage = qr ? (qr.qr_image_src || qr.qr_image_path) : '';
+  const arrivalQrImage = arrivalQr ? (arrivalQr.qr_image_src || arrivalQr.qr_image_path) : '';
+%>
+
 <div class="container py-5" style="max-width:1080px;">
   <a href="/merchant/dashboard" class="btn btn-outline-secondary btn-sm btn-pill mb-4">
     <i class="bi bi-arrow-left me-1"></i><%= t('nav.dashboard') %>
@@ -22,10 +27,10 @@
                 <p style="font-weight:800;color:var(--success);margin-bottom:0;font-size:.9375rem;"><%= t('merchant.qr.bookingQr') %></p>
               </div>
               <div class="p-3 d-inline-block rounded-xl mx-auto mb-3" style="background:#fff;border:3px solid var(--accent);box-shadow:0 4px 20px rgba(225,29,72,.12);">
-                <img src="<%= qr.qr_image_path %>" alt="<%= t('merchant.qr.bookingQr') %>" style="width:210px;height:210px;" />
+                <img src="<%= bookingQrImage %>" alt="<%= t('merchant.qr.bookingQr') %>" style="width:210px;height:210px;" />
               </div>
               <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;"><%= t('merchant.qr.bookingBody') %></p>
-              <a href="<%= qr.qr_image_path %>" download="uniday-merchant-<%= qr.merchant_id %>-booking-qr.png" class="btn btn-primary btn-pill w-100 mb-2">
+              <a href="<%= bookingQrImage %>" download="uniday-merchant-<%= qr.merchant_id %>-booking-qr.png" class="btn btn-primary btn-pill w-100 mb-2">
                 <i class="bi bi-download me-2"></i><%= t('merchant.qr.downloadBooking') %>
               </a>
               <button type="button" onclick="printQR('booking-qr-print-area', 'qr-printing-booking')" class="btn btn-outline-secondary btn-pill w-100 mb-2">
@@ -53,10 +58,10 @@
                 <p style="font-weight:800;color:var(--accent);margin-bottom:0;font-size:.9375rem;"><%= t('merchant.qr.arrivalQr') %></p>
               </div>
               <div class="p-3 d-inline-block rounded-xl mx-auto mb-3" style="background:#fff;border:3px solid var(--accent);box-shadow:0 4px 20px rgba(225,29,72,.12);">
-                <img src="<%= arrivalQr.qr_image_path %>" alt="<%= t('merchant.qr.arrivalQr') %>" style="width:210px;height:210px;" />
+                <img src="<%= arrivalQrImage %>" alt="<%= t('merchant.qr.arrivalQr') %>" style="width:210px;height:210px;" />
               </div>
               <p style="color:var(--muted);font-size:.875rem;margin-bottom:1rem;"><%= t('merchant.qr.arrivalBody') %></p>
-              <a href="<%= arrivalQr.qr_image_path %>" download="uniday-merchant-<%= arrivalQr.merchant_id %>-arrival-qr.png" class="btn btn-primary btn-pill w-100 mb-2">
+              <a href="<%= arrivalQrImage %>" download="uniday-merchant-<%= arrivalQr.merchant_id %>-arrival-qr.png" class="btn btn-primary btn-pill w-100 mb-2">
                 <i class="bi bi-download me-2"></i><%= t('merchant.qr.downloadArrival') %>
               </a>
               <button type="button" onclick="printQR('arrival-qr-print-area', 'qr-printing-arrival')" class="btn btn-outline-secondary btn-pill w-100 mb-2">
@@ -120,7 +125,7 @@
     <p class="qr-print-address"><%= qr.address %></p>
     <% } %>
     <div class="qr-print-code">
-      <img src="<%= qr.qr_image_path %>" alt="<%= t('merchant.qr.bookingQr') %>" />
+      <img src="<%= bookingQrImage %>" alt="<%= t('merchant.qr.bookingQr') %>" />
     </div>
     <p class="qr-print-title"><%= t('merchant.qr.printBookingCta') %></p>
   </div>
@@ -136,7 +141,7 @@
     <p class="qr-print-address"><%= arrivalQr.address || qr?.address %></p>
     <% } %>
     <div class="qr-print-code">
-      <img src="<%= arrivalQr.qr_image_path %>" alt="<%= t('merchant.qr.arrivalQr') %>" />
+      <img src="<%= arrivalQrImage %>" alt="<%= t('merchant.qr.arrivalQr') %>" />
     </div>
     <p class="qr-print-title"><%= t('merchant.qr.printArrivalCta') %></p>
   </div>

@@ -59,6 +59,20 @@ Create a Gemini API key from Google AI Studio and add it to your local `.env` if
 GEMINI_API_KEY=your_api_key_here
 ```
 
+## Stripe Connect Merchant Payouts
+
+Weekly merchant payouts use real Stripe Connect transfers. Configure Stripe and onboard each merchant to a connected account before running payouts:
+
+```env
+STRIPE_SECRET_KEY=sk_test_or_live_...
+STRIPE_PUBLISHABLE_KEY=pk_test_or_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_CONNECT_COUNTRY=SG
+CRON_SECRET=your_internal_payout_cron_secret
+```
+
+Payout batches are marked paid only after Stripe returns a valid transfer ID. Merchants without a completed, payouts-enabled Stripe connected account are skipped until onboarding is complete.
+
 ## WhatsApp Merchant Disruption Notifications
 
 Merchant cancellations, emergency closures, and staff replacement proposals use
