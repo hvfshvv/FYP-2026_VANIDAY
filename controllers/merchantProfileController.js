@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const merchantModel = require('../models/merchantModel');
+const { validateUploadedImageFile } = require('../utils/imageUpload');
 
 const merchantImageDir = path.join(__dirname, '..', 'public', 'images', 'merchants');
 
@@ -17,8 +18,8 @@ const storage = multer.diskStorage({
 });
 
 function imageFileFilter(req, file, cb) {
-  if (!file.mimetype || !file.mimetype.startsWith('image/')) {
-    return cb(new Error('Please upload an image file.'));
+  if (!/^image\/(png|jpe?g|webp|gif)$/.test(file.mimetype || '')) {
+    return cb(new Error('Please upload a JPG, PNG, WebP, or GIF image.'));
   }
 
   cb(null, true);
@@ -32,7 +33,14 @@ const upload = multer({
 
 function handleMarketplaceImageUpload(req, res, next) {
   upload.single('marketplace_image')(req, res, (err) => {
-    if (!err) return next();
+    if (!err) {
+      try {
+        validateUploadedImageFile(req.file);
+        return next();
+      } catch (validationErr) {
+        err = validationErr;
+      }
+    }
 
     const message = err.code === 'LIMIT_FILE_SIZE'
       ? 'Image must be under 2MB.'

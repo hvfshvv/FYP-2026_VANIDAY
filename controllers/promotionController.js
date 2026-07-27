@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { wantsJson } = require('../middleware/auth');
 const { generatePromotionSuggestion } = require('../services/geminiPromotionService');
+const { validateUploadedImageFile } = require('../utils/imageUpload');
 
 const uploadDir = path.join(__dirname, '..', 'public', 'images', 'promotions');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -23,24 +24,35 @@ const upload = multer({
     }
     cb(null, true);
   },
+  limits: { fileSize: 2 * 1024 * 1024 },
 });
 
 function handlePromotionUpload(req, res, next) {
   // Upload optional promotion banner image.
   upload.single('image')(req, res, err => {
-    if (!err) return next();
+    if (!err) {
+      try {
+        validateUploadedImageFile(req.file);
+        return next();
+      } catch (validationErr) {
+        err = validationErr;
+      }
+    }
 
     console.error('[promotion] Banner upload failed:', err);
+    const message = err.code === 'LIMIT_FILE_SIZE'
+      ? 'Image must be under 2MB.'
+      : err.message || 'Failed to upload banner image.';
 
     if (wantsJson(req)) {
       return res.status(400).json({
         success: false,
-        error: err.message || 'Failed to upload banner image.',
+        error: message,
       });
     }
 
     return renderPromotionsPage(req, res, {
-      error: err.message || 'Failed to upload banner image.',
+      error: message,
       form: req.body,
     }).catch(next);
   });

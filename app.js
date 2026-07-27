@@ -117,7 +117,7 @@ app.get('/internal/payouts/run', async (req, res) => {
     ? authHeader.slice('Bearer '.length)
     : req.query.secret;
 
-  if (expectedSecret && providedSecret !== expectedSecret) {
+  if (!expectedSecret || providedSecret !== expectedSecret) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

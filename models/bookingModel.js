@@ -202,7 +202,7 @@ async function getBookingById(bookingId) {
             pr.title        AS promo_title,
             pr.discount_pct AS promo_discount_pct,
             COALESCE(vch_applied.campaign_name, vch_applied.voucher_code) AS voucher_name,
-            p_hold.payment_hold_expires_at,
+            COALESCE(p_hold.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) AS payment_hold_expires_at,
             m.merchant_name,
             m.email AS merchant_email,
             m.address AS merchant_address,
@@ -214,7 +214,7 @@ async function getBookingById(bookingId) {
               TIMESTAMPDIFF(
                 SECOND,
                 NOW(),
-                DATE_ADD(b.created_at, INTERVAL 5 MINUTE)
+                COALESCE(p_hold.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE))
               )
             ) AS pending_remaining_seconds
      FROM booking b
@@ -808,7 +808,7 @@ async function getCustomerBookings(customerId) {
             p.transaction_ref,
             CASE
               WHEN b.status = 'pending_payment'
-               AND DATE_ADD(b.created_at, INTERVAL 5 MINUTE) >= NOW()
+               AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE)) >= NOW()
               THEN 1 ELSE 0
             END AS pending_is_active,
             GREATEST(
@@ -816,7 +816,7 @@ async function getCustomerBookings(customerId) {
               TIMESTAMPDIFF(
                 SECOND,
                 NOW(),
-                DATE_ADD(b.created_at, INTERVAL 5 MINUTE)
+                COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL 5 MINUTE))
               )
             ) AS pending_remaining_seconds,
             mr.review_id AS merchant_review_id,

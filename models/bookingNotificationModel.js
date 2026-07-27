@@ -276,7 +276,7 @@ async function expirePendingPaymentBookings(ttlMinutes = 5) {
         AND paid.payment_status = 'paid'
        LEFT JOIN payment p ON p.booking_id = b.booking_id
        WHERE b.status = 'pending_payment'
-         AND DATE_ADD(b.created_at, INTERVAL ? MINUTE) < NOW()
+         AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL ? MINUTE)) < NOW()
          AND paid.payment_id IS NULL
        FOR UPDATE`,
       [safeTtl]
@@ -349,7 +349,7 @@ async function countActivePendingPaymentBookings(customerId, ttlMinutes = 5) {
      LEFT JOIN payment p ON p.booking_id = b.booking_id
      WHERE b.customer_id = ?
        AND b.status = 'pending_payment'
-       AND DATE_ADD(b.created_at, INTERVAL ? MINUTE) >= NOW()`,
+       AND COALESCE(p.payment_hold_expires_at, DATE_ADD(b.created_at, INTERVAL ? MINUTE)) >= NOW()`,
     [customerId, safeTtl]
   );
 

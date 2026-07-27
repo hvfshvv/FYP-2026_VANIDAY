@@ -6,6 +6,13 @@
   const selectedDate = state.booking_date || '';
   const selectedBookingTime = state.booking_time ? String(state.booking_time).slice(0,5) : '';
   const selectedStaffId = state.staff_id || '';
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char]));
 %>
 <%- include('../partials/header') %>
 
@@ -165,7 +172,7 @@
               <p style="color:var(--muted);font-size:.875rem;margin-bottom:1.5rem;">
                 <% if (loggedInCustomer) { %>
                 <i class="bi bi-person-check-fill me-1" style="color:var(--success);"></i>
-                <%- t('booking.loggedInAs', { name: '<strong>' + user.full_name + '</strong>' }) %>
+                <%- t('booking.loggedInAs', { name: '<strong>' + escapeHtml(user.full_name) + '</strong>' }) %>
                 <% } else { %>
                 <%= t('booking.guestHint') %>
                 <% } %>
