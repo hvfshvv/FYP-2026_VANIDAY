@@ -214,8 +214,47 @@ router.post(
   merchantProfileCtrl.updateMarketplaceImage
 );
 
+function normalizeBaseUrl(value) {
+  const raw = String(value || '').trim().replace(/\/+$/, '');
+  if (!raw) return '';
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+}
+
 function appBaseUrl(req) {
-  return process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
+  const configured = normalizeBaseUrl(process.env.APP_URL || process.env.APP_BASE_URL || process.env.VERCEL_URL);
+  if (configured) return configured;
+
+  const forwardedProto = String(req.get('x-forwarded-proto') || '').split(',')[0].trim();
+  const proto = forwardedProto || req.protocol || 'http';
+  return normalizeBaseUrl(`${proto}://${req.get('host')}`);
+}
+
+function connectErrorMessage(err) {
+  const fallback = 'Could not start Stripe Connect onboarding. Check Stripe keys and try again.';
+  if (process.env.NODE_ENV === 'production') return fallback;
+
+  const detail = String(err?.message || '').trim();
+  return detail ? `${fallback} Stripe error: ${detail}` : fallback;
+}
+
+function isMissingStripeAccountError(err) {
+  const message = String(err?.message || '').toLowerCase();
+  return err?.code === 'resource_missing'
+    || message.includes('no such account')
+    || message.includes('does not have access to account');
+}
+
+async function createAndSaveStripeAccount(merchantId, merchant) {
+  const account = await stripeService.createExpressConnectedAccount({
+    email: merchant.email,
+    businessName: merchant.merchant_name,
+    productDescription: merchant.description,
+  });
+
+  await merchantModel.saveMerchantStripeAccountId(merchantId, account.id);
+  await merchantModel.updateMerchantStripeAccountStatus(merchantId, account);
+
+  return account.id;
 }
 
 async function createStripeConnectLink(req, res) {
@@ -223,31 +262,60 @@ async function createStripeConnectLink(req, res) {
 
   try {
     let merchant = await merchantModel.getMerchantStripeAccount(merchantId);
+    if (!merchant) {
+      throw new Error('Merchant account was not found.');
+    }
+
     let accountId = merchant?.stripe_account_id;
 
     if (!accountId) {
-      const account = await stripeService.createExpressConnectedAccount({
-        email: merchant.email,
-        businessName: merchant.merchant_name,
-        productDescription: merchant.description,
-      });
-      accountId = account.id;
-      await merchantModel.saveMerchantStripeAccountId(merchantId, accountId);
-      await merchantModel.updateMerchantStripeAccountStatus(merchantId, account);
+      accountId = await createAndSaveStripeAccount(merchantId, merchant);
       merchant = { ...merchant, stripe_account_id: accountId };
     }
 
     const baseUrl = appBaseUrl(req);
-    const link = await stripeService.createConnectAccountLink({
-      accountId,
+    const linkOptions = {
       refreshUrl: `${baseUrl}/merchant/stripe/refresh`,
       returnUrl: `${baseUrl}/merchant/stripe/return`,
-    });
+    };
+    let link;
+
+    try {
+      link = await stripeService.createConnectAccountLink({
+        accountId,
+        ...linkOptions,
+      });
+    } catch (err) {
+      if (!isMissingStripeAccountError(err)) throw err;
+
+      console.warn('[stripe connect] saved account unavailable; creating a new connected account', {
+        merchantId,
+        accountId,
+        code: err?.code,
+        message: err?.message,
+      });
+
+      accountId = await createAndSaveStripeAccount(merchantId, merchant);
+      link = await stripeService.createConnectAccountLink({
+        accountId,
+        ...linkOptions,
+      });
+    }
+
+    if (!link?.url) {
+      throw new Error('Stripe did not return an onboarding link.');
+    }
 
     res.redirect(link.url);
   } catch (err) {
-    console.error('[stripe connect] onboarding error:', err);
-    res.redirect('/merchant/revenue?error=' + encodeURIComponent('Could not start Stripe Connect onboarding. Check Stripe keys and try again.'));
+    console.error('[stripe connect] onboarding error:', {
+      type: err?.type,
+      code: err?.code,
+      statusCode: err?.statusCode,
+      message: err?.message,
+      requestId: err?.requestId,
+    });
+    res.redirect('/merchant/revenue?error=' + encodeURIComponent(connectErrorMessage(err)));
   }
 }
 
