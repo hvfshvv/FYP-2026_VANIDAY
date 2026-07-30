@@ -221,6 +221,7 @@
   }
   .payout-mini-bar-fill {
     display:block;
+    width:var(--bar-width, 0%);
     height:100%;
     border-radius:999px;
     background:var(--ink);
@@ -238,6 +239,9 @@
     border-radius:999px;
     overflow:hidden;
     background:var(--canvas);
+  }
+  .payout-ratio-bar span {
+    width:var(--bar-width, 0%);
   }
   .payout-ratio-legend {
     display:flex;
@@ -315,7 +319,7 @@
         <% outstandingBreakdown.slice(0, 4).forEach(row => { %>
         <div class="payout-mini-bar-row">
           <span class="payout-mini-bar-label" title="<%= row.merchant_name %>"><%= row.merchant_name %></span>
-          <span class="payout-mini-bar-track"><span class="payout-mini-bar-fill" style="width:<%= Math.round((Number(row.payout_amount) / maxOutstanding) * 100) %>%;"></span></span>
+          <span class="payout-mini-bar-track"><span class="payout-mini-bar-fill" style="--bar-width:<%= Math.round((Number(row.payout_amount) / maxOutstanding) * 100) %>%;"></span></span>
           <span class="payout-mini-bar-value"><%= settlementBand(row.payout_amount) %></span>
         </div>
         <% }) %>
@@ -335,8 +339,8 @@
         <span class="payout-stat-badge"><%= t('admin.payouts.batchesCredited', { count: number(summary.paid_this_week_count) }) %></span>
         <% if (paidTotal + outstandingTotal > 0) { %>
         <div class="payout-ratio-bar">
-          <span style="width:<%= paidRatioPct %>%;background:var(--success);"></span>
-          <span style="width:<%= 100 - paidRatioPct %>%;background:var(--warn);"></span>
+          <span style="--bar-width:<%= paidRatioPct %>%;background:var(--success);"></span>
+          <span style="--bar-width:<%= 100 - paidRatioPct %>%;background:var(--warn);"></span>
         </div>
         <p class="payout-stat-sub" style="margin-top:.6rem;"><%= t('admin.payouts.settledPaidOut', { pct: paidRatioPct }) %></p>
         <div class="payout-ratio-legend">
@@ -361,7 +365,7 @@
         <% merchantSizeBuckets.forEach(bucket => { %>
         <div class="payout-mini-bar-row">
           <span class="payout-mini-bar-label"><%= bucket.label %></span>
-          <span class="payout-mini-bar-track"><span class="payout-mini-bar-fill" style="width:<%= Math.round((bucket.count / maxBucketCount) * 100) %>%;"></span></span>
+          <span class="payout-mini-bar-track"><span class="payout-mini-bar-fill" style="--bar-width:<%= Math.round((bucket.count / maxBucketCount) * 100) %>%;"></span></span>
           <span class="payout-mini-bar-value"><%= bucket.count %></span>
         </div>
         <% }) %>

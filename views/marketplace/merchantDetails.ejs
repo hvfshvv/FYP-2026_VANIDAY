@@ -341,14 +341,14 @@
                   style="opacity:1;cursor:not-allowed;"
                   title="<%= t('mp.bookingPreviewDisabled') %>"
                 >
-                  <%= t('booking.bookNow') %>
+                  <%= t('bookings.bookNow') %>
                 </button>
               <% } else { %>
                 <a
                   class="btn btn-primary"
                   href="/book?merchantId=<%= merchant.merchant_id %>&serviceId=<%= service.service_id %>"
                 >
-                  <%= t('booking.bookNow') %>
+                  <%= t('bookings.bookNow') %>
                 </a>
               <% } %>
 
